@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/widget/custom_divider.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/full_name_with_blue_tick.dart';
-import 'package:shortzz/common/widget/load_more_widget.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/common/widget/no_data_widget.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/widget/custom_divider.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
+import 'package:krimson/common/widget/load_more_widget.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/common/widget/no_data_widget.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class UserList<T> extends StatelessWidget {
   final RxList<T> users;

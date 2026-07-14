@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/functions/debounce_action.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/giphy_service.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/model/giphy/giphy_model.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/giphy_service.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/giphy/giphy_model.dart';
 
 class GifSheetController extends BaseController {
   RxList<GiphyData> trendingList = <GiphyData>[].obs;
@@ -23,10 +24,14 @@ class GifSheetController extends BaseController {
     fetchTrendingGiphy();
   }
 
-  Future<void> fetchTrendingGiphy({bool isEmpty = false}) async {
+    Future<void> fetchTrendingGiphy({bool isEmpty = false}) async {
     if (isTrendingLoading.value || trendingList.length > 89) return;
-    isTrendingLoading.value = true;
     String apiKey = setting?.giphyKey ?? '';
+    if (apiKey.trim().isEmpty) {
+      Loggers.warning('GIPHY key empty — configure giphy_key in settings');
+      return;
+    }
+    isTrendingLoading.value = true;
     List<GiphyData> items = await GiphyService.instance.trending(
         apiKey: apiKey,
         startCount:

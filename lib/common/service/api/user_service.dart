@@ -1,21 +1,20 @@
-import 'dart:io';
-
 import 'package:image_picker/image_picker.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/controller/firebase_firestore_controller.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/api_service.dart';
-import 'package:shortzz/common/service/utils/params.dart';
-import 'package:shortzz/common/service/utils/web_service.dart';
-import 'package:shortzz/model/general/status_model.dart';
-import 'package:shortzz/model/user_model/block_user_model.dart';
-import 'package:shortzz/model/user_model/follower_model.dart';
-import 'package:shortzz/model/user_model/following_model.dart';
-import 'package:shortzz/model/user_model/links_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/model/user_model/users_model.dart';
-import 'package:shortzz/screen/edit_profile_screen/widget/add_edit_link_sheet.dart';
-import 'package:shortzz/utilities/app_res.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/controller/firebase_firestore_controller.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/api_service.dart';
+import 'package:krimson/common/service/utils/params.dart';
+import 'package:krimson/common/service/utils/web_service.dart';
+import 'package:krimson/model/general/status_model.dart';
+import 'package:krimson/model/user_model/block_user_model.dart';
+import 'package:krimson/model/user_model/follower_model.dart';
+import 'package:krimson/model/user_model/following_model.dart';
+import 'package:krimson/model/user_model/links_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/model/user_model/users_model.dart';
+import 'package:krimson/screen/edit_profile_screen/widget/add_edit_link_sheet.dart';
+import 'package:krimson/utilities/app_platform.dart';
+import 'package:krimson/utilities/app_res.dart';
 
 enum LoginMethod {
   email,
@@ -47,51 +46,87 @@ class UserService {
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.loginInUser,
+        cancelAuthToken: true,
         param: {
           Params.fullname: fullName,
           Params.identity: identity,
           Params.deviceToken: deviceToken,
-          Params.device: Platform.isAndroid ? 0 : 1,
+          Params.device: AppPlatform.isAndroid ? 0 : 1,
           Params.loginMethod: loginMethod.title()
         },
         fromJson: UserModel.fromJson);
 
-    if (model.status == true) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        SessionManager.instance.setUser(model.data);
-        SessionManager.instance.setAuthToken(model.data?.token);
-      });
+    if (model.status == true && model.data != null) {
+      SessionManager.instance.setUser(model.data);
+      SessionManager.instance.setAuthToken(model.data?.token);
+      SessionManager.instance.setLogin(true);
+      return model.data;
     }
-    return model.data;
+    BaseController.share.showSnackBar(model.message ?? 'Login failed');
+    return null;
   }
 
   Future<User?> logInFakeUser({
     required String identity,
     required String? password,
+    String? fullName,
     String? deviceToken,
     required LoginMethod loginMethod,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.logInFakeUser,
+        cancelAuthToken: true,
         param: {
           Params.identity: identity,
           Params.password: password,
+          Params.fullname: fullName,
           Params.deviceToken: deviceToken,
-          Params.device: Platform.isAndroid ? 0 : 1,
+          Params.device: AppPlatform.isAndroid ? 0 : 1,
           Params.loginMethod: loginMethod.title()
         },
         fromJson: UserModel.fromJson);
 
-    if (model.status == true) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        SessionManager.instance.setUser(model.data);
-        SessionManager.instance.setAuthToken(model.data?.token);
-      });
-    } else {
-      BaseController.share.stopLoader();
-      BaseController.share.showSnackBar(model.message);
+    if (model.status == true && model.data != null) {
+      SessionManager.instance.setUser(model.data);
+      SessionManager.instance.setAuthToken(model.data?.token);
+      SessionManager.instance.setLogin(true);
+      return model.data;
     }
-    return model.data;
+    BaseController.share.showSnackBar(
+        model.message ?? 'Invalid Credentials');
+    return null;
+  }
+
+  Future<User?> registerUser({
+    required String identity,
+    required String password,
+    required String fullName,
+    String? deviceToken,
+    required LoginMethod loginMethod,
+  }) async {
+    UserModel model = await ApiService.instance.call(
+        url: WebService.user.registerUser,
+        cancelAuthToken: true,
+        param: {
+          Params.identity: identity,
+          Params.password: password,
+          Params.fullname: fullName,
+          Params.deviceToken: deviceToken,
+          Params.device: AppPlatform.isAndroid ? 0 : 1,
+          Params.loginMethod: loginMethod.title()
+        },
+        fromJson: UserModel.fromJson);
+
+    if (model.status == true && model.data != null) {
+      SessionManager.instance.setUser(model.data);
+      SessionManager.instance.setAuthToken(model.data?.token);
+      SessionManager.instance.setPassword(password);
+      SessionManager.instance.setLogin(true);
+      return model.data;
+    }
+    BaseController.share.showSnackBar(
+        model.message ?? 'Registration failed');
+    return null;
   }
 
   Future<StatusModel> deleteMyAccount() async {
@@ -146,9 +181,11 @@ class UserService {
       String? region,
       String? regionName,
       String? timezone,
-      int? isVerify}) async {
+      int? isVerify,
+      Function(double percentage)? onProgress}) async {
     UserModel userModel = await ApiService.instance.multiPartCallApi(
         url: WebService.user.updateUserDetails,
+        onProgress: onProgress,
         filesMap: {
           Params.profilePhoto: [profilePhoto]
         },

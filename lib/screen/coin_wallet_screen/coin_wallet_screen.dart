@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
-import 'package:shortzz/screen/coin_wallet_screen/widget/coin_wallet_list.dart';
-import 'package:shortzz/screen/coin_wallet_screen/widget/coin_wallet_top_view.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
+import 'package:krimson/screen/coin_wallet_screen/widget/coin_wallet_list.dart';
+import 'package:krimson/screen/coin_wallet_screen/widget/coin_wallet_top_view.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class CoinWalletScreen extends StatelessWidget {
   const CoinWalletScreen({super.key});

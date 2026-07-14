@@ -3,21 +3,21 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/functions/debounce_action.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/post_service.dart';
-import 'package:shortzz/model/post_story/comment/fetch_comment_model.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/screen/comment_sheet/helper/comment_helper.dart';
-import 'package:shortzz/screen/dashboard_screen/dashboard_screen_controller.dart';
-import 'package:shortzz/screen/profile_screen/profile_screen_controller.dart';
-import 'package:shortzz/screen/profile_screen/widget/post_options_sheet.dart';
-import 'package:shortzz/screen/reels_screen/reel/reel_page_controller.dart';
-import 'package:shortzz/screen/reels_screen/widget/reel_page_type.dart';
-import 'package:shortzz/screen/report_sheet/report_sheet.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/post_service.dart';
+import 'package:krimson/model/post_story/comment/fetch_comment_model.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/screen/comment_sheet/helper/comment_helper.dart';
+import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
+import 'package:krimson/screen/profile_screen/widget/post_options_sheet.dart';
+import 'package:krimson/screen/reels_screen/reel/reel_page_controller.dart';
+import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/screen/report_sheet/report_sheet.dart';
 import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -173,9 +173,8 @@ class ReelsScreenController extends BaseController {
 
     /// 🔒 Mark initializing IMMEDIATELY
     players[index] = ReelPlayerEntry(status: PlayerStatus.initializing);
+    VideoPlayerController? controller;
     try {
-      late VideoPlayerController controller;
-
       final reel = reels[index];
       if (reel.id == -1) {
         controller = VideoPlayerController.file(
@@ -202,14 +201,19 @@ class ReelsScreenController extends BaseController {
       }
     } catch (e) {
       Loggers.error("❌ INIT FAILED $index $e");
-
-      _disposeControllerAtIndex(index);
+      try {
+        await controller?.dispose();
+      } catch (_) {}
+      players[index] = ReelPlayerEntry(status: PlayerStatus.failed);
     }
   }
 
   void _playControllerAtIndex(int index) {
     final dashController = Get.find<DashboardScreenController>();
-    if (reelPageType == ReelPageType.home && dashController.selectedPageIndex.value != 0) {
+    if (reelPageType == ReelPageType.home &&
+        (dashController.selectedPageIndex.value !=
+                DashboardScreenController.tabHome ||
+            dashController.homeTabMode.value == HomeTabMode.feed)) {
       return;
     }
 
@@ -324,7 +328,7 @@ class ReelsScreenController extends BaseController {
                 const Duration(seconds: 1),
                 () {
                   final controller = Get.find<DashboardScreenController>();
-                  controller.onChanged(2);
+                  controller.onChanged(DashboardScreenController.tabLive);
                 },
               );
             }
@@ -349,4 +353,4 @@ class ReelPlayerEntry {
   ReelPlayerEntry({this.controller, this.listener, this.status = PlayerStatus.none});
 }
 
-enum PlayerStatus { none, initializing, initialized, disposed }
+enum PlayerStatus { none, initializing, initialized, disposed, failed }

@@ -1,30 +1,20 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/functions/debounce_action.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/service/api/common_service.dart';
-import 'package:shortzz/common/service/api/post_service.dart';
-import 'package:shortzz/common/service/api/search_service.dart';
-import 'package:shortzz/common/service/location/location_service.dart';
-import 'package:shortzz/common/service/navigation/navigate_with_controller.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/general/location_place_model.dart';
-import 'package:shortzz/model/post_story/hashtag_model.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/hashtag_screen/hashtag_screen.dart';
-import 'package:shortzz/screen/location_screen/location_screen.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/service/api/post_service.dart';
+import 'package:krimson/common/service/api/search_service.dart';
+import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/post_story/hashtag_model.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/hashtag_screen/hashtag_screen.dart';
 
 class SearchScreenController extends BaseController {
   List<SearchTabs> searchTabs = SearchTabs.values;
   Rx<SearchTabs> selectedTabIndex = SearchTabs.values.first.obs;
   RxList<Hashtag> hashtags = <Hashtag>[].obs;
-  RxList<Places> places = <Places>[].obs;
   RxList<Post> posts = <Post>[].obs;
   RxList<Post> reels = <Post>[].obs;
   RxList<User> users = <User>[].obs;
@@ -33,9 +23,6 @@ class SearchScreenController extends BaseController {
   RxBool isReelsLoading = false.obs;
   RxBool isUsersLoading = false.obs;
   RxBool isHashTagsLoading = false.obs;
-  RxBool isPlacesLoading = false.obs;
-  RxBool isLocationLoading = true.obs;
-  RxBool isLocationError = false.obs;
 
   TextEditingController searchKeyword = TextEditingController();
 
@@ -75,13 +62,6 @@ class SearchScreenController extends BaseController {
           break;
         case SearchTabs.hashtags:
           searchHashTags(reset: true);
-          break;
-        case SearchTabs.places:
-          if (searchKeyword.text.trim().isEmpty) {
-            fetchNearByLocation();
-          } else {
-            searchPlace(reset: true);
-          }
           break;
       }
     }, milliseconds: milliSecond);
@@ -146,45 +126,6 @@ class SearchScreenController extends BaseController {
     isHashTagsLoading.value = false;
   }
 
-  Future<void> searchPlace({bool reset = false}) async {
-    isPlacesLoading.value = true;
-    List<Places> items = await CommonService.instance
-        .searchPlace(title: searchKeyword.text.trim());
-
-    if (reset) {
-      places.clear();
-    }
-    if (items.isNotEmpty) {
-      places.addAll(items);
-    }
-    isPlacesLoading.value = false;
-  }
-
-  Future<void> fetchNearByLocation({Position? pos}) async {
-    if (places.isNotEmpty) return;
-    Position? position = pos;
-    isPlacesLoading.value = true;
-    isLocationError.value = false;
-    if (position == null) {
-      try {
-        position = await LocationService.instance.getCurrentLocation();
-        print('ABC $position');
-        isLocationError.value = false;
-      } catch (e) {
-        Loggers.error(e);
-        isLocationError.value = true;
-        isPlacesLoading.value = false;
-      }
-    }
-
-    if (position != null) {
-      List<Places> _place = await CommonService.instance
-          .searchNearBy(lat: position.latitude, lon: position.longitude);
-      places.addAll(_place);
-      isPlacesLoading.value = false;
-    }
-  }
-
   onUserTap(User user) {
     NavigationService.shared.openProfileScreen(user);
   }
@@ -193,22 +134,13 @@ class SearchScreenController extends BaseController {
     Get.to(HashtagScreen(hashtag: hashTag.hashtag ?? ''),
         preventDuplicates: false);
   }
-
-  void onLocationTap(Places place) {
-    double latitude = place.location?.latitude?.toDouble() ?? 0.0;
-    double longitude = place.location?.longitude?.toDouble() ?? 0.0;
-    LatLng latLng = LatLng(latitude, longitude);
-    Get.to(LocationScreen(latLng: latLng, placeTitle: place.title),
-        preventDuplicates: false);
-  }
 }
 
 enum SearchTabs {
   feed,
   reels,
   users,
-  hashtags,
-  places;
+  hashtags;
 
   String get title {
     switch (this) {
@@ -220,8 +152,6 @@ enum SearchTabs {
         return LKey.users;
       case SearchTabs.hashtags:
         return LKey.hashtags;
-      case SearchTabs.places:
-        return LKey.places;
     }
   }
 }

@@ -1,15 +1,15 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/gradient_text.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/style_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class SendGiftDialog extends StatefulWidget {
   final Gift gift;

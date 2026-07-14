@@ -2,18 +2,19 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/extensions/common_extension.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/widget/confirmation_dialog.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/utilities/app_res.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/widget/confirmation_dialog.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/utilities/app_res.dart';
 import 'package:video_compress/video_compress.dart';
 
 class MediaPickerHelper {
@@ -68,21 +69,33 @@ class MediaPickerHelper {
     );
 
     if (file != null) {
-      String? mimeType = lookupMimeType(file.path);
-      if (mimeType != null) {
-        if (mimeType.contains('image')) {
-          return MediaFile(type: MediaType.image, file: file, thumbNail: file);
-        } else if (mimeType.contains('video')) {
-          BaseController.share.showLoader();
-          XFile thumbNail = await extractThumbnail(videoPath: file.path);
-          BaseController.share.stopLoader();
-          return MediaFile(
-              type: MediaType.video, file: file, thumbNail: thumbNail);
-        }
-      } else {
-        Loggers.error('mimeType Empty');
-        return null;
+      String? mimeType = file.mimeType ??
+          lookupMimeType(file.path) ??
+          lookupMimeType(file.name);
+      // Web often returns blob: paths without mime — infer by extension / pickMedia type.
+      final lowerName = file.name.toLowerCase();
+      mimeType ??= lowerName.endsWith('.mp4') ||
+              lowerName.endsWith('.mov') ||
+              lowerName.endsWith('.webm')
+          ? 'video/mp4'
+          : 'image/jpeg';
+
+      if (mimeType.contains('image')) {
+        return MediaFile(type: MediaType.image, file: file, thumbNail: file);
       }
+      if (mimeType.contains('video')) {
+        if (kIsWeb) {
+          // VideoCompress no funciona en Web; usar el propio archivo como thumb placeholder.
+          return MediaFile(type: MediaType.video, file: file, thumbNail: file);
+        }
+        BaseController.share.showLoader();
+        XFile thumbNail = await extractThumbnail(videoPath: file.path);
+        BaseController.share.stopLoader();
+        return MediaFile(
+            type: MediaType.video, file: file, thumbNail: thumbNail);
+      }
+      Loggers.error('mimeType unsupported: $mimeType');
+      return null;
     }
     Loggers.error('File Path Not Found');
     return null;

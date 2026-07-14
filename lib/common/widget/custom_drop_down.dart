@@ -1,8 +1,8 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class CustomDropDownBtn<T> extends StatelessWidget {
   final List<T> items;
@@ -64,7 +64,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
         alignment: Alignment.center,
         onChanged: onChanged,
         menuMaxHeight: menuMaxHeight ?? 120,
-        borderRadius: SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
+        borderRadius: BorderRadius.circular(10),
         items: items.map<DropdownMenuItem<T>>((T item) {
           return DropdownMenuItem<T>(
             value: item,

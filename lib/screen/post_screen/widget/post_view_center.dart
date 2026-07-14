@@ -1,30 +1,45 @@
 import 'package:dismissible_page/dismissible_page.dart';
 import 'package:figma_squircle_updated/figma_squircle.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:readmore/readmore.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/service/navigation/navigate_with_controller.dart';
-import 'package:shortzz/common/service/url_extractor/parsers/base_parser.dart';
-import 'package:shortzz/common/widget/custom_bg_circle_button.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/custom_page_indicator.dart';
-import 'package:shortzz/common/widget/double_tap_detector.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/hashtag_screen/hashtag_screen.dart';
-import 'package:shortzz/screen/image_view_screen/image_view_screen.dart';
-import 'package:shortzz/screen/post_screen/single_post_screen.dart';
-import 'package:shortzz/screen/post_screen/widget/url_card.dart';
-import 'package:shortzz/screen/reels_screen/reels_screen.dart';
-import 'package:shortzz/screen/reels_screen/widget/reel_page_type.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/font_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
+import 'package:krimson/common/service/url_extractor/parsers/base_parser.dart';
+import 'package:krimson/common/widget/custom_bg_circle_button.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/custom_page_indicator.dart';
+import 'package:krimson/common/widget/double_tap_detector.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/hashtag_screen/hashtag_screen.dart';
+import 'package:krimson/screen/image_view_screen/image_view_screen.dart';
+import 'package:krimson/screen/post_screen/single_post_screen.dart';
+import 'package:krimson/screen/post_screen/widget/url_card.dart';
+import 'package:krimson/screen/reels_screen/reels_screen.dart';
+import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/font_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
+
+Widget _postMediaClip({required double radius, required Widget child}) {
+  // ClipSmoothRect rasterizes children and breaks HTML <img>/video on Flutter Web.
+  if (kIsWeb) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: child,
+    );
+  }
+  return ClipSmoothRect(
+    radius: SmoothBorderRadius(cornerRadius: radius, cornerSmoothing: 1),
+    child: child,
+  );
+}
 
 class PostViewCenter extends StatelessWidget {
   final Post post;
@@ -219,15 +234,12 @@ class PostImageView extends StatelessWidget {
       },
       child: Container(
         margin: margin ?? const EdgeInsets.only(right: 10.0, top: 10),
-        constraints: BoxConstraints(
-            maxHeight: height,
-            minHeight: height,
-            maxWidth: MediaQuery.of(context).size.width,
-            minWidth: MediaQuery.of(context).size.width),
-        child: ClipSmoothRect(
-          radius:
-              SmoothBorderRadius(cornerRadius: radius ?? 8, cornerSmoothing: 1),
+        width: MediaQuery.of(context).size.width,
+        height: height,
+        child: _postMediaClip(
+          radius: radius ?? 8,
           child: Stack(
+            fit: StackFit.expand,
             alignment: Alignment.bottomCenter,
             children: [
               PageView.builder(
@@ -238,12 +250,14 @@ class PostImageView extends StatelessWidget {
                 itemCount: (post.images ?? []).length,
                 itemBuilder: (context, index) {
                   Images? image = post.images?[index];
+                  final w = MediaQuery.of(context).size.width;
                   return Hero(
                     tag: '${uniqueTag}_${image?.image}',
                     child: CustomImage(
-                        size: Size(MediaQuery.of(context).size.width, 300),
+                        size: Size(w, height),
                         image: image?.image?.addBaseURL(),
                         radius: 0,
+                        fit: BoxFit.cover,
                         isShowPlaceHolder: true,
                         cornerSmoothing: 1),
                   );
@@ -312,38 +326,45 @@ class PostVideoView extends StatelessWidget {
               Get.to(
                   () => ReelsScreen(reels: [post!].obs, position: 0, pageType: ReelPageType.post));
             },
-      child: Container(
-        margin: margin ?? const EdgeInsets.only(right: 10.0, top: 10),
-        constraints: BoxConstraints(
-            maxHeight: 211,
-            minHeight: 211,
-            maxWidth: MediaQuery.of(context).size.width,
-            minWidth: MediaQuery.of(context).size.width),
-        child: ClipSmoothRect(
-          radius: SmoothBorderRadius(
-              cornerRadius: radius ?? 10, cornerSmoothing: 1),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CustomImage(
-                size: const Size(double.infinity, 211),
-                fit: BoxFit.cover,
-                radius: radius ?? 10,
-                cornerSmoothing: 1,
-                image: post?.thumbnail?.addBaseURL(),
-              ),
-              Container(
-                height: 35,
-                width: 35,
-                decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: textDarkGrey(context).withValues(alpha: .4)),
+      child: Builder(
+        builder: (context) {
+          final w = MediaQuery.of(context).size.width;
+          const h = 211.0;
+          final r = radius ?? 10.0;
+          return Container(
+            margin: margin ?? const EdgeInsets.only(right: 10.0, top: 10),
+            width: w,
+            height: h,
+            child: _postMediaClip(
+              radius: r,
+              child: Stack(
+                fit: StackFit.expand,
                 alignment: Alignment.center,
-                child: Image.asset(AssetRes.icPlay, width: 20, height: 20),
-              )
-            ],
-          ),
-        ),
+                children: [
+                  Positioned.fill(
+                    child: CustomImage(
+                      size: Size(w, h),
+                      fit: BoxFit.cover,
+                      radius: 0,
+                      cornerSmoothing: 1,
+                      isShowPlaceHolder: true,
+                      image: post?.thumbnail?.addBaseURL(),
+                    ),
+                  ),
+                  Container(
+                    height: 35,
+                    width: 35,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: textDarkGrey(context).withValues(alpha: .4)),
+                    alignment: Alignment.center,
+                    child: Image.asset(AssetRes.icPlay, width: 20, height: 20),
+                  )
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

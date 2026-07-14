@@ -1,13 +1,13 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/bottom_sheet_top_view.dart';
-import 'package:shortzz/common/widget/privacy_policy_text.dart';
-import 'package:shortzz/common/widget/text_button_custom.dart';
-import 'package:shortzz/common/widget/text_field_custom.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/auth_screen/auth_screen_controller.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/bottom_sheet_top_view.dart';
+import 'package:krimson/common/widget/privacy_policy_text.dart';
+import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/common/widget/text_field_custom.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/auth_screen/auth_screen_controller.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class ForgetPasswordSheet extends StatelessWidget {
   const ForgetPasswordSheet({super.key});
@@ -42,9 +42,10 @@ class ForgetPasswordSheet extends StatelessWidget {
                     TextButtonCustom(
                         onTap: controller.forgetPassword,
                         title: LKey.forgetPassword.tr,
-                        backgroundColor: textDarkGrey(context),
+                        backgroundColor: themeAccentSolid(context),
                         titleColor: whitePure(context),
-                        margin: const EdgeInsets.all(15)),
+                        margin: const EdgeInsets.all(15),
+                        radius: 25),
                     const PrivacyPolicyText(),
                   ],
                 ),

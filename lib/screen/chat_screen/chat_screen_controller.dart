@@ -3,49 +3,50 @@ import 'dart:convert';
 
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shortzz/common/enum/chat_enum.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/extensions/user_extension.dart';
-import 'package:shortzz/common/functions/media_picker_helper.dart';
-import 'package:shortzz/common/manager/firebase_notification_manager.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/common_service.dart';
-import 'package:shortzz/common/service/api/notification_service.dart';
-import 'package:shortzz/common/service/api/post_service.dart';
-import 'package:shortzz/common/service/api/user_service.dart';
-import 'package:shortzz/common/widget/confirmation_dialog.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/chat/chat_thread.dart';
-import 'package:shortzz/model/chat/message_data.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/model/general/status_model.dart';
-import 'package:shortzz/model/livestream/app_user.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/model/post_story/story/story_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/blocked_user_screen/block_user_controller.dart';
-import 'package:shortzz/screen/chat_screen/message_type_widget/chat_audio_message.dart';
-import 'package:shortzz/screen/chat_screen/widget/select_media_sheet.dart';
-import 'package:shortzz/screen/chat_screen/widget/send_media_sheet.dart';
-import 'package:shortzz/screen/gif_sheet/gif_sheet.dart';
-import 'package:shortzz/screen/gift_sheet/send_gift_sheet_controller.dart';
-import 'package:shortzz/screen/post_screen/post_screen_controller.dart';
-import 'package:shortzz/screen/post_screen/single_post_screen.dart';
-import 'package:shortzz/screen/reels_screen/reel/reel_page_controller.dart';
-import 'package:shortzz/screen/reels_screen/reels_screen.dart';
-import 'package:shortzz/screen/reels_screen/widget/reel_page_type.dart';
-import 'package:shortzz/screen/report_sheet/report_sheet.dart';
-import 'package:shortzz/screen/story_view_screen/story_view_screen.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/color_res.dart';
-import 'package:shortzz/utilities/firebase_const.dart';
-import 'package:shortzz/utilities/style_res.dart';
+import 'package:krimson/common/enum/chat_enum.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/extensions/user_extension.dart';
+import 'package:krimson/common/functions/media_picker_helper.dart';
+import 'package:krimson/common/manager/firebase_notification_manager.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/common_service.dart';
+import 'package:krimson/common/service/api/notification_service.dart';
+import 'package:krimson/common/service/api/post_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/widget/confirmation_dialog.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/chat/chat_thread.dart';
+import 'package:krimson/model/chat/message_data.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/general/status_model.dart';
+import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/post_story/story/story_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/blocked_user_screen/block_user_controller.dart';
+import 'package:krimson/screen/chat_screen/message_type_widget/chat_audio_message.dart';
+import 'package:krimson/screen/chat_screen/widget/select_media_sheet.dart';
+import 'package:krimson/screen/chat_screen/widget/send_media_sheet.dart';
+import 'package:krimson/screen/gif_sheet/gif_sheet.dart';
+import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
+import 'package:krimson/screen/post_screen/post_screen_controller.dart';
+import 'package:krimson/screen/post_screen/single_post_screen.dart';
+import 'package:krimson/screen/reels_screen/reel/reel_page_controller.dart';
+import 'package:krimson/screen/reels_screen/reels_screen.dart';
+import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/screen/report_sheet/report_sheet.dart';
+import 'package:krimson/screen/story_view_screen/story_view_screen.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/firebase_const.dart';
+import 'package:krimson/utilities/style_res.dart';
 
 class ChatScreenController extends BlockUserController with GetTickerProviderStateMixin {
   List<UserRequestAction> requestType = UserRequestAction.values;
@@ -500,9 +501,6 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
       case ChatAction.audio:
         _pickAudio();
         break;
-      case ChatAction.sticker:
-        pickSticker();
-        break;
       case ChatAction.media:
         pickAndSendMedia();
         break;
@@ -556,6 +554,7 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
       SendMediaSheet(
           controller: this,
           image: mediaFile.thumbNail.path,
+          imageFile: mediaFile.thumbNail,
           onSendBtnClick: () {
             Get.back();
             _uploadAndSendMessage(mediaFile);
@@ -605,37 +604,55 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   }
 
   void _pickAudio() async {
-    recorderController = RecorderController();
-    bool isGranted = await recorderController.checkPermission();
-    if (isGranted) {
-      audioAnimationController.forward();
-      recorderController.record(recorderSettings: const RecorderSettings());
-    } else {
-      Get.bottomSheet(
-          ConfirmationSheet(
-              title: LKey.enableMicrophoneAccessTitle.tr,
-              description: LKey.enableMicrophoneAccessDescription.tr,
-              onTap: openAppSettings,
-              positiveText: LKey.settings.tr),
-          isScrollControlled: true);
+    if (kIsWeb) {
+      showSnackBar(
+          'Voice messages are not available on web. Use the Android/iOS app.');
+      return;
+    }
+    try {
+      recorderController = RecorderController();
+      bool isGranted = await recorderController.checkPermission();
+      if (isGranted) {
+        isExpanded.value = true;
+        audioAnimationController.forward();
+        await recorderController.record(
+            recorderSettings: const RecorderSettings());
+      } else {
+        Get.bottomSheet(
+            ConfirmationSheet(
+                title: LKey.enableMicrophoneAccessTitle.tr,
+                description: LKey.enableMicrophoneAccessDescription.tr,
+                onTap: openAppSettings,
+                positiveText: LKey.settings.tr),
+            isScrollControlled: true);
+      }
+    } catch (e) {
+      Loggers.error('Audio record start failed: $e');
+      showSnackBar(LKey.enableMicrophoneAccessTitle.tr);
     }
   }
 
   void deleteRecordedAudio() async {
+    isExpanded.value = false;
     audioAnimationController.reverse();
-    recorderController.reset();
-    recorderController.dispose();
+    try {
+      recorderController.reset();
+      recorderController.dispose();
+    } catch (_) {}
   }
 
   void sendRecordedAudio() async {
+    isExpanded.value = false;
     audioAnimationController.reverse();
     showLoader();
 
     try {
       String? recordedFilePath = await recorderController.stop();
       if (recordedFilePath != null) {
-        List<double> waveData = await playerController.waveformExtraction.extractWaveformData(
-            path: recordedFilePath, noOfSamples: playerWaveStyle.getSamplesForWidth(wavesWidth));
+        List<double> waveData = await playerController.waveformExtraction
+            .extractWaveformData(
+                path: recordedFilePath,
+                noOfSamples: playerWaveStyle.getSamplesForWidth(wavesWidth));
 
         Loggers.info('Recorded file path: $recordedFilePath');
 
@@ -647,12 +664,16 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
         );
       } else {
         Loggers.error('Audio path not found');
+        showSnackBar('Audio path not found');
       }
     } catch (e) {
       Loggers.error('Audio recording error: $e');
+      showSnackBar('Audio recording error');
     } finally {
       stopLoader();
-      recorderController.dispose();
+      try {
+        recorderController.dispose();
+      } catch (_) {}
     }
   }
 

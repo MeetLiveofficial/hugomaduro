@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
-import 'package:shortzz/common/controller/firebase_firestore_controller.dart';
-import 'package:shortzz/model/livestream/app_user.dart';
-import 'package:shortzz/utilities/app_res.dart';
+import 'package:krimson/common/controller/firebase_firestore_controller.dart';
+import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/utilities/app_res.dart';
 
 class Livestream {
   int? watchingCount;
@@ -49,12 +49,13 @@ class Livestream {
     roomID = json['room_id'];
     likeCount = json['like_count'];
     hostId = json['host_id'];
-    coHostIds = json['co-host_ids'].cast<int>();
+    final coHosts = json['co-host_ids'];
+    coHostIds = coHosts is List ? coHosts.cast<int>() : <int>[];
     createdAt = json['created_at'];
     battleCreatedAt = json['battle_created_at'];
     isDummyLive = json['is_dummy_live'];
     dummyUserLink = json['dummy_user_link'];
-    battleDuration = json['battle_duration'];
+    battleDuration = json['battle_duration'] ?? AppRes.battleDurationInMinutes;
   }
 
   Map<String, dynamic> toJson() {

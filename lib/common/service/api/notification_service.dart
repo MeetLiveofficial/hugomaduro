@@ -1,16 +1,16 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:shortzz/common/manager/firebase_notification_manager.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/api_service.dart';
-import 'package:shortzz/common/service/utils/params.dart';
-import 'package:shortzz/common/service/utils/web_service.dart';
-import 'package:shortzz/model/misc/activity_notification_model.dart';
-import 'package:shortzz/model/misc/admin_notification_model.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/const_res.dart';
+import 'package:krimson/common/manager/firebase_notification_manager.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/api_service.dart';
+import 'package:krimson/common/service/utils/params.dart';
+import 'package:krimson/common/service/utils/web_service.dart';
+import 'package:krimson/model/misc/activity_notification_model.dart';
+import 'package:krimson/model/misc/admin_notification_model.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/const_res.dart';
 
 class NotificationService {
   NotificationService._();

@@ -1,8 +1,8 @@
 import 'package:get/get.dart';
-import 'package:shortzz/languages/languages_keys.dart';
+import 'package:krimson/languages/languages_keys.dart';
 
 class AppRes {
-  static String appName = 'Shortzz';
+  static String appName = 'Krimson';
 
   static String gifBrandName = 'GIPHY';
 

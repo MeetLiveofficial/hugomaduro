@@ -3,11 +3,11 @@ import 'package:dismissible_page/dismissible_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/widget/custom_page_indicator.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/widget/custom_page_indicator.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class ImageViewScreen extends StatefulWidget {
   final List<Images> images;

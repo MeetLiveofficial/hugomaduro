@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class LoaderWidget extends StatelessWidget {
   final Color? color;

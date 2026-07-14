@@ -1,31 +1,28 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/manager/firebase_notification_manager.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/manager/share_manager.dart';
-import 'package:shortzz/common/service/api/api_service.dart';
-import 'package:shortzz/common/service/api/common_service.dart';
-import 'package:shortzz/common/service/api/post_service.dart';
-import 'package:shortzz/common/service/api/user_service.dart';
-import 'package:shortzz/common/service/location/location_service.dart';
-import 'package:shortzz/common/service/navigation/navigate_with_controller.dart';
-import 'package:shortzz/model/general/place_detail.dart';
-import 'package:shortzz/model/post_story/post_by_id.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/post_screen/single_post_screen.dart';
-import 'package:shortzz/screen/reels_screen/reels_screen.dart';
-import 'package:shortzz/screen/reels_screen/reels_screen_controller.dart';
-import 'package:shortzz/screen/reels_screen/widget/reel_page_type.dart';
-import 'package:shortzz/utilities/app_res.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/firebase_notification_manager.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/share_manager.dart';
+import 'package:krimson/common/service/api/api_service.dart';
+import 'package:krimson/common/service/api/common_service.dart';
+import 'package:krimson/common/service/api/post_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/location/location_service.dart';
+import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
+import 'package:krimson/model/general/place_detail.dart';
+import 'package:krimson/model/post_story/post_by_id.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/post_screen/single_post_screen.dart';
+import 'package:krimson/screen/reels_screen/reels_screen.dart';
+import 'package:krimson/screen/reels_screen/reels_screen_controller.dart';
+import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/utilities/app_res.dart';
 
 class HomeScreenController extends BaseController with GetSingleTickerProviderStateMixin {
   Rx<TabType> selectedReelCategory = TabType.values.first.obs;
@@ -68,20 +65,10 @@ class HomeScreenController extends BaseController with GetSingleTickerProviderSt
   }
 
   Future<void> _onNotificationTap() async {
-    if (Platform.isIOS) {
-      // Handle the iOS notification payload once
-      final payload = FirebaseNotificationManager.instance.notificationPayload.value;
-      if (payload.isNotEmpty) {
-        FirebaseNotificationManager.instance.handleNotification(payload);
-      }
-    } else {
-      // Set up a listener to handle future payload changes
-      // Android: Get the message if the app was opened via notification
-      RemoteMessage? message = await FirebaseMessaging.instance.getInitialMessage();
-
-      if (message != null) {
-        await FirebaseNotificationManager.instance.handleNotification(jsonEncode(message.toMap()));
-      }
+    final payload =
+        FirebaseNotificationManager.instance.notificationPayload.value;
+    if (payload.isNotEmpty) {
+      await FirebaseNotificationManager.instance.handleNotification(payload);
     }
 
     FirebaseNotificationManager.instance.notificationPayload.listen((p0) {

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/manager/internet_connection_manager.dart';
-import 'package:shortzz/common/widget/text_button_custom.dart';
-import 'package:shortzz/common/widget/theme_blur_bg.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/manager/internet_connection_manager.dart';
+import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/common/widget/theme_blur_bg.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class NoInternetSheet extends StatelessWidget {
   const NoInternetSheet({super.key});

@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:get/get.dart';
-import 'package:shortzz/common/service/api/post_service.dart';
-import 'package:shortzz/common/service/url_extractor/parsers/base_parser.dart';
-import 'package:shortzz/model/post_story/music/music_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
+import 'package:krimson/common/service/api/post_service.dart';
+import 'package:krimson/common/service/url_extractor/parsers/base_parser.dart';
+import 'package:krimson/model/post_story/music/music_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
 
 class PostModel {
   PostModel({

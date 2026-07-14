@@ -78,6 +78,9 @@ class LKey {
   static const String messages = "Messages";
   static const String message = "Message";
   static const String chats = "Chats";
+  static const String newChat = "New Chat";
+  static const String newChatHint = "Search a user to start a direct chat";
+  static const String searchUsers = "Search users";
   static const String requests = "Requests";
   static const String followers = "Followers";
   static const String lvl = "LVL";
@@ -94,6 +97,7 @@ class LKey {
   static const String story = "Story";
   static const String unFollow = "Unfollow";
   static const String goLive = "Go Live";
+  static const String liveNow = "Live now";
   static const String levels = "Levels";
   static const String gatherMoreCoins =
       "Gather more coins, ascend to new heights, and proudly showcase your badge on your profile for all to admire.";
@@ -190,6 +194,17 @@ class LKey {
   static const String places = "Places";
   static const String enterLiveStreamTitle = "Enter Live Stream Title...";
   static const String startLive = "Start Live";
+  static const String beautySettings = "Beauty Settings";
+  static const String gettingPrettier = "Getting prettier";
+  static const String networkConnection = "Network";
+  static const String inviteFriends = "Invite Friends";
+  static const String inviteToLiveBonus = "Live together with friends";
+  static const String friendInvited = "Invitation sent";
+  static const String selectFriendsToInvite = "Select friends to invite to your live";
+  static const String beautyApplied = "Beauty filter applied";
+  static const String networkWifi = "Wi‑Fi";
+  static const String networkMobile = "Mobile data";
+  static const String networkOffline = "No connection";
   static const String stop = "Stop";
   static const String startBattle = "Start Battle";
   static const String battleStartingIn = "Battle\nStarting\nin";

@@ -5,18 +5,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/manager/haptic_manager.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/widget/dominant_color.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/general/status_model.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/haptic_manager.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/dominant_color.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/general/status_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 extension StringExtention on String {
   String addBaseURL() {
-    return (SessionManager.instance.getSettings()?.itemBaseUrl ?? '') + this;
+    if (isEmpty) return '';
+    // Already absolute (Firebase, CDN, blob/data URLs) — do not double-prefix.
+    if (startsWith('http://') ||
+        startsWith('https://') ||
+        startsWith('blob:') ||
+        startsWith('data:')) {
+      return this;
+    }
+    final base = SessionManager.instance.getSettings()?.itemBaseUrl ?? '';
+    if (base.isEmpty) return this;
+    if (startsWith('/') && base.endsWith('/')) {
+      return '$base${substring(1)}';
+    }
+    return '$base$this';
   }
 
   Future<StatusModel> get lunchUrlWithHttps async {

@@ -1,7 +1,7 @@
-import 'package:shortzz/common/extensions/common_extension.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/model/post_story/story/story_model.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/post_story/story/story_model.dart';
 
 class UserModel {
   UserModel({
@@ -15,9 +15,20 @@ class UserModel {
   }
 
   UserModel.fromJson(dynamic json) {
-    _status = json['status'];
-    _message = json['message'];
+    _status = _readBool(json['status']);
+    _message = json['message']?.toString();
     _data = json['data'] != null ? User.fromJson(json['data']) : null;
+  }
+
+  static bool? _readBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final v = value.toLowerCase().trim();
+      return v == 'true' || v == '1' || v == 'yes';
+    }
+    return null;
   }
 
   bool? _status;

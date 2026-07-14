@@ -1,24 +1,25 @@
 import 'dart:io';
 
 import 'package:figma_squircle_updated/figma_squircle.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/functions/debounce_action.dart';
-import 'package:shortzz/common/manager/share_manager.dart';
-import 'package:shortzz/common/widget/bottom_sheet_top_view.dart';
-import 'package:shortzz/common/widget/custom_divider.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/text_button_custom.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/chat/chat_thread.dart';
-import 'package:shortzz/model/livestream/app_user.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/screen/share_sheet_widget/share_sheet_widget_controller.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/manager/share_manager.dart';
+import 'package:krimson/common/widget/bottom_sheet_top_view.dart';
+import 'package:krimson/common/widget/custom_divider.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/chat/chat_thread.dart';
+import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/screen/share_sheet_widget/share_sheet_widget_controller.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class ShareSheetWidget extends StatelessWidget {
   final VoidCallback onMoreTap;
@@ -53,7 +54,20 @@ class ShareSheetWidget extends StatelessWidget {
                   Obx(
                     () => controller.waterMarkPath.value.isEmpty
                         ? const SizedBox()
-                        : Image.file(File(controller.waterMarkPath.value), fit: BoxFit.contain, height: 50, width: 100),
+                        : (kIsWeb
+                            ? Image.network(
+                                controller.waterMarkPath.value,
+                                fit: BoxFit.contain,
+                                height: 50,
+                                width: 100,
+                                errorBuilder: (_, __, ___) => const SizedBox(),
+                              )
+                            : Image.file(
+                                File(controller.waterMarkPath.value),
+                                fit: BoxFit.contain,
+                                height: 50,
+                                width: 100,
+                              )),
                   ),
                   Text(
                     '@${post?.user?.username ?? AppRes.appName}',

@@ -1,16 +1,16 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/custom_back_button.dart';
-import 'package:shortzz/common/widget/gradient_text.dart';
-import 'package:shortzz/common/widget/privacy_policy_text.dart';
-import 'package:shortzz/common/widget/text_button_custom.dart';
-import 'package:shortzz/common/widget/text_field_custom.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/auth_screen/auth_screen_controller.dart';
-import 'package:shortzz/utilities/style_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/custom_back_button.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
+import 'package:krimson/common/widget/privacy_policy_text.dart';
+import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/common/widget/text_field_custom.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/auth_screen/auth_screen_controller.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class RegistrationScreen extends StatelessWidget {
   const RegistrationScreen({super.key});
@@ -78,9 +78,10 @@ class RegistrationScreen extends StatelessWidget {
             TextButtonCustom(
                 onTap: controller.onCreateAccount,
                 title: LKey.createAccount.tr,
-                backgroundColor: textDarkGrey(context),
+                backgroundColor: themeAccentSolid(context),
                 horizontalMargin: 20,
-                titleColor: whitePure(context)),
+                titleColor: whitePure(context),
+                radius: 25),
             SizedBox(height: AppBar().preferredSize.height / 1.2),
             const SafeArea(top: false, maintainBottomViewPadding: true, child: PrivacyPolicyText()),
           ],

@@ -1,14 +1,15 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/custom_divider.dart';
-import 'package:shortzz/screen/home_screen/home_screen_controller.dart';
-import 'package:shortzz/screen/reels_screen/reels_screen.dart';
-import 'package:shortzz/screen/reels_screen/widget/reel_page_type.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/custom_divider.dart';
+import 'package:krimson/screen/home_screen/home_screen_controller.dart';
+import 'package:krimson/screen/home_screen/widget/home_mode_switcher.dart';
+import 'package:krimson/screen/reels_screen/reels_screen.dart';
+import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -120,19 +121,29 @@ class HomeTopCenterWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: controller.onToggleDropDown,
-      child: SafeArea(
-        bottom: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Obx(() => Text(controller.selectedReelCategory.value.title.toUpperCase(),
-                style: TextStyleCustom.unboundedBold700(fontSize: 16, color: whitePure(context)))),
-            const SizedBox(width: 5),
-            Image.asset(AssetRes.icDownArrow, color: whitePure(context), height: 12, width: 12),
-          ],
-        ),
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const HomeModeSwitcher(lightOnDark: true),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: controller.onToggleDropDown,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Obx(() => Text(
+                    controller.selectedReelCategory.value.title.toUpperCase(),
+                    style: TextStyleCustom.unboundedBold700(
+                        fontSize: 16, color: whitePure(context)))),
+                const SizedBox(width: 5),
+                Image.asset(AssetRes.icDownArrow,
+                    color: whitePure(context), height: 12, width: 12),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

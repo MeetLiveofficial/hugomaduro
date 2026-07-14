@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:http/http.dart' as http;
 
 import '../controller/story_controller.dart';
 import '../utils.dart';
 
-/// Utility to load image (gif, png, jpg, etc) media just once. Resource is
-/// cached to disk with default configurations of [DefaultCacheManager].
+/// Utility to load image (gif, png, jpg, etc) media just once.
 class ImageLoader {
   ui.Codec? frames;
 
@@ -16,52 +17,81 @@ class ImageLoader {
 
   Map<String, dynamic>? requestHeaders;
 
-  LoadState state = LoadState.loading; // by default
+  LoadState state = LoadState.loading;
 
   ImageLoader(this.url, {this.requestHeaders});
 
-  /// Load image from disk cache first, if not found then load from network.
-  /// `onComplete` is called when [imageBytes] become available.
   void loadImage(VoidCallback onComplete) {
     if (frames != null) {
       state = LoadState.success;
       onComplete();
+      return;
     }
 
-    final fileStream =
-        DefaultCacheManager().getFileStream(url, headers: requestHeaders as Map<String, String>?);
+    if (url.isEmpty) {
+      state = LoadState.failure;
+      onComplete();
+      return;
+    }
+
+    if (kIsWeb) {
+      _loadBytesWeb(onComplete);
+      return;
+    }
+
+    final fileStream = DefaultCacheManager()
+        .getFileStream(url, headers: requestHeaders as Map<String, String>?);
 
     fileStream.listen(
       (fileResponse) {
         if (fileResponse is! FileInfo) return;
-        // the reason for this is that, when the cache manager fetches
-        // the image again from network, the provided `onComplete` should
-        // not be called again
-        if (frames != null) {
-          return;
-        }
+        if (frames != null) return;
         final imageBytes = fileResponse.file.readAsBytesSync();
-
-        state = LoadState.success;
-        ui.instantiateImageCodec(imageBytes).then((codec) {
-          frames = codec;
-          onComplete();
-        }, onError: (error) {
-          state = LoadState.failure;
-          onComplete();
-        });
+        _decode(imageBytes, onComplete);
       },
-      onError: (error) {
+      onError: (_) {
         state = LoadState.failure;
         onComplete();
       },
     );
   }
+
+  Future<void> _loadBytesWeb(VoidCallback onComplete) async {
+    try {
+      final headers = <String, String>{};
+      requestHeaders?.forEach((k, v) {
+        if (v != null) headers[k] = '$v';
+      });
+      final response = await http.get(Uri.parse(url), headers: headers);
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          response.bodyBytes.isNotEmpty) {
+        await _decode(response.bodyBytes, onComplete);
+      } else {
+        state = LoadState.failure;
+        onComplete();
+      }
+    } catch (_) {
+      state = LoadState.failure;
+      onComplete();
+    }
+  }
+
+  Future<void> _decode(List<int> imageBytes, VoidCallback onComplete) async {
+    try {
+      final codec =
+          await ui.instantiateImageCodec(Uint8List.fromList(imageBytes));
+      frames = codec;
+      state = LoadState.success;
+      onComplete();
+    } catch (_) {
+      state = LoadState.failure;
+      onComplete();
+    }
+  }
 }
 
-/// Widget to display animated gifs or still images. Shows a loader while image
-/// is being loaded. Listens to playback states from [controller] to pause and
-/// forward animated media.
+/// Widget to display animated gifs or still images.
 class StoryImage extends StatefulWidget {
   final ImageLoader imageLoader;
 
@@ -76,7 +106,6 @@ class StoryImage extends StatefulWidget {
     this.fit,
   }) : super(key: key ?? UniqueKey());
 
-  /// Use this shorthand to fetch images/gifs from the provided [url]
   factory StoryImage.url(
     String url, {
     StoryController? controller,
@@ -110,8 +139,8 @@ class StoryImageState extends State<StoryImage> {
     super.initState();
 
     if (widget.controller != null) {
-      _streamSubscription = widget.controller!.playbackNotifier.listen((playbackState) {
-        // for the case of gifs we need to pause/play
+      _streamSubscription =
+          widget.controller!.playbackNotifier.listen((playbackState) {
         if (widget.imageLoader.frames == null) {
           return;
         }
@@ -132,7 +161,6 @@ class StoryImageState extends State<StoryImage> {
           widget.controller?.play();
           forward();
         } else {
-          // refresh to show error
           setState(() {});
         }
       }
@@ -143,7 +171,6 @@ class StoryImageState extends State<StoryImage> {
   void dispose() {
     _timer?.cancel();
     _streamSubscription?.cancel();
-
     super.dispose();
   }
 
@@ -158,7 +185,8 @@ class StoryImageState extends State<StoryImage> {
     _timer?.cancel();
 
     if (widget.controller != null &&
-        widget.controller!.playbackNotifier.stream.value == PlaybackState.pause) {
+        widget.controller!.playbackNotifier.stream.value ==
+            PlaybackState.pause) {
       return;
     }
 
@@ -178,16 +206,30 @@ class StoryImageState extends State<StoryImage> {
       case LoadState.success:
         return RawImage(
           image: currentFrame,
-          fit:
-              (currentFrame?.width ?? 0) >= (currentFrame?.height ?? 0) ? widget.fit : BoxFit.cover,
+          fit: (currentFrame?.width ?? 0) >= (currentFrame?.height ?? 0)
+              ? widget.fit
+              : BoxFit.cover,
         );
       case LoadState.failure:
+        // Fallback HTML/network image on Web (CORS/cache issues).
+        if (kIsWeb && widget.imageLoader.url.isNotEmpty) {
+          return Image.network(
+            widget.imageLoader.url,
+            fit: widget.fit ?? BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (_, __, ___) => const Center(
+              child: Text(
+                'Image failed to load.',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          );
+        }
         return const Center(
             child: Text(
-          "Image failed to load.",
-          style: TextStyle(
-            color: Colors.white,
-          ),
+          'Image failed to load.',
+          style: TextStyle(color: Colors.white),
         ));
       default:
         return const Center(

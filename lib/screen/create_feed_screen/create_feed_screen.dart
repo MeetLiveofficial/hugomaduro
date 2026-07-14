@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/custom_app_bar.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/common/widget/search_result_tile.dart';
-import 'package:shortzz/common/widget/text_button_custom.dart';
-import 'package:shortzz/common/widget/user_list.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/post_story/hashtag_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/camera_screen/camera_screen_controller.dart';
-import 'package:shortzz/screen/create_feed_screen/create_feed_screen_controller.dart';
-import 'package:shortzz/screen/create_feed_screen/widget/create_feed_location_bar.dart';
-import 'package:shortzz/screen/create_feed_screen/widget/feed_comment_toggle.dart';
-import 'package:shortzz/screen/create_feed_screen/widget/feed_image_view.dart';
-import 'package:shortzz/screen/create_feed_screen/widget/feed_text_field_view.dart';
-import 'package:shortzz/screen/create_feed_screen/widget/feed_video_view.dart';
-import 'package:shortzz/screen/create_feed_screen/widget/reel_preview_card.dart';
-import 'package:shortzz/screen/create_feed_screen/widget/url_meta_data_card.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/custom_app_bar.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/common/widget/search_result_tile.dart';
+import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/common/widget/user_list.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/post_story/hashtag_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/camera_screen/camera_screen_controller.dart';
+import 'package:krimson/screen/create_feed_screen/create_feed_screen_controller.dart';
+import 'package:krimson/screen/create_feed_screen/widget/create_feed_location_bar.dart';
+import 'package:krimson/screen/create_feed_screen/widget/feed_comment_toggle.dart';
+import 'package:krimson/screen/create_feed_screen/widget/feed_image_view.dart';
+import 'package:krimson/screen/create_feed_screen/widget/feed_text_field_view.dart';
+import 'package:krimson/screen/create_feed_screen/widget/feed_video_view.dart';
+import 'package:krimson/screen/create_feed_screen/widget/reel_preview_card.dart';
+import 'package:krimson/screen/create_feed_screen/widget/url_meta_data_card.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 enum CreateFeedType { feed, reel }
 

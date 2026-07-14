@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/text_button_custom.dart';
-import 'package:shortzz/common/widget/theme_blur_bg.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/screen/on_boarding_screen/on_boarding_screen_controller.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/common/widget/theme_blur_bg.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/screen/on_boarding_screen/on_boarding_screen_controller.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class OnBoardingScreen extends StatelessWidget {
   const OnBoardingScreen({super.key});
@@ -72,8 +72,9 @@ class OnBoardingScreen extends StatelessWidget {
                   onTap: controller.onNextTap,
                   title: LKey.next.tr,
                   titleColor: whitePure(context),
-                  backgroundColor: whitePure(context).withValues(alpha: .3),
+                  backgroundColor: themeAccentSolid(context),
                   horizontalMargin: 40,
+                  radius: 25,
                 ),
                 SizedBox(height: AppBar().preferredSize.height),
               ],

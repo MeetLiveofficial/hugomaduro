@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/functions/debounce_action.dart';
-import 'package:shortzz/common/manager/firebase_notification_manager.dart';
-import 'package:shortzz/common/manager/haptic_manager.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/gift_wallet_service.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/model/livestream/app_user.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/gift_sheet/send_gift_dialog.dart';
-import 'package:shortzz/screen/gift_sheet/send_gift_sheet.dart';
-import 'package:shortzz/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/manager/firebase_notification_manager.dart';
+import 'package:krimson/common/manager/haptic_manager.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/gift_wallet_service.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/gift_sheet/send_gift_dialog.dart';
+import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 
 class SendGiftSheetController extends BaseController {
   Rx<Setting?> settings = Rx<Setting?>(null);

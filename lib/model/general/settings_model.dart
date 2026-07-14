@@ -4,7 +4,7 @@
 
 import 'dart:convert';
 
-import 'package:shortzz/model/user_model/user_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
 
 SettingModel settingModelFromJson(String str) =>
     SettingModel.fromJson(json.decode(str));
@@ -341,7 +341,7 @@ class CoinPackage {
   String? image;
   int? status;
   int? coinAmount;
-  int? coinPlanPrice;
+  num? coinPlanPrice;
   String? playStoreProductId;
   String? appstoreProductId;
   DateTime? createdAt;
@@ -360,11 +360,11 @@ class CoinPackage {
   });
 
   factory CoinPackage.fromJson(Map<String, dynamic> json) => CoinPackage(
-        id: json["id"],
+        id: (json["id"] as num?)?.toInt(),
         image: json["image"],
-        status: json["status"],
-        coinAmount: json["coin_amount"],
-        coinPlanPrice: json["coin_plan_price"],
+        status: (json["status"] as num?)?.toInt(),
+        coinAmount: (json["coin_amount"] as num?)?.toInt(),
+        coinPlanPrice: json["coin_plan_price"] as num?,
         playStoreProductId: json["playstore_product_id"],
         appstoreProductId: json["appstore_product_id"],
         createdAt: json["created_at"] == null

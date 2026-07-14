@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
-import 'package:shortzz/common/controller/firebase_firestore_controller.dart';
-import 'package:shortzz/common/service/api/user_service.dart';
-import 'package:shortzz/model/livestream/app_user.dart';
+import 'package:krimson/common/controller/firebase_firestore_controller.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/model/livestream/app_user.dart';
 
 class ChatThread {
   int? userId;

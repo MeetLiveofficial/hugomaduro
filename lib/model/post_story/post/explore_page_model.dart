@@ -1,5 +1,5 @@
-import 'package:shortzz/model/post_story/hashtag_model.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
+import 'package:krimson/model/post_story/hashtag_model.dart';
+import 'package:krimson/model/post_story/post_model.dart';
 
 class ExplorePageModel {
   ExplorePageModel({

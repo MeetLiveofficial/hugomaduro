@@ -6,12 +6,13 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:shortzz/common/functions/debounce_action.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/utils/params.dart';
-import 'package:shortzz/screen/session_expired_screen/session_expired_screen.dart';
-import 'package:shortzz/utilities/const_res.dart';
+import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/utils/params.dart';
+import 'package:krimson/screen/auth_screen/login_screen.dart';
+import 'package:krimson/screen/session_expired_screen/session_expired_screen.dart';
+import 'package:krimson/utilities/const_res.dart';
 
 class CancelToken {
   bool _isCancelled = false;
@@ -34,7 +35,15 @@ class ApiService {
 
   final Map<CancelToken, http.Client> _activeClients = {};
 
-  var header = {Params.apikey: apiKey};
+  Map<String, String> _buildHeaders({required bool cancelAuthToken}) {
+    final headers = <String, String>{
+      Params.apikey: apiKey,
+    };
+    if (!cancelAuthToken && SessionManager.instance.hasAuthToken) {
+      headers[Params.authToken] = SessionManager.instance.getAuthToken();
+    }
+    return headers;
+  }
 
   Future<T> call<T>({
     required String url,
@@ -50,21 +59,29 @@ class ApiService {
     }
 
     Map<String, String> params = {};
-    param?.removeWhere(
-        (key, value) => value == null || value == 'null' || value == '');
+    param?.removeWhere((key, value) =>
+        key != Params.deviceToken &&
+        (value == null || value == 'null' || value == ''));
     param?.forEach((key, value) {
+      if (key == Params.deviceToken) {
+        final token = "$value";
+        params[key] = (token.isEmpty || token == 'null')
+            ? 'krimson_web_${DateTime.now().millisecondsSinceEpoch}'
+            : token;
+        return;
+      }
+      if (value == null || value == 'null') return;
       params[key] = "$value";
     });
 
-    if (!cancelAuthToken) {
-      header[Params.authToken] = SessionManager.instance.getAuthToken();
-    }
+    final headers = _buildHeaders(cancelAuthToken: cancelAuthToken);
     Loggers.info("URL: $url");
-    Loggers.info("header: $header");
+    Loggers.info("header: $headers");
     Loggers.info("Parameters: ${params.isEmpty ? "Empty" : params}");
     try {
-      final response =
-          await client.post(Uri.parse(url), headers: header, body: params);
+      final response = await client
+          .post(Uri.parse(url), headers: headers, body: params)
+          .timeout(const Duration(seconds: 20));
       Loggers.success(response.statusCode);
       if (cancelToken?.isCancelled ?? false) {
         if (kDebugMode) {
@@ -102,9 +119,10 @@ class ApiService {
         return decodedResponse as T;
       } else if (response.statusCode == 401) {
         Loggers.error('Unauthorized Error 401: ${response.statusCode}');
+        // Sesión inválida / token vacío: limpiar y volver a login (no dejar pantalla rota).
+        SessionManager.instance.clearSomeKey();
         DebounceAction.shared.call(() {
-          Get.offAll(
-            () => const SessionExpiredScreen(type: SessionType.unauthorized));
+          Get.offAll(() => const LoginScreen(), routeName: '/login');
         });
         throw Exception("Unauthorized Error: ${response.statusCode}");
       } else if (response.statusCode == 404) {
@@ -185,19 +203,30 @@ class ApiService {
     });
 
     request.fields.addAll(params);
-    request.headers.addAll(header);
+    request.headers.addAll(_buildHeaders(cancelAuthToken: false));
 
-    filesMap.forEach((keyName, files) {
-      for (var xFile in files) {
-        if (xFile != null && xFile.path.isNotEmpty) {
-          final file = File(xFile.path);
-          final multipartFile = http.MultipartFile(
-              keyName, file.readAsBytes().asStream(), file.lengthSync(),
-              filename: xFile.name);
-          request.files.add(multipartFile);
+    // Build multipart files before send. On Web, XFile paths are blob: URLs —
+    // dart:io File does not work; always read bytes via XFile.
+    for (final entry in filesMap.entries) {
+      final keyName = entry.key;
+      for (final xFile in entry.value) {
+        if (xFile == null) continue;
+        if (xFile.path.isEmpty && xFile.name.isEmpty) continue;
+        try {
+          final bytes = await xFile.readAsBytes();
+          if (bytes.isEmpty) continue;
+          request.files.add(http.MultipartFile.fromBytes(
+            keyName,
+            bytes,
+            filename: xFile.name.isNotEmpty
+                ? xFile.name
+                : 'upload_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          ));
+        } catch (e) {
+          Loggers.error('multipart file skip ($keyName): $e');
         }
       }
-    });
+    }
     Loggers.info("URL : $url");
     Loggers.info("HEADERS : ${request.headers}");
     Loggers.info("FIELDS : ${request.fields}");

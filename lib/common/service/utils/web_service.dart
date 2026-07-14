@@ -1,4 +1,4 @@
-import 'package:shortzz/utilities/const_res.dart';
+import 'package:krimson/utilities/const_res.dart';
 
 class WebService {
   static var user = _User();
@@ -40,6 +40,7 @@ class _GiftWallet {
 class _User {
   String loginInUser = "${apiURL}user/logInUser";
   String logInFakeUser = "${apiURL}user/logInFakeUser";
+  String registerUser = "${apiURL}user/registerUser";
   String deleteMyAccount = "${apiURL}user/deleteMyAccount";
   String logOutUser = "${apiURL}user/logOutUser";
   String fetchUserDetails = "${apiURL}user/fetchUserDetails";

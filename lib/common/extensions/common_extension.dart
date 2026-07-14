@@ -1,12 +1,13 @@
-import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/utilities/app_platform.dart';
 
 extension Number on num {
   String get numberFormat => NumberFormat.compact().format(this);
@@ -76,9 +77,12 @@ extension FormatLatLng on LatLng {
   }
 }
 
-extension PlatformPathExtension on Platform {
+class PlatformPathExtension {
   static Future<String> get localPath async {
-    Directory? directory = Platform.isAndroid
+    if (kIsWeb) {
+      return '';
+    }
+    final directory = AppPlatform.isAndroid
         ? await getExternalStorageDirectory()
         : await getApplicationDocumentsDirectory();
     return '${directory?.path ?? ''}/';

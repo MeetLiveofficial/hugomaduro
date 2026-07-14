@@ -1,19 +1,18 @@
-import 'dart:io';
-
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/custom_divider.dart';
-import 'package:shortzz/common/widget/privacy_policy_text.dart';
-import 'package:shortzz/common/widget/text_button_custom.dart';
-import 'package:shortzz/common/widget/theme_blur_bg.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/auth_screen/auth_screen_controller.dart';
-import 'package:shortzz/screen/auth_screen/forget_password_sheet.dart';
-import 'package:shortzz/screen/auth_screen/registration_screen.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/custom_divider.dart';
+import 'package:krimson/common/widget/privacy_policy_text.dart';
+import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/common/widget/theme_blur_bg.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/auth_screen/auth_screen_controller.dart';
+import 'package:krimson/screen/auth_screen/forget_password_sheet.dart';
+import 'package:krimson/screen/auth_screen/registration_screen.dart';
+import 'package:krimson/utilities/app_platform.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -101,7 +100,10 @@ class LoginScreen extends StatelessWidget {
                               onTap: controller.onLogin,
                               title: LKey.logIn.tr,
                               btnHeight: 50,
-                              horizontalMargin: 0)
+                              horizontalMargin: 0,
+                              backgroundColor: themeAccentSolid(context),
+                              titleColor: whitePure(context),
+                              radius: 25)
                         ],
                       ),
                     ),
@@ -153,12 +155,12 @@ class LoginScreen extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (Platform.isIOS)
+                          if (AppPlatform.isIOS)
                             SocialBtn(
                               onTap: controller.onAppleTap,
                               icon: AssetRes.icApple,
                             ),
-                          if (Platform.isIOS) const SizedBox(width: 10),
+                          if (AppPlatform.isIOS) const SizedBox(width: 10),
                           SocialBtn(
                               onTap: controller.onGoogleTap,
                               icon: AssetRes.icGoogle),

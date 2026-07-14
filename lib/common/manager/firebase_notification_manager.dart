@@ -1,33 +1,34 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart' show SessionManager;
-import 'package:shortzz/common/service/api/notification_service.dart';
-import 'package:shortzz/common/service/api/post_service.dart';
-import 'package:shortzz/common/service/api/user_service.dart';
-import 'package:shortzz/common/service/navigation/navigate_with_controller.dart';
-import 'package:shortzz/languages/dynamic_translations.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/chat/chat_thread.dart';
-import 'package:shortzz/model/livestream/livestream.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/screen/chat_screen/chat_screen.dart';
-import 'package:shortzz/screen/chat_screen/chat_screen_controller.dart';
-import 'package:shortzz/screen/dashboard_screen/dashboard_screen_controller.dart';
-import 'package:shortzz/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
-import 'package:shortzz/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
-import 'package:shortzz/screen/post_screen/single_post_screen.dart';
-import 'package:shortzz/screen/reels_screen/reels_screen.dart';
-import 'package:shortzz/screen/reels_screen/widget/reel_page_type.dart';
-import 'package:shortzz/utilities/const_res.dart';
-import 'package:shortzz/utilities/firebase_const.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart' show SessionManager;
+import 'package:krimson/common/service/api/notification_service.dart';
+import 'package:krimson/common/service/api/post_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
+import 'package:krimson/languages/dynamic_translations.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/chat/chat_thread.dart';
+import 'package:krimson/model/livestream/livestream.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/screen/chat_screen/chat_screen.dart';
+import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
+import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
+import 'package:krimson/screen/post_screen/single_post_screen.dart';
+import 'package:krimson/screen/reels_screen/reels_screen.dart';
+import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/utilities/app_platform.dart';
+import 'package:krimson/utilities/const_res.dart';
+import 'package:krimson/utilities/firebase_const.dart';
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
@@ -50,8 +51,8 @@ class FirebaseNotificationManager {
       FlutterLocalNotificationsPlugin();
   RxString notificationPayload = ''.obs;
   AndroidNotificationChannel channel = const AndroidNotificationChannel(
-      'shortzz', // id
-      'Shortzz', // title
+      'krimson', // id
+      'Krimson', // title
       playSound: true,
       enableLights: true,
       enableVibration: true,
@@ -61,7 +62,10 @@ class FirebaseNotificationManager {
   String? notificationId;
 
   void init() async {
-    if (Platform.isAndroid) {
+    if (kIsWeb) {
+      return;
+    }
+    if (AppPlatform.isAndroid) {
       await flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
@@ -127,24 +131,24 @@ class FirebaseNotificationManager {
 
   void unsubscribeToTopic({String? topic}) async {
     Loggers.success(
-        '🔔 Topic UnSubscribe : ${topic ?? notificationTopic}_${Platform.isAndroid ? 'android' : 'ios'}');
+        '🔔 Topic UnSubscribe : ${topic ?? notificationTopic}_${AppPlatform.isAndroid ? 'android' : 'ios'}');
     await firebaseMessaging.unsubscribeFromTopic(
-        '${topic ?? notificationTopic}_${Platform.isAndroid ? 'android' : 'ios'}');
+        '${topic ?? notificationTopic}_${AppPlatform.isAndroid ? 'android' : 'ios'}');
     if (kDebugMode) {
       await firebaseMessaging.unsubscribeFromTopic(
-          'test_${topic ?? notificationTopic}_${Platform.isAndroid ? 'android' : 'ios'}');
+          'test_${topic ?? notificationTopic}_${AppPlatform.isAndroid ? 'android' : 'ios'}');
     }
   }
 
   Future<void> subscribeToTopic({String? topic}) async {
     Loggers.success(
-        '🔔 Topic Subscribe : ${topic ?? notificationTopic}_${Platform.isAndroid ? 'android' : 'ios'}');
+        '🔔 Topic Subscribe : ${topic ?? notificationTopic}_${AppPlatform.isAndroid ? 'android' : 'ios'}');
     await firebaseMessaging.subscribeToTopic(
-        '${topic ?? notificationTopic}_${Platform.isAndroid ? 'android' : 'ios'}');
+        '${topic ?? notificationTopic}_${AppPlatform.isAndroid ? 'android' : 'ios'}');
 
     if (kDebugMode) {
       await firebaseMessaging.subscribeToTopic(
-          'test_${topic ?? notificationTopic}_${Platform.isAndroid ? 'android' : 'ios'}');
+          'test_${topic ?? notificationTopic}_${AppPlatform.isAndroid ? 'android' : 'ios'}');
     }
   }
 
@@ -174,7 +178,8 @@ class FirebaseNotificationManager {
     switch (dataType) {
       case 'chat':
         Future.delayed(const Duration(milliseconds: 500), () async {
-          controller.selectedPageIndex.value = 4;
+          controller.selectedPageIndex.value =
+              DashboardScreenController.tabChat;
           await _handleChatNotification(dataString);
         });
 
@@ -183,11 +188,13 @@ class FirebaseNotificationManager {
         await _handlePostNotification(dataString, controller);
         break;
       case 'user':
-        controller.selectedPageIndex.value = 5;
+        controller.selectedPageIndex.value =
+            DashboardScreenController.tabProfile;
         await _handleUserNotification(dataString);
         break;
       case 'live_stream':
-        controller.selectedPageIndex.value = 2;
+        controller.selectedPageIndex.value =
+            DashboardScreenController.tabLive;
         await _handleLivestreamNotification(dataString);
         break;
       default:
@@ -219,7 +226,8 @@ class FirebaseNotificationManager {
         if (post == null) return;
 
         if (post.postType == PostType.reel) {
-          controller.selectedPageIndex.value = 5;
+          controller.selectedPageIndex.value =
+              DashboardScreenController.tabProfile;
           Get.to(() => ReelsScreen(
                 reels: [post].obs,
                 position: 0,
@@ -227,7 +235,9 @@ class FirebaseNotificationManager {
                 pageType: ReelPageType.notification,
               ));
         } else if ([PostType.text, PostType.image, PostType.video].contains(post.postType)) {
-          controller.selectedPageIndex.value = 1;
+          controller.selectedPageIndex.value =
+              DashboardScreenController.tabHome;
+          controller.homeTabMode.value = HomeTabMode.feed;
           await Get.to(() =>
               SinglePostScreen(post: post, postByIdData: result.data, isFromNotification: true));
         }
@@ -254,13 +264,26 @@ class FirebaseNotificationManager {
 
   Future<String?> getNotificationToken() async {
     try {
+      if (kIsWeb) {
+        final storage = GetStorage('krimson');
+        final stored = storage.read('device_token');
+        if (stored is String && stored.isNotEmpty) return stored;
+        final token =
+            'krimson_web_${DateTime.now().millisecondsSinceEpoch}';
+        await storage.write('device_token', token);
+        return token;
+      }
       String? token = await FirebaseMessaging.instance.getToken();
       Loggers.info('DeviceToken $token');
-      return token;
+      if (token != null && token.isNotEmpty) return token;
     } catch (e) {
       Loggers.error('DeviceToken Exception $e');
-      return null;
     }
+    // Fallback si FCM no entrega token (emulador / permisos).
+    final fallback =
+        'krimson_${AppPlatform.isAndroid ? 'android' : 'ios'}_${DateTime.now().millisecondsSinceEpoch}';
+    Loggers.warning('DeviceToken fallback: $fallback');
+    return fallback;
   }
 
   Future<void> sendLocalisationNotification(

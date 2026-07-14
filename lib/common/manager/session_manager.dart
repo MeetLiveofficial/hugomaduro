@@ -1,13 +1,13 @@
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:shortzz/common/service/api/user_service.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/utilities/app_res.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/utilities/app_res.dart';
 
 class SessionManager {
   static var instance = SessionManager();
-  var storage = GetStorage('shortzz');
+  var storage = GetStorage('krimson');
   var conversationId = '';
   RxInt notifyCount = 0.obs;
   RxInt isModerator = 0.obs;
@@ -23,7 +23,12 @@ class SessionManager {
   }
 
   String getAuthToken() {
-    return getToken()?.authToken ?? 'AUTH TOKEN EMPTY';
+    return getToken()?.authToken ?? '';
+  }
+
+  bool get hasAuthToken {
+    final token = getAuthToken();
+    return token.isNotEmpty && token != 'AUTH TOKEN EMPTY';
   }
 
   void setPassword(String? password) {
@@ -113,6 +118,9 @@ class SessionManager {
 
   void setSettings(Setting settings) {
     storage.write(SessionKeys.setting, settings.toJson());
+    if (settings.appName != null && settings.appName!.trim().isNotEmpty) {
+      AppRes.appName = settings.appName!.trim();
+    }
   }
 
   Setting? getSettings() {
@@ -160,7 +168,7 @@ class SessionManager {
   }
 
   void setLogin(bool isLog) {
-    storage.write(SessionKeys.isLogin, true);
+    storage.write(SessionKeys.isLogin, isLog);
   }
 
   bool get shouldOpenEULASheet {

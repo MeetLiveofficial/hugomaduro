@@ -1,20 +1,20 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/custom_border_round_icon.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/common/widget/text_button_custom.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/camera_edit_screen/camera_edit_screen_controller.dart';
-import 'package:shortzz/screen/camera_edit_screen/text_story/story_text_view.dart';
-import 'package:shortzz/screen/camera_screen/camera_screen_controller.dart';
-import 'package:shortzz/screen/camera_screen/widget/camera_top_view.dart';
-import 'package:shortzz/screen/color_filter_screen/color_filter_view.dart';
-import 'package:shortzz/screen/selected_music_sheet/selected_music_sheet_controller.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/custom_border_round_icon.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/camera_edit_screen/camera_edit_screen_controller.dart';
+import 'package:krimson/screen/camera_edit_screen/text_story/story_text_view.dart';
+import 'package:krimson/screen/camera_screen/camera_screen_controller.dart';
+import 'package:krimson/screen/camera_screen/widget/camera_top_view.dart';
+import 'package:krimson/screen/color_filter_screen/color_filter_view.dart';
+import 'package:krimson/screen/selected_music_sheet/selected_music_sheet_controller.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 import 'package:video_player/video_player.dart';
 
 class CameraEditScreen extends StatelessWidget {

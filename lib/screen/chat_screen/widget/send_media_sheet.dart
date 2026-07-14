@@ -1,22 +1,27 @@
-import 'dart:io';
-
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/bottom_sheet_top_view.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/chat_screen/chat_screen_controller.dart';
-import 'package:shortzz/screen/chat_screen/widget/chat_bottom_action_view.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:krimson/common/widget/bottom_sheet_top_view.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
+import 'package:krimson/screen/chat_screen/widget/chat_bottom_action_view.dart';
+import 'package:krimson/screen/chat_screen/widget/chat_media_helpers.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class SendMediaSheet extends StatelessWidget {
   final String image;
+  final XFile? imageFile;
   final VoidCallback onSendBtnClick;
   final ChatScreenController controller;
 
-  const SendMediaSheet(
-      {super.key, required this.image, required this.onSendBtnClick, required this.controller});
+  const SendMediaSheet({
+    super.key,
+    required this.image,
+    required this.onSendBtnClick,
+    required this.controller,
+    this.imageFile,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,18 +42,13 @@ class SendMediaSheet extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: ClipSmoothRect(
-                  radius: SmoothBorderRadius(cornerRadius: 15, cornerSmoothing: 1),
-                  child: Image.file(File(image),
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                            decoration: BoxDecoration(
-                              color: bgGrey(context),
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            alignment: Alignment.center,
-                            child: Image.asset(AssetRes.icNoImage,
-                                height: 100, width: 100, color: textDarkGrey(context)),
-                          )),
+                  radius: SmoothBorderRadius(
+                      cornerRadius: 15, cornerSmoothing: 1),
+                  child: SafePickedImage(
+                    path: image,
+                    xFile: imageFile ?? XFile(image),
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
             ),

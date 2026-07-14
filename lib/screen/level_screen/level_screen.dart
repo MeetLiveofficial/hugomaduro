@@ -2,16 +2,16 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/common_extension.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/widget/gradient_border.dart';
-import 'package:shortzz/common/widget/gradient_text.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/style_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/gradient_border.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class LevelScreen extends StatelessWidget {
   final UserLevel? userLevels;

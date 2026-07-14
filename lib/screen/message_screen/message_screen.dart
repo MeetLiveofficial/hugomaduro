@@ -1,23 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/custom_search_text_field.dart';
-import 'package:shortzz/common/widget/custom_tab_switcher.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/common/widget/no_data_widget.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/chat/chat_thread.dart';
-import 'package:shortzz/screen/message_screen/message_screen_controller.dart';
-import 'package:shortzz/screen/message_screen/widget/chat_conversation_user_card.dart';
-import 'package:shortzz/utilities/color_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/custom_search_text_field.dart';
+import 'package:krimson/common/widget/custom_tab_switcher.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/common/widget/no_data_widget.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/chat/chat_thread.dart';
+import 'package:krimson/screen/feed_screen/feed_screen_controller.dart';
+import 'package:krimson/screen/feed_screen/widget/story_view.dart';
+import 'package:krimson/screen/message_screen/message_screen_controller.dart';
+import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card.dart';
+import 'package:krimson/screen/message_screen/widget/new_direct_chat_sheet.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class MessageScreen extends StatelessWidget {
   const MessageScreen({super.key});
 
+  FeedScreenController _feedController() {
+    if (Get.isRegistered<FeedScreenController>()) {
+      return Get.find<FeedScreenController>();
+    }
+    return Get.put(
+      FeedScreenController(SessionManager.instance.getUser().obs),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(MessageScreenController());
+    final feedController = _feedController();
+
     return Column(
       children: [
         Container(
@@ -27,11 +42,33 @@ class MessageScreen extends StatelessWidget {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                  child: Text(LKey.messages.tr,
-                      style: TextStyleCustom.unboundedMedium500(
-                          fontSize: 15, color: textDarkGrey(context))),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 40),
+                      Expanded(
+                        child: Text(
+                          LKey.messages.tr,
+                          textAlign: TextAlign.center,
+                          style: TextStyleCustom.unboundedMedium500(
+                            fontSize: 15,
+                            color: textDarkGrey(context),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: LKey.newChat.tr,
+                        onPressed: openNewDirectChatSheet,
+                        icon: Icon(
+                          Icons.edit_square,
+                          color: textDarkGrey(context),
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                StoryView(controller: feedController),
                 CustomTabSwitcher(
                   items: controller.chatCategories,
                   onTap: (index) {
@@ -42,7 +79,8 @@ class MessageScreen extends StatelessWidget {
                   },
                   selectedIndex: controller.selectedChatCategory,
                   widget: Obx(() {
-                    int length = controller.dashboardController.requestUnReadCount.value;
+                    int length = controller
+                        .dashboardController.requestUnReadCount.value;
                     if (length <= 0) {
                       return const SizedBox();
                     }
@@ -67,10 +105,49 @@ class MessageScreen extends StatelessWidget {
             ),
           ),
         ),
-        const CustomSearchTextField(),
+        CustomSearchTextField(
+          controller: controller.searchController,
+          onChanged: controller.onSearchChanged,
+          suffixIcon: IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            onPressed: openNewDirectChatSheet,
+            icon: Icon(
+              Icons.person_add_alt_1_rounded,
+              size: 20,
+              color: themeAccentSolid(context),
+            ),
+          ),
+        ),
         Expanded(
-          child: Obx(
-            () => controller.isLoading.value &&
+          child: Obx(() {
+            if (controller.chatError.value != null) {
+              return Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        controller.chatError.value!,
+                        textAlign: TextAlign.center,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: textLightGrey(context),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton.icon(
+                        onPressed: openNewDirectChatSheet,
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: Text(LKey.newChat.tr),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+            return controller.isLoading.value &&
                     (controller.selectedChatCategory.value == 0
                         ? controller.chatsUsers.isEmpty
                         : controller.requestsUsers.isEmpty)
@@ -82,8 +159,8 @@ class MessageScreen extends StatelessWidget {
                       ChatsListView(),
                       RequestsListView(),
                     ],
-                  ),
-          ),
+                  );
+          }),
         )
       ],
     );
@@ -97,15 +174,16 @@ class ChatsListView extends StatelessWidget {
   Widget build(BuildContext context) {
     final MessageScreenController controller = Get.find();
     return Obx(() {
+      final list = controller.filteredChats;
       return NoDataView(
-        showShow: controller.chatsUsers.isEmpty,
+        showShow: list.isEmpty,
         title: LKey.chatListEmptyTitle.tr,
         description: LKey.chatListEmptyDescription.tr,
         child: ListView.builder(
-          itemCount: controller.chatsUsers.length,
+          itemCount: list.length,
           padding: EdgeInsets.zero,
           itemBuilder: (context, index) {
-            ChatThread chatConversation = controller.chatsUsers[index];
+            ChatThread chatConversation = list[index];
             chatConversation.bindChatUser();
             return ChatConversationUserCard(chatConversation: chatConversation);
           },
@@ -123,20 +201,25 @@ class RequestsListView extends StatelessWidget {
     final MessageScreenController controller = Get.find();
 
     return Obx(
-      () => NoDataView(
-        showShow: controller.requestsUsers.isEmpty,
-        title: LKey.chatRequestEmptyTitle.tr,
-        description: LKey.chatRequestEmptyDescription.tr,
-        child: ListView.builder(
-          itemCount: controller.requestsUsers.length,
-          padding: EdgeInsets.zero,
-          itemBuilder: (context, index) {
-            ChatThread chatConversation = controller.requestsUsers[index];
-            chatConversation.bindChatUser();
-            return ChatConversationUserCard(chatConversation: chatConversation);
-          },
-        ),
-      ),
+      () {
+        final list = controller.filteredRequests;
+        return NoDataView(
+          showShow: list.isEmpty,
+          title: LKey.chatRequestEmptyTitle.tr,
+          description: LKey.chatRequestEmptyDescription.tr,
+          child: ListView.builder(
+            itemCount: list.length,
+            padding: EdgeInsets.zero,
+            itemBuilder: (context, index) {
+              ChatThread chatConversation = list[index];
+              chatConversation.bindChatUser();
+              return ChatConversationUserCard(
+                  chatConversation: chatConversation);
+            },
+          ),
+        );
+      },
     );
   }
 }
+

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/edit_profile_screen/widget/phone_codes_screen.dart';
-import 'package:shortzz/screen/edit_profile_screen/widget/phone_codes_screen_controller.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/color_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/edit_profile_screen/widget/phone_codes_screen.dart';
+import 'package:krimson/screen/edit_profile_screen/widget/phone_codes_screen_controller.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class TextFieldCustom extends StatefulWidget {
   final bool isPrefixIconShow;

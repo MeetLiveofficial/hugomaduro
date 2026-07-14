@@ -1,21 +1,21 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/common_extension.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/widget/bottom_sheet_top_view.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/full_name_with_blue_tick.dart';
-import 'package:shortzz/common/widget/gradient_text.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/model/livestream/app_user.dart';
-import 'package:shortzz/screen/gift_sheet/send_gift_sheet_controller.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/color_res.dart';
-import 'package:shortzz/utilities/style_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/widget/bottom_sheet_top_view.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class SendGiftSheet extends StatelessWidget {
   final GiftType giftType;
@@ -130,7 +130,9 @@ class SendGiftSheet extends StatelessWidget {
                             CustomImage(
                                 image: gift.image?.addBaseURL(),
                                 size: const Size(65, 65),
-                                radius: 0),
+                                radius: 8,
+                                isShowPlaceHolder: true,
+                                placeHolderImage: AssetRes.icGift),
                             Text(
                                 '${(gift.coinPrice ?? 0).numberFormat} ${LKey.coins.tr}',
                                 style: TextStyleCustom.outFitMedium500(

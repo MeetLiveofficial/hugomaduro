@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/functions/debounce_action.dart';
-import 'package:shortzz/common/service/navigation/navigate_with_controller.dart';
-import 'package:shortzz/common/widget/custom_divider.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/model/post_story/post_by_id.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/screen/post_screen/post_screen_controller.dart';
-import 'package:shortzz/screen/post_screen/widget/post_animation_like.dart';
-import 'package:shortzz/screen/post_screen/widget/post_view_action_button.dart';
-import 'package:shortzz/screen/post_screen/widget/post_view_center.dart';
-import 'package:shortzz/screen/post_screen/widget/post_view_info_header.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
+import 'package:krimson/common/widget/custom_divider.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/model/post_story/post_by_id.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/screen/post_screen/post_screen_controller.dart';
+import 'package:krimson/screen/post_screen/widget/post_animation_like.dart';
+import 'package:krimson/screen/post_screen/widget/post_view_action_button.dart';
+import 'package:krimson/screen/post_screen/widget/post_view_center.dart';
+import 'package:krimson/screen/post_screen/widget/post_view_info_header.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;

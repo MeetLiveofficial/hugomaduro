@@ -1,11 +1,11 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/manager/ads_manager.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/subscription/subscription_manager.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/ads_manager.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/subscription/subscription_manager.dart';
+import 'package:krimson/utilities/app_platform.dart';
 
 class AdsController extends BaseController {
   InterstitialAd? interstitialAd;
@@ -13,16 +13,22 @@ class AdsController extends BaseController {
   @override
   void onInit() {
     super.onInit();
-    loadInterstitialAd(); // preload when controller initializes
+    if (!kIsWeb) {
+      loadInterstitialAd(); // preload when controller initializes
+    }
   }
 
   Future<void> showInterstitialAdIfAvailable({bool isPopScope = false}) async {
+    if (kIsWeb) {
+      if (!isPopScope) Get.back();
+      return;
+    }
     final setting = SessionManager.instance.getSettings();
 
     // Check ad status for platform
     final isAdDisabled =
-        (Platform.isAndroid && setting?.admobAndroidStatus == 0) ||
-            (Platform.isIOS && setting?.admobIosStatus == 0);
+        (AppPlatform.isAndroid && setting?.admobAndroidStatus == 0) ||
+            (AppPlatform.isIOS && setting?.admobIosStatus == 0);
 
     // Early return if ads are disabled or user is subscribed or ad is not loaded
     if (isAdDisabled || isSubscribe.value || interstitialAd == null) {
@@ -38,7 +44,7 @@ class AdsController extends BaseController {
   }
 
   Future<void> loadInterstitialAd() async {
-    if (isSubscribe.value) return;
+    if (kIsWeb || isSubscribe.value) return;
 
     AdsManager.instance.loadInterstitialAd(onAdLoaded: (ad) {
       interstitialAd = ad;

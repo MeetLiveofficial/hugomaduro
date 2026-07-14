@@ -4,26 +4,26 @@ import 'dart:convert';
 import 'package:csv/csv.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/common_service.dart';
-import 'package:shortzz/common/service/api/user_service.dart';
-import 'package:shortzz/common/service/network_helper/network_helper.dart';
-import 'package:shortzz/common/widget/no_internet_sheet.dart';
-import 'package:shortzz/common/widget/restart_widget.dart';
-import 'package:shortzz/languages/dynamic_translations.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/screen/auth_screen/login_screen.dart';
-import 'package:shortzz/screen/dashboard_screen/dashboard_screen.dart';
-import 'package:shortzz/screen/on_boarding_screen/on_boarding_screen.dart';
-import 'package:shortzz/screen/select_language_screen/select_language_screen.dart';
-import 'package:shortzz/utilities/app_res.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/common_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/network_helper/network_helper.dart';
+import 'package:krimson/common/widget/no_internet_sheet.dart';
+import 'package:krimson/languages/dynamic_translations.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/screen/auth_screen/login_screen.dart';
+import 'package:krimson/screen/dashboard_screen/dashboard_screen.dart';
+import 'package:krimson/screen/on_boarding_screen/on_boarding_screen.dart';
+import 'package:krimson/screen/select_language_screen/select_language_screen.dart';
+import 'package:krimson/utilities/app_res.dart';
 
 class SplashScreenController extends BaseController {
   late StreamSubscription _subscription;
   bool isOnline = true;
+  bool _noInternetSheetOpen = false;
 
   @override
   void onReady() {
@@ -34,8 +34,15 @@ class SplashScreenController extends BaseController {
     _subscription = NetworkHelper().onConnectionChange.listen((status) {
       isOnline = status;
       if (isOnline) {
-        Get.back();
-      } else {
+        // Solo cerrar el sheet de sin internet; NUNCA Get.back() a ciegas
+        // (en BlueStacks/emuladores el evento online dispara al arrancar y
+        // Get.back() sacaba el Splash dejando pantalla blanca).
+        if (_noInternetSheetOpen) {
+          _noInternetSheetOpen = false;
+          Get.back();
+        }
+      } else if (!_noInternetSheetOpen) {
+        _noInternetSheetOpen = true;
         Get.to(() => const NoInternetSheet(), transition: Transition.downToUp);
       }
     });
@@ -48,48 +55,83 @@ class SplashScreenController extends BaseController {
   }
 
   Future<void> fetchSettings() async {
-    await Future.delayed(const Duration(milliseconds: 1000));
-    bool showNavigate = await CommonService.instance.fetchGlobalSettings();
-    if (showNavigate) {
+    try {
+      await Future.delayed(const Duration(milliseconds: 800));
+      bool showNavigate = await CommonService.instance.fetchGlobalSettings();
+      if (!showNavigate) {
+        showSnackBar('No se pudo cargar la configuración del servidor.', second: 5);
+        Get.off(() => const LoginScreen(), routeName: '/login');
+        return;
+      }
+
       final translations = Get.find<DynamicTranslations>();
       var setting = SessionManager.instance.getSettings();
       var languages = setting?.languages ?? [];
-      List<Language> downloadLanguages = languages.where((element) => element.status == 1).toList();
+      List<Language> downloadLanguages =
+          languages.where((element) => element.status == 1).toList();
       if (downloadLanguages.isEmpty) {
         showSnackBar(AppRes.languageAdd, second: 5);
+        // Sin idiomas del server, igual permitir continuar.
+        Get.off(() => const LoginScreen(), routeName: '/login');
         return;
       }
 
       var downloadedFiles = await downloadAndParseLanguages(downloadLanguages);
-
       translations.addTranslations(downloadedFiles);
 
-      var defaultLang = languages.firstWhereOrNull((element) => element.isDefault == 1);
-
+      var defaultLang =
+          languages.firstWhereOrNull((element) => element.isDefault == 1);
       if (defaultLang != null) {
         SessionManager.instance.setFallbackLang(defaultLang.code ?? 'en');
       }
 
-      RestartWidget.restartApp(Get.context!);
-      if (SessionManager.instance.isLogin()) {
-        UserService.instance.fetchUserDetails(userId: SessionManager.instance.getUserID()).then((value) {
+      // No reiniciar toda la app aquí: RestartWidget + Get.off dejaba
+      // navigator vacío (pantalla blanca) en emuladores.
+
+      if (SessionManager.instance.isLogin() &&
+          SessionManager.instance.hasAuthToken) {
+        try {
+          final value = await UserService.instance
+              .fetchUserDetails(userId: SessionManager.instance.getUserID());
           if (value != null) {
-            Get.off(() => DashboardScreen(myUser: value));
-          } else {
-            Get.off(() => const LoginScreen());
+            Get.off(() => DashboardScreen(myUser: value),
+                routeName: '/dashboard');
+            return;
           }
-        });
+        } catch (e) {
+          Loggers.error('Splash session restore failed: $e');
+        }
+        SessionManager.instance.clearSomeKey();
+        Get.off(() => const LoginScreen(), routeName: '/login');
       } else {
-        bool isLanguageSelect = SessionManager.instance.getBool(SessionKeys.isLanguageScreenSelect);
-        bool onBoardingShow = SessionManager.instance.getBool(SessionKeys.isOnBoardingScreenSelect);
+        if (SessionManager.instance.isLogin() &&
+            !SessionManager.instance.hasAuthToken) {
+          SessionManager.instance.clearSomeKey();
+        }
+        bool isLanguageSelect =
+            SessionManager.instance.getBool(SessionKeys.isLanguageScreenSelect);
+        bool onBoardingShow = SessionManager.instance
+            .getBool(SessionKeys.isOnBoardingScreenSelect);
         if (isLanguageSelect == false) {
-          Get.off(() => const SelectLanguageScreen(languageNavigationType: LanguageNavigationType.fromStart));
-        } else if (onBoardingShow == false && (setting?.onBoarding ?? []).isNotEmpty) {
+          Get.off(() => const SelectLanguageScreen(
+              languageNavigationType: LanguageNavigationType.fromStart));
+        } else if (onBoardingShow == false &&
+            (setting?.onBoarding ?? []).isNotEmpty) {
           Get.off(() => const OnBoardingScreen());
         } else {
-          Get.off(() => const LoginScreen());
+          Get.off(() => const LoginScreen(), routeName: '/login');
         }
       }
+    } catch (e, st) {
+      Loggers.error('Splash fetchSettings error: $e\n$st');
+      final msg = '$e'.toLowerCase();
+      if (msg.contains('401') || msg.contains('unauthorized')) {
+        SessionManager.instance.clearSomeKey();
+        Get.off(() => const LoginScreen(), routeName: '/login');
+        return;
+      }
+      showSnackBar('Error de inicio: $e', second: 8);
+      Get.off(() => const LoginScreen(), routeName: '/login');
     }
   }
 

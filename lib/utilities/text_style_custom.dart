@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:shortzz/utilities/font_res.dart';
+import 'package:krimson/utilities/font_res.dart';
 
 class TextStyleCustom {
   static TextStyle outFitBlack900(

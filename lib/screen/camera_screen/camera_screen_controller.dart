@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:deepar_flutter_plus/deepar_flutter_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -10,22 +11,22 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:retrytech_plugin/retrytech_plugin.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/functions/media_picker_helper.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/widget/confirmation_dialog.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/screen/camera_edit_screen/camera_edit_screen.dart';
-import 'package:shortzz/screen/camera_screen/camera_screen.dart';
-import 'package:shortzz/screen/color_filter_screen/widget/color_filtered.dart';
-import 'package:shortzz/screen/music_sheet/music_sheet.dart';
-import 'package:shortzz/screen/selected_music_sheet/selected_music_sheet.dart';
-import 'package:shortzz/screen/selected_music_sheet/selected_music_sheet_controller.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/asset_res.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/functions/media_picker_helper.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/confirmation_dialog.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/screen/camera_edit_screen/camera_edit_screen.dart';
+import 'package:krimson/screen/camera_screen/camera_screen.dart';
+import 'package:krimson/screen/color_filter_screen/widget/color_filtered.dart';
+import 'package:krimson/screen/music_sheet/music_sheet.dart';
+import 'package:krimson/screen/selected_music_sheet/selected_music_sheet.dart';
+import 'package:krimson/screen/selected_music_sheet/selected_music_sheet_controller.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/asset_res.dart';
 
 class CameraScreenController extends BaseController
     with GetSingleTickerProviderStateMixin {
@@ -78,6 +79,7 @@ class CameraScreenController extends BaseController
 
   // Initialization methods
   Future<void> _initialize() async {
+    if (kIsWeb) return;
     _initCamera();
     _initData();
   }

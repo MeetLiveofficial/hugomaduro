@@ -1,9 +1,10 @@
 import 'dart:developer';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/model/general/settings_model.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/utilities/app_platform.dart';
 
 class AdsManager {
   AdsManager._();
@@ -11,15 +12,16 @@ class AdsManager {
   static final instance = AdsManager._();
 
   void loadBannerAd({required Function(Ad) onAdLoaded}) async {
+    if (kIsWeb) return;
     Setting? setting = SessionManager.instance.getSettings();
-    if (Platform.isAndroid && setting?.admobAndroidStatus == 0) {
+    if (AppPlatform.isAndroid && setting?.admobAndroidStatus == 0) {
       return;
     }
-    if (Platform.isIOS && setting?.admobIosStatus == 0) {
+    if (AppPlatform.isIOS && setting?.admobIosStatus == 0) {
       return;
     }
     BannerAd(
-      adUnitId: Platform.isAndroid
+      adUnitId: AppPlatform.isAndroid
           ? (setting?.admobBanner ?? '')
           : (setting?.admobBannerIos ?? ''),
       request: const AdRequest(),
@@ -35,15 +37,16 @@ class AdsManager {
 
   Future<void> loadInterstitialAd(
       {required Function(InterstitialAd) onAdLoaded}) async {
+    if (kIsWeb) return;
     Setting? setting = SessionManager.instance.getSettings();
-    if (Platform.isAndroid && setting?.admobAndroidStatus == 0) {
+    if (AppPlatform.isAndroid && setting?.admobAndroidStatus == 0) {
       return;
     }
-    if (Platform.isIOS && setting?.admobIosStatus == 0) {
+    if (AppPlatform.isIOS && setting?.admobIosStatus == 0) {
       return;
     }
     await InterstitialAd.load(
-        adUnitId: Platform.isAndroid
+        adUnitId: AppPlatform.isAndroid
             ? (setting?.admobInt ?? '')
             : (setting?.admobIntIos ?? ''),
         request: const AdRequest(),

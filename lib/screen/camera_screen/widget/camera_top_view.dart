@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/widget/confirmation_dialog.dart';
-import 'package:shortzz/common/widget/custom_border_round_icon.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/camera_screen/camera_screen.dart';
-import 'package:shortzz/screen/camera_screen/camera_screen_controller.dart';
-import 'package:shortzz/screen/live_stream/livestream_screen/widget/members_sheet.dart';
-import 'package:shortzz/screen/selected_music_sheet/selected_music_sheet_controller.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/widget/confirmation_dialog.dart';
+import 'package:krimson/common/widget/custom_border_round_icon.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/camera_screen/camera_screen.dart';
+import 'package:krimson/screen/camera_screen/camera_screen_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/members_sheet.dart';
+import 'package:krimson/screen/selected_music_sheet/selected_music_sheet_controller.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class CameraTopView extends StatelessWidget {
   final CameraScreenType cameraType;

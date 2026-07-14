@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/custom_app_bar.dart';
-import 'package:shortzz/common/widget/custom_tab_switcher.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/common/widget/post_list.dart';
-import 'package:shortzz/common/widget/reel_list.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/reels_screen/widget/reel_page_type.dart';
-import 'package:shortzz/screen/saved_post_screen/saved_post_screen_controller.dart';
+import 'package:krimson/common/widget/custom_app_bar.dart';
+import 'package:krimson/common/widget/custom_tab_switcher.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/common/widget/post_list.dart';
+import 'package:krimson/common/widget/reel_list.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/screen/saved_post_screen/saved_post_screen_controller.dart';
 
 class SavedPostScreen extends StatelessWidget {
   const SavedPostScreen({super.key});

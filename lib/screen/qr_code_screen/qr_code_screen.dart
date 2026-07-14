@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/widget/custom_app_bar.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/full_name_with_blue_tick.dart';
-import 'package:shortzz/common/widget/gradient_border.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/qr_code_screen/qr_code_screen_controller.dart';
-import 'package:shortzz/screen/share_sheet_widget/share_sheet_widget.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/style_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/content_protection.dart';
+import 'package:krimson/common/widget/custom_app_bar.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
+import 'package:krimson/common/widget/gradient_border.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/qr_code_screen/qr_code_screen_controller.dart';
+import 'package:krimson/screen/share_sheet_widget/share_sheet_widget.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class QrCodeScreen extends StatelessWidget {
   const QrCodeScreen({super.key});
@@ -84,38 +85,59 @@ class QrCodeScreen extends StatelessWidget {
                 ),
                 SafeArea(
                   top: false,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Column(
-                        children: [
-                          CustomAssetWithBgButton(
-                              onTap: () => controller.saveGalleryImage('save'),
-                              image: AssetRes.icDownload,
-                              boxSize: 58,
-                              iconSize: 30),
-                          Text(
-                            LKey.save.tr,
-                            style: TextStyleCustom.outFitLight300(color: textLightGrey(context), fontSize: 15),
-                          )
-                        ],
-                      ),
-                      const SizedBox(width: 54),
-                      Column(
-                        children: [
-                          CustomAssetWithBgButton(
-                              onTap: () => controller.saveGalleryImage('share'),
-                              image: AssetRes.icShare2,
-                              boxSize: 58,
-                              iconSize: 30),
-                          Text(
-                            LKey.share.tr,
-                            style: TextStyleCustom.outFitLight300(color: textLightGrey(context), fontSize: 15),
-                          )
-                        ],
-                      ),
-                    ],
-                  ),
+                  child: (ContentProtection.canShare ||
+                          ContentProtection.canDownload)
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (ContentProtection.canDownload)
+                              Column(
+                                children: [
+                                  CustomAssetWithBgButton(
+                                      onTap: () =>
+                                          controller.saveGalleryImage('save'),
+                                      image: AssetRes.icDownload,
+                                      boxSize: 58,
+                                      iconSize: 30),
+                                  Text(
+                                    LKey.save.tr,
+                                    style: TextStyleCustom.outFitLight300(
+                                        color: textLightGrey(context),
+                                        fontSize: 15),
+                                  )
+                                ],
+                              ),
+                            if (ContentProtection.canShare &&
+                                ContentProtection.canDownload)
+                              const SizedBox(width: 54),
+                            if (ContentProtection.canShare)
+                              Column(
+                                children: [
+                                  CustomAssetWithBgButton(
+                                      onTap: () =>
+                                          controller.saveGalleryImage('share'),
+                                      image: AssetRes.icShare2,
+                                      boxSize: 58,
+                                      iconSize: 30),
+                                  Text(
+                                    LKey.share.tr,
+                                    style: TextStyleCustom.outFitLight300(
+                                        color: textLightGrey(context),
+                                        fontSize: 15),
+                                  )
+                                ],
+                              ),
+                          ],
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            'Sharing & downloads are disabled.',
+                            style: TextStyleCustom.outFitRegular400(
+                                color: textLightGrey(context), fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                 ),
               ]),
             ),

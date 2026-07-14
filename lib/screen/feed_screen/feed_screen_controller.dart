@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/post_service.dart';
-import 'package:shortzz/common/service/api/user_service.dart';
-import 'package:shortzz/common/service/location/location_service.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/model/post_story/story/story_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/camera_screen/camera_screen.dart';
-import 'package:shortzz/screen/profile_screen/profile_screen_controller.dart';
-import 'package:shortzz/screen/story_view_screen/story_view_screen.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/post_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/location/location_service.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/post_story/story/story_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/camera_screen/camera_screen.dart';
+import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
+import 'package:krimson/screen/story_view_screen/story_view_screen.dart';
 
 class FeedScreenController extends BaseController {
   RxList<Post> posts = RxList();

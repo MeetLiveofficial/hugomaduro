@@ -1,4 +1,4 @@
-# Shortzz 2.0
+# Krimson
 
 # Date: 12 May 2026
 
@@ -12,7 +12,7 @@
 - [AppFrameworkInfo.plist](ios/Flutter/AppFrameworkInfo.plist)
 - [build.gradle](android/app/build.gradle)
 - [firebase_notification_manager.dart](lib/common/manager/firebase_notification_manager.dart)
-- [MainActivity.kt](android/app/src/main/kotlin/com/retrytech/shortzz/MainActivity.kt)
+- [MainActivity.kt](android/app/src/main/kotlin/com/krimson/MainActivity.kt)
 - [pubspec.yaml](pubspec.yaml)
 - [reel_seek_bar.dart](lib/screen/reels_screen/reel/widget/reel_seek_bar.dart)
 

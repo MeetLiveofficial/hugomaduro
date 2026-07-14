@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:shortzz/common/widget/custom_back_button.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/custom_back_button.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class CustomAppBar extends StatelessWidget {
   final String title;

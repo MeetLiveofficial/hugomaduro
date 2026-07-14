@@ -2,24 +2,24 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/common_extension.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/service/api/post_service.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/gradient_text.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/common/widget/my_refresh_indicator.dart';
-import 'package:shortzz/common/widget/no_data_widget.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/post_story/hashtag_model.dart';
-import 'package:shortzz/model/post_story/post/explore_page_model.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/screen/explore_screen/explore_screen_controller.dart';
-import 'package:shortzz/screen/search_screen/search_screen.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/style_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/service/api/post_service.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/common/widget/my_refresh_indicator.dart';
+import 'package:krimson/common/widget/no_data_widget.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/post_story/hashtag_model.dart';
+import 'package:krimson/model/post_story/post/explore_page_model.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/screen/explore_screen/explore_screen_controller.dart';
+import 'package:krimson/screen/search_screen/search_screen.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class ExploreScreen extends StatelessWidget {
   const ExploreScreen({super.key});
@@ -310,31 +310,68 @@ class SearchScreenGridView extends StatelessWidget {
   }
 
   Widget _buildPostGrid(BuildContext context, List<Post> posts) {
-    return GridView.builder(
-      primary: false,
-      shrinkWrap: true,
-      itemCount: posts.length >= 5 ? 5 : posts.length,
-      padding: EdgeInsets.zero,
-      gridDelegate: SliverQuiltedGridDelegate(
+    final count = posts.length.clamp(0, 5);
+    if (count == 0) return const SizedBox.shrink();
+
+    // Altura estable del bloque (2 filas de celdas) ⇒ no “colapsa” al fallar media.
+    final width = MediaQuery.sizeOf(context).width;
+    final cell = (width - 3) / 3; // 2 gaps * 1.5
+    final gridHeight = cell * 2 + 1.5;
+
+    return SizedBox(
+      height: gridHeight,
+      width: width,
+      child: GridView.builder(
+        primary: false,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: count,
+        padding: EdgeInsets.zero,
+        gridDelegate: SliverQuiltedGridDelegate(
           crossAxisCount: 3,
           mainAxisSpacing: 1.5,
           crossAxisSpacing: 1.5,
-          repeatPattern: QuiltedGridRepeatPattern.inverted,
-          pattern: _getGridPattern(posts.length)),
-      itemBuilder: (context, index) => _buildPostItem(context, posts[index]),
+          repeatPattern: QuiltedGridRepeatPattern.same,
+          pattern: _getGridPattern(count),
+        ),
+        itemBuilder: (context, index) => _buildPostItem(context, posts[index]),
+      ),
     );
   }
 
   List<QuiltedGridTile> _getGridPattern(int postCount) {
-    return [
-      const QuiltedGridTile(1, 1),
-      const QuiltedGridTile(1, 1),
-      postCount <= 4
-          ? const QuiltedGridTile(1, 1)
-          : const QuiltedGridTile(2, 1),
-      const QuiltedGridTile(1, 1),
-      const QuiltedGridTile(1, 1),
-    ];
+    // Patrones que siempre llenan el área 3×2 sin huecos.
+    switch (postCount) {
+      case 1:
+        return const [QuiltedGridTile(2, 3)];
+      case 2:
+        return const [
+          QuiltedGridTile(2, 2),
+          QuiltedGridTile(2, 1),
+        ];
+      case 3:
+        return const [
+          QuiltedGridTile(2, 1),
+          QuiltedGridTile(2, 1),
+          QuiltedGridTile(2, 1),
+        ];
+      case 4:
+        return const [
+          QuiltedGridTile(2, 1),
+          QuiltedGridTile(2, 1),
+          QuiltedGridTile(1, 1),
+          QuiltedGridTile(1, 1),
+        ];
+      default:
+        // 5 — layout Instagram explore
+        return const [
+          QuiltedGridTile(1, 1),
+          QuiltedGridTile(1, 1),
+          QuiltedGridTile(2, 1),
+          QuiltedGridTile(1, 1),
+          QuiltedGridTile(1, 1),
+        ];
+    }
   }
 
   Widget _buildPostItem(BuildContext context, Post post) {
@@ -344,13 +381,29 @@ class SearchScreenGridView extends StatelessWidget {
                 : post.thumbnail)
             ?.addBaseURL();
 
-    return InkWell(
-      onTap: () => controller.onPostTap(post),
-      child: CustomImage(
-        size: const Size(double.infinity, double.infinity),
-        radius: 0,
-        image: image,
-        isShowPlaceHolder: true,
+    return Material(
+      color: bgGrey(context),
+      child: InkWell(
+        onTap: () => controller.onPostTap(post),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CustomImage(
+              size: const Size(double.infinity, double.infinity),
+              radius: 0,
+              image: image,
+              fit: BoxFit.cover,
+              isShowPlaceHolder: true,
+            ),
+            if (post.postType == PostType.reel || post.postType == PostType.video)
+              const Positioned(
+                right: 6,
+                top: 6,
+                child: Icon(Icons.play_circle_fill,
+                    color: Colors.white70, size: 18),
+              ),
+          ],
+        ),
       ),
     );
   }

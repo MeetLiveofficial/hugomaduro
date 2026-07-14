@@ -1,7 +1,7 @@
-import 'package:shortzz/model/livestream/app_user.dart';
-import 'package:shortzz/model/livestream/livestream.dart';
-import 'package:shortzz/model/livestream/livestream_user_state.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
+import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/model/livestream/livestream.dart';
+import 'package:krimson/model/livestream/livestream_user_state.dart';
+import 'package:krimson/model/user_model/user_model.dart';
 
 extension UserExtension on User {
   AppUser get appUser {
@@ -22,6 +22,7 @@ extension UserExtension on User {
     int? hostViewId = -1,
     int? isDummyLive = 0,
     String? dummyUserLink = '',
+    List<int>? coHostIds,
   }) {
     return Livestream(
         description: (description ?? '').trim(),
@@ -31,7 +32,7 @@ extension UserExtension on User {
         roomID: id.toString(),
         hostViewID: hostViewId,
         likeCount: 0,
-        coHostIds: [],
+        coHostIds: coHostIds ?? [],
         hostId: id,
         createdAt: time,
         battleType: BattleType.initiate,

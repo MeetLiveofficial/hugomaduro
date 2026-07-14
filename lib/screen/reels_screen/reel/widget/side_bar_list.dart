@@ -1,17 +1,18 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/gradient_icon.dart';
-import 'package:shortzz/model/post_story/music/music_model.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/screen/reels_screen/reel/reel_page_controller.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/style_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/content_protection.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/gradient_icon.dart';
+import 'package:krimson/model/post_story/music/music_model.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/screen/reels_screen/reel/reel_page_controller.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class SideBarList extends StatelessWidget {
   final ReelController controller;
@@ -59,19 +60,12 @@ class SideBarList extends StatelessWidget {
                 image: AssetRes.icComment,
                 text: isPlaceholder ? '1' : (reel.comments ?? 0).toString(),
               ),
-            IconWithLabel(
-              onTap: isPlaceholder ? () {} : controller.onSaved,
-              image: (reel.isSaved ?? false)
-                  ? AssetRes.icFillBookmark1
-                  : AssetRes.icBookmark,
-              text: isPlaceholder ? '1' : (reel.saves ?? 0).toString(),
-              iconColor: whitePure(context),
-            ),
-            IconWithLabel(
-              onTap: isPlaceholder ? () {} : controller.onShareTap,
-              image: AssetRes.icShare,
-              text: isPlaceholder ? '1' : (reel.shares ?? 0).toString(),
-            ),
+            if (ContentProtection.canShare)
+              IconWithLabel(
+                onTap: isPlaceholder ? () {} : controller.onShareTap,
+                image: AssetRes.icShare,
+                text: isPlaceholder ? '1' : (reel.shares ?? 0).toString(),
+              ),
             Visibility(
               visible: controller.reelData.value.user?.id !=
                   SessionManager.instance.getUserID(),

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/manager/story_view/widgets/story_view.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/custom_popup_menu_button.dart';
-import 'package:shortzz/common/widget/full_name_with_blue_tick.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/post_story/story/story_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/story_view_screen/story_view_screen_controller.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/story_view/widgets/story_view.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/custom_popup_menu_button.dart';
+import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/post_story/story/story_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/story_view_screen/story_view_screen_controller.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class StoryViewSheet extends StatelessWidget {
   final List<User> stories;

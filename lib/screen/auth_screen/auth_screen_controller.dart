@@ -1,29 +1,35 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:shortzz/common/controller/base_controller.dart';
-import 'package:shortzz/common/functions/debounce_action.dart';
-import 'package:shortzz/common/manager/firebase_notification_manager.dart';
-import 'package:shortzz/common/manager/logger.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/common_service.dart';
-import 'package:shortzz/common/service/api/notification_service.dart';
-import 'package:shortzz/common/service/api/user_service.dart';
-import 'package:shortzz/common/service/subscription/subscription_manager.dart';
-import 'package:shortzz/languages/dynamic_translations.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart' as user;
-import 'package:shortzz/screen/dashboard_screen/dashboard_screen.dart';
+import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/firebase_notification_manager.dart';
+import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/common_service.dart';
+import 'package:krimson/common/service/api/notification_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/subscription/subscription_manager.dart';
+import 'package:krimson/languages/dynamic_translations.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/user_model/user_model.dart' as user;
+import 'package:krimson/screen/dashboard_screen/dashboard_screen.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+/// Auth de Krimson:
+/// - Email/password → SIEMPRE Laravel (valida password). Firebase es opcional (chat).
+/// - Google/Apple → Firebase social + Laravel logInUser (sin password).
 class AuthScreenController extends BaseController {
   TextEditingController fullNameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
   TextEditingController forgetEmailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   TextEditingController confirmPassController = TextEditingController();
+
+  bool get _firebaseReady => Firebase.apps.isNotEmpty;
 
   @override
   void onInit() {
@@ -43,222 +49,282 @@ class AuthScreenController extends BaseController {
       return showSnackBar(LKey.enterAPassword.tr);
     }
 
-    showLoader();
+    showLoader(barrierDismissible: true);
+    try {
+      // Token local instantáneo: no esperar FCM/storage (eso colgaba el loader).
+      final deviceToken =
+          'krimson_web_${DateTime.now().millisecondsSinceEpoch}';
 
-    if (GetUtils.isEmail(email)) {
-      final UserCredential? credential = await signInWithEmailAndPassword();
+      // Fuente de verdad: Laravel valida identity + password.
+      final data = await UserService.instance
+          .logInFakeUser(
+        identity: email,
+        password: password,
+        fullName: email.contains('@') ? email.split('@').first : email,
+        deviceToken: deviceToken,
+        loginMethod: LoginMethod.email,
+      )
+          .timeout(const Duration(seconds: 20), onTimeout: () {
+        throw TimeoutException('El servidor tardó demasiado en responder');
+      });
 
-      if (credential == null) {
-        stopLoader();
-        return showSnackBar(LKey.userNotFound.tr);
+      if (data == null) {
+        return;
       }
 
-      if (credential.user?.emailVerified == false) {
-        stopLoader();
-        return showSnackBar(LKey.verifyEmailFirst.tr);
+      if (data.token?.authToken == null || data.token!.authToken!.isEmpty) {
+        showSnackBar('Login OK pero sin token. Revisa el backend.');
+        return;
       }
 
-      String fullname = credential.user?.displayName ?? email.split('@')[0];
-      final user.User? data = await _registration(
-          identity: email, loginMethod: LoginMethod.email, fullname: fullname, loginVia: LoginVia.loginInUser);
+      SessionManager.instance.setPassword(password);
+      SessionManager.instance.setUser(data);
+      SessionManager.instance.setAuthToken(data.token);
+      SessionManager.instance.setLogin(true);
+
+      _notifyRegistrationBonusIfNeeded(data);
+      // ignore: unawaited_futures
+      SubscriptionManager.shared.login('${data.id}');
+
+      // Cerrar loader y entrar YA; Firebase chat en background después.
       stopLoader();
+      _navigateScreen(data);
 
-      if (data != null) {
-        _navigateScreen(data);
+      if (_firebaseReady) {
+        // ignore: unawaited_futures
+        Future<void>.delayed(const Duration(milliseconds: 300), () {
+          _ensureFirebaseAuthForChat(email, password);
+        });
       }
-    } else {
-      final user.User? data = await _registration(
-          identity: email, loginMethod: LoginMethod.email, loginVia: LoginVia.logInFakeUser, password: password);
+    } catch (e, st) {
+      Loggers.error('onLogin: $e\n$st');
+      showSnackBar('No se pudo iniciar sesión: $e');
+    } finally {
       stopLoader();
-
-      if (data != null) {
-        _navigateScreen(data);
-      }
     }
   }
 
   Future<void> onCreateAccount() async {
-    if (fullNameController.text.trim().isEmpty) {
+    final fullName = fullNameController.text.trim();
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final confirm = confirmPassController.text.trim();
+
+    if (fullName.isEmpty) {
       return showSnackBar(LKey.fullNameEmpty.tr);
     }
-    if (emailController.text.trim().isEmpty) {
+    if (email.isEmpty) {
       return showSnackBar(LKey.enterEmail.tr);
     }
-    if (passwordController.text.trim().isEmpty) {
+    if (password.isEmpty) {
       return showSnackBar(LKey.enterAPassword.tr);
     }
-    if (confirmPassController.text.trim().isEmpty) {
+    if (confirm.isEmpty) {
       return showSnackBar(LKey.confirmPasswordEmpty.tr);
     }
-    if (!GetUtils.isEmail(emailController.text.trim())) {
+    if (!GetUtils.isEmail(email)) {
       return showSnackBar(LKey.invalidEmail.tr);
     }
-    if (passwordController.text.trim() != confirmPassController.text.trim()) {
+    if (password != confirm) {
       return showSnackBar(LKey.passwordMismatch.tr);
     }
-    showLoader();
-    UserCredential? credential = await createUserWithEmailAndPassword();
-    if (credential != null) {
-      await _registration(
-          identity: emailController.text.trim(),
-          loginMethod: LoginMethod.email,
-          fullname: fullNameController.text.trim(),
-          loginVia: LoginVia.loginInUser);
-      credential.user?.updateDisplayName(fullNameController.text.trim());
-      credential.user?.sendEmailVerification();
+    if (password.length < 6) {
+      return showSnackBar(LKey.weakPassword.tr);
+    }
+
+    showLoader(barrierDismissible: true);
+    try {
+      final deviceToken =
+          await FirebaseNotificationManager.instance.getNotificationToken();
+      if (deviceToken == null || deviceToken.isEmpty) {
+        showSnackBar(LKey.somethingWentWrong.tr);
+        return;
+      }
+
+      // Registro solo en Laravel (guarda password hasheado).
+      final data = await UserService.instance.registerUser(
+        identity: email,
+        password: password,
+        fullName: fullName,
+        deviceToken: deviceToken,
+        loginMethod: LoginMethod.email,
+      );
+
+      if (data == null) {
+        return;
+      }
+
+      SessionManager.instance.setPassword(password);
+      SessionManager.instance.setUser(data);
+      SessionManager.instance.setAuthToken(data.token);
+
+      if (_firebaseReady) {
+        await _createOrSignInFirebase(email, password, displayName: fullName);
+      }
+
+      _notifyRegistrationBonusIfNeeded(data);
+      SubscriptionManager.shared.login('${data.id}');
+
       Get.back();
       Get.back();
-      showSnackBar(LKey.verificationLinkSent.tr);
+      _navigateScreen(data);
+    } catch (e) {
+      Loggers.error('onCreateAccount: $e');
+      showSnackBar('$e');
+    } finally {
+      stopLoader();
     }
   }
 
   void onGoogleTap() async {
-    showLoader();
-    UserCredential? credential;
+    if (!_firebaseReady) {
+      return showSnackBar('Google Sign-In requiere Firebase (app móvil).');
+    }
+    showLoader(barrierDismissible: true);
     try {
-      credential = await signInWithGoogle();
+      final credential = await signInWithGoogle();
+      if (credential.user == null) return;
+
+      final data = await _socialLaravelLogin(
+        identity: credential.user?.email ?? '',
+        fullname: credential.user?.displayName ??
+            credential.user?.email?.split('@').first,
+        loginMethod: LoginMethod.google,
+      );
+      if (data != null) {
+        _navigateScreen(data);
+      }
     } catch (e) {
       Loggers.error(e);
-      Get.back();
-    }
-
-    if (credential?.user == null) return;
-    user.User? data = await _registration(
-        identity: credential?.user?.email ?? '',
-        loginMethod: LoginMethod.google,
-        fullname: credential?.user?.displayName ?? credential?.user?.email?.split('@')[0],
-        loginVia: LoginVia.loginInUser);
-    Get.back();
-    if (data != null) {
-      _navigateScreen(data);
+      showSnackBar('$e');
+    } finally {
+      stopLoader();
     }
   }
 
   void onAppleTap() async {
-    showLoader();
-    UserCredential? credential;
+    if (!_firebaseReady) {
+      return showSnackBar('Apple Sign-In requiere Firebase (app móvil).');
+    }
+    showLoader(barrierDismissible: true);
     try {
-      credential = await signInWithApple();
-      Loggers.info(
-          'EMAIL : ${credential.user?.email} FULLNAME : ${credential.user?.displayName ?? credential.user?.email?.split('@')[0]}');
+      final credential = await signInWithApple();
+      if (credential.user == null) return;
+
+      final data = await _socialLaravelLogin(
+        identity: credential.user?.email ?? '',
+        fullname: credential.user?.displayName ??
+            credential.user?.email?.split('@').first,
+        loginMethod: LoginMethod.apple,
+      );
+      if (data != null) {
+        _navigateScreen(data);
+      }
     } catch (e) {
       Loggers.error(e);
-      Get.back();
-    }
-    if (credential?.user == null) return;
-    user.User? data = await _registration(
-        identity: credential?.user?.email ?? '',
-        loginMethod: LoginMethod.apple,
-        fullname: credential?.user?.displayName ?? credential?.user?.email?.split('@')[0],
-        loginVia: LoginVia.loginInUser);
-    Get.back();
-    if (data != null) {
-      _navigateScreen(data);
+      showSnackBar('$e');
+    } finally {
+      stopLoader();
     }
   }
 
-  Future<user.User?> _registration(
-      {required String identity,
-      required LoginMethod loginMethod,
-      String? fullname,
-      required LoginVia loginVia,
-      String? password}) async {
-    String? deviceToken = await FirebaseNotificationManager.instance.getNotificationToken();
-    if (deviceToken == null) return null;
-
-    user.User? userData;
-    switch (loginVia) {
-      case LoginVia.loginInUser:
-        userData = await UserService.instance
-            .logInUser(identity: identity, loginMethod: loginMethod, deviceToken: deviceToken, fullName: fullname);
-      case LoginVia.logInFakeUser:
-        userData = await UserService.instance
-            .logInFakeUser(identity: identity, loginMethod: loginMethod, deviceToken: deviceToken, password: password);
+  Future<user.User?> _socialLaravelLogin({
+    required String identity,
+    String? fullname,
+    required LoginMethod loginMethod,
+  }) async {
+    if (identity.isEmpty) {
+      showSnackBar(LKey.somethingWentWrong.tr);
+      return null;
+    }
+    final deviceToken =
+        await FirebaseNotificationManager.instance.getNotificationToken();
+    if (deviceToken == null || deviceToken.isEmpty) {
+      showSnackBar(LKey.somethingWentWrong.tr);
+      return null;
     }
 
-    Setting? setting = SessionManager.instance.getSettings();
-    if (userData?.isDummy == 0 && userData?.newRegister == true && setting?.registrationBonusStatus == 1) {
+    final data = await UserService.instance.logInUser(
+      identity: identity,
+      loginMethod: loginMethod,
+      deviceToken: deviceToken,
+      fullName: fullname,
+    );
+    if (data == null) {
+      showSnackBar(LKey.somethingWentWrong.tr);
+      return null;
+    }
+    SessionManager.instance.setUser(data);
+    SessionManager.instance.setAuthToken(data.token);
+    _notifyRegistrationBonusIfNeeded(data);
+    SubscriptionManager.shared.login('${data.id}');
+    return data;
+  }
+
+  void _notifyRegistrationBonusIfNeeded(user.User data) {
+    final setting = SessionManager.instance.getSettings();
+    if (data.isDummy == 0 &&
+        data.newRegister == true &&
+        setting?.registrationBonusStatus == 1) {
       final translations = Get.find<DynamicTranslations>();
-      final languageData = translations.keys[userData?.appLanguage] ?? {};
-
+      final languageData = translations.keys[data.appLanguage] ?? {};
       NotificationService.instance.pushNotification(
-          title: languageData[LKey.registrationBonusTitle] ?? LKey.registrationBonusTitle.tr,
-          body: languageData[LKey.registrationBonusDescription] ?? LKey.registrationBonusDescription.tr,
+          title: languageData[LKey.registrationBonusTitle] ??
+              LKey.registrationBonusTitle.tr,
+          body: languageData[LKey.registrationBonusDescription] ??
+              LKey.registrationBonusDescription.tr,
           type: NotificationType.other,
-          deviceType: userData?.device,
-          token: userData?.deviceToken,
-          authorizationToken: userData?.token?.authToken);
-    }
-    SubscriptionManager.shared.login('${userData?.id}');
-    if (userData != null) {
-      // Subscribe My Following Ids For Live streaming notification
-      return userData;
-    }
-    return null;
-  }
-
-  Future<UserCredential?> createUserWithEmailAndPassword() async {
-    try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: emailController.text.trim(), password: passwordController.text.trim());
-      SessionManager.instance.setPassword(passwordController.text.trim());
-      return credential;
-    } on FirebaseAuthException catch (e) {
-      stopLoader();
-      Loggers.error(e.message);
-      if (e.code == 'weak-password') {
-        showSnackBar(LKey.weakPassword.tr);
-      } else if (e.code == 'email-already-in-use') {
-        showSnackBar(LKey.accountExists.tr);
-      } else {
-        showSnackBar(e.message);
-      }
-      return null;
+          deviceType: data.device,
+          token: data.deviceToken,
+          authorizationToken: data.token?.authToken);
     }
   }
 
-  Future<UserCredential?> signInWithEmailAndPassword() async {
+  Future<void> _createOrSignInFirebase(
+    String email,
+    String password, {
+    String? displayName,
+  }) async {
     try {
-      final credential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: emailController.text.trim(), password: passwordController.text.trim());
-      return credential;
-    } on FirebaseAuthException catch (e) {
-      stopLoader();
-      if (e.code == 'user-not-found') {
-        showSnackBar(LKey.noUserFound.tr);
-        Loggers.info(LKey.noUserFound.tr);
-      } else if (e.code == 'wrong-password') {
-        showSnackBar(LKey.incorrectPassword.tr);
-        Loggers.info(LKey.incorrectPassword.tr);
+      try {
+        final cred = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
+        if (displayName != null && displayName.isNotEmpty) {
+          await cred.user?.updateDisplayName(displayName);
+        }
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'email-already-in-use') {
+          await FirebaseAuth.instance
+              .signInWithEmailAndPassword(email: email, password: password);
+        } else {
+          Loggers.error('Firebase register: ${e.code} ${e.message}');
+        }
       }
-      return null;
     } catch (e) {
-      return null;
+      Loggers.error('_createOrSignInFirebase: $e');
     }
   }
 
   Future<UserCredential> signInWithGoogle() async {
     final GoogleSignIn googleSignIn = GoogleSignIn.instance;
-    googleSignIn.initialize();
-    GoogleSignInAccount account = await googleSignIn.authenticate();
-
-    // Create a new credential
-    final credential = GoogleAuthProvider.credential(idToken: account.authentication.idToken);
-
-    // Once signed in, return the UserCredential
+    await googleSignIn.initialize();
+    final GoogleSignInAccount account = await googleSignIn.authenticate();
+    final credential =
+        GoogleAuthProvider.credential(idToken: account.authentication.idToken);
     return await FirebaseAuth.instance.signInWithCredential(credential);
   }
 
   Future<UserCredential> signInWithApple() async {
-    // Request credential for the currently signed in Apple account.
     final appleCredential = await SignInWithApple.getAppleIDCredential(
-      scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName
+      ],
     );
-
-    // Create an `OAuthCredential` from the credential returned by Apple.
-    final oauthCredential = OAuthProvider("apple.com")
-        .credential(idToken: appleCredential.identityToken, accessToken: appleCredential.authorizationCode);
-
+    final oauthCredential = OAuthProvider('apple.com').credential(
+      idToken: appleCredential.identityToken,
+      accessToken: appleCredential.authorizationCode,
+    );
     return await FirebaseAuth.instance.signInWithCredential(oauthCredential);
   }
 
@@ -268,25 +334,81 @@ class AuthScreenController extends BaseController {
       showSnackBar(LKey.enterEmail.tr);
       return;
     }
-    showLoader();
+    if (!GetUtils.isEmail(email)) {
+      showSnackBar(LKey.invalidEmail.tr);
+      return;
+    }
+    // Reset de password depende de Firebase; si no hay, aviso claro.
+    if (!_firebaseReady) {
+      showSnackBar(
+          'Contacta al administrador para restablecer tu contraseña en Krimson.');
+      Get.back();
+      return;
+    }
+    showLoader(barrierDismissible: true);
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      stopLoader();
-      Get.back(); // Close the BottomSheet
+      Get.back();
       showSnackBar(LKey.resetPasswordLinkSent.tr);
     } on FirebaseAuthException catch (e) {
+      showSnackBar(e.message ?? 'An error occurred. Please try again.');
+    } finally {
       stopLoader();
-      showSnackBar(e.message ?? "An error occurred. Please try again.");
+    }
+  }
+
+  /// Tras login Laravel OK: abre sesión Firebase para Firestore/chat.
+  /// Nunca crea usuario Firebase si el password no sirve — solo anónimo como fallback.
+  Future<void> _ensureFirebaseAuthForChat(String email, String password) async {
+    try {
+      if (FirebaseAuth.instance.currentUser != null) return;
+      try {
+        await FirebaseAuth.instance
+            .signInWithEmailAndPassword(email: email, password: password)
+            .timeout(const Duration(seconds: 8));
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found') {
+          try {
+            await FirebaseAuth.instance
+                .createUserWithEmailAndPassword(email: email, password: password)
+                .timeout(const Duration(seconds: 8));
+          } catch (_) {
+            await FirebaseAuth.instance
+                .signInAnonymously()
+                .timeout(const Duration(seconds: 5));
+          }
+        } else if (e.code == 'wrong-password' ||
+            e.code == 'invalid-credential') {
+          // Password Laravel ≠ Firebase: no forzar create; chat anónimo.
+          await FirebaseAuth.instance
+              .signInAnonymously()
+              .timeout(const Duration(seconds: 5));
+        } else {
+          await FirebaseAuth.instance
+              .signInAnonymously()
+              .timeout(const Duration(seconds: 5));
+        }
+      }
+      Loggers.success(
+          'Firebase Auth ready for chat: ${FirebaseAuth.instance.currentUser?.uid}');
+    } catch (e) {
+      Loggers.error('Firebase Auth for chat failed: $e');
+      try {
+        await FirebaseAuth.instance
+            .signInAnonymously()
+            .timeout(const Duration(seconds: 5));
+      } catch (_) {}
     }
   }
 
   void _navigateScreen(user.User? data) {
-    DebounceAction.shared.call(() async {
-      SessionManager.instance.setLogin(true);
-      SessionManager.instance.setUser(data);
-      Get.offAll(() => DashboardScreen(myUser: data));
-    }, milliseconds: 250);
+    // NO usar DebounceAction.shared: se cancela con otros debounce de la app
+    // y dejaba el login "pegado" mucho tiempo antes de entrar.
+    SessionManager.instance.setLogin(true);
+    SessionManager.instance.setUser(data);
+    Get.offAll(
+      () => DashboardScreen(myUser: data),
+      routeName: '/dashboard',
+    );
   }
 }
-
-enum LoginVia { loginInUser, logInFakeUser }

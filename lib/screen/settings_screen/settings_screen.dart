@@ -1,26 +1,26 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/custom_app_bar.dart';
-import 'package:shortzz/common/widget/custom_drop_down.dart';
-import 'package:shortzz/common/widget/custom_toggle.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/blocked_user_screen/blocked_user_screen.dart';
-import 'package:shortzz/screen/coin_wallet_screen/coin_wallet_screen.dart';
-import 'package:shortzz/screen/edit_profile_screen/edit_profile_screen.dart';
-import 'package:shortzz/screen/qr_code_screen/qr_code_screen.dart';
-import 'package:shortzz/screen/saved_post_screen/saved_post_screen.dart';
-import 'package:shortzz/screen/select_language_screen/select_language_screen.dart';
-import 'package:shortzz/screen/settings_screen/settings_screen_controller.dart';
-import 'package:shortzz/screen/settings_screen/widget/notifications_page.dart';
-import 'package:shortzz/screen/settings_screen/widget/setting_icon_text_with_arrow.dart';
-import 'package:shortzz/screen/subscription_screen/subscription_screen.dart';
-import 'package:shortzz/screen/term_and_privacy_screen/term_and_privacy_screen.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/style_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/manager/content_protection.dart';
+import 'package:krimson/common/widget/custom_app_bar.dart';
+import 'package:krimson/common/widget/custom_drop_down.dart';
+import 'package:krimson/common/widget/custom_toggle.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/blocked_user_screen/blocked_user_screen.dart';
+import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen.dart';
+import 'package:krimson/screen/edit_profile_screen/edit_profile_screen.dart';
+import 'package:krimson/screen/qr_code_screen/qr_code_screen.dart';
+import 'package:krimson/screen/select_language_screen/select_language_screen.dart';
+import 'package:krimson/screen/settings_screen/settings_screen_controller.dart';
+import 'package:krimson/screen/settings_screen/widget/notifications_page.dart';
+import 'package:krimson/screen/settings_screen/widget/setting_icon_text_with_arrow.dart';
+import 'package:krimson/screen/subscription_screen/subscription_screen.dart';
+import 'package:krimson/screen/term_and_privacy_screen/term_and_privacy_screen.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Function(User? user)? onUpdateUser;
@@ -29,6 +29,9 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (Get.isRegistered<SettingsScreenController>()) {
+      Get.delete<SettingsScreenController>(force: true);
+    }
     final controller = Get.put(SettingsScreenController());
     return Scaffold(
         body: Column(
@@ -36,7 +39,7 @@ class SettingsScreen extends StatelessWidget {
         CustomAppBar(title: LKey.settings.tr),
         Expanded(
             child: SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: AppBar().preferredSize.height),
+          padding: const EdgeInsets.only(bottom: 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -48,13 +51,6 @@ class SettingsScreen extends StatelessWidget {
                 title: LKey.editProfile,
                 onTap: () {
                   Get.to(() => EditProfileScreen(onUpdateUser: onUpdateUser));
-                },
-              ),
-              SettingIconTextWithArrow(
-                icon: AssetRes.icPostBookmark,
-                title: LKey.savedPosts,
-                onTap: () {
-                  Get.to(() => const SavedPostScreen());
                 },
               ),
               SettingIconTextWithArrow(
@@ -73,13 +69,14 @@ class SettingsScreen extends StatelessWidget {
                   Get.to(() => const BlockedUserScreen());
                 },
               ),
-              SettingIconTextWithArrow(
-                icon: AssetRes.icQrCode_1,
-                title: LKey.myQrCode,
-                onTap: () {
-                  Get.to(() => const QrCodeScreen());
-                },
-              ),
+              if (ContentProtection.canShare)
+                SettingIconTextWithArrow(
+                  icon: AssetRes.icQrCode_1,
+                  title: LKey.myQrCode,
+                  onTap: () {
+                    Get.to(() => const QrCodeScreen());
+                  },
+                ),
               SettingIconTextWithArrow(
                 icon: AssetRes.icWallet,
                 title: LKey.coinWallet,
@@ -162,12 +159,6 @@ class SettingsScreen extends StatelessWidget {
                 icon: AssetRes.icLogout,
                 title: LKey.logOut,
                 onTap: controller.onLogout,
-                widget: const SizedBox(),
-              ),
-              SettingIconTextWithArrow(
-                icon: AssetRes.icDelete2,
-                title: LKey.deleteAccount,
-                onTap: controller.onDeleteAccount,
                 widget: const SizedBox(),
               ),
             ],

@@ -1,5 +1,5 @@
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/model/user_model/user_model.dart';
 
 class MusicModel {
   MusicModel({

@@ -1,17 +1,17 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/bottom_sheet_top_view.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/custom_search_text_field.dart';
-import 'package:shortzz/common/widget/load_more_widget.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/common/widget/no_data_widget.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/giphy/giphy_model.dart';
-import 'package:shortzz/screen/gif_sheet/gif_sheet_controller.dart';
-import 'package:shortzz/utilities/app_res.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/bottom_sheet_top_view.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/custom_search_text_field.dart';
+import 'package:krimson/common/widget/load_more_widget.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/common/widget/no_data_widget.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/giphy/giphy_model.dart';
+import 'package:krimson/screen/gif_sheet/gif_sheet_controller.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class GifSheet extends StatelessWidget {
   const GifSheet({super.key});

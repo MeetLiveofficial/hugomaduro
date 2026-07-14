@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/extensions/common_extension.dart';
-import 'package:shortzz/common/extensions/string_extension.dart';
-import 'package:shortzz/common/manager/context_menu_widget.dart';
-import 'package:shortzz/common/widget/custom_image.dart';
-import 'package:shortzz/common/widget/load_more_widget.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/common/widget/no_data_widget.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/reels_screen/reels_screen.dart';
-import 'package:shortzz/screen/reels_screen/widget/reel_page_type.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/context_menu_widget.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/load_more_widget.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/common/widget/no_data_widget.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/reels_screen/reels_screen.dart';
+import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class ReelList extends StatelessWidget {
   final RxList<Post> reels;
@@ -71,9 +71,9 @@ class ReelList extends StatelessWidget {
             ),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
-              mainAxisSpacing: 1,
-              crossAxisSpacing: 1,
-              mainAxisExtent: 172,
+              mainAxisSpacing: 1.5,
+              crossAxisSpacing: 1.5,
+              childAspectRatio: 0.72,
             ),
             itemBuilder: (context, index) {
               final post = reels[index];
@@ -119,14 +119,18 @@ class ReelGridCardView extends StatelessWidget {
     return ContextMenuWidget(
       child: InkWell(
         onTap: onTap,
-        child: Stack(
+        child: Material(
+          color: bgGrey(context),
+          child: Stack(
           alignment: AlignmentDirectional.bottomEnd,
+          fit: StackFit.expand,
           children: [
             CustomImage(
-                size: const Size(172, 172),
+                size: const Size(double.infinity, double.infinity),
                 strokeWidth: 0,
                 image: post?.thumbnail?.addBaseURL(),
                 radius: 0,
+                fit: BoxFit.cover,
                 isShowPlaceHolder: true),
             if (post?.isPinned == 1 && isPinShow)
               Align(
@@ -140,7 +144,9 @@ class ReelGridCardView extends StatelessWidget {
                   ),
                 ),
               ),
-            Padding(
+            Align(
+              alignment: AlignmentDirectional.bottomStart,
+              child: Padding(
               padding: const EdgeInsets.all(5.0),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -157,8 +163,10 @@ class ReelGridCardView extends StatelessWidget {
                   ),
                 ],
               ),
-            )
+            ),
+            ),
           ],
+        ),
         ),
       ),
       menuProvider: (_) {

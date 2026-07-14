@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shortzz/utilities/color_res.dart';
-import 'package:shortzz/utilities/font_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/font_res.dart';
 
 class ThemeRes {
   /// Theme light mode
@@ -52,8 +52,7 @@ Color whitePure(BuildContext context) {
 }
 
 Color textDarkGrey(BuildContext context) {
-  return Theme.of(context).textTheme.titleMedium?.color ??
-      textDarkGrey(context);
+  return Theme.of(context).textTheme.titleMedium?.color ?? ColorRes.textDarkGrey;
 }
 
 Color textLightGrey(BuildContext context) {
@@ -67,7 +66,7 @@ Color bgGrey(BuildContext context) {
 
 Color themeAccentSolid(BuildContext context) {
   return Theme.of(context).textTheme.labelSmall?.color ??
-      themeAccentSolid(context);
+      ColorRes.themeAccentSolid;
 }
 
 Color disableGrey(BuildContext context) {
@@ -79,7 +78,7 @@ Color scaffoldBackgroundColor(BuildContext context) {
 }
 
 Color blueFollow(BuildContext context) {
-  return Theme.of(context).cardTheme.color ?? blueFollow(context);
+  return Theme.of(context).cardTheme.color ?? ColorRes.blueFollow;
 }
 
 Color bgMediumGrey(BuildContext context) {

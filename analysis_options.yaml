@@ -8,6 +8,8 @@
 # The following line activates a set of recommended lints for Flutter apps,
 # packages, and plugins designed to encourage good coding practices.
 analyzer:
+  exclude:
+    - shortzz-flutter-full/**
   errors:
     no_leading_underscores_for_local_identifiers: ignore
     unnecessary_getters_setters: ignore

@@ -1,5 +1,5 @@
-name: shortzz
-description: "A new Flutter project."
+name: krimson
+description: "Krimson social app."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -38,10 +38,12 @@ dependencies:
   cupertino_icons: ^1.0.9
 
   ### 🔥 Firebase
-  firebase_core: ^4.8.0
-  firebase_auth: ^6.5.0
-  cloud_firestore: ^6.4.0
-  firebase_messaging: ^16.2.1
+  firebase_core: 4.8.0
+  firebase_auth: 6.5.0
+  cloud_firestore: 6.4.0
+  firebase_messaging: 16.2.1
+
+  ### Ads
   google_mobile_ads: ^8.0.0
 
   ### 📦 State Management & Storage
@@ -139,6 +141,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.3
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -165,7 +168,6 @@ flutter:
     - assets/csv/
     - assets/audios/
     - android/app/src/main/res/mipmap-hdpi/
-    - ios/Runner/Assets.xcassets/AppIcon.appiconset/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -247,3 +249,11 @@ flutter:
       fonts:
         - asset: assets/fonts/Unbounded-SemiBold.ttf
           weight: 600
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: android/app/src/main/ic_launcher-playstore.png
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: android/app/src/main/ic_launcher-playstore.png
+  remove_alpha_ios: true

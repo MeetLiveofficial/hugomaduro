@@ -1,15 +1,15 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/highlight_wrapper.dart';
-import 'package:shortzz/common/widget/load_more_widget.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/post_story/comment/fetch_comment_model.dart';
-import 'package:shortzz/screen/comment_sheet/comment_sheet_controller.dart';
-import 'package:shortzz/screen/comment_sheet/widget/comment_card.dart';
-import 'package:shortzz/screen/comment_sheet/widget/reply_comments.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/highlight_wrapper.dart';
+import 'package:krimson/common/widget/load_more_widget.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/post_story/comment/fetch_comment_model.dart';
+import 'package:krimson/screen/comment_sheet/comment_sheet_controller.dart';
+import 'package:krimson/screen/comment_sheet/widget/comment_card.dart';
+import 'package:krimson/screen/comment_sheet/widget/reply_comments.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class CommentsView extends StatelessWidget {
   final CommentSheetController controller;

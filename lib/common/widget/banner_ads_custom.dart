@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:shortzz/common/manager/ads_manager.dart';
-import 'package:shortzz/common/service/subscription/subscription_manager.dart';
+import 'package:krimson/common/manager/ads_manager.dart';
+import 'package:krimson/common/service/subscription/subscription_manager.dart';
 
 class BannerAdsCustom extends StatefulWidget {
   final double? size;

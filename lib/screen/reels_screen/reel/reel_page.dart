@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/black_gradient_shadow.dart';
-import 'package:shortzz/common/widget/double_tap_detector.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/model/post_story/post_by_id.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/screen/reels_screen/reel/reel_page_controller.dart';
-import 'package:shortzz/screen/reels_screen/reel/widget/reel_animation_like.dart';
-import 'package:shortzz/screen/reels_screen/reel/widget/reel_seek_bar.dart';
-import 'package:shortzz/screen/reels_screen/reel/widget/side_bar_list.dart';
-import 'package:shortzz/screen/reels_screen/reel/widget/user_information.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/widget/black_gradient_shadow.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/double_tap_detector.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/model/post_story/post_by_id.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/screen/reels_screen/reel/reel_page_controller.dart';
+import 'package:krimson/screen/reels_screen/reel/widget/reel_animation_like.dart';
+import 'package:krimson/screen/reels_screen/reel/widget/reel_seek_bar.dart';
+import 'package:krimson/screen/reels_screen/reel/widget/side_bar_list.dart';
+import 'package:krimson/screen/reels_screen/reel/widget/user_information.dart';
+import 'package:krimson/screen/reels_screen/reels_screen_controller.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/theme_res.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -20,6 +23,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 // ---------------------------------------------------------------
 class ReelPage extends StatefulWidget {
   final VideoPlayerController? videoPlayerController;
+  final PlayerStatus playerStatus;
   final Post reelData;
   final PostByIdData? postByIdData;
   final bool isFromChat;
@@ -29,6 +33,7 @@ class ReelPage extends StatefulWidget {
   const ReelPage({
     super.key,
     this.videoPlayerController,
+    this.playerStatus = PlayerStatus.none,
     required this.reelData,
     this.postByIdData,
     this.isFromChat = false,
@@ -123,16 +128,14 @@ class _ReelPageState extends State<ReelPage> {
         child: Stack(
           alignment: Alignment.bottomCenter,
           children: [
-            widget.videoPlayerController != null
-                ? CustomCacheVideoPlayer(
-                    videoPlayer: widget.videoPlayerController, onPlayPause: onPlayPause)
-                : const SizedBox(),
+            _buildMediaLayer(),
 
             /// 🕹 Tap Overlay (pause/play)
             InkWell(onTap: onPlayPause, child: const BlackGradientShadow()),
 
             /// ▶ Play/Pause Icon overlay
-            if (widget.videoPlayerController != null)
+            if (widget.videoPlayerController != null &&
+                widget.playerStatus == PlayerStatus.initialized)
               Obx(() {
                 return AnimatedOpacity(
                   duration: const Duration(milliseconds: 150),
@@ -181,6 +184,30 @@ class _ReelPageState extends State<ReelPage> {
             }),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMediaLayer() {
+    final status = widget.playerStatus;
+    final player = widget.videoPlayerController;
+
+    if (status == PlayerStatus.failed) {
+      return Positioned.fill(child: _ReelFallbackPoster(reel: widget.reelData));
+    }
+
+    if (player != null && player.value.isInitialized) {
+      return CustomCacheVideoPlayer(videoPlayer: player, onPlayPause: onPlayPause);
+    }
+
+    // Loading / not ready yet — poster + loader
+    return Positioned.fill(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _ReelFallbackPoster(reel: widget.reelData, showErrorLabel: false),
+          const Center(child: LoaderWidget()),
+        ],
       ),
     );
   }
@@ -261,3 +288,46 @@ class CustomCacheVideoPlayer extends StatelessWidget {
     }
   }
 }
+
+class _ReelFallbackPoster extends StatelessWidget {
+  final Post reel;
+  final bool showErrorLabel;
+
+  const _ReelFallbackPoster({required this.reel, this.showErrorLabel = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return ColoredBox(
+      color: blackPure(context),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomImage(
+            size: size,
+            fit: BoxFit.cover,
+            radius: 0,
+            isShowPlaceHolder: true,
+            image: reel.thumbnail?.addBaseURL(),
+          ),
+          if (showErrorLabel)
+            Align(
+              alignment: Alignment.center,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Video no disponible',
+                  style: TextStyle(color: whitePure(context), fontSize: 13),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+

@@ -1,8 +1,8 @@
-import 'package:shortzz/model/general/settings_model.dart';
-import 'package:shortzz/model/post_story/comment/fetch_comment_model.dart';
-import 'package:shortzz/model/post_story/post_model.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
-import 'package:shortzz/screen/notification_screen/widget/activity_notification_page.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/post_story/comment/fetch_comment_model.dart';
+import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/notification_screen/widget/activity_notification_page.dart';
 
 class ActivityNotificationModel {
   ActivityNotificationModel({

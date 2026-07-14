@@ -1,16 +1,16 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shortzz/common/widget/bottom_sheet_top_view.dart';
-import 'package:shortzz/common/widget/custom_search_text_field.dart';
-import 'package:shortzz/common/widget/custom_tab_switcher.dart';
-import 'package:shortzz/common/widget/loader_widget.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/screen/music_sheet/music_sheet_controller.dart';
-import 'package:shortzz/screen/music_sheet/widget/music_category_grid_view.dart';
-import 'package:shortzz/screen/music_sheet/widget/music_list.dart';
-import 'package:shortzz/utilities/text_style_custom.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/common/widget/bottom_sheet_top_view.dart';
+import 'package:krimson/common/widget/custom_search_text_field.dart';
+import 'package:krimson/common/widget/custom_tab_switcher.dart';
+import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/music_sheet/music_sheet_controller.dart';
+import 'package:krimson/screen/music_sheet/widget/music_category_grid_view.dart';
+import 'package:krimson/screen/music_sheet/widget/music_list.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class MusicSheet extends StatelessWidget {
   final int videoDurationInSecond;

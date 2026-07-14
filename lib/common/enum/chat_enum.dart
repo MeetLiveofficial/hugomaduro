@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shortzz/utilities/asset_res.dart';
-import 'package:shortzz/utilities/color_res.dart';
-import 'package:shortzz/utilities/theme_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 enum UserRequestAction {
   block,
@@ -33,31 +32,25 @@ enum UserRequestAction {
   Color titleColor(BuildContext context) => titleColors(context)[this]!;
 }
 
-
-
 enum ChatAction {
   gift,
   audio,
-  sticker,
   media;
 
-  String get image {
+  /// Iconos Material ligeros (sin PNG pesados).
+  IconData get icon {
     switch (this) {
       case ChatAction.gift:
-        return AssetRes.icGift_2;
+        return Icons.card_giftcard_outlined;
       case ChatAction.audio:
-        return AssetRes.icVoice;
-      case ChatAction.sticker:
-        return AssetRes.icSticker;
+        return Icons.mic_none_outlined;
       case ChatAction.media:
-        return AssetRes.icImage1;
+        return Icons.image_outlined;
     }
   }
 
   static List<ChatAction> getChatActions({required bool isGiphyEnabled}) {
-    return ChatAction.values.where((action) {
-      if (action == ChatAction.sticker && !isGiphyEnabled) return false;
-      return true;
-    }).toList();
+    // Stickers/emojis removed from chat input by product request.
+    return const [ChatAction.gift, ChatAction.audio, ChatAction.media];
   }
 }

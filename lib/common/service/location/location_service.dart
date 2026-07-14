@@ -1,11 +1,11 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shortzz/common/manager/session_manager.dart';
-import 'package:shortzz/common/service/api/user_service.dart';
-import 'package:shortzz/common/widget/confirmation_dialog.dart';
-import 'package:shortzz/languages/languages_keys.dart';
-import 'package:shortzz/model/user_model/user_model.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/widget/confirmation_dialog.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/user_model/user_model.dart';
 
 class LocationService {
   LocationService._();
