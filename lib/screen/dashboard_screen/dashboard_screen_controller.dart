@@ -14,6 +14,7 @@ import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/zego_engine_manager.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/subscription/subscription_manager.dart';
 import 'package:krimson/common/widget/restart_widget.dart';
@@ -27,7 +28,6 @@ import 'package:krimson/screen/gif_sheet/gif_sheet_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
-import 'package:zego_express_engine/zego_express_engine.dart';
 
 class DashboardScreenController extends BaseController with GetSingleTickerProviderStateMixin {
   /// Orden bottom nav: Home · Explore · Live (centro) · Chat · Profile
@@ -201,16 +201,10 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   Future<void> _createZegoEngine() async {
-    Setting? appSetting = SessionManager.instance.getSettings();
-    int appId = int.parse(appSetting?.zegoAppId ?? '0');
-    if (appId == 0) {
-      return Loggers.info('The Zego App ID is not configured.');
-    }
     try {
-      await ZegoExpressEngine.createEngineWithProfile(
-          ZegoEngineProfile(appId, ZegoScenario.Default, appSign: appSetting?.zegoAppSign));
-    } on MissingPluginException catch (e) {
-      Loggers.error('Create Zego Engine : ${e.message}');
+      await ZegoEngineManager.ensureCreated();
+    } catch (e) {
+      Loggers.error('Create Zego Engine : $e');
     }
   }
 

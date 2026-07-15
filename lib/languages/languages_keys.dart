@@ -121,6 +121,13 @@ class LKey {
       "Request sent. Waiting for the other user to approve the call.";
   static const String callCannotReceive =
       "This user cannot receive video calls yet. Their level must allow calls.";
+  static const String calling = "Calling…";
+  static const String ringing = "Ringing…";
+  static const String connecting = "Connecting…";
+  static const String callRejected = "Call declined";
+  static const String callCancelled = "Call cancelled";
+  static const String callNoAnswer = "No answer";
+  static const String callFailed = "Could not place the call";
   static const String calls = "Calls";
   static const String callEmptyTitle = "No data";
   static const String callEmptyDescription =

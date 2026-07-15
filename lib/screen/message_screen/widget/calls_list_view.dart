@@ -10,6 +10,7 @@ import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
+import 'package:krimson/screen/call_screen/incoming_call_screen.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -17,6 +18,8 @@ import 'package:krimson/utilities/theme_res.dart';
 class CallsListController extends BaseController {
   final RxList<CallRequestModel> received = <CallRequestModel>[].obs;
   final RxList<CallRequestModel> sent = <CallRequestModel>[].obs;
+  final Set<int> _seenIncomingIds = {};
+  bool _didPrimeIncoming = false;
 
   @override
   void onInit() {
@@ -30,6 +33,20 @@ class CallsListController extends BaseController {
       final inbox = await CallService.instance.inbox();
       received.assignAll(inbox.received);
       sent.assignAll(inbox.sent);
+
+      final pendingIncoming =
+          inbox.received.where((e) => e.isPending && e.id != null).toList();
+      if (!_didPrimeIncoming) {
+        _seenIncomingIds.addAll(pendingIncoming.map((e) => e.id!));
+        _didPrimeIncoming = true;
+      } else {
+        for (final item in pendingIncoming) {
+          if (_seenIncomingIds.add(item.id!)) {
+            Get.to(() => IncomingCallScreen(call: item));
+            break;
+          }
+        }
+      }
     } catch (e) {
       showSnackBar(e.toString());
     } finally {
@@ -37,18 +54,9 @@ class CallsListController extends BaseController {
     }
   }
 
-  Future<void> accept(CallRequestModel item) async {
+  Future<void> answer(CallRequestModel item) async {
     if (item.id == null) return;
-    showLoader();
-    try {
-      final updated = await CallService.instance.accept(item.id!);
-      await refreshInbox();
-      Get.to(() => VideoCallScreen(call: updated));
-    } catch (e) {
-      showSnackBar(e.toString());
-    } finally {
-      stopLoader();
-    }
+    Get.to(() => IncomingCallScreen(call: item));
   }
 
   Future<void> reject(CallRequestModel item) async {
@@ -154,7 +162,7 @@ class CallsListView extends StatelessWidget {
                     ),
                     if (item.isPending && incoming) ...[
                       TextButtonCustom(
-                        onTap: () => controller.accept(item),
+                        onTap: () => controller.answer(item),
                         title: LKey.accept.tr,
                         backgroundColor: themeAccentSolid(context),
                         titleColor: whitePure(context),

@@ -15,6 +15,7 @@ import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/livestream/livestream_user_state.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
+import 'package:krimson/common/manager/zego_engine_manager.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 import 'package:video_player/video_player.dart';
@@ -129,6 +130,8 @@ class LivestreamScreenController extends BaseController {
   Future<void> _joinZego() async {
     final me = SessionManager.instance.getUser();
     if (me == null) return;
+
+    await ZegoEngineManager.ensureCreated();
 
     final zegoUser = ZegoUser('${me.id}', me.fullname ?? me.username ?? 'user');
     await ZegoExpressEngine.instance.loginRoom(
@@ -303,6 +306,12 @@ class LivestreamScreenController extends BaseController {
   }
 
   Future<void> confirmExit(BuildContext context) async {
+    // Si un cierre previo falló a mitad, forzar salida.
+    if (isEnding.value) {
+      await _popLiveUi();
+      return;
+    }
+
     final leave = await Get.dialog<bool>(
       AlertDialog(
         title: Text(LKey.exitLiveStreamTitle.tr),
@@ -313,9 +322,10 @@ class LivestreamScreenController extends BaseController {
               child: Text(LKey.cancel.tr)),
           TextButton(
               onPressed: () => Get.back(result: true),
-              child: const Text('Yes')),
+              child: Text(LKey.yes.tr)),
         ],
       ),
+      barrierDismissible: true,
     );
     if (leave == true) {
       await endOrLeave();
@@ -323,36 +333,72 @@ class LivestreamScreenController extends BaseController {
   }
 
   Future<void> endOrLeave() async {
-    if (isEnding.value) return;
+    if (isEnding.value) {
+      await _popLiveUi();
+      return;
+    }
     isEnding.value = true;
     try {
-      if (!isDummy && !kIsWeb) {
-        if (isHost) {
-          await ZegoExpressEngine.instance.stopPublishingStream();
-          await ZegoExpressEngine.instance.stopPreview();
-        } else {
-          await ZegoExpressEngine.instance.stopPlayingStream(streamId);
-          await _bumpWatching(-1);
-        }
-        if (localViewId != null) {
-          await ZegoExpressEngine.instance.destroyCanvasView(localViewId!);
-        }
-        await ZegoExpressEngine.instance.logoutRoom(roomId);
-      }
-
-      await dummyPlayer?.pause();
-      await dummyPlayer?.dispose();
-      dummyPlayer = null;
+      await _cleanupMedia();
 
       if (isHost && !isDummy && useFirebase) {
-        await FirebaseFirestore.instance
-            .collection(FirebaseConst.liveStreams)
-            .doc(roomId)
-            .delete();
+        try {
+          await FirebaseFirestore.instance
+              .collection(FirebaseConst.liveStreams)
+              .doc(roomId)
+              .delete();
+        } catch (_) {}
       }
     } catch (e) {
-      showSnackBar(e.toString());
+      // No bloquear la salida por errores de red/SDK.
+      statusMessage.value = e.toString();
     } finally {
+      await _popLiveUi();
+      isEnding.value = false;
+    }
+  }
+
+  Future<void> _cleanupMedia() async {
+    if (!isDummy && !kIsWeb) {
+      if (isHost) {
+        await ZegoEngineManager.safe(
+            () => ZegoExpressEngine.instance.stopPublishingStream());
+        await ZegoEngineManager.safe(
+            () => ZegoExpressEngine.instance.stopPreview());
+      } else {
+        await ZegoEngineManager.safe(
+            () => ZegoExpressEngine.instance.stopPlayingStream(streamId));
+        await _bumpWatching(-1);
+      }
+      if (localViewId != null) {
+        final viewId = localViewId!;
+        await ZegoEngineManager.safe(
+            () => ZegoExpressEngine.instance.destroyCanvasView(viewId));
+        localViewId = null;
+      }
+      await ZegoEngineManager.safe(
+          () => ZegoExpressEngine.instance.logoutRoom(roomId));
+    }
+
+    try {
+      await dummyPlayer?.pause();
+      await dummyPlayer?.dispose();
+    } catch (_) {}
+    dummyPlayer = null;
+    zegoView = null;
+  }
+
+  Future<void> _popLiveUi() async {
+    // Cerrar dialogs/sheets encima del live.
+    for (var i = 0; i < 3; i++) {
+      if (Get.isDialogOpen == true || Get.isBottomSheetOpen == true) {
+        Get.back();
+        await Future.delayed(const Duration(milliseconds: 16));
+      } else {
+        break;
+      }
+    }
+    if (Get.key.currentState?.canPop() == true) {
       Get.back();
     }
   }

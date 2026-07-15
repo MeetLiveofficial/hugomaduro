@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/zego_engine_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
@@ -153,6 +154,7 @@ class VideoCallController extends BaseController {
     };
 
     try {
+      await ZegoEngineManager.ensureCreated();
       final zegoUser = ZegoUser('${me.id}', me.fullname ?? me.username ?? 'user');
       await ZegoExpressEngine.instance.loginRoom(
         roomId,

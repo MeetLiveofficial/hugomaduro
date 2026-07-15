@@ -9,6 +9,7 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/zego_engine_manager.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -381,6 +382,11 @@ class LiveStreamSearchScreenController extends BaseController {
               .doc('$coHostId')
               .set(state.toJson(), SetOptions(merge: true));
         }
+      }
+
+      // Motor listo antes de entrar a la sala (evita loginRoom sobre null).
+      if (!kIsWeb) {
+        await ZegoEngineManager.ensureCreated();
       }
 
       stopLoader();
