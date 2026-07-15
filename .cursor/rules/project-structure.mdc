@@ -1,0 +1,30 @@
+---
+description: Estructura del proyecto Nexus — APP vs Backend
+alwaysApply: true
+---
+
+# Nexus — APP y Backend
+
+## Proyectos
+
+| Rol | Ruta | Descripción |
+|-----|------|-------------|
+| **APP** (Flutter) | `C:\laragon\www\nexus_krimson\nexus_rs_app` | Cliente móvil Krimson (este repositorio) |
+| **Backend** (Laravel) | `C:\laragon\www\nexus_krimson\nexus_rs` | API y panel de administración |
+
+## Dominio del backend
+
+- **URL base del backend:** `https://social.nexusdevtech.com/`
+- **URL de la API:** `https://social.nexusdevtech.com/api/`
+- **Firebase:** desactivado (`useFirebase = false` en `const_res.dart`). Auth, settings y datos vía API Laravel.
+
+## Configuración en la APP
+
+La URL del backend se define en `lib/utilities/const_res.dart`:
+
+```dart
+const String baseURL = 'https://social.nexusdevtech.com/';
+const String apiURL = '${baseURL}api/';
+```
+
+Al cambiar el dominio del backend, actualizar `baseURL` en ese archivo (debe terminar con `/`).
