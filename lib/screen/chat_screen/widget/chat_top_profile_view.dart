@@ -27,10 +27,14 @@ class ChatTopProfileView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       child: SafeArea(
         bottom: false,
-        child: Obx(() {
+        child: Builder(builder: (context) {
           ChatThread chatThread = controller.conversationUser.value;
+          // bind una sola vez (no dentro del rebuild reactivo)
           chatThread.bindChatUser();
-          AppUser? chatUser = chatThread.chatUser;
+          return Obx(() {
+          // Observa el hilo + el usuario reactivo
+          final _ = controller.conversationUser.value;
+          final chatUser = chatThread.chatUserRx.value;
           bool iBlocked = chatThread.iBlocked ?? false;
           return Row(
             spacing: 10,
@@ -112,6 +116,7 @@ class ChatTopProfileView extends StatelessWidget {
                           Image.asset(AssetRes.icMore, width: 25, height: 25)))
             ],
           );
+          });
         }),
       ),
     );

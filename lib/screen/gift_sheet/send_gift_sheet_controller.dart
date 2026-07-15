@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/functions/debounce_action.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
+import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/manager/haptic_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -51,6 +52,7 @@ class SendGiftSheetController extends BaseController {
   _initData() {
     settings.value = SessionManager.instance.getSettings();
     myUser.value = SessionManager.instance.getUser();
+    GiftMediaCache.precacheGifts(settings.value?.gifts);
   }
 
   void onGiftTap(Gift gift, BuildContext context) {

@@ -58,3 +58,5 @@ android/app/src/main/res/values/strings.xml
 
 .cursor/
 .exports/
+*.apk
+release/

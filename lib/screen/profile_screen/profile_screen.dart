@@ -81,6 +81,23 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     Obx(() {
+                      final user = controller.userData.value;
+                      if (user == null || user.isFreez == 1) {
+                        return const SizedBox.shrink();
+                      }
+                      final isMe =
+                          user.id == SessionManager.instance.getUserID();
+                      if (isMe) return const SizedBox.shrink();
+                      return Positioned(
+                        right: 16,
+                        bottom: MediaQuery.paddingOf(context).bottom + 20,
+                        child: ProfileVideoCallFab(
+                          user: user,
+                          onTap: controller.requestVideoCall,
+                        ),
+                      );
+                    }),
+                    Obx(() {
                       User? user = controller.userData.value;
                       if (user?.isFreez != 1) {
                         return const SizedBox();

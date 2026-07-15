@@ -76,6 +76,7 @@ class MessageData {
   }
 
   AppUser? get chatUser {
+    if (!Get.isRegistered<FirebaseFirestoreController>()) return null;
     final controller = Get.find<FirebaseFirestoreController>();
     return controller.users
         .firstWhereOrNull((element) => element.userId == userId);

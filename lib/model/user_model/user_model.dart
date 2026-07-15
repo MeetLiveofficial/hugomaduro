@@ -105,7 +105,12 @@ class User {
       this.stories,
       this.appLanguage,
       this.newRegister,
-      this.followingIds});
+      this.followingIds,
+      this.levelNumber,
+      this.levelTitle,
+      this.callRequestCoins = 0,
+      this.canReceiveCalls = 0,
+      this.levelBenefits = const []});
 
   User copyWith({
     int? id,
@@ -267,6 +272,22 @@ class User {
     isBlock = json['is_block'];
     appLanguage = json['app_language'];
     newRegister = json['new_register'];
+    levelNumber = json['level_number'] is num
+        ? (json['level_number'] as num).toInt()
+        : int.tryParse('${json['level_number'] ?? ''}');
+    levelTitle = json['level_title']?.toString();
+    callRequestCoins = json['call_request_coins'] is num
+        ? (json['call_request_coins'] as num).toInt()
+        : int.tryParse('${json['call_request_coins'] ?? 0}') ?? 0;
+    canReceiveCalls = json['can_receive_calls'] is num
+        ? (json['can_receive_calls'] as num).toInt()
+        : int.tryParse('${json['can_receive_calls'] ?? 0}') ?? 0;
+    if (json['level_benefits'] is List) {
+      levelBenefits = (json['level_benefits'] as List)
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
     token = json['token'] != null ? Token.fromJson(json['token']) : null;
     followingIds = json["following_ids"] != null
         ? List<int>.from(json["following_ids"].map((x) => x))
@@ -340,6 +361,11 @@ class User {
   List<Link>? links;
   List<int>? followingIds;
   List<Story>? stories;
+  int? levelNumber;
+  String? levelTitle;
+  int callRequestCoins = 0;
+  int canReceiveCalls = 0;
+  List<String> levelBenefits = const [];
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -392,6 +418,11 @@ class User {
     map['is_block'] = isBlock;
     map['new_register'] = newRegister;
     map['app_language'] = appLanguage;
+    map['level_number'] = levelNumber;
+    map['level_title'] = levelTitle;
+    map['call_request_coins'] = callRequestCoins;
+    map['can_receive_calls'] = canReceiveCalls;
+    map['level_benefits'] = levelBenefits;
     map["following_ids"] = followingIds;
     if (token != null) {
       map['token'] = token?.toJson();

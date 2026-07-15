@@ -30,10 +30,15 @@ class BaseController extends FullLifeCycleController {
     isLoading.value = false;
   }
 
-  void showSnackBar(String? title, {int second = 2}) {
+  void showSnackBar(String? title, {int second = 2, bool translate = false}) {
     if (Get.isSnackbarOpen) {
       return;
     }
+
+    // No usar .tr en mensajes dinámicos (errores/Firebase): puede corromper
+    // el texto y fallar con RangeError en claves largas.
+    final raw = title?.trim() ?? '';
+    final text = translate ? raw.tr : raw;
 
     Get.rawSnackbar(
       backgroundColor: blackPure(Get.context!),
@@ -43,9 +48,11 @@ class BaseController extends FullLifeCycleController {
       isDismissible: true,
       duration: Duration(seconds: second),
       snackPosition: SnackPosition.TOP,
-      messageText: Text(title?.capitalizeFirst?.tr ?? '',
-          style: TextStyleCustom.outFitRegular400(
-              color: whitePure(Get.context!), fontSize: 17)),
+      messageText: Text(
+        text,
+        style: TextStyleCustom.outFitRegular400(
+            color: whitePure(Get.context!), fontSize: 17),
+      ),
     );
   }
 

@@ -27,21 +27,18 @@ class DefaultFirebaseOptions {
     storageBucket: 'krimson-20f2c.firebasestorage.app',
   );
 
-  /// iOS: registra una app iOS en Firebase Console y reemplaza appId/bundle.
-  /// Mientras tanto usa el mismo proyecto; necesitas GoogleService-Info.plist.
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyD21n5_2v0BpA2tMji10W27bZKD3B2xmy8',
-    appId: '1:972743641868:android:07caec9f5b51d88a375729',
+    apiKey: 'AIzaSyCkX-RxNVfkjwyNmEIp0fKSE3iqBRXbvR0',
+    appId: '1:972743641868:ios:a29c7666b6802a27375729',
     messagingSenderId: '972743641868',
     projectId: 'krimson-20f2c',
     storageBucket: 'krimson-20f2c.firebasestorage.app',
     iosBundleId: 'com.nexus.krimson',
   );
 
-  /// Web: ideal registrar app Web en Firebase Console y actualizar appId.
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyD21n5_2v0BpA2tMji10W27bZKD3B2xmy8',
-    appId: '1:972743641868:android:07caec9f5b51d88a375729',
+    apiKey: 'AIzaSyCHozRzfcxnfw98h0fgID3Xkiuc6mivyyU',
+    appId: '1:972743641868:web:f8606b100b42e1e6375729',
     messagingSenderId: '972743641868',
     projectId: 'krimson-20f2c',
     authDomain: 'krimson-20f2c.firebaseapp.com',

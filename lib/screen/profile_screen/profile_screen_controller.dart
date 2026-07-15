@@ -8,6 +8,7 @@ import 'package:krimson/common/extensions/list_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/moderator_service.dart';
 import 'package:krimson/common/service/api/post_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
@@ -23,6 +24,9 @@ import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/blocked_user_screen/block_user_controller.dart';
 import 'package:krimson/screen/chat_screen/chat_screen.dart';
 import 'package:krimson/screen/create_feed_screen/create_feed_screen.dart';
+import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/screen/message_screen/message_screen_controller.dart';
+import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
 import 'package:krimson/screen/post_screen/post_screen_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_sheet.dart';
@@ -377,6 +381,60 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
       conversation.chatUser = userData.value?.appUser;
       Get.to(() => ChatScreen(conversationUser: conversation, user: userData.value));
     }
+  }
+
+  Future<void> requestVideoCall() async {
+    final user = userData.value;
+    final userId = user?.id;
+    if (userId == null) return;
+
+    final canReceive =
+        user?.canReceiveCalls == 1 || user?.getLevel.canReceiveCalls == 1;
+    if (!canReceive) {
+      showSnackBar(LKey.callCannotReceive.tr);
+      return;
+    }
+
+    final cost = user?.callRequestCoins ?? user?.getLevel.callRequestCoins ?? 0;
+    Get.bottomSheet(
+      ConfirmationSheet(
+        title: LKey.requestVideoCall.tr,
+        description: LKey.callRequestCost.trParams({'coins': '$cost'}),
+        positiveText: LKey.sendCallRequest.tr,
+        onTap: () async {
+          showLoader();
+          try {
+            await CallService.instance.create(userId: userId);
+            final me = SessionManager.instance.getUser();
+            if (me != null && cost > 0) {
+              me.removeCoinFromWallet(cost);
+              SessionManager.instance.setUser(me);
+            }
+            showSnackBar(LKey.callWaitingApproval.tr);
+            _openCallsInbox();
+          } catch (e) {
+            showSnackBar(e.toString());
+          } finally {
+            stopLoader();
+          }
+        },
+      ),
+    );
+  }
+
+  void _openCallsInbox() {
+    try {
+      if (Get.isRegistered<DashboardScreenController>()) {
+        Get.find<DashboardScreenController>()
+            .onChanged(DashboardScreenController.tabChat);
+      }
+      if (Get.isRegistered<MessageScreenController>()) {
+        Get.find<MessageScreenController>().openCallsTab();
+      }
+      if (Get.isRegistered<CallsListController>()) {
+        Get.find<CallsListController>().refreshInbox();
+      }
+    } catch (_) {}
   }
 
   void onStoryTap(bool isStoryAvailable) {

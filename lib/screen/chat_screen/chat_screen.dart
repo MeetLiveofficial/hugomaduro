@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
@@ -16,6 +17,13 @@ class ChatScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Asegurar peer id antes de que el controller arme las refs de Firestore.
+    if (conversationUser.userId == null && user?.id != null) {
+      conversationUser.userId = user!.id;
+    }
+    if (conversationUser.chatUser == null && user != null) {
+      conversationUser.chatUser = user!.appUser;
+    }
     final controller = Get.put(ChatScreenController(conversationUser.obs),
         tag: '${conversationUser.conversationId}');
     return Scaffold(

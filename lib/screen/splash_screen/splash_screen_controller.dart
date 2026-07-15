@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/firebase_app_helper.dart';
+import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
@@ -29,7 +31,10 @@ class SplashScreenController extends BaseController {
   void onReady() {
     super.onReady();
 
-    Future.wait([fetchSettings()]);
+    Future.wait([
+      FirebaseAppHelper.ensureInitialized(),
+      fetchSettings(),
+    ]);
 
     _subscription = NetworkHelper().onConnectionChange.listen((status) {
       isOnline = status;
@@ -66,6 +71,8 @@ class SplashScreenController extends BaseController {
 
       final translations = Get.find<DynamicTranslations>();
       var setting = SessionManager.instance.getSettings();
+      // Prefetch gift GIFs into disk cache (non-blocking).
+      GiftMediaCache.precacheGifts(setting?.gifts);
       var languages = setting?.languages ?? [];
       List<Language> downloadLanguages =
           languages.where((element) => element.status == 1).toList();

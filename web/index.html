@@ -12,7 +12,7 @@
     * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
 
     This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
+    the `--base-href` argument provided by `flutter build`.
   -->
   <base href="$FLUTTER_BASE_HREF">
 
@@ -31,16 +31,37 @@
 
   <title>Krimson</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Fuerza la versión JS que FlutterFire espera.
+    window.flutterfire_web_sdk_version = '12.15.0';
+  </script>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- Precarga Firebase ES modules antes de Flutter (más estable en móvil). -->
+  <script type="module">
+    try {
+      const version = window.flutterfire_web_sdk_version || '12.15.0';
+      const [firebase_core, firebase_auth, firebase_firestore, firebase_messaging] =
+        await Promise.all([
+          import(`https://www.gstatic.com/firebasejs/${version}/firebase-app.js`),
+          import(`https://www.gstatic.com/firebasejs/${version}/firebase-auth.js`),
+          import(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore.js`),
+          import(`https://www.gstatic.com/firebasejs/${version}/firebase-messaging.js`),
+        ]);
+      window.firebase_core = firebase_core;
+      window.firebase_auth = firebase_auth;
+      window.firebase_firestore = firebase_firestore;
+      window.firebase_messaging = firebase_messaging;
+      window.__krimsonFirebasePreloaded = true;
+    } catch (e) {
+      console.error('Firebase preload failed', e);
+      window.__krimsonFirebasePreloaded = false;
+    } finally {
+      const s = document.createElement('script');
+      s.src = 'flutter_bootstrap.js';
+      s.async = true;
+      document.body.appendChild(s);
+    }
+  </script>
 </body>
 </html>

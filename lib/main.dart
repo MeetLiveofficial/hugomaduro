@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -46,13 +47,19 @@ Future<void> main() async {
     return true;
   };
   ErrorWidget.builder = (details) {
+    final msg = details.exceptionAsString();
+    // No tumbar toda la UI por Firebase no-app (se reintenta en splash/auth).
+    if (msg.contains('core/no-app') || msg.contains('FirebaseApp')) {
+      Loggers.error('ErrorWidget Firebase suppressed: $msg');
+      return const SizedBox.shrink();
+    }
     return Material(
       color: Colors.white,
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Text(
-            'Error UI:\n${details.exceptionAsString()}',
+            'Error UI:\n$msg',
             style: const TextStyle(color: Colors.red, fontSize: 12),
           ),
         ),
@@ -70,19 +77,17 @@ Future<void> main() async {
   }
 
   try {
-    await _withTimeout(
-      Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
-      'Firebase.initializeApp',
-    );
-    if (!kIsWeb && Firebase.apps.isNotEmpty) {
+    // Firebase es importante (chat/auth), pero NO bloquea el arranque:
+    // el login Laravel debe funcionar aunque FCM falle.
+    final ok = await FirebaseAppHelper.ensureInitialized();
+    if (!ok) {
+      Loggers.error(
+          'Firebase no inicializado: ${FirebaseAppHelper.lastError}');
+    } else if (!kIsWeb) {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     }
   } catch (e, st) {
-    // En web no bloquear la app: se usa auth API Laravel si Firebase no está listo.
     Loggers.error('Firebase.initializeApp: $e\n$st');
-    if (!kIsWeb) {
-      _bootError = 'Firebase.initializeApp: $e';
-    }
   }
 
   try {
@@ -179,7 +184,10 @@ class _BootErrorScreen extends StatelessWidget {
               Text(message, style: const TextStyle(fontSize: 13)),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () => Get.offAll(() => const SplashScreen()),
+                onPressed: () async {
+                  await FirebaseAppHelper.ensureInitialized();
+                  Get.offAll(() => const SplashScreen());
+                },
                 child: const Text('Reintentar'),
               ),
             ],

@@ -10,6 +10,7 @@ import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/screen/feed_screen/feed_screen_controller.dart';
 import 'package:krimson/screen/feed_screen/widget/story_view.dart';
 import 'package:krimson/screen/message_screen/message_screen_controller.dart';
+import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
 import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card.dart';
 import 'package:krimson/screen/message_screen/widget/new_direct_chat_sheet.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -150,7 +151,9 @@ class MessageScreen extends StatelessWidget {
             return controller.isLoading.value &&
                     (controller.selectedChatCategory.value == 0
                         ? controller.chatsUsers.isEmpty
-                        : controller.requestsUsers.isEmpty)
+                        : controller.selectedChatCategory.value == 1
+                            ? controller.requestsUsers.isEmpty
+                            : false)
                 ? const LoaderWidget()
                 : PageView(
                     controller: controller.pageController,
@@ -158,6 +161,7 @@ class MessageScreen extends StatelessWidget {
                     children: const [
                       ChatsListView(),
                       RequestsListView(),
+                      CallsListView(),
                     ],
                   );
           }),
@@ -222,4 +226,4 @@ class RequestsListView extends StatelessWidget {
     );
   }
 }
-
+

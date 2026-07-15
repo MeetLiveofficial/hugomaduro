@@ -99,6 +99,36 @@ class LKey {
   static const String goLive = "Go Live";
   static const String liveNow = "Live now";
   static const String levels = "Levels";
+  static const String myLevel = "My Level";
+  static const String benefits = "Benefits";
+  static const String callPrice = "Call price";
+  static const String receiveCalls = "Can receive calls";
+  static const String svip = "SVIP";
+  static const String learnMore = "Learn more";
+  static const String dressingCenter = "Dressing Center";
+  static const String honorWall = "Wall of Honor";
+  static const String equip = "Equip";
+  static const String equipped = "Equipped";
+  static const String locked = "Locked";
+  static const String privilegeHub = "My privileges";
+  static const String videoCall = "Video Call";
+  static const String requestVideoCall = "Request video call";
+  static const String callRequestCost =
+      "This request costs @coins coins (set by the user's level).";
+  static const String sendCallRequest = "Send request";
+  static const String callCostPerMin = "@coins/min";
+  static const String callWaitingApproval =
+      "Request sent. Waiting for the other user to approve the call.";
+  static const String callCannotReceive =
+      "This user cannot receive video calls yet. Their level must allow calls.";
+  static const String calls = "Calls";
+  static const String callEmptyTitle = "No data";
+  static const String callEmptyDescription =
+      "Video call requests you send or receive will appear here.";
+  static const String cancelCall = "Cancel";
+  static const String endCall = "End call";
+  static const String incomingCall = "Incoming";
+  static const String outgoingCall = "Outgoing";
   static const String gatherMoreCoins =
       "Gather more coins, ascend to new heights, and proudly showcase your badge on your profile for all to admire.";
   static const String level = "Level";
@@ -210,6 +240,7 @@ class LKey {
   static const String battleStartingIn = "Battle\nStarting\nin";
   static const String cancel = "Cancel";
   static const String yes = "Yes";
+  static const String no = "No";
   static const String members = "Members";
   static const String audience = "Audience";
   static const String invited = "Invited";

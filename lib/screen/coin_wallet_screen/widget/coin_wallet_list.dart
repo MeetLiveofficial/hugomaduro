@@ -31,34 +31,34 @@ class CoinWalletList extends StatelessWidget {
           title: LKey.coinShop.tr,
           description: LKey.rechargeWallet.tr,
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(15, 10, 15, 30),
+            padding: const EdgeInsets.fromLTRB(15, 8, 15, 24),
             itemCount: controller.coinPlans.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final plan = controller.coinPlans[index];
               return Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+                  horizontal: 10,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
                   color: bgLightGrey(context),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
                     CustomImage(
-                      size: const Size(52, 52),
+                      size: const Size(42, 42),
                       strokeWidth: 0,
                       image: (plan.image ?? '').isNotEmpty
                           ? plan.image!.addBaseURL()
                           : null,
-                      radius: 12,
+                      radius: 10,
                       fit: BoxFit.cover,
                       isShowPlaceHolder: true,
                       fullName: '${plan.coin}',
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,25 +67,25 @@ class CoinWalletList extends StatelessWidget {
                             children: [
                               Image.asset(
                                 AssetRes.icCoin,
-                                height: 18,
-                                width: 18,
+                                height: 16,
+                                width: 16,
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 5),
                               Text(
                                 plan.coin.numberFormat,
                                 style: TextStyleCustom.unboundedMedium500(
                                   color: textDarkGrey(context),
-                                  fontSize: 16,
+                                  fontSize: 15,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             plan.priceString,
                             style: TextStyleCustom.outFitRegular400(
                               color: textLightGrey(context),
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
                           ),
                         ],
@@ -96,9 +96,9 @@ class CoinWalletList extends StatelessWidget {
                       title: LKey.purchase.tr,
                       backgroundColor: themeAccentSolid(context),
                       titleColor: whitePure(context),
-                      btnHeight: 36,
-                      btnWidth: 96,
-                      fontSize: 13,
+                      btnHeight: 32,
+                      btnWidth: 88,
+                      fontSize: 12,
                       horizontalMargin: 0,
                       margin: EdgeInsets.zero,
                       radius: 8,

@@ -1,4 +1,3 @@
-
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -22,7 +21,10 @@ class LevelScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     List<UserLevel> levels =
         SessionManager.instance.getSettings()?.userLevels ?? [];
-    levels.sort((a, b) => a.coinsCollection.compareTo(b.coinsCollection));
+    levels = [...levels]
+      ..sort((a, b) => a.coinsCollection.compareTo(b.coinsCollection));
+    final current = userLevels ?? SessionManager.instance.getUser()?.getLevel;
+
     return Scaffold(
       body: Column(
         children: [
@@ -35,31 +37,71 @@ class LevelScreen extends StatelessWidget {
                     Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: InkWell(
-                        onTap: () {
-                          Get.back();
-                        },
+                        onTap: Get.back,
                         child: Padding(
-                          padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 10),
-                          child: Icon(Icons.arrow_back, color: whitePure(context)),
+                          padding: const EdgeInsets.only(
+                              left: 20.0, right: 20.0, top: 10),
+                          child: Icon(Icons.arrow_back,
+                              color: whitePure(context)),
                         ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(left: 32, right: 32, bottom: 20),
+                      padding: const EdgeInsets.only(
+                          left: 32, right: 32, bottom: 20),
                       child: Column(
                         children: [
                           Text(
-                            LKey.levels.tr.toUpperCase(),
+                            LKey.myLevel.tr.toUpperCase(),
                             style: TextStyleCustom.unboundedExtraBold800(
-                                fontSize: 44, color: whitePure(context)),
+                                fontSize: 36, color: whitePure(context)),
                           ),
-                          const SizedBox(height: 14),
+                          if ((current?.title ?? '').isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              current!.title!,
+                              style: TextStyleCustom.outFitMedium500(
+                                  fontSize: 16, color: whitePure(context)),
+                            ),
+                          ],
+                          const SizedBox(height: 10),
                           Text(
                             LKey.gatherMoreCoins.tr,
                             style: TextStyleCustom.outFitRegular400(
-                                fontSize: 18, color: whitePure(context)),
+                                fontSize: 15, color: whitePure(context)),
                             textAlign: TextAlign.center,
-                          )
+                          ),
+                          if ((current?.benefits ?? []).isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: whitePure(context).withValues(alpha: .15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(LKey.benefits.tr,
+                                      style: TextStyleCustom.outFitMedium500(
+                                          color: whitePure(context),
+                                          fontSize: 14)),
+                                  const SizedBox(height: 6),
+                                  ...current!.benefits.map(
+                                    (b) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Text('• $b',
+                                          style:
+                                              TextStyleCustom.outFitRegular400(
+                                                  color: whitePure(context),
+                                                  fontSize: 13)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     )
@@ -83,10 +125,10 @@ class LevelScreen extends StatelessWidget {
           Expanded(
             child: ListView.builder(
               itemCount: levels.length,
-              padding: EdgeInsets.zero,
+              padding: const EdgeInsets.only(bottom: 24),
               itemBuilder: (context, index) {
                 UserLevel level = levels[index];
-                bool isLevelCurrent = levels[index].level == userLevels?.level;
+                bool isLevelCurrent = level.level == current?.level;
                 return Container(
                   margin:
                       const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
@@ -111,84 +153,76 @@ class LevelScreen extends StatelessWidget {
                               )),
                           color: bgLightGrey(context)),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 3),
+                          horizontal: 12, vertical: 10),
                       margin: const EdgeInsets.all(2),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SizedBox(
-                            width: 60,
-                            child: GradientText(
-                              '${level.level}.',
-                              gradient: isLevelCurrent
-                                  ? StyleRes.themeGradient
-                                  : StyleRes.textLightGreyGradient(),
-                              style: TextStyleCustom.outFitBlack900(
-                                  color: textLightGrey(context), fontSize: 35),
-                            ),
-                          ),
-                          SizedBox(
-                            width: Get.width / 4,
-                            child: ShaderMask(
-                              blendMode: BlendMode.srcIn,
-                              shaderCallback: (bounds) => (isLevelCurrent
-                                      ? StyleRes.themeGradient
-                                      : StyleRes.textLightGreyGradient())
-                                  .createShader(
-                                Rect.fromLTWH(
-                                    0, 0, bounds.width, bounds.height),
-                              ),
-                              child: RichText(
-                                  text: TextSpan(
-                                text: LKey.level.tr,
-                                style: TextStyleCustom.outFitRegular400(
+                          Row(
+                            children: [
+                              GradientText(
+                                'Lv ${level.level}',
+                                gradient: isLevelCurrent
+                                    ? StyleRes.themeGradient
+                                    : StyleRes.textLightGreyGradient(),
+                                style: TextStyleCustom.outFitBold700(
                                     color: textLightGrey(context),
-                                    fontSize: 17),
-                                children: [
-                                  TextSpan(
-                                      text: '  ${level.level}',
-                                      style: TextStyleCustom.outFitBold700(
-                                          color: textLightGrey(context),
-                                          fontSize: 17))
-                                ],
-                              )),
-                            ),
+                                    fontSize: 18),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  level.title?.isNotEmpty == true
+                                      ? level.title!
+                                      : '${LKey.level.tr} ${level.level}',
+                                  style: TextStyleCustom.outFitMedium500(
+                                      color: textDarkGrey(context),
+                                      fontSize: 14),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isLevelCurrent)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                      gradient: StyleRes.themeGradient,
+                                      borderRadius: BorderRadius.circular(8)),
+                                  child: Text(LKey.you.tr,
+                                      style: TextStyleCustom.outFitSemiBold600(
+                                          color: whitePure(context),
+                                          fontSize: 12)),
+                                ),
+                              const SizedBox(width: 8),
+                              Image.asset(AssetRes.icCoin,
+                                  width: 16, height: 16),
+                              const SizedBox(width: 4),
+                              Text(level.coinsCollection.numberFormat,
+                                  style: TextStyleCustom.outFitRegular400(
+                                      fontSize: 14,
+                                      color: textLightGrey(context))),
+                            ],
                           ),
-                          Container(
-                            height: 30,
-                            width: 75,
-                            alignment: Alignment.center,
-                            decoration: !isLevelCurrent
-                                ? const BoxDecoration()
-                                : ShapeDecoration(
-                                    shape: SmoothRectangleBorder(
-                                        borderRadius: SmoothBorderRadius(
-                                            cornerRadius: 8,
-                                            cornerSmoothing: 1)),
-                                    gradient: StyleRes.themeGradient),
-                            child: !isLevelCurrent
-                                ? const SizedBox()
-                                : Text(
-                                    LKey.you.tr,
-                                    style: TextStyleCustom.outFitSemiBold600(
-                                        color: whitePure(context),
-                                        fontSize: 15),
-                                  ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${LKey.callPrice.tr}: ${level.callRequestCoins} ${LKey.coins.tr}',
+                            style: TextStyleCustom.outFitRegular400(
+                                fontSize: 12, color: textLightGrey(context)),
                           ),
-                          SizedBox(
-                            width: Get.width / 5,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Image.asset(AssetRes.icCoin,
-                                    width: 18, height: 18),
-                                Text(level.coinsCollection.numberFormat,
-                                    style: TextStyleCustom.outFitRegular400(
-                                        fontSize: 20,
-                                        color: textLightGrey(context))),
-                              ],
-                            ),
-                          )
+                          Text(
+                            '${LKey.receiveCalls.tr}: ${level.canReceiveCalls == 1 ? LKey.yes.tr : LKey.no.tr}',
+                            style: TextStyleCustom.outFitRegular400(
+                                fontSize: 12, color: textLightGrey(context)),
+                          ),
+                          if (level.benefits.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            ...level.benefits.take(3).map(
+                                  (b) => Text('• $b',
+                                      style: TextStyleCustom.outFitLight300(
+                                          fontSize: 12,
+                                          color: textLightGrey(context))),
+                                ),
+                          ],
                         ],
                       ),
                     ),

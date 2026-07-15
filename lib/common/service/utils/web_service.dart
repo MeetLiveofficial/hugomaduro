@@ -11,6 +11,43 @@ class WebService {
   static var search = _Search();
   static var moderation = _Moderation();
   static var common = _Common();
+  static var chat = _Chat();
+  static var live = _Live();
+  static var call = _Call();
+  static var privilege = _Privilege();
+}
+
+class _Privilege {
+  String hub = "${apiURL}privilege/hub";
+  String dressingCatalog = "${apiURL}privilege/dressingCatalog";
+  String equipDressing = "${apiURL}privilege/equipDressing";
+  String honorWall = "${apiURL}privilege/honorWall";
+}
+
+class _Call {
+  String create = "${apiURL}call/create";
+  String inbox = "${apiURL}call/inbox";
+  String accept = "${apiURL}call/accept";
+  String reject = "${apiURL}call/reject";
+  String cancel = "${apiURL}call/cancel";
+  String end = "${apiURL}call/end";
+}
+
+class _Chat {
+  String fetchThreads = "${apiURL}chat/fetchThreads";
+  String fetchMessages = "${apiURL}chat/fetchMessages";
+  String sendMessage = "${apiURL}chat/sendMessage";
+  String updateThread = "${apiURL}chat/updateThread";
+  String markRead = "${apiURL}chat/markRead";
+}
+
+class _Live {
+  String listActive = "${apiURL}live/listActive";
+  String start = "${apiURL}live/start";
+  String join = "${apiURL}live/join";
+  String leave = "${apiURL}live/leave";
+  String like = "${apiURL}live/like";
+  String fetchSession = "${apiURL}live/fetchSession";
 }
 
 class _Common {

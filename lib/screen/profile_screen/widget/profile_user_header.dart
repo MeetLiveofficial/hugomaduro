@@ -11,6 +11,8 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/level_screen/level_screen.dart';
+import 'package:krimson/screen/privilege_screen/privilege_hub_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/user_link_sheet.dart';
@@ -110,6 +112,28 @@ class ProfileUserHeader extends StatelessWidget {
               isVerify: user.isVerify,
               fontSize: 16,
             ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: InkWell(
+                onTap: () => Get.to(() => LevelScreen(userLevels: user.getLevel)),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: themeAccentSolid(context).withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}'
+                    '${(user.levelTitle ?? user.getLevel.title)?.isNotEmpty == true ? ' · ${user.levelTitle ?? user.getLevel.title}' : ''}',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: themeAccentSolid(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
             if ((user.username ?? '').isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
@@ -173,11 +197,142 @@ class ProfileUserHeader extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 14),
+            if (isMe) ...[
+              InkWell(
+                onTap: () => Get.to(() => const PrivilegeHubScreen()),
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: StyleRes.themeGradient,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(LKey.svip.tr,
+                                style: TextStyleCustom.unboundedSemiBold600(
+                                    color: whitePure(context), fontSize: 18)),
+                            const SizedBox(height: 4),
+                            Text(LKey.learnMore.tr,
+                                style: TextStyleCustom.outFitRegular400(
+                                    color: whitePure(context), fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.workspace_premium,
+                          color: whitePure(context), size: 36),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PrivilegeMini(
+                      title: LKey.dressingCenter.tr,
+                      onTap: () =>
+                          Get.to(() => const DressingCenterScreen()),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _PrivilegeMini(
+                      title: LKey.myLevel.tr,
+                      onTap: () => Get.to(
+                          () => LevelScreen(userLevels: user.getLevel)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _PrivilegeMini(
+                      title: LKey.honorWall.tr,
+                      onTap: () => Get.to(() => const HonorWallScreen()),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+            ],
             _ActionButtons(controller: controller, isMe: isMe, user: user),
           ],
         ),
       );
     });
+  }
+}
+
+/// Botón flotante de videollamada (perfil ajeno).
+class ProfileVideoCallFab extends StatelessWidget {
+  final User user;
+  final VoidCallback onTap;
+
+  const ProfileVideoCallFab({
+    super.key,
+    required this.user,
+    required this.onTap,
+  });
+
+  bool get _canReceive =>
+      user.canReceiveCalls == 1 || user.getLevel.canReceiveCalls == 1;
+
+  int get _cost {
+    if (user.levelTitle != null || user.levelNumber != null) {
+      return user.callRequestCoins;
+    }
+    final fromLevel = user.getLevel.callRequestCoins;
+    return user.callRequestCoins > 0 ? user.callRequestCoins : fromLevel;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = _canReceive;
+    final buttonColor =
+        enabled ? ColorRes.orange : textLightGrey(context).withValues(alpha: 0.55);
+
+    return Material(
+      elevation: 8,
+      shadowColor: Colors.black45,
+      borderRadius: BorderRadius.circular(40),
+      color: buttonColor,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(40),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                AssetRes.icVideoCamera,
+                height: 18,
+                width: 18,
+                color: whitePure(context),
+              ),
+              const SizedBox(width: 8),
+              Image.asset(
+                AssetRes.icCoin,
+                height: 18,
+                width: 18,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                LKey.callCostPerMin.trParams({'coins': '$_cost'}),
+                style: TextStyleCustom.outFitSemiBold600(
+                  color: whitePure(context),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -212,6 +367,39 @@ class _Avatar extends StatelessWidget {
           fullName: user.fullname,
           strokeWidth: hasStories ? 2 : 0,
           strokeColor: scaffoldBackgroundColor(context),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivilegeMini extends StatelessWidget {
+  final String title;
+  final VoidCallback onTap;
+
+  const _PrivilegeMini({required this.title, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        decoration: BoxDecoration(
+          color: bgLightGrey(context),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          title,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyleCustom.outFitMedium500(
+            color: textDarkGrey(context),
+            fontSize: 11,
+          ),
         ),
       ),
     );

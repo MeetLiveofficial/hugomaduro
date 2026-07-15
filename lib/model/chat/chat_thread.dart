@@ -1,7 +1,9 @@
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
+import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/model/user_model/user_model.dart';
 
 class ChatThread {
   int? userId;
@@ -32,16 +34,20 @@ class ChatThread {
 
   ChatThread.fromJson(Map<String, dynamic> json) {
     userId = json['user_id'];
-    id = json['id'];
+    id = json['id']?.toString();
     msgCount = json['msg_count'];
-    chatType = ChatType.fromString(json['chat_type']);
-    requestType = json['request_type'];
-    lastMsg = json['last_msg'];
-    conversationId = json['conversation_id'];
+    chatType = ChatType.fromString(json['chat_type']?.toString());
+    requestType = json['request_type']?.toString();
+    lastMsg = json['last_msg']?.toString();
+    conversationId = json['conversation_id']?.toString();
     deletedId = json['deleted_id'];
-    isDeleted = json['is_deleted'];
-    iAmBlocked = json['i_am_blocked'];
-    iBlocked = json['i_blocked'];
+    isDeleted = json['is_deleted'] == true || json['is_deleted'] == 1;
+    iAmBlocked = json['i_am_blocked'] == true || json['i_am_blocked'] == 1;
+    iBlocked = json['i_blocked'] == true || json['i_blocked'] == 1;
+    if (json['chat_user'] is Map) {
+      _chatUser.value =
+          AppUser.fromJson(Map<String, dynamic>.from(json['chat_user']));
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -49,17 +55,20 @@ class ChatThread {
 
     data['user_id'] = userId;
     data['id'] = id;
-    data['msg_count'] = msgCount;
-    data['chat_type'] = chatType?.value;
-    data['request_type'] = requestType;
-    data['last_msg'] = lastMsg;
+    data['msg_count'] = msgCount ?? 0;
+    data['chat_type'] = (chatType ?? ChatType.approved).value;
+    data['request_type'] = requestType ?? '';
+    data['last_msg'] = lastMsg ?? '';
     data['conversation_id'] = conversationId;
-    data['deleted_id'] = deletedId;
-    data['is_deleted'] = isDeleted;
-    data['i_am_blocked'] = iAmBlocked;
-    data['i_blocked'] = iBlocked;
+    data['deleted_id'] = deletedId ?? 0;
+    data['is_deleted'] = isDeleted ?? false;
+    data['i_am_blocked'] = iAmBlocked ?? false;
+    data['i_blocked'] = iBlocked ?? false;
     return data;
   }
+
+  /// Id del otro usuario en el hilo (Firestore `users_list` doc id).
+  int get peerUserId => userId ?? chatUser?.userId ?? -1;
 
   // Reactive variable for chat user
   final Rx<AppUser?> _chatUser = Rx<AppUser?>(null);
@@ -71,6 +80,7 @@ class ChatThread {
     if (user == null) return;
     _chatUser.value = user; // update reactive value
 
+    if (!Get.isRegistered<FirebaseFirestoreController>()) return;
     final controller = Get.find<FirebaseFirestoreController>();
     final index = controller.users.indexWhere((element) => element.userId == user.userId);
 
@@ -84,35 +94,53 @@ class ChatThread {
   /// ✅ Expose Rx version for reactive UI (`Obx`)
   Rx<AppUser?> get chatUserRx => _chatUser;
 
-  /// ✅ Initialize and auto-sync with controller
+  /// ✅ Initialize and auto-sync with controller / Laravel user API
+  bool _boundChatUser = false;
+
   void bindChatUser() {
-    final controller = Get.find<FirebaseFirestoreController>();
+    if (_boundChatUser) return;
+    _boundChatUser = true;
 
-    void updateUser() {
-      final appUser = controller.users.firstWhereOrNull((element) => element.userId == userId);
+    // Ya viene de la API Laravel (chat_user).
+    if (_chatUser.value != null) return;
 
-      if (appUser == null) {
+    final uid = userId;
+    if (uid == null) return;
+
+    void applyFromUser(User? value) {
+      if (value == null) return;
+      _chatUser.value = value.appUser;
+    }
+
+    if (Get.isRegistered<FirebaseFirestoreController>()) {
+      final controller = Get.find<FirebaseFirestoreController>();
+
+      void updateUser() {
+        final appUser =
+            controller.users.firstWhereOrNull((element) => element.userId == uid);
+        if (appUser != null) {
+          _chatUser.value = appUser;
+          return;
+        }
         UserService.instance
             .fetchUserDetails(
-          userId: userId,
-          onError: () => controller.deleteUser(userId),
-        )
+              userId: uid,
+              onError: () {},
+            )
             .then((value) {
-          if (value == null) {
-            controller.deleteUser(userId);
-          } else {
-            controller.addUser(value);
+          if (value != null) {
+            controller.cacheUser(value);
+            applyFromUser(value);
           }
         });
       }
-      _chatUser.value = appUser;
+
+      ever(controller.users, (_) => updateUser());
+      updateUser();
+      return;
     }
 
-    // React when users list changes
-    ever(controller.users, (_) => updateUser());
-
-    // Initial call
-    updateUser();
+    UserService.instance.fetchUserDetails(userId: uid).then(applyFromUser);
   }
 }
 
@@ -124,7 +152,8 @@ enum ChatType {
 
   const ChatType(this.value);
 
-  static ChatType fromString(String value) {
+  static ChatType fromString(String? value) {
+    if (value == null || value.isEmpty) return ChatType.approved;
     return ChatType.values.firstWhereOrNull((e) => e.value == value) ??
         ChatType.approved;
   }

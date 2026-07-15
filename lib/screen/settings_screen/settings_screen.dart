@@ -10,6 +10,7 @@ import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/blocked_user_screen/blocked_user_screen.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen.dart';
 import 'package:krimson/screen/edit_profile_screen/edit_profile_screen.dart';
+import 'package:krimson/screen/privilege_screen/privilege_hub_screen.dart';
 import 'package:krimson/screen/qr_code_screen/qr_code_screen.dart';
 import 'package:krimson/screen/select_language_screen/select_language_screen.dart';
 import 'package:krimson/screen/settings_screen/settings_screen_controller.dart';
@@ -82,6 +83,13 @@ class SettingsScreen extends StatelessWidget {
                 title: LKey.coinWallet,
                 onTap: () {
                   Get.to(() => const CoinWalletScreen());
+                },
+              ),
+              SettingIconTextWithArrow(
+                icon: AssetRes.icVideoRequest,
+                title: LKey.privilegeHub,
+                onTap: () {
+                  Get.to(() => const PrivilegeHubScreen());
                 },
               ),
               SettingLabel(title: LKey.privacy.toUpperCase()),

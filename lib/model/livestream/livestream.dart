@@ -92,10 +92,12 @@ class Livestream {
   }
 
   AppUser? getHostUser(List<AppUser> users) {
-    final controller = Get.find<FirebaseFirestoreController>();
-    AppUser? hostUser = controller.users
-        .firstWhereOrNull((element) => element.userId == hostId);
-    return hostUser;
+    if (Get.isRegistered<FirebaseFirestoreController>()) {
+      final controller = Get.find<FirebaseFirestoreController>();
+      return controller.users
+          .firstWhereOrNull((element) => element.userId == hostId);
+    }
+    return users.firstWhereOrNull((element) => element.userId == hostId);
   }
 
   List<AppUser> getCoHostUsers(List<AppUser> users) {

@@ -97,51 +97,62 @@ class ChatTextField extends StatelessWidget {
       ),
       margin: const EdgeInsets.symmetric(horizontal: 15),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Obx(() {
-        bool hasNoText = isTextEmpty.value;
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (hasNoText)
-              InkWell(
-                onTap: onCameraTap,
-                child: Container(
-                  height: 40,
-                  width: 40,
-                  margin: const EdgeInsets.only(left: 2, right: 4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: themeAccentSolid(context).withValues(alpha: .1),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(Icons.photo_camera_outlined,
-                      size: 22, color: themeAccentSolid(context)),
-                ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Slot fijo: no eliminar el widget al escribir (evita perder foco).
+          Obx(() {
+            final hasNoText = isTextEmpty.value;
+            return AnimatedSize(
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOut,
+              child: hasNoText
+                  ? InkWell(
+                      onTap: onCameraTap,
+                      child: Container(
+                        height: 40,
+                        width: 40,
+                        margin: const EdgeInsets.only(left: 2, right: 4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color:
+                              themeAccentSolid(context).withValues(alpha: .1),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(Icons.photo_camera_outlined,
+                            size: 22, color: themeAccentSolid(context)),
+                      ),
+                    )
+                  : const SizedBox(width: 4, height: 40),
+            );
+          }),
+          Expanded(
+            child: TextField(
+              key: const ValueKey('chat_text_field'),
+              controller: controller,
+              onChanged: onChange,
+              textAlignVertical: TextAlignVertical.center,
+              minLines: 1,
+              maxLines: 3,
+              onTapOutside: (event) =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                border: InputBorder.none,
+                hintText: '${LKey.writeHere.tr}..',
+                hintStyle: TextStyleCustom.outFitLight300(
+                    color: textLightGrey(context)),
               ),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                onChanged: onChange,
-                textAlignVertical: TextAlignVertical.center,
-                minLines: 1,
-                maxLines: 3,
-                onTapOutside: (event) =>
-                    FocusManager.instance.primaryFocus?.unfocus(),
-                decoration: InputDecoration(
-                  isCollapsed: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  border: InputBorder.none,
-                  hintText: '${LKey.writeHere.tr}..',
-                  hintStyle: TextStyleCustom.outFitLight300(
-                      color: textLightGrey(context)),
-                ),
-                style: TextStyleCustom.outFitRegular400(
-                    color: textDarkGrey(context), fontSize: 16),
-              ),
+              style: TextStyleCustom.outFitRegular400(
+                  color: textDarkGrey(context), fontSize: 16),
             ),
-            if (hasNoText)
-              Row(
+          ),
+          Obx(() {
+            final hasNoText = isTextEmpty.value;
+            if (hasNoText) {
+              return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(
                   actions.length,
@@ -159,23 +170,23 @@ class ChatTextField extends StatelessWidget {
                     );
                   },
                 ),
-              )
-            else
-              InkWell(
-                onTap: onSendTextMessage,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10.0, vertical: 8),
-                  child: GradientText(
-                    LKey.send.tr,
-                    gradient: StyleRes.themeGradient,
-                    style: TextStyleCustom.unboundedMedium500(fontSize: 15),
-                  ),
+              );
+            }
+            return InkWell(
+              onTap: onSendTextMessage,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8),
+                child: GradientText(
+                  LKey.send.tr,
+                  gradient: StyleRes.themeGradient,
+                  style: TextStyleCustom.unboundedMedium500(fontSize: 15),
                 ),
               ),
-          ],
-        );
-      }),
+            );
+          }),
+        ],
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/gradient_text.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -47,7 +48,8 @@ class _SendGiftDialogState extends State<SendGiftDialog> {
               CustomImage(
                   image: widget.gift.image?.addBaseURL(),
                   size: const Size(90, 90),
-                  radius: 0),
+                  radius: 0,
+                  cacheManager: GiftMediaCache.manager),
               Text(LKey.yourGiftHasBeenSent.tr,
                   style: TextStyleCustom.outFitRegular400(
                       fontSize: 15, color: textLightGrey(context))),

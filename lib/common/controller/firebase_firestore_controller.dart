@@ -7,10 +7,12 @@ import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/model/livestream/app_user.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 
 class FirebaseFirestoreController extends BaseController {
-  FirebaseFirestore db = FirebaseFirestore.instance;
+  /// Lazy: no acceder en el constructor (evita [core/no-app]).
+  FirebaseFirestore get db => FirebaseFirestore.instance;
   RxList<AppUser> users = <AppUser>[].obs;
 
   static final instance = FirebaseFirestoreController();
@@ -21,6 +23,11 @@ class FirebaseFirestoreController extends BaseController {
     final exists = users.any((element) => element.userId == userId);
     if (exists) {
       Loggers.info('[LOAD_USER] User $userId already loaded, skipping fetch');
+      return;
+    }
+
+    if (!useFirebase) {
+      // Sin Firestore: el perfil se resuelve vía UserService en bindChatUser.
       return;
     }
 
@@ -79,22 +86,39 @@ class FirebaseFirestoreController extends BaseController {
     }
   }
 
+  void cacheUser(User? user) {
+    if (user == null) return;
+    final appUser = user.appUser;
+    final index = users.indexWhere((e) => e.userId == appUser.userId);
+    if (index != -1) {
+      users[index] = appUser;
+    } else {
+      users.add(appUser);
+    }
+  }
+
   void addUser(User? user) async {
     if (user == null) return;
-    DocumentSnapshot<AppUser> value = await db
-        .collection(FirebaseConst.appUsers)
-        .doc('${user.id}')
-        .withConverter(
-          fromFirestore: (snapshot, options) => AppUser.fromJson(snapshot.data()!),
-          toFirestore: (AppUser value, options) {
-            return value.toJson();
-          },
-        )
-        .get();
-    AppUser? chatUser = user.appUser;
+    cacheUser(user);
+    if (!useFirebase) return;
+    try {
+      DocumentSnapshot<AppUser> value = await db
+          .collection(FirebaseConst.appUsers)
+          .doc('${user.id}')
+          .withConverter(
+            fromFirestore: (snapshot, options) => AppUser.fromJson(snapshot.data()!),
+            toFirestore: (AppUser value, options) {
+              return value.toJson();
+            },
+          )
+          .get();
+      AppUser? chatUser = user.appUser;
 
-    if (!value.exists) {
-      db.collection(FirebaseConst.appUsers).doc('${user.id}').set(chatUser.toJson());
+      if (!value.exists) {
+        db.collection(FirebaseConst.appUsers).doc('${user.id}').set(chatUser.toJson());
+      }
+    } catch (e) {
+      Loggers.error('addUser Firestore skipped: $e');
     }
   }
 

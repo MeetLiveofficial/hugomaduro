@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -41,12 +42,22 @@ void notificationTapBackground(NotificationResponse notificationResponse) {
 
 class FirebaseNotificationManager {
   FirebaseNotificationManager._() {
+    if (Firebase.apps.isEmpty) {
+      Loggers.error(
+          'FCM skipped: Firebase.initializeApp() no se ejecutó todavía');
+      return;
+    }
     init();
   }
 
   static final instance = FirebaseNotificationManager._();
 
-  FirebaseMessaging firebaseMessaging = FirebaseMessaging.instance;
+  /// Lazy: no tocar Messaging si Firebase aún no existe (evita [core/no-app]).
+  FirebaseMessaging? _firebaseMessaging;
+  FirebaseMessaging get firebaseMessaging {
+    _firebaseMessaging ??= FirebaseMessaging.instance;
+    return _firebaseMessaging!;
+  }
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
   RxString notificationPayload = ''.obs;
@@ -63,6 +74,10 @@ class FirebaseNotificationManager {
 
   void init() async {
     if (kIsWeb) {
+      return;
+    }
+    if (Firebase.apps.isEmpty) {
+      Loggers.error('FCM init abort: no Firebase app');
       return;
     }
     if (AppPlatform.isAndroid) {
@@ -273,9 +288,13 @@ class FirebaseNotificationManager {
         await storage.write('device_token', token);
         return token;
       }
-      String? token = await FirebaseMessaging.instance.getToken();
-      Loggers.info('DeviceToken $token');
-      if (token != null && token.isNotEmpty) return token;
+      if (Firebase.apps.isEmpty) {
+        Loggers.error('getNotificationToken: Firebase not initialized');
+      } else {
+        String? token = await firebaseMessaging.getToken();
+        Loggers.info('DeviceToken $token');
+        if (token != null && token.isNotEmpty) return token;
+      }
     } catch (e) {
       Loggers.error('DeviceToken Exception $e');
     }

@@ -1,0 +1,107 @@
+class CallRequestModel {
+  CallRequestModel({
+    this.id,
+    this.callerId,
+    this.calleeId,
+    this.coinsCost = 0,
+    this.userLevel = 1,
+    this.status,
+    this.roomId,
+    this.respondedAt,
+    this.endedAt,
+    this.createdAt,
+    this.caller,
+    this.callee,
+  });
+
+  factory CallRequestModel.fromJson(Map<String, dynamic> json) {
+    return CallRequestModel(
+      id: json['id'] is num ? (json['id'] as num).toInt() : int.tryParse('${json['id']}'),
+      callerId: json['caller_id'] is num
+          ? (json['caller_id'] as num).toInt()
+          : int.tryParse('${json['caller_id']}'),
+      calleeId: json['callee_id'] is num
+          ? (json['callee_id'] as num).toInt()
+          : int.tryParse('${json['callee_id']}'),
+      coinsCost: json['coins_cost'] is num
+          ? (json['coins_cost'] as num).toInt()
+          : int.tryParse('${json['coins_cost'] ?? 0}') ?? 0,
+      userLevel: json['user_level'] is num
+          ? (json['user_level'] as num).toInt()
+          : int.tryParse('${json['user_level'] ?? 1}') ?? 1,
+      status: json['status']?.toString(),
+      roomId: json['room_id']?.toString(),
+      respondedAt: json['responded_at']?.toString(),
+      endedAt: json['ended_at']?.toString(),
+      createdAt: json['created_at']?.toString(),
+      caller: json['caller'] is Map
+          ? CallParty.fromJson(Map<String, dynamic>.from(json['caller']))
+          : null,
+      callee: json['callee'] is Map
+          ? CallParty.fromJson(Map<String, dynamic>.from(json['callee']))
+          : null,
+    );
+  }
+
+  final int? id;
+  final int? callerId;
+  final int? calleeId;
+  final int coinsCost;
+  final int userLevel;
+  final String? status;
+  final String? roomId;
+  final String? respondedAt;
+  final String? endedAt;
+  final String? createdAt;
+  final CallParty? caller;
+  final CallParty? callee;
+
+  bool get isPending => status == 'pending';
+  bool get isAccepted => status == 'accepted';
+}
+
+class CallParty {
+  CallParty({
+    this.id,
+    this.username,
+    this.fullname,
+    this.profilePhoto,
+    this.isVerify,
+    this.levelNumber,
+    this.levelTitle,
+    this.canReceiveCalls = 0,
+    this.callRequestCoins = 0,
+  });
+
+  factory CallParty.fromJson(Map<String, dynamic> json) {
+    return CallParty(
+      id: json['id'] is num ? (json['id'] as num).toInt() : int.tryParse('${json['id']}'),
+      username: json['username']?.toString(),
+      fullname: json['fullname']?.toString(),
+      profilePhoto: json['profile_photo']?.toString(),
+      isVerify: json['is_verify'] is num
+          ? (json['is_verify'] as num).toInt()
+          : int.tryParse('${json['is_verify'] ?? 0}'),
+      levelNumber: json['level_number'] is num
+          ? (json['level_number'] as num).toInt()
+          : int.tryParse('${json['level_number'] ?? 1}'),
+      levelTitle: json['level_title']?.toString(),
+      canReceiveCalls: json['can_receive_calls'] is num
+          ? (json['can_receive_calls'] as num).toInt()
+          : int.tryParse('${json['can_receive_calls'] ?? 0}') ?? 0,
+      callRequestCoins: json['call_request_coins'] is num
+          ? (json['call_request_coins'] as num).toInt()
+          : int.tryParse('${json['call_request_coins'] ?? 0}') ?? 0,
+    );
+  }
+
+  final int? id;
+  final String? username;
+  final String? fullname;
+  final String? profilePhoto;
+  final int? isVerify;
+  final int? levelNumber;
+  final String? levelTitle;
+  final int canReceiveCalls;
+  final int callRequestCoins;
+}

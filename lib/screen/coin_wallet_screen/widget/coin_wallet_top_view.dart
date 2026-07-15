@@ -28,11 +28,11 @@ class CoinWalletTopView extends StatelessWidget {
         CustomAppBar(title: LKey.coinWallet.tr),
         Container(
           width: double.infinity,
-          margin: const EdgeInsets.fromLTRB(15, 10, 15, 0),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+          margin: const EdgeInsets.fromLTRB(15, 6, 15, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             gradient: StyleRes.themeGradient,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Obx(() {
             final user = controller.myUser.value;
@@ -45,30 +45,30 @@ class CoinWalletTopView extends StatelessWidget {
                   LKey.balance.tr,
                   style: TextStyleCustom.outFitRegular400(
                     color: whitePure(context).withValues(alpha: 0.85),
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 2),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset(AssetRes.icCoin, height: 28, width: 28),
-                    const SizedBox(width: 8),
+                    Image.asset(AssetRes.icCoin, height: 20, width: 20),
+                    const SizedBox(width: 6),
                     Text(
                       balance.numberFormat,
                       style: TextStyleCustom.unboundedSemiBold600(
                         color: whitePure(context),
-                        fontSize: 28,
+                        fontSize: 22,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   '$currency${estimated.toStringAsFixed(2)}',
                   style: TextStyleCustom.outFitLight300(
                     color: whitePure(context).withValues(alpha: 0.85),
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
                 ),
               ],
@@ -76,7 +76,7 @@ class CoinWalletTopView extends StatelessWidget {
           }),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(15, 12, 15, 0),
+          padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
           child: Obx(() {
             final user = controller.myUser.value;
             return Row(
@@ -85,12 +85,12 @@ class CoinWalletTopView extends StatelessWidget {
                   label: LKey.collected.tr,
                   value: (user?.coinCollectedLifetime ?? 0).numberFormat,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _StatChip(
                   label: LKey.gifted.tr,
                   value: (user?.coinGiftedLifetime ?? 0).numberFormat,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _StatChip(
                   label: LKey.purchased.tr,
                   value: (user?.coinPurchasedLifetime ?? 0).numberFormat,
@@ -101,13 +101,13 @@ class CoinWalletTopView extends StatelessWidget {
         ),
         if (withdrawalOn)
           Padding(
-            padding: const EdgeInsets.fromLTRB(15, 12, 15, 0),
+            padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
             child: TextButtonCustom(
               onTap: () => Get.to(() => const WithdrawalsScreen()),
               title: LKey.withdrawals.tr,
               backgroundColor: bgGrey(context),
               titleColor: textDarkGrey(context),
-              btnHeight: 42,
+              btnHeight: 34,
               horizontalMargin: 0,
               margin: EdgeInsets.zero,
             ),
@@ -127,10 +127,10 @@ class _StatChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         decoration: BoxDecoration(
           color: bgLightGrey(context),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           children: [
@@ -138,15 +138,15 @@ class _StatChip extends StatelessWidget {
               value,
               style: TextStyleCustom.unboundedMedium500(
                 color: textDarkGrey(context),
-                fontSize: 14,
+                fontSize: 12,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 1),
             Text(
               label,
               style: TextStyleCustom.outFitRegular400(
                 color: textLightGrey(context),
-                fontSize: 11,
+                fontSize: 10,
               ),
               textAlign: TextAlign.center,
               maxLines: 1,

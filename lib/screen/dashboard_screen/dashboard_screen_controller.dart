@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/controller/ads_controller.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
+import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -54,7 +55,8 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
 
   late AnimationController animationController;
 
-  FirebaseFirestore db = FirebaseFirestore.instance;
+  /// Lazy: no tocar Firestore en el constructor (evita [core/no-app]).
+  FirebaseFirestore get db => FirebaseFirestore.instance;
   RxInt unReadCount = 0.obs;
   RxInt requestUnReadCount = 0.obs;
 
@@ -68,9 +70,6 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     SystemChrome.setSystemUIOverlayStyle(
         const SystemUiOverlayStyle(statusBarBrightness: Brightness.light));
     Get.put(GifSheetController());
-    if (useFirebase) {
-      Get.put(FirebaseFirestoreController());
-    }
     Get.put(AdsController());
     animationController = AnimationController(duration: const Duration(milliseconds: 200), vsync: this);
     scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
@@ -88,8 +87,16 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     super.onReady();
     SubscriptionManager.shared.subscriptionListener();
 
-    // Web sessions often skip Firebase Auth at login — ensure chat can read Firestore.
-    if (useFirebase && kIsWeb && Firebase.apps.isNotEmpty) {
+    if (useFirebase) {
+      await FirebaseAppHelper.ensureInitialized();
+    }
+    // Cache local de usuarios de chat/live (funciona sin Firestore).
+    if (!Get.isRegistered<FirebaseFirestoreController>()) {
+      Get.put(FirebaseFirestoreController());
+    }
+
+    // Asegura Auth anónimo si hace falta para Firestore.
+    if (useFirebase && Firebase.apps.isNotEmpty) {
       try {
         if (firebase_auth.FirebaseAuth.instance.currentUser == null) {
           await firebase_auth.FirebaseAuth.instance.signInAnonymously();

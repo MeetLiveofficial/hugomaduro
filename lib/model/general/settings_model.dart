@@ -648,6 +648,13 @@ class UserLevel {
   int? id;
   int? level;
   int coinsCollection;
+  int callRequestCoins;
+  int canReceiveCalls;
+  String? title;
+  List<String> benefits;
+  int isSvipLevel;
+  int unlockDressing;
+  int showOnHonorWall;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -655,6 +662,13 @@ class UserLevel {
     this.id,
     this.level,
     this.coinsCollection = 0,
+    this.callRequestCoins = 0,
+    this.canReceiveCalls = 0,
+    this.title,
+    this.benefits = const [],
+    this.isSvipLevel = 0,
+    this.unlockDressing = 0,
+    this.showOnHonorWall = 0,
     this.createdAt,
     this.updatedAt,
   });
@@ -662,19 +676,67 @@ class UserLevel {
   factory UserLevel.fromJson(Map<String, dynamic> json) => UserLevel(
         id: json["id"],
         level: json["level"],
-        coinsCollection: json["coins_collection"],
+        coinsCollection: json["coins_collection"] is num
+            ? (json["coins_collection"] as num).toInt()
+            : int.tryParse('${json["coins_collection"]}') ?? 0,
+        callRequestCoins: json["call_request_coins"] is num
+            ? (json["call_request_coins"] as num).toInt()
+            : int.tryParse('${json["call_request_coins"] ?? 0}') ?? 0,
+        canReceiveCalls: json["can_receive_calls"] is num
+            ? (json["can_receive_calls"] as num).toInt()
+            : int.tryParse('${json["can_receive_calls"] ?? 0}') ?? 0,
+        title: json["title"]?.toString(),
+        benefits: _parseBenefits(json["benefits_json"]),
+        isSvipLevel: json["is_svip_level"] is num
+            ? (json["is_svip_level"] as num).toInt()
+            : int.tryParse('${json["is_svip_level"] ?? 0}') ?? 0,
+        unlockDressing: json["unlock_dressing"] is num
+            ? (json["unlock_dressing"] as num).toInt()
+            : int.tryParse('${json["unlock_dressing"] ?? 0}') ?? 0,
+        showOnHonorWall: json["show_on_honor_wall"] is num
+            ? (json["show_on_honor_wall"] as num).toInt()
+            : int.tryParse('${json["show_on_honor_wall"] ?? 0}') ?? 0,
         createdAt: json["created_at"] == null
             ? null
-            : DateTime.parse(json["created_at"]),
+            : DateTime.tryParse(json["created_at"].toString()),
         updatedAt: json["updated_at"] == null
             ? null
-            : DateTime.parse(json["updated_at"]),
+            : DateTime.tryParse(json["updated_at"].toString()),
       );
+
+  static List<String> _parseBenefits(dynamic raw) {
+    if (raw == null) return const [];
+    if (raw is List) {
+      return raw.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).toList();
+    }
+    if (raw is String && raw.trim().isNotEmpty) {
+      try {
+        final decoded = json.decode(raw);
+        if (decoded is List) {
+          return decoded
+              .map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList();
+        }
+      } catch (_) {
+        return raw
+            .split(RegExp(r'[\n|]'))
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+    }
+    return const [];
+  }
 
   Map<String, dynamic> toJson() => {
         "id": id,
         "level": level,
         "coins_collection": coinsCollection,
+        "call_request_coins": callRequestCoins,
+        "can_receive_calls": canReceiveCalls,
+        "title": title,
+        "benefits_json": benefits,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };

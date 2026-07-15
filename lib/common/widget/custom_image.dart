@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/asset_res.dart';
@@ -23,6 +24,9 @@ class CustomImage extends StatelessWidget {
   final String? fullName;
   final bool isStokeOutSide;
   final String? placeHolderImage;
+  /// When set (e.g. gift GIFs), uses [CachedNetworkImage] even on web
+  /// so images persist in disk cache instead of reloading every open.
+  final BaseCacheManager? cacheManager;
 
   const CustomImage({
     super.key,
@@ -39,6 +43,7 @@ class CustomImage extends StatelessWidget {
     this.fullName,
     this.isStokeOutSide = true,
     this.placeHolderImage,
+    this.cacheManager,
   });
 
   @override
@@ -71,6 +76,7 @@ class CustomImage extends StatelessWidget {
             fullName: fullName,
             isStokeOutSide: isStokeOutSide,
             placeHolderImage: placeHolderImage,
+            cacheManager: cacheManager,
           );
         },
       );
@@ -97,6 +103,7 @@ class CustomImage extends StatelessWidget {
             isShowPlaceHolder: isShowPlaceHolder,
             fullName: fullName,
             placeHolderImage: placeHolderImage,
+            cacheManager: cacheManager,
           );
 
     // On web, ClipSmoothRect rasterizes children and breaks HTML <img>
@@ -160,6 +167,7 @@ class _NetworkImage extends StatelessWidget {
   final bool isShowPlaceHolder;
   final String? fullName;
   final String? placeHolderImage;
+  final BaseCacheManager? cacheManager;
 
   const _NetworkImage({
     required this.imageUrl,
@@ -171,6 +179,7 @@ class _NetworkImage extends StatelessWidget {
     required this.isShowPlaceHolder,
     this.fullName,
     this.placeHolderImage,
+    this.cacheManager,
   });
 
   Widget _error(BuildContext context) => ImageErrorWidget(
@@ -199,36 +208,56 @@ class _NetworkImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final w = size.width.isFinite ? size.width : null;
     final h = size.height.isFinite ? size.height : null;
+    final useDiskCache = cacheManager != null || !kIsWeb;
 
-    if (kIsWeb) {
+    // Gift (and similar) media: CachedNetworkImage + disk cache on all
+    // platforms. Other web images keep HTML <img> to avoid CORS failures.
+    if (useDiskCache) {
       return SizedBox.expand(
-        child: Image.network(
-          imageUrl,
+        child: CachedNetworkImage(
           fit: fit,
+          imageUrl: imageUrl,
+          cacheKey: imageUrl,
+          cacheManager: cacheManager,
           width: w,
           height: h,
-          gaplessPlayback: true,
-          webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-          errorBuilder: (context, error, stackTrace) => _error(context),
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) {
-              return SizedBox.expand(child: child);
+          fadeInDuration: const Duration(milliseconds: 120),
+          fadeOutDuration: const Duration(milliseconds: 80),
+          placeholder: (context, url) => _placeholder(context),
+          errorWidget: (context, error, stackTrace) {
+            if (kIsWeb && cacheManager != null) {
+              // CORS fallback for web when XHR cache download fails.
+              return Image.network(
+                imageUrl,
+                fit: fit,
+                width: w,
+                height: h,
+                gaplessPlayback: true,
+                webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                errorBuilder: (context, error, stackTrace) => _error(context),
+              );
             }
-            return _placeholder(context);
+            return _error(context);
           },
         ),
       );
     }
 
     return SizedBox.expand(
-      child: CachedNetworkImage(
+      child: Image.network(
+        imageUrl,
         fit: fit,
-        imageUrl: imageUrl,
-        cacheKey: imageUrl,
         width: w,
         height: h,
-        placeholder: (context, url) => _placeholder(context),
-        errorWidget: (context, error, stackTrace) => _error(context),
+        gaplessPlayback: true,
+        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+        errorBuilder: (context, error, stackTrace) => _error(context),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            return SizedBox.expand(child: child);
+          }
+          return _placeholder(context);
+        },
       ),
     );
   }

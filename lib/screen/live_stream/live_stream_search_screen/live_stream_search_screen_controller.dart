@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
+import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
@@ -23,12 +25,13 @@ import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 class LiveStreamSearchScreenController extends BaseController {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
   final RxList<Livestream> livestreams = <Livestream>[].obs;
   final RxBool isBootstrapping = true.obs;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
   StreamSubscription<List<ConnectivityResult>>? _netSub;
+  Timer? _laravelPoll;
   final TextEditingController titleController = TextEditingController();
 
   /// Preferencias pre-live (beauty / invite / red).
@@ -61,10 +64,29 @@ class LiveStreamSearchScreenController extends BaseController {
 
   Future<void> _bootstrap() async {
     try {
-      await syncDummyLivesToFirestore();
+      if (useFirebase) {
+        final ok = await FirebaseAppHelper.ensureInitialized();
+        if (!ok) {
+          showSnackBar(
+            'Firebase no disponible: ${FirebaseAppHelper.lastError ?? "init failed"}',
+          );
+        }
+        if (FirebaseAppHelper.isReady) {
+          await syncDummyLivesToFirestore();
+        }
+      }
       _listenActiveLives();
     } catch (e) {
-      showSnackBar(e.toString());
+      final msg = e.toString();
+      if (msg.contains('core/no-app') || msg.contains('no-app')) {
+        showSnackBar('Firebase no inicializado. Reinicia la app.');
+      } else if (msg.toLowerCase().contains('not found')) {
+        showSnackBar(
+          'Firestore no creado. Firebase Console → Firestore → Create database.',
+        );
+      } else {
+        showSnackBar(msg);
+      }
     } finally {
       isBootstrapping.value = false;
     }
@@ -73,6 +95,7 @@ class LiveStreamSearchScreenController extends BaseController {
   /// Publica en Firestore los dummy lives del admin para que aparezcan en la lista.
   Future<void> syncDummyLivesToFirestore() async {
     if (!useFirebase) return;
+    if (!FirebaseAppHelper.isReady) return;
     final settings = SessionManager.instance.getSettings();
     if ((settings?.liveDummyShow ?? 0) != 1) return;
 
@@ -106,6 +129,15 @@ class LiveStreamSearchScreenController extends BaseController {
 
   void _listenActiveLives() {
     if (!useFirebase) {
+      _refreshLaravelLives();
+      _laravelPoll?.cancel();
+      _laravelPoll = Timer.periodic(const Duration(seconds: 5), (_) {
+        _refreshLaravelLives(silent: true);
+      });
+      return;
+    }
+
+    if (!FirebaseAppHelper.isReady) {
       // Sin Firebase: muestra dummy lives locales desde settings.
       final settings = SessionManager.instance.getSettings();
       final list = <Livestream>[];
@@ -279,6 +311,17 @@ class LiveStreamSearchScreenController extends BaseController {
     }
   }
 
+  Future<void> _refreshLaravelLives({bool silent = false}) async {
+    try {
+      final list = await LiveSessionService.instance.listActive();
+      livestreams.assignAll(list);
+    } catch (e) {
+      if (!silent) {
+        showSnackBar('Lives: $e');
+      }
+    }
+  }
+
   Future<void> _startLive(User user) async {
     final title = titleController.text.trim();
     if (title.isEmpty) {
@@ -290,20 +333,28 @@ class LiveStreamSearchScreenController extends BaseController {
     try {
       final now = DateTime.now().millisecondsSinceEpoch;
       final coHosts = invitedIds.toList();
-      final stream = user.livestream(
-        type: LivestreamType.livestream,
-        time: now,
-        description: title,
-        restrictToJoin: 0,
-        isDummyLive: 0,
-        coHostIds: coHosts,
-      );
-      final hostState = user.streamState(
-        stateType: LivestreamUserType.host,
-        time: now,
-      )..user = user.appUser;
+      Livestream stream;
 
-      if (useFirebase) {
+      if (!useFirebase) {
+        stream = await LiveSessionService.instance.start(
+          description: title,
+          coHostIds: coHosts,
+          isRestrictToJoin: 0,
+        );
+      } else {
+        stream = user.livestream(
+          type: LivestreamType.livestream,
+          time: now,
+          description: title,
+          restrictToJoin: 0,
+          isDummyLive: 0,
+          coHostIds: coHosts,
+        );
+        final hostState = user.streamState(
+          stateType: LivestreamUserType.host,
+          time: now,
+        )..user = user.appUser;
+
         final roomRef =
             _db.collection(FirebaseConst.liveStreams).doc(stream.roomID);
         await roomRef.set(stream.toJson());
@@ -352,6 +403,7 @@ class LiveStreamSearchScreenController extends BaseController {
   void onClose() {
     _sub?.cancel();
     _netSub?.cancel();
+    _laravelPoll?.cancel();
     titleController.dispose();
     super.onClose();
   }

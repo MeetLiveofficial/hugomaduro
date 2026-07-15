@@ -34,7 +34,7 @@ import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 
 class ShareSheetWidgetController extends BaseController {
-  FirebaseFirestore db = FirebaseFirestore.instance;
+  FirebaseFirestore get db => FirebaseFirestore.instance;
   User? myUser = SessionManager.instance.getUser();
   RxList<ChatThread> chatsUsers = <ChatThread>[].obs;
   RxList<ChatThread> filterChatsUsers = <ChatThread>[].obs;

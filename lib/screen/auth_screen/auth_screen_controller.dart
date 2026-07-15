@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -29,12 +29,19 @@ class AuthScreenController extends BaseController {
   TextEditingController passwordController = TextEditingController();
   TextEditingController confirmPassController = TextEditingController();
 
-  bool get _firebaseReady => Firebase.apps.isNotEmpty;
+  bool get _firebaseReady => FirebaseAppHelper.isReady;
 
   @override
   void onInit() {
     CommonService.instance.fetchGlobalSettings();
-    FirebaseNotificationManager.instance;
+    // Solo FCM si Firebase ya está listo (evita [core/no-app] en Auth).
+    if (_firebaseReady) {
+      FirebaseNotificationManager.instance;
+    } else {
+      FirebaseAppHelper.ensureInitialized().then((ok) {
+        if (ok) FirebaseNotificationManager.instance;
+      });
+    }
     super.onInit();
   }
 
@@ -51,11 +58,10 @@ class AuthScreenController extends BaseController {
 
     showLoader(barrierDismissible: true);
     try {
-      // Token local instantáneo: no esperar FCM/storage (eso colgaba el loader).
+      // Login = Laravel. Firebase NO bloquea (chat se conecta después).
       final deviceToken =
-          'krimson_web_${DateTime.now().millisecondsSinceEpoch}';
+          'krimson_android_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Fuente de verdad: Laravel valida identity + password.
       final data = await UserService.instance
           .logInFakeUser(
         identity: email,
@@ -86,16 +92,17 @@ class AuthScreenController extends BaseController {
       // ignore: unawaited_futures
       SubscriptionManager.shared.login('${data.id}');
 
-      // Cerrar loader y entrar YA; Firebase chat en background después.
       stopLoader();
       _navigateScreen(data);
 
-      if (_firebaseReady) {
-        // ignore: unawaited_futures
-        Future<void>.delayed(const Duration(milliseconds: 300), () {
-          _ensureFirebaseAuthForChat(email, password);
-        });
-      }
+      // Firebase / chat en background (nunca bloquea el login).
+      // ignore: unawaited_futures
+      Future<void>(() async {
+        final ok = await FirebaseAppHelper.ensureInitialized();
+        if (ok) {
+          await _ensureFirebaseAuthForChat(email, password);
+        }
+      });
     } catch (e, st) {
       Loggers.error('onLogin: $e\n$st');
       showSnackBar('No se pudo iniciar sesión: $e');
@@ -134,21 +141,21 @@ class AuthScreenController extends BaseController {
 
     showLoader(barrierDismissible: true);
     try {
+      // Registro = Laravel. Sin esperar Firebase/FCM.
       final deviceToken =
-          await FirebaseNotificationManager.instance.getNotificationToken();
-      if (deviceToken == null || deviceToken.isEmpty) {
-        showSnackBar(LKey.somethingWentWrong.tr);
-        return;
-      }
+          'krimson_android_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Registro solo en Laravel (guarda password hasheado).
-      final data = await UserService.instance.registerUser(
+      final data = await UserService.instance
+          .registerUser(
         identity: email,
         password: password,
         fullName: fullName,
         deviceToken: deviceToken,
         loginMethod: LoginMethod.email,
-      );
+      )
+          .timeout(const Duration(seconds: 25), onTimeout: () {
+        throw TimeoutException('El servidor tardó demasiado en responder');
+      });
 
       if (data == null) {
         return;
@@ -158,30 +165,44 @@ class AuthScreenController extends BaseController {
       SessionManager.instance.setUser(data);
       SessionManager.instance.setAuthToken(data.token);
 
-      if (_firebaseReady) {
-        await _createOrSignInFirebase(email, password, displayName: fullName);
-      }
-
       _notifyRegistrationBonusIfNeeded(data);
       SubscriptionManager.shared.login('${data.id}');
 
+      stopLoader();
       Get.back();
       Get.back();
       _navigateScreen(data);
+
+      // Firebase Auth opcional en background (chat).
+      // ignore: unawaited_futures
+      Future<void>(() async {
+        final ok = await FirebaseAppHelper.ensureInitialized();
+        if (ok) {
+          await _createOrSignInFirebase(email, password, displayName: fullName);
+        }
+      });
     } catch (e) {
       Loggers.error('onCreateAccount: $e');
-      showSnackBar('$e');
+      showSnackBar('No se pudo registrar: $e');
     } finally {
       stopLoader();
     }
   }
 
   void onGoogleTap() async {
-    if (!_firebaseReady) {
-      return showSnackBar('Google Sign-In requiere Firebase (app móvil).');
-    }
     showLoader(barrierDismissible: true);
     try {
+      final ready = await FirebaseAppHelper.ensureInitialized(
+        timeout: const Duration(seconds: 15),
+      );
+      if (!ready) {
+        showSnackBar(
+          'Firebase no listo. Usa email/contraseña, o espera a que '
+          'google-services.json tenga oauth_client (SHA-1 en Firebase). '
+          '${FirebaseAppHelper.lastError ?? ''}',
+        );
+        return;
+      }
       final credential = await signInWithGoogle();
       if (credential.user == null) return;
 
@@ -203,11 +224,18 @@ class AuthScreenController extends BaseController {
   }
 
   void onAppleTap() async {
-    if (!_firebaseReady) {
-      return showSnackBar('Apple Sign-In requiere Firebase (app móvil).');
-    }
     showLoader(barrierDismissible: true);
     try {
+      final ready = await FirebaseAppHelper.ensureInitialized(
+        timeout: const Duration(seconds: 15),
+      );
+      if (!ready) {
+        showSnackBar(
+          'Apple Sign-In requiere Firebase. Usa email/contraseña por ahora. '
+          '${FirebaseAppHelper.lastError ?? ''}',
+        );
+        return;
+      }
       final credential = await signInWithApple();
       if (credential.user == null) return;
 
@@ -237,11 +265,12 @@ class AuthScreenController extends BaseController {
       showSnackBar(LKey.somethingWentWrong.tr);
       return null;
     }
-    final deviceToken =
-        await FirebaseNotificationManager.instance.getNotificationToken();
-    if (deviceToken == null || deviceToken.isEmpty) {
-      showSnackBar(LKey.somethingWentWrong.tr);
-      return null;
+    String deviceToken =
+        (await FirebaseNotificationManager.instance.getNotificationToken()) ??
+            '';
+    if (deviceToken.isEmpty) {
+      deviceToken =
+          'krimson_android_${DateTime.now().millisecondsSinceEpoch}';
     }
 
     final data = await UserService.instance.logInUser(
@@ -361,6 +390,11 @@ class AuthScreenController extends BaseController {
   /// Nunca crea usuario Firebase si el password no sirve — solo anónimo como fallback.
   Future<void> _ensureFirebaseAuthForChat(String email, String password) async {
     try {
+      final ready = await FirebaseAppHelper.ensureInitialized();
+      if (!ready) {
+        Loggers.error('Firebase Auth for chat: app not initialized');
+        return;
+      }
       if (FirebaseAuth.instance.currentUser != null) return;
       try {
         await FirebaseAuth.instance

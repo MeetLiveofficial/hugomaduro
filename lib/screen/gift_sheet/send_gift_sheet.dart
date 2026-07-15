@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/widget/bottom_sheet_top_view.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
@@ -132,7 +133,8 @@ class SendGiftSheet extends StatelessWidget {
                                 size: const Size(65, 65),
                                 radius: 8,
                                 isShowPlaceHolder: true,
-                                placeHolderImage: AssetRes.icGift),
+                                placeHolderImage: AssetRes.icGift,
+                                cacheManager: GiftMediaCache.manager),
                             Text(
                                 '${(gift.coinPrice ?? 0).numberFormat} ${LKey.coins.tr}',
                                 style: TextStyleCustom.outFitMedium500(

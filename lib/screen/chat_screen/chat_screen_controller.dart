@@ -16,6 +16,7 @@ import 'package:krimson/common/functions/media_picker_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/chat_service.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/notification_service.dart';
 import 'package:krimson/common/service/api/post_service.dart';
@@ -45,6 +46,7 @@ import 'package:krimson/screen/report_sheet/report_sheet.dart';
 import 'package:krimson/screen/story_view_screen/story_view_screen.dart';
 import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 import 'package:krimson/utilities/style_res.dart';
 
@@ -71,12 +73,13 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   late AnimationController audioAnimationController;
   Animation<double>? audioWidthAnimation;
 
-  FirebaseFirestore db = FirebaseFirestore.instance;
+  FirebaseFirestore get db => FirebaseFirestore.instance;
   MessageType chatType = MessageType.text;
 
   RxList<MessageData> chatList = <MessageData>[].obs;
   List<StreamSubscription<QuerySnapshot<MessageData>>> chatListeners = [];
   List<StreamSubscription<DocumentSnapshot<ChatThread>>> usersStreams = [];
+  Timer? _laravelPoll;
 
   StreamSubscription<PlayerState>? playerControllerListen;
 
@@ -93,37 +96,49 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   @override
   void onInit() {
     super.onInit();
+    // Preferir userId del hilo; chatUser puede ser null (notificación / lista aún sin bind).
+    final peerId = conversationUser.value.peerUserId;
+    if (conversationUser.value.userId == null && peerId != -1) {
+      conversationUser.value.userId = peerId;
+    }
     chatId = conversationUser.value.conversationId ?? 'No CONVERSATION';
-    String otherUserid = '${conversationUser.value.chatUser?.userId ?? -1}';
-    String conversationId = conversationUser.value.conversationId ?? 'No CONVERSATION';
-    collectionUsersRef = db.collection(FirebaseConst.appUsers);
+    if (useFirebase) {
+      final otherUserid = peerId.toString();
+      String conversationId = conversationUser.value.conversationId ?? 'No CONVERSATION';
+      collectionUsersRef = db.collection(FirebaseConst.appUsers);
 
-    documentSender = db
-        .collection(FirebaseConst.users)
-        .doc(myUser?.id.toString())
-        .collection(FirebaseConst.usersList)
-        .doc(otherUserid);
-    documentReceiver = db
-        .collection(FirebaseConst.users)
-        .doc(otherUserid)
-        .collection(FirebaseConst.usersList)
-        .doc(myUser?.id.toString());
-    chatCollection =
-        db.collection(FirebaseConst.chats).doc(conversationId).collection(FirebaseConst.messages);
+      documentSender = db
+          .collection(FirebaseConst.users)
+          .doc(myUser?.id.toString())
+          .collection(FirebaseConst.usersList)
+          .doc(otherUserid);
+      documentReceiver = db
+          .collection(FirebaseConst.users)
+          .doc(otherUserid)
+          .collection(FirebaseConst.usersList)
+          .doc(myUser?.id.toString());
+      chatCollection =
+          db.collection(FirebaseConst.chats).doc(conversationId).collection(FirebaseConst.messages);
+    }
   }
 
   @override
   void onReady() {
     super.onReady();
     _init();
-    _getChat();
-    _addUsersFirebaseFireStore();
+    if (useFirebase) {
+      _getChat();
+      _addUsersFirebaseFireStore();
+    } else {
+      _getChatLaravel();
+    }
   }
 
   @override
   void onClose() {
     super.onClose();
     chatId = '';
+    _laravelPoll?.cancel();
     for (var listener in chatListeners) {
       listener.cancel();
     }
@@ -183,7 +198,15 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
         .snapshots()
         .listen((event) {
       if (event.exists) {
-        conversationUser.value = event.data()!;
+        final previousChatUser = conversationUser.value.chatUser;
+        final updated = event.data()!;
+        // Preservar perfil en memoria: fromJson no trae chatUser.
+        if (previousChatUser != null) {
+          updated.chatUser = previousChatUser;
+        }
+        updated.userId ??=
+            conversationUser.value.userId ?? previousChatUser?.userId;
+        conversationUser.value = updated;
         Loggers.info('Chat Updated: ${conversationUser.value.toJson()}');
       } else {
         Loggers.info('Chat User Not Found ${event.data()}');
@@ -226,11 +249,25 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
       String? postMessage,
       String? storyReplyMessage,
       List<double>? waveData}) async {
+    if (!useFirebase) {
+      await _sendMessageViaLaravel(
+        type: type,
+        textMessage: textMessage,
+        imageMessage: imageMessage,
+        videoMessage: videoMessage,
+        audioMessage: audioMessage,
+        postMessage: postMessage,
+        storyReplyMessage: storyReplyMessage,
+        waveData: waveData,
+      );
+      return;
+    }
+
     int time = DateTime.now().millisecondsSinceEpoch;
 
     List<int> noDeleteIds = [
       myUser?.id ?? -1,
-      conversationUser.value.chatUser?.userId ?? -1,
+      conversationUser.value.peerUserId,
     ];
 
     MessageData message = MessageData(
@@ -268,50 +305,60 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
     conversation.lastMsg = senderLastMessage;
     conversation.msgCount = 0;
     conversation.isDeleted = false;
+    // Quien envía siempre ve el hilo en Chats (approved).
+    conversation.chatType = ChatType.approved;
+    conversation.userId ??= conversation.peerUserId;
+    if (conversation.userId == -1) {
+      Loggers.error('CHAT WRITE ABORTED: peer userId inválido (-1)');
+      return;
+    }
 
-    if (isReceiverUserExist) {
-      documentSender.update(conversation.toJson());
-    } else {
-      documentSender.set(conversation.toJson());
+    try {
+      if (isReceiverUserExist) {
+        await documentSender.set(conversation.toJson(), SetOptions(merge: true));
+      } else {
+        await documentSender.set(conversation.toJson());
+      }
+    } catch (error) {
+      Loggers.error('Sender users_list WRITE ERROR: $error');
     }
 
     // For Receiver side
     bool isSenderUserExist = (await documentReceiver.get()).exists;
     // Loggers.success('SENDER USER isExist: $isSenderUserExist');
 
-    if (isSenderUserExist) {
-      documentReceiver.update({
-        FirebaseConst.msgCount: FieldValue.increment(1),
-        FirebaseConst.lastMsg: receiverLastMessage,
-        FirebaseConst.isDeleted: false,
-        FirebaseConst.id: time.toString()
-      });
-    } else {
-      ChatType status = ChatType.approved;
-      String? requestType = UserRequestAction.accept.title;
-
-      if (otherUser != null) {
-        status = otherUser?.followStatus == 2 || otherUser?.followStatus == 3
-            ? ChatType.approved
-            : ChatType.request;
-        requestType = otherUser?.followStatus == 2 || otherUser?.followStatus == 3
-            ? UserRequestAction.accept.title
-            : null;
+    try {
+      if (isSenderUserExist) {
+        await documentReceiver.update({
+          FirebaseConst.msgCount: FieldValue.increment(1),
+          FirebaseConst.lastMsg: receiverLastMessage,
+          FirebaseConst.isDeleted: false,
+          FirebaseConst.id: time.toString()
+        });
+      } else {
+        final isFollower =
+            otherUser?.followStatus == 2 || otherUser?.followStatus == 3;
+        final status =
+            (otherUser == null || isFollower) ? ChatType.approved : ChatType.request;
+        ChatThread myConversation = ChatThread(
+            id: time.toString(),
+            conversationId: conversationUser.value.conversationId,
+            chatType: status,
+            msgCount: 1,
+            lastMsg: receiverLastMessage,
+            userId: myUser?.id,
+            isDeleted: false,
+            deletedId: 0,
+            iBlocked: false,
+            iAmBlocked: false,
+            requestType: status == ChatType.approved
+                ? UserRequestAction.accept.title
+                : null);
+        myConversationUser = myConversation;
+        await documentReceiver.set(myConversation.toJson());
       }
-      ChatThread myConversation = ChatThread(
-          id: time.toString(),
-          conversationId: conversationUser.value.conversationId,
-          chatType: status,
-          msgCount: 1,
-          lastMsg: receiverLastMessage,
-          userId: myUser?.id,
-          isDeleted: false,
-          deletedId: 0,
-          iBlocked: false,
-          iAmBlocked: false,
-          requestType: requestType);
-      myConversationUser = myConversation;
-      documentReceiver.set(myConversation.toJson());
+    } catch (error) {
+      Loggers.error('Receiver users_list WRITE ERROR: $error');
     }
 
     pushNotificationToUser(message);
@@ -344,13 +391,28 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
         bodyMessage = '';
     }
 
+    final notificationData = (myConversationUser ??
+            ChatThread(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              userId: myUser?.id,
+              conversationId: conversationUser.value.conversationId,
+              chatType: ChatType.approved,
+              msgCount: 1,
+              lastMsg: bodyMessage,
+              isDeleted: false,
+              deletedId: 0,
+              iBlocked: false,
+              iAmBlocked: false,
+            ))
+        .toJson();
+
     NotificationService.instance.pushNotification(
         title: myUser?.fullname ?? '',
         body: bodyMessage,
         token: otherUser?.deviceToken,
         deviceType: otherUser?.device,
         type: NotificationType.chat,
-        data: myConversationUser?.toJson());
+        data: notificationData);
   }
 
   String getLastMessage(MessageType type, MessageData message, {bool isSender = true}) {
@@ -383,6 +445,79 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
       isTextEmpty.value = false;
     } else {
       isTextEmpty.value = true;
+    }
+  }
+
+  Future<void> _sendMessageViaLaravel({
+    required MessageType type,
+    String? textMessage,
+    String? imageMessage,
+    String? videoMessage,
+    String? audioMessage,
+    String? postMessage,
+    String? storyReplyMessage,
+    List<double>? waveData,
+  }) async {
+    final peerId = conversationUser.value.peerUserId;
+    if (peerId == -1) {
+      showSnackBar('Usuario de chat inválido');
+      return;
+    }
+    try {
+      final message = await ChatService.instance.sendMessage(
+        peerUserId: peerId,
+        type: type,
+        textMessage: textMessage,
+        imageMessage: imageMessage,
+        videoMessage: videoMessage,
+        audioMessage: audioMessage,
+        postMessage: postMessage,
+        storyReplyMessage: storyReplyMessage,
+        waveData: waveData?.join(','),
+      );
+      conversationUser.value.conversationId = message.conversationId;
+      conversationUser.value.chatType = ChatType.approved;
+      conversationUser.value.lastMsg =
+          getLastMessage(type, message, isSender: true);
+      conversationUser.refresh();
+      if (!chatList.any((m) => m.id == message.id)) {
+        chatList.insert(0, message);
+      }
+      chatList.sort((a, b) => b.id?.compareTo(a.id ?? 0) ?? 0);
+      chatList.refresh();
+    } catch (e) {
+      Loggers.error('Laravel sendMessage: $e');
+      showSnackBar(e.toString());
+    }
+  }
+
+  Future<void> _getChatLaravel() async {
+    await _refreshLaravelMessages();
+    _laravelPoll?.cancel();
+    _laravelPoll = Timer.periodic(const Duration(seconds: 3), (_) {
+      _refreshLaravelMessages(silent: true);
+    });
+  }
+
+  Future<void> _refreshLaravelMessages({bool silent = false}) async {
+    final peerId = conversationUser.value.peerUserId;
+    if (peerId == -1) return;
+    try {
+      final messages = await ChatService.instance.fetchMessages(
+        conversationId: conversationUser.value.conversationId,
+        peerUserId: peerId,
+        afterId: conversationUser.value.deletedId ?? 0,
+      );
+      if (messages.isNotEmpty) {
+        conversationUser.value.conversationId =
+            messages.first.conversationId ?? conversationUser.value.conversationId;
+      }
+      chatList.assignAll(messages);
+      chatList.sort((a, b) => b.id?.compareTo(a.id ?? 0) ?? 0);
+    } catch (e) {
+      if (!silent) {
+        Loggers.error('Laravel fetchMessages: $e');
+      }
     }
   }
 
@@ -522,10 +657,10 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   }
 
   void pickGift() {
-    int? userId = conversationUser.value.chatUser?.userId;
+    int? userId = conversationUser.value.peerUserId;
 
     GiftManager.openGiftSheet(
-        userId: userId ?? -1,
+        userId: userId == -1 ? -1 : userId,
         onCompletion: (giftManager) {
           sendMessageToFireStore(
               type: MessageType.gift,
@@ -878,6 +1013,13 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   }
 
   _markAsRead() async {
+    if (!useFirebase) {
+      final peerId = conversationUser.value.peerUserId;
+      if (peerId != -1) {
+        await ChatService.instance.markRead(peerUserId: peerId);
+      }
+      return;
+    }
     if ((await documentSender.get()).exists) {
       await documentSender.update({FirebaseConst.msgCount: 0});
     }
