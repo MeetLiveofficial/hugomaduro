@@ -13,6 +13,7 @@ class WebService {
   static var common = _Common();
   static var chat = _Chat();
   static var live = _Live();
+  static var livekit = _LiveKit();
   static var call = _Call();
   static var privilege = _Privilege();
 }
@@ -48,6 +49,10 @@ class _Live {
   String leave = "${apiURL}live/leave";
   String like = "${apiURL}live/like";
   String fetchSession = "${apiURL}live/fetchSession";
+}
+
+class _LiveKit {
+  String token = "${apiURL}livekit/token";
 }
 
 class _Common {

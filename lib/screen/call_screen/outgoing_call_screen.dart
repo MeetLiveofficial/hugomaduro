@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
@@ -166,6 +168,7 @@ class OutgoingCallController extends BaseController {
   Timer? _timeout;
   bool _closing = false;
   bool _joined = false;
+  final AudioPlayer _ringback = AudioPlayer();
 
   @override
   void onReady() {
@@ -177,7 +180,30 @@ class OutgoingCallController extends BaseController {
   void onClose() {
     _poll?.cancel();
     _timeout?.cancel();
+    unawaited(_stopRingback(disposePlayer: true));
     super.onClose();
+  }
+
+  Future<void> _startRingback() async {
+    try {
+      await _ringback.setAsset(AssetRes.battleStart);
+      await _ringback.setLoopMode(LoopMode.one);
+      await _ringback.setVolume(0.85);
+      await _ringback.play();
+    } catch (e) {
+      Loggers.error('outgoing ringback: $e');
+    }
+  }
+
+  Future<void> _stopRingback({bool disposePlayer = false}) async {
+    try {
+      await _ringback.stop();
+    } catch (_) {}
+    if (disposePlayer) {
+      try {
+        await _ringback.dispose();
+      } catch (_) {}
+    }
   }
 
   Future<void> _startCall() async {
@@ -196,15 +222,18 @@ class OutgoingCallController extends BaseController {
         SessionManager.instance.setUser(me);
       }
       subtitle.value = LKey.ringing.tr;
+      await _startRingback();
       _poll = Timer.periodic(const Duration(seconds: 2), (_) => _checkStatus());
       _timeout = Timer(const Duration(seconds: 45), () async {
         if (_joined || _closing) return;
+        await _stopRingback();
         subtitle.value = LKey.callNoAnswer.tr;
         await _cancelRemote();
         await Future.delayed(const Duration(milliseconds: 900));
         await cancelAndClose(skipCancelApi: true);
       });
     } catch (e) {
+      await _stopRingback();
       errorText.value = e.toString().replaceFirst('Exception: ', '');
       subtitle.value = LKey.callFailed.tr;
       await Future.delayed(const Duration(milliseconds: 1200));
@@ -234,6 +263,7 @@ class OutgoingCallController extends BaseController {
         _joined = true;
         _poll?.cancel();
         _timeout?.cancel();
+        await _stopRingback();
         subtitle.value = LKey.connecting.tr;
         Get.off(() => VideoCallScreen(call: current));
         return;
@@ -242,6 +272,7 @@ class OutgoingCallController extends BaseController {
       if (current.status == 'rejected') {
         _poll?.cancel();
         _timeout?.cancel();
+        await _stopRingback();
         subtitle.value = LKey.callRejected.tr;
         final me = SessionManager.instance.getUser();
         // Reembolso lo hace el backend al reject; sincronizar local best-effort.
@@ -259,6 +290,7 @@ class OutgoingCallController extends BaseController {
           current.status == 'ended') {
         _poll?.cancel();
         _timeout?.cancel();
+        await _stopRingback();
         subtitle.value = LKey.callCancelled.tr;
         await Future.delayed(const Duration(milliseconds: 800));
         await cancelAndClose(skipCancelApi: true);
@@ -288,6 +320,7 @@ class OutgoingCallController extends BaseController {
     _closing = true;
     _poll?.cancel();
     _timeout?.cancel();
+    await _stopRingback();
     if (!skipCancelApi && call?.isPending == true) {
       await _cancelRemote();
     }

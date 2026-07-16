@@ -10,6 +10,8 @@ class CustomTabSwitcher extends StatelessWidget {
   final RxInt selectedIndex;
   final Widget? widget;
   final int widgetTabIndex;
+  /// Badges opcionales por índice de tab (p. ej. Chats/Requests/Calls).
+  final Map<int, Widget>? badges;
   final EdgeInsets? margin;
   final Color? selectedFontColor;
   final Color? backgroundColor;
@@ -21,6 +23,7 @@ class CustomTabSwitcher extends StatelessWidget {
       required this.selectedIndex,
       this.widget,
       this.widgetTabIndex = -1,
+      this.badges,
       this.margin,
       this.selectedFontColor,
       this.backgroundColor});
@@ -43,13 +46,13 @@ class CustomTabSwitcher extends StatelessWidget {
         child: Stack(
           alignment: AlignmentDirectional.center,
           children: [
-            // Tab Indicator
             LayoutBuilder(
               builder: (context, constraints) {
                 return AnimatedAlign(
                   alignment: Alignment(
-                    (selectedIndex * 2 / (items.length - 1)) - 1,
-                    // Dynamic alignment
+                    items.length <= 1
+                        ? 0
+                        : (selectedIndex * 2 / (items.length - 1)) - 1,
                     0,
                   ),
                   duration: const Duration(milliseconds: 300),
@@ -66,31 +69,36 @@ class CustomTabSwitcher extends StatelessWidget {
                 );
               },
             ),
-            // Tab Content
             Row(
               children: List.generate(
                 items.length,
                 (index) {
                   bool isSelected = selectedIndex.value == index;
+                  final badge = badges?[index] ??
+                      (widget != null && widgetTabIndex == index
+                          ? widget
+                          : null);
                   return Expanded(
                     child: InkWell(
                       onTap: () => onTap(index),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            items[index].tr,
-                            style: TextStyleCustom.outFitRegular400(
-                                color: !isSelected
-                                    ? textLightGrey(context)
-                                    : (selectedFontColor ??
-                                        textDarkGrey(context)),
-                                fontSize: 15),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
+                          Flexible(
+                            child: Text(
+                              items[index].tr,
+                              style: TextStyleCustom.outFitRegular400(
+                                  color: !isSelected
+                                      ? textLightGrey(context)
+                                      : (selectedFontColor ??
+                                          textDarkGrey(context)),
+                                  fontSize: 15),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                          if (widget != null && widgetTabIndex == index) widget!
+                          if (badge != null) badge,
                         ],
                       ),
                     ),

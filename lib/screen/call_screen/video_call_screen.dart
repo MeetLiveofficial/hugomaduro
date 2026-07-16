@@ -2,14 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/session_manager.dart';
-import 'package:krimson/common/manager/zego_engine_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
+import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
-import 'package:zego_express_engine/zego_express_engine.dart';
 
 class VideoCallScreen extends StatelessWidget {
   final CallRequestModel call;
@@ -18,7 +19,8 @@ class VideoCallScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(VideoCallController(call), tag: 'call_${call.id}');
+    final controller =
+        Get.put(VideoCallController(call), tag: 'call_${call.id}');
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -26,43 +28,45 @@ class VideoCallScreen extends StatelessWidget {
           children: [
             Positioned.fill(
               child: Obx(() {
-                final remote = controller.remoteView.value;
-                if (remote != null) return remote;
-                return Center(
-                  child: Text(
-                    controller.status.value,
-                    style: TextStyleCustom.outFitRegular400(
-                        color: whitePure(context), fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
+                // Dependencias Rx para rebuild.
+                controller.liveKit.mediaRevision.value;
+                return LiveKitCallLayout(
+                  local: controller.liveKit.localParticipant.value,
+                  remotes: controller.liveKit.remoteParticipants.toList(),
+                  statusText: controller.status.value,
                 );
               }),
-            ),
-            Positioned(
-              right: 16,
-              top: 16,
-              width: 110,
-              height: 160,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Obx(() => controller.localView.value ??
-                    Container(color: Colors.black54)),
-              ),
             ),
             Positioned(
               left: 16,
               right: 16,
               bottom: 24,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _RoundBtn(
-                    icon: Icons.call_end,
-                    color: Colors.red,
-                    onTap: controller.hangUp,
-                  ),
-                ],
-              ),
+              child: Obx(() {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _RoundBtn(
+                      icon: controller.liveKit.microphoneEnabled.value
+                          ? Icons.mic
+                          : Icons.mic_off,
+                      color: Colors.white24,
+                      onTap: controller.toggleMic,
+                    ),
+                    _RoundBtn(
+                      icon: Icons.call_end,
+                      color: Colors.red,
+                      onTap: controller.hangUp,
+                    ),
+                    _RoundBtn(
+                      icon: controller.liveKit.cameraEnabled.value
+                          ? Icons.videocam
+                          : Icons.videocam_off,
+                      color: Colors.white24,
+                      onTap: controller.toggleCamera,
+                    ),
+                  ],
+                );
+              }),
             ),
             Positioned(
               left: 16,
@@ -105,15 +109,17 @@ class VideoCallController extends BaseController {
   VideoCallController(this.call);
 
   final CallRequestModel call;
-  final Rxn<Widget> localView = Rxn<Widget>();
-  final Rxn<Widget> remoteView = Rxn<Widget>();
   final RxString status = 'Connecting...'.obs;
 
-  int? localViewId;
-  int? remoteViewId;
-  String? localStreamId;
-  String? remoteStreamId;
+  late final LiveKitRoomController liveKit;
   String get roomId => call.roomId ?? 'call_${call.id}';
+  String get _tag => 'lk_call_${call.id}';
+
+  @override
+  void onInit() {
+    super.onInit();
+    liveKit = Get.put(LiveKitRoomController(), tag: _tag);
+  }
 
   @override
   void onReady() {
@@ -134,80 +140,42 @@ class VideoCallController extends BaseController {
       return;
     }
 
-    localStreamId = '${roomId}_${me!.id}';
-
-    ZegoExpressEngine.onRoomStreamUpdate = (roomID, updateType, streamList, _) async {
-      if (roomID != roomId) return;
-      if (updateType == ZegoUpdateType.Add) {
-        for (final stream in streamList) {
-          if (stream.streamID == localStreamId) continue;
-          await _playRemote(stream.streamID);
-        }
-      } else if (updateType == ZegoUpdateType.Delete) {
-        for (final stream in streamList) {
-          if (stream.streamID == remoteStreamId) {
-            await _stopRemote();
-            status.value = 'Peer left';
-          }
-        }
-      }
-    };
+    if (kIsWeb) {
+      status.value =
+          'Video call is limited on Web. Use Android/iOS for full A/V.';
+      return;
+    }
 
     try {
-      await ZegoEngineManager.ensureCreated();
-      final zegoUser = ZegoUser('${me.id}', me.fullname ?? me.username ?? 'user');
-      await ZegoExpressEngine.instance.loginRoom(
-        roomId,
-        zegoUser,
-        config: ZegoRoomConfig.defaultConfig()..isUserStatusNotify = true,
-      );
-
-      localView.value =
-          await ZegoExpressEngine.instance.createCanvasView((id) async {
-        localViewId = id;
-        await ZegoExpressEngine.instance.startPreview(
-          canvas: ZegoCanvas(id, viewMode: ZegoViewMode.AspectFill),
-        );
-        await ZegoExpressEngine.instance
-            .startPublishingStream(localStreamId!);
+      ever(liveKit.statusMessage, (msg) {
+        if (msg.isNotEmpty) status.value = msg;
       });
+      ever(liveKit.remoteParticipants, (_) {
+        if (liveKit.remoteParticipants.isNotEmpty) {
+          status.value = '';
+        } else if (liveKit.isConnected.value) {
+          status.value = 'Waiting for peer...';
+        }
+      });
+
+      await liveKit.connect(
+        roomName: roomId,
+        identity: '${me!.id}',
+        name: me.fullname ?? me.username ?? 'user',
+        publishCamera: true,
+        publishMicrophone: true,
+        wsUrl: liveKitWsUrl,
+      );
       status.value = 'Waiting for peer...';
     } catch (e) {
       status.value = e.toString();
-      if (!kIsWeb) {
-        showSnackBar(e.toString());
-      }
+      showSnackBar(e.toString());
     }
   }
 
-  Future<void> _playRemote(String streamId) async {
-    remoteStreamId = streamId;
-    remoteView.value =
-        await ZegoExpressEngine.instance.createCanvasView((id) async {
-      remoteViewId = id;
-      await ZegoExpressEngine.instance.startPlayingStream(
-        streamId,
-        canvas: ZegoCanvas(id, viewMode: ZegoViewMode.AspectFill),
-      );
-    });
-    status.value = '';
-  }
+  Future<void> toggleMic() => liveKit.toggleMicrophone();
 
-  Future<void> _stopRemote() async {
-    if (remoteStreamId != null) {
-      try {
-        await ZegoExpressEngine.instance.stopPlayingStream(remoteStreamId!);
-      } catch (_) {}
-    }
-    if (remoteViewId != null) {
-      try {
-        await ZegoExpressEngine.instance.destroyCanvasView(remoteViewId!);
-      } catch (_) {}
-    }
-    remoteView.value = null;
-    remoteViewId = null;
-    remoteStreamId = null;
-  }
+  Future<void> toggleCamera() => liveKit.toggleCamera();
 
   Future<void> hangUp() async {
     await _cleanup(notifyApi: true);
@@ -216,20 +184,11 @@ class VideoCallController extends BaseController {
 
   Future<void> _cleanup({required bool notifyApi}) async {
     try {
-      await ZegoExpressEngine.instance.stopPublishingStream();
-      await ZegoExpressEngine.instance.stopPreview();
+      await liveKit.disconnect();
     } catch (_) {}
-    await _stopRemote();
-    if (localViewId != null) {
-      try {
-        await ZegoExpressEngine.instance.destroyCanvasView(localViewId!);
-      } catch (_) {}
-      localViewId = null;
+    if (Get.isRegistered<LiveKitRoomController>(tag: _tag)) {
+      Get.delete<LiveKitRoomController>(tag: _tag);
     }
-    try {
-      await ZegoExpressEngine.instance.logoutRoom(roomId);
-    } catch (_) {}
-    ZegoExpressEngine.onRoomStreamUpdate = null;
     if (notifyApi && call.id != null && call.isAccepted) {
       try {
         await CallService.instance.end(call.id!);

@@ -6,6 +6,7 @@ import 'package:krimson/utilities/app_res.dart';
 class Livestream {
   int? watchingCount;
   String? description;
+  String? coverImage;
   LivestreamType? type;
   BattleType? battleType;
   int battleDuration = AppRes.battleDurationInMinutes;
@@ -25,6 +26,7 @@ class Livestream {
   Livestream(
       {this.watchingCount,
       this.description,
+      this.coverImage,
       this.type,
       this.battleType,
       this.isRestrictToJoin,
@@ -40,28 +42,36 @@ class Livestream {
       this.battleDuration = AppRes.battleDurationInMinutes});
 
   Livestream.fromJson(Map<String, dynamic> json) {
-    type = LivestreamType.fromString(json['type']);
-    battleType = BattleType.fromString(json['battle_type']);
+    type = LivestreamType.fromString(json['type']?.toString() ?? '');
+    battleType = BattleType.fromString(json['battle_type']?.toString());
     watchingCount = json['watching_count'];
     description = json['description'];
+    coverImage = json['cover_image']?.toString();
     isRestrictToJoin = json['is_restrict_to_join'];
     hostViewID = json['host_view_id'];
-    roomID = json['room_id'];
+    roomID = json['room_id']?.toString();
     likeCount = json['like_count'];
     hostId = json['host_id'];
     final coHosts = json['co-host_ids'];
-    coHostIds = coHosts is List ? coHosts.cast<int>() : <int>[];
+    coHostIds = coHosts is List
+        ? coHosts.map((e) => int.tryParse('$e') ?? 0).where((e) => e > 0).toList()
+        : <int>[];
     createdAt = json['created_at'];
     battleCreatedAt = json['battle_created_at'];
     isDummyLive = json['is_dummy_live'];
     dummyUserLink = json['dummy_user_link'];
     battleDuration = json['battle_duration'] ?? AppRes.battleDurationInMinutes;
+    final hostJson = json['host_user'];
+    if (hostJson is Map) {
+      hostUser = AppUser.fromJson(Map<String, dynamic>.from(hostJson));
+    }
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
     data['watching_count'] = watchingCount;
     data['description'] = description;
+    data['cover_image'] = coverImage;
     data['type'] = type?.value;
     data['battle_type'] = battleType?.value;
     data['is_restrict_to_join'] = isRestrictToJoin;

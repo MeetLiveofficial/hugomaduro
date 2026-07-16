@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -177,22 +179,58 @@ class IncomingCallController extends GetxController {
   CallRequestModel call;
   final RxnString errorText = RxnString();
   bool _busy = false;
+  final AudioPlayer _ringtone = AudioPlayer();
+
+  @override
+  void onInit() {
+    super.onInit();
+    _startRingtone();
+  }
+
+  @override
+  void onClose() {
+    _stopRingtone();
+    try {
+      _ringtone.dispose();
+    } catch (_) {}
+    super.onClose();
+  }
+
+  Future<void> _startRingtone() async {
+    try {
+      await _ringtone.setAsset(AssetRes.battleStart);
+      await _ringtone.setLoopMode(LoopMode.one);
+      await _ringtone.setVolume(1.0);
+      await _ringtone.play();
+    } catch (e) {
+      Loggers.error('incoming ringtone: $e');
+    }
+  }
+
+  Future<void> _stopRingtone() async {
+    try {
+      await _ringtone.stop();
+    } catch (_) {}
+  }
 
   Future<void> accept() async {
     if (_busy || call.id == null) return;
     _busy = true;
+    await _stopRingtone();
     try {
       final updated = await CallService.instance.accept(call.id!);
       Get.off(() => VideoCallScreen(call: updated));
     } catch (e) {
       errorText.value = e.toString().replaceFirst('Exception: ', '');
       _busy = false;
+      await _startRingtone();
     }
   }
 
   Future<void> reject() async {
     if (_busy || call.id == null) return;
     _busy = true;
+    await _stopRingtone();
     try {
       await CallService.instance.reject(call.id!);
       if (Get.key.currentState?.canPop() == true) Get.back();
