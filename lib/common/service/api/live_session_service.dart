@@ -30,6 +30,7 @@ class LiveSessionService {
 
   Future<Livestream> start({
     required String description,
+    String? coverImage,
     List<int> coHostIds = const [],
     int isRestrictToJoin = 0,
   }) async {
@@ -37,6 +38,8 @@ class LiveSessionService {
       url: WebService.live.start,
       param: {
         'description': description,
+        if (coverImage != null && coverImage.isNotEmpty)
+          'cover_image': coverImage,
         'is_restrict_to_join': isRestrictToJoin,
         'co_host_ids': coHostIds.join(','),
         'type': 'LIVESTREAM',

@@ -10,6 +10,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart' show SessionManager;
+import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/notification_service.dart';
 import 'package:krimson/common/service/api/post_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
@@ -19,6 +20,8 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/screen/call_screen/incoming_call_screen.dart';
+import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/chat_screen/chat_screen.dart';
 import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
@@ -70,6 +73,15 @@ class FirebaseNotificationManager {
       showBadge: false,
       importance: Importance.max);
 
+  AndroidNotificationChannel callChannel = const AndroidNotificationChannel(
+      'krimson_calls',
+      'Krimson Calls',
+      playSound: true,
+      enableLights: true,
+      enableVibration: true,
+      showBadge: true,
+      importance: Importance.max);
+
   String? notificationId;
 
   void init() async {
@@ -118,17 +130,29 @@ class FirebaseNotificationManager {
       if (notificationId == message.messageId) return;
       notificationId = message.messageId;
 
-      String data = message.data['notification_data'] ?? '';
+      final type = message.data['type'];
+      final data = message.data['notification_data'] ?? '';
 
-      if (message.data['type'] == NotificationType.chat.type) {
-        ChatThread conversationUser = ChatThread.fromJson(jsonDecode(data));
-        if (conversationUser.conversationId == ChatScreenController.chatId) {
-          return;
+      if (type == NotificationType.chat.type) {
+        if (data.isNotEmpty) {
+          try {
+            final conversationUser = ChatThread.fromJson(jsonDecode(data));
+            if (conversationUser.conversationId == ChatScreenController.chatId) {
+              return;
+            }
+          } catch (e) {
+            Loggers.error('chat push parse: $e');
+          }
         }
+      } else if (type == 'call_request') {
+        showNotification(message, isCall: true);
+        _openIncomingCallFromPush(message.data);
+        return;
       } else {
         SessionManager.instance.setNotifyCount(1);
       }
-      showNotification(message);
+      showNotification(message,
+          isCall: type == 'call_accepted' || type == 'call_rejected');
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
@@ -139,9 +163,11 @@ class FirebaseNotificationManager {
       }
     });
 
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    final androidPlugin = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.createNotificationChannel(channel);
+    await androidPlugin?.createNotificationChannel(callChannel);
   }
 
   void unsubscribeToTopic({String? topic}) async {
@@ -167,9 +193,10 @@ class FirebaseNotificationManager {
     }
   }
 
-  void showNotification(RemoteMessage message) {
+  void showNotification(RemoteMessage message, {bool isCall = false}) {
     print('SHOW MESSAGE : ${message.toMap()}');
     int notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    final activeChannel = isCall ? callChannel : channel;
 
     flutterLocalNotificationsPlugin.show(
         id: notificationId,
@@ -178,7 +205,15 @@ class FirebaseNotificationManager {
         notificationDetails: NotificationDetails(
             iOS: const DarwinNotificationDetails(
                 presentSound: true, presentAlert: true, presentBadge: false),
-            android: AndroidNotificationDetails(channel.id, channel.name)),
+            android: AndroidNotificationDetails(
+              activeChannel.id,
+              activeChannel.name,
+              channelDescription: isCall ? 'Incoming video calls' : null,
+              importance: Importance.max,
+              priority: Priority.max,
+              playSound: true,
+              enableVibration: true,
+            )),
         payload: jsonEncode(message.toMap()));
   }
 
@@ -188,7 +223,18 @@ class FirebaseNotificationManager {
     final dataString = message.data['notification_data'];
     print('DATA TYPE : $dataType');
     print('DATA STRING : $dataString');
-    if (dataType == null || dataString == null || dataString.isEmpty) return;
+    if (dataType == null) return;
+
+    if (dataType == 'call_request') {
+      await _openIncomingCallFromPush(message.data);
+      return;
+    }
+    if (dataType == 'call_accepted') {
+      await _openAcceptedCallFromPush(message.data);
+      return;
+    }
+
+    if (dataString == null || dataString.isEmpty) return;
     final controller = Get.put(DashboardScreenController());
     switch (dataType) {
       case 'chat':
@@ -214,6 +260,39 @@ class FirebaseNotificationManager {
         break;
       default:
         Loggers.warning('Unknown notification type: $dataType');
+    }
+  }
+
+  Future<void> _openIncomingCallFromPush(Map<String, dynamic> data) async {
+    final id = int.tryParse('${data['call_request_id'] ?? ''}');
+    if (id == null) return;
+    final tag = 'incoming_$id';
+    if (Get.isRegistered<IncomingCallController>(tag: tag)) return;
+    try {
+      final inbox = await CallService.instance.inbox();
+      final call = inbox.received
+          .where((e) => e.id == id && e.isPending)
+          .cast<dynamic>()
+          .toList();
+      if (call.isEmpty) return;
+      Get.to(() => IncomingCallScreen(call: call.first));
+    } catch (e) {
+      Loggers.error('open incoming call from push: $e');
+    }
+  }
+
+  Future<void> _openAcceptedCallFromPush(Map<String, dynamic> data) async {
+    final id = int.tryParse('${data['call_request_id'] ?? ''}');
+    if (id == null) return;
+    try {
+      final inbox = await CallService.instance.inbox();
+      final all = [...inbox.received, ...inbox.sent];
+      final match =
+          all.where((e) => e.id == id && e.isAccepted).toList();
+      if (match.isEmpty) return;
+      Get.to(() => VideoCallScreen(call: match.first));
+    } catch (e) {
+      Loggers.error('open accepted call from push: $e');
     }
   }
 

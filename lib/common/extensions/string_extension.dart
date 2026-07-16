@@ -139,25 +139,28 @@ extension StringExtention on String {
   }
 
   Future<LinearGradient> get getGradientFromImage async {
-    List<Color> colors = [];
-    Uint8List imageBytes = await File(this).readAsBytes();
-    print(imageBytes);
+    const fallback = [
+      Color(0xFF1A1A1A),
+      Color(0xFFFF003F),
+    ];
+    List<Color> colors = List<Color>.from(fallback);
     try {
-      DominantColors extractor =
-          DominantColors(bytes: imageBytes, dominantColorsCount: 5);
-
-      List<Color> dominantColors = extractor.extractDominantColors();
-      colors = dominantColors;
-    } catch (e) {
-      colors.clear();
-      print(e);
-    }
+      final bytes = await File(this).readAsBytes();
+      final extractor =
+          DominantColors(bytes: bytes, dominantColorsCount: 3);
+      final dominant = extractor.extractDominantColors();
+      if (dominant.length >= 2) {
+        colors = [dominant.first, dominant.last];
+      } else if (dominant.length == 1) {
+        colors = [dominant.first, fallback.last];
+      }
+    } catch (_) {}
 
     return LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       stops: const [0.1, 1],
-      colors: [colors.first, colors.last],
+      colors: colors,
     );
   }
 }

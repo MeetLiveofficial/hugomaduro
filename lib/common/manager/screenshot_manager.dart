@@ -16,25 +16,28 @@ class ScreenshotManager {
       RenderRepaintBoundary? boundary = screenshotKey.currentContext
           ?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) {
-        print('1');
+        Loggers.error('Screenshot boundary null');
         return null;
       }
 
-      final image = await boundary.toImage(pixelRatio: 5.0);
+      // 2.0 es suficiente para stories; 5.0 generaba PNG enormes y fallos de upload.
+      final image = await boundary.toImage(pixelRatio: 2.0);
       final byteData = await image.toByteData(format: ImageByteFormat.png);
       final Uint8List? imageBytes = byteData?.buffer.asUint8List();
       if (imageBytes == null) {
-        print('2');
         return null;
       }
 
       final localPath = await PlatformPathExtension.localPath;
+      if (localPath.isEmpty) {
+        Loggers.error('Screenshot localPath vacío');
+        return null;
+      }
 
-      final file = File('${localPath}screenshot.png');
-
-      await file.writeAsBytes(imageBytes);
-      print(file.path);
-      return XFile(file.path);
+      final file = File(
+          '${localPath}screenshot_${DateTime.now().millisecondsSinceEpoch}.png');
+      await file.writeAsBytes(imageBytes, flush: true);
+      return XFile(file.path, name: file.uri.pathSegments.last);
     } catch (e) {
       Loggers.error('❌ Screenshot failed: $e');
       return null;

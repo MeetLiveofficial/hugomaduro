@@ -119,22 +119,37 @@ class ApiService {
         return decodedResponse as T;
       } else if (response.statusCode == 401) {
         Loggers.error('Unauthorized Error 401: ${response.statusCode}');
-        // Sesión inválida / token vacío: limpiar y volver a login (no dejar pantalla rota).
-        SessionManager.instance.clearSomeKey();
-        DebounceAction.shared.call(() {
-          Get.offAll(() => const LoginScreen(), routeName: '/login');
-        });
+        // Solo forzar logout si Laravel confirma token inválido/ausente.
+        // Otros 401 (p.ej. LiveKit interno mal mapeado) no deben cerrar sesión.
+        final bodyLower = response.body.toLowerCase();
+        final isSessionAuth = bodyLower.contains('invalid token') ||
+            bodyLower.contains('token not provided') ||
+            bodyLower.contains('unauthorized access');
+        if (isSessionAuth) {
+          SessionManager.instance.clearSomeKey();
+          DebounceAction.shared.call(() {
+            Get.offAll(() => const LoginScreen(), routeName: '/login');
+          });
+        }
         throw Exception("Unauthorized Error: ${response.statusCode}");
       } else if (response.statusCode == 404) {
         Loggers.error('Please check baseURL in const.dart file');
         throw Exception("URL Error: ${response.statusCode} - $url");
       } else {
         final errorBody = response.body;
-        final errorMessage = _extractErrorMessage(errorBody);
-        Loggers.error('HTTP Error: $errorMessage');
-        // Handle HTTP errors
-        throw Exception(
-            "HTTP Error: ${response.statusCode} - ${response.reasonPhrase}");
+        String detail = '';
+        try {
+          final decoded = jsonDecode(errorBody);
+          if (decoded is Map && decoded['message'] != null) {
+            detail = decoded['message'].toString();
+          }
+        } catch (_) {
+          detail = _extractErrorMessage(errorBody);
+        }
+        Loggers.error('HTTP Error ${response.statusCode}: $detail');
+        throw Exception(detail.isNotEmpty
+            ? 'HTTP Error: ${response.statusCode} - $detail'
+            : 'HTTP Error: ${response.statusCode} - ${response.reasonPhrase}');
       }
     } on HttpException {
       throw Exception('Could not connect to the server');
@@ -242,21 +257,31 @@ class ApiService {
         throw Exception('Request was cancelled');
       }
 
+      final statusCode = responseStream.statusCode;
       final responseStr = await responseStream.stream.bytesToString();
-      final decodedResponse = jsonDecode(responseStr) as Map<String, dynamic>;
 
-      if (kDebugMode) {
-        // Loggers.info(responseStr);
+      Map<String, dynamic> decodedResponse;
+      try {
+        decodedResponse = jsonDecode(responseStr) as Map<String, dynamic>;
+      } catch (_) {
+        Loggers.error(
+            'multipart non-JSON response HTTP $statusCode: ${responseStr.length > 200 ? responseStr.substring(0, 200) : responseStr}');
+        decodedResponse = {
+          'status': false,
+          'message': statusCode >= 500
+              ? 'Server error ($statusCode). Try again.'
+              : 'Upload failed (HTTP $statusCode)',
+          'data': null,
+        };
       }
+
       if (decodedResponse['status'] == false) {
         Loggers.error(decodedResponse['message']);
       }
-      // Use the provided `fromJson` function to parse the response
       if (fromJson != null) {
         return fromJson(decodedResponse);
       }
 
-      // If no `fromJson` is provided, return the raw response
       return decodedResponse as T;
     } finally {
       _cleanupClient(cancelToken);
