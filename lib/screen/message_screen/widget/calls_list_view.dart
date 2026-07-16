@@ -61,17 +61,9 @@ class CallsListController extends BaseController {
       if (!_didPrimeIncoming) {
         _seenIncomingIds.addAll(pendingIncoming.map((e) => e.id!));
         _didPrimeIncoming = true;
-      } else {
-        for (final item in pendingIncoming) {
-          if (_seenIncomingIds.add(item.id!)) {
-            final tag = 'incoming_${item.id}';
-            if (!Get.isRegistered<IncomingCallController>(tag: tag)) {
-              Get.to(() => IncomingCallScreen(call: item));
-            }
-            break;
-          }
-        }
       }
+      // Sin auto-abrir IncomingCall: solo lista + badge (CHAT | REQUEST | CALL).
+      // El usuario responde desde la pestaña CALL o tocando la notificación.
     } catch (e) {
       if (!silent) showSnackBar(e.toString());
     } finally {

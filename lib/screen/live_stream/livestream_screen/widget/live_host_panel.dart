@@ -9,6 +9,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -345,11 +346,13 @@ Future<void> openLiveInviteSheet({
   required RxBool loading,
   required RxSet<int> selectedIds,
   required Future<void> Function(User user) onInvite,
+  Future<void> Function(String keyword)? onSearch,
 }) {
+  final searchCtrl = TextEditingController();
   return Get.bottomSheet(
     SafeArea(
       child: Container(
-        height: MediaQuery.of(Get.context!).size.height * 0.55,
+        height: MediaQuery.of(Get.context!).size.height * 0.65,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         decoration: BoxDecoration(
           color: whitePure(Get.context!),
@@ -359,7 +362,7 @@ Future<void> openLiveInviteSheet({
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              LKey.inviteFriends.tr,
+              'Invite Users',
               textAlign: TextAlign.center,
               style: TextStyleCustom.unboundedSemiBold600(
                 color: textDarkGrey(Get.context!),
@@ -368,11 +371,37 @@ Future<void> openLiveInviteSheet({
             ),
             const SizedBox(height: 4),
             Text(
-              LKey.selectFriendsToInvite.tr,
+              'Search and invite any user to your live',
               textAlign: TextAlign.center,
               style: TextStyleCustom.outFitRegular400(
                 color: textLightGrey(Get.context!),
                 fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: searchCtrl,
+              textInputAction: TextInputAction.search,
+              onChanged: (v) {
+                if (onSearch != null) onSearch(v.trim());
+              },
+              onSubmitted: (v) {
+                if (onSearch != null) onSearch(v.trim());
+              },
+              decoration: InputDecoration(
+                hintText: 'Search users…',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: bgGrey(Get.context!)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: bgGrey(Get.context!)),
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -399,14 +428,65 @@ Future<void> openLiveInviteSheet({
                     final id = user.id ?? -1;
                     final invited = selectedIds.contains(id);
                     return ListTile(
-                      leading: CustomImage(
-                        size: const Size(40, 40),
-                        strokeWidth: 0,
-                        image: user.profilePhoto?.addBaseURL(),
-                        fullName: user.fullname,
+                      leading: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          CustomImage(
+                            size: const Size(40, 40),
+                            strokeWidth: 0,
+                            image: user.profilePhoto?.addBaseURL(),
+                            fullName: user.fullname,
+                          ),
+                          Positioned(
+                            right: -2,
+                            bottom: -2,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: user.isActive == 1
+                                    ? const Color(0xFF22C55E)
+                                    : const Color(0xFF9CA3AF),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: whitePure(context), width: 2),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      title: Text(user.username ?? user.fullname ?? ''),
-                      subtitle: Text(user.fullname ?? ''),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              user.username ?? user.fullname ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (user.isLive == 1) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: ColorRes.themeAccentSolid,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'LIVE',
+                                style: TextStyleCustom.outFitMedium500(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      subtitle: Text(
+                        '${user.fullname ?? ''} · ${user.isActive == 1 ? 'ACTIVE' : 'INACTIVE'}',
+                      ),
                       trailing: TextButton(
                         onPressed: invited ? null : () => onInvite(user),
                         child: Text(
@@ -423,7 +503,7 @@ Future<void> openLiveInviteSheet({
       ),
     ),
     isScrollControlled: true,
-  );
+  ).whenComplete(searchCtrl.dispose);
 }
 
 String networkLabelFromResults(List<ConnectivityResult> results) {

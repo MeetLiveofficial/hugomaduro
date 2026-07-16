@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
-import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_stream_overlay.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:video_player/video_player.dart';
 
@@ -50,6 +50,7 @@ class LivestreamHostScreen extends StatelessWidget {
       },
       child: Scaffold(
         backgroundColor: Colors.black,
+        resizeToAvoidBottomInset: true,
         body: Stack(
           fit: StackFit.expand,
           children: [
@@ -71,37 +72,11 @@ class LivestreamHostScreen extends StatelessWidget {
                 if (lk != null && lk.isConnected.value) {
                   return Obx(() {
                     lk.mediaRevision.value;
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        LiveKitParticipantVideo(
-                          participant: lk.localParticipant.value,
-                          mirror: true,
-                        ),
-                        if (lk.remoteParticipants.isNotEmpty)
-                          Positioned(
-                            left: 8,
-                            bottom: 120,
-                            height: 100,
-                            child: Row(
-                              children: [
-                                for (final p in lk.remoteParticipants)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: SizedBox(
-                                      width: 72,
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: LiveKitParticipantVideo(
-                                          participant: p,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                      ],
+                    // Solo el video del host. No PiP de espectadores (salen
+                    // como "cámara apagada" y tapan el chat).
+                    return LiveKitParticipantVideo(
+                      participant: lk.localParticipant.value,
+                      mirror: true,
                     );
                   });
                 }
@@ -119,127 +94,10 @@ class LivestreamHostScreen extends StatelessWidget {
                 );
               },
             ),
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => controller.confirmExit(context),
-                          icon: const Icon(Icons.close, color: Colors.white),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'LIVE',
-                                  style: TextStyleCustom.outFitMedium500(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                livestream.description ?? '',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyleCustom.outFitMedium500(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Obx(() => Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.black45,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.wifi,
-                                      color: Colors.amber, size: 16),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    controller.networkLabel.value,
-                                    style: TextStyleCustom.outFitRegular400(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )),
-                        TextButton(
-                          onPressed: () => controller.confirmExit(context),
-                          child: Text(
-                            'End',
-                            style: TextStyleCustom.outFitMedium500(
-                              color: Colors.redAccent,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    // Controles mic / cámara LiveKit
-                    Obx(() {
-                      final lk = controller.liveKit;
-                      if (lk == null) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            IconButton(
-                              onPressed: lk.toggleMicrophone,
-                              icon: Icon(
-                                lk.microphoneEnabled.value
-                                    ? Icons.mic
-                                    : Icons.mic_off,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            IconButton(
-                              onPressed: lk.toggleCamera,
-                              icon: Icon(
-                                lk.cameraEnabled.value
-                                    ? Icons.videocam
-                                    : Icons.videocam_off,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                    LiveHostActionBar(
-                      onBeauty: controller.openBeauty,
-                      onInvite: controller.openInvite,
-                      networkLabel: controller.networkLabel,
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
+            LiveStreamOverlay(
+              controller: controller,
+              showHostControls: true,
+              onClose: () => controller.confirmExit(context),
             ),
           ],
         ),

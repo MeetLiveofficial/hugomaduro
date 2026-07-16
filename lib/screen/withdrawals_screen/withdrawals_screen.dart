@@ -24,6 +24,18 @@ class WithdrawalsScreen extends StatelessWidget {
       body: Column(
         children: [
           CustomAppBar(title: LKey.withdrawals.tr),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 8, 15, 8),
+            child: TextButtonCustom(
+              onTap: controller.openRequestSheet,
+              title: LKey.requestWithdrawal.tr,
+              backgroundColor: ColorRes.themeAccentSolid,
+              titleColor: Colors.white,
+              btnHeight: 42,
+              horizontalMargin: 0,
+              margin: EdgeInsets.zero,
+            ),
+          ),
           Expanded(child: Obx(
             () {
               return controller.isLoading.value && controller.withdraws.isEmpty

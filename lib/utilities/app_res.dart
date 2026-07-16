@@ -93,8 +93,8 @@ class AppRes {
     r'(@[a-zA-Z0-9_.-]+)|(#([\w.-]+))|((?:(?:https?|ftp)://)?[\w/\-?=%.]+\.[\w/\-?=%.]+)',
   );
 
-  // Send Gift
-  static const int giftDialogDismissTime = 2; // enter in second
+  // Send Gift — overlay en pantalla (LIVE / posts / call)
+  static const int giftDialogDismissTime = 20; // segundos
 
   // Chat
   static const int shareChatLimit = 5;

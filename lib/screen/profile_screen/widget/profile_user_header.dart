@@ -72,7 +72,13 @@ class ProfileUserHeader extends StatelessWidget {
                 _Avatar(
                   user: user,
                   hasStories: hasStories,
-                  onTap: () => controller.onStoryTap(hasStories),
+                  onTap: () {
+                    if (user.isLive == 1) {
+                      controller.openUserLiveIfAny();
+                    } else {
+                      controller.onStoryTap(hasStories);
+                    }
+                  },
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -111,6 +117,67 @@ class ProfileUserHeader extends StatelessWidget {
               username: user.fullname ?? user.username,
               isVerify: user.isVerify,
               fontSize: 16,
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (user.isLive == 1)
+                  InkWell(
+                    onTap: () => controller.openUserLiveIfAny(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: ColorRes.themeAccentSolid,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'LIVE',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: user.isActive == 1
+                        ? const Color(0xFF22C55E).withValues(alpha: 0.15)
+                        : const Color(0xFF9CA3AF).withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: user.isActive == 1
+                              ? const Color(0xFF22C55E)
+                              : const Color(0xFF9CA3AF),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        user.isActive == 1 ? 'ACTIVE' : 'INACTIVE',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: user.isActive == 1
+                              ? const Color(0xFF15803D)
+                              : const Color(0xFF6B7280),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -349,25 +416,74 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLive = user.isLive == 1;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(50),
-      child: Container(
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: hasStories ? StyleRes.themeGradient : null,
-          border: hasStories
-              ? null
-              : Border.all(color: bgGrey(context), width: 1.5),
-        ),
-        child: CustomImage(
-          size: const Size(82, 82),
-          image: user.profilePhoto?.addBaseURL(),
-          fullName: user.fullname,
-          strokeWidth: hasStories ? 2 : 0,
-          strokeColor: scaffoldBackgroundColor(context),
-        ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: isLive
+                  ? const LinearGradient(
+                      colors: [Color(0xFFFF003F), Color(0xFFFF6B8A)],
+                    )
+                  : (hasStories ? StyleRes.themeGradient : null),
+              border: (!isLive && !hasStories)
+                  ? Border.all(color: bgGrey(context), width: 1.5)
+                  : null,
+            ),
+            child: CustomImage(
+              size: const Size(82, 82),
+              image: user.profilePhoto?.addBaseURL(),
+              fullName: user.fullname,
+              strokeWidth: (isLive || hasStories) ? 2 : 0,
+              strokeColor: scaffoldBackgroundColor(context),
+            ),
+          ),
+          if (isLive)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: -2,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: ColorRes.themeAccentSolid,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'LIVE',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white,
+                      fontSize: 9,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Positioned(
+            right: 2,
+            bottom: isLive ? 14 : 4,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: user.isActive == 1
+                    ? const Color(0xFF22C55E)
+                    : const Color(0xFF9CA3AF),
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: scaffoldBackgroundColor(context), width: 2),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -9,6 +9,7 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/misc/activity_notification_model.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_invite_dialog.dart';
 import 'package:krimson/screen/post_screen/single_post_screen.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -34,6 +35,10 @@ class ActivityNotifyType {
       ActivityNotifyType._('reply_comment', 7);
   static const ActivityNotifyType mentionReply =
       ActivityNotifyType._('mention_reply', 8);
+  static const ActivityNotifyType callRequest =
+      ActivityNotifyType._('call_request', 9);
+  static const ActivityNotifyType liveInvite =
+      ActivityNotifyType._('live_invite', 10);
 
   static const List<ActivityNotifyType> values = [
     none,
@@ -45,6 +50,8 @@ class ActivityNotifyType {
     giftUser,
     replyComment,
     mentionReply,
+    callRequest,
+    liveInvite,
   ];
 
   static ActivityNotifyType fromString(dynamic value) {
@@ -77,6 +84,10 @@ class ActivityNotifyType {
       case 8:
         return LKey.notifyReplyMentionedInComment
             .trParams({'comment_description': ''});
+      case 9:
+        return 'Video call request';
+      case 10:
+        return 'te invita a su LIVE';
       default:
         return '';
     }
@@ -186,6 +197,13 @@ class ActivityNotificationPage extends StatelessWidget {
   void _onTap(ActivityNotification item) {
     if (item.type == ActivityNotifyType.followUser) {
       NavigationService.shared.openProfileScreen(item.fromUser);
+      return;
+    }
+    if (item.type == ActivityNotifyType.liveInvite) {
+      final live = item.data?.livestream;
+      if (live != null) {
+        LiveInviteDialog.showIfNeeded(live);
+      }
       return;
     }
     final post = item.data?.post;

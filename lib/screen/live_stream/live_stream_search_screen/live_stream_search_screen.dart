@@ -49,16 +49,7 @@ class LiveStreamSearchScreen extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: controller.onTapGoLive,
-        backgroundColor: ColorRes.themeGradient1,
-        icon: const LiveTvIcon(size: 22, color: Colors.white),
-        label: Text(
-          LKey.startLive.tr,
-          style:
-              TextStyleCustom.outFitMedium500(color: Colors.white, fontSize: 14),
-        ),
-      ),
+      floatingActionButton: null,
       body: Column(
         children: [
           Padding(
@@ -113,11 +104,6 @@ class LiveStreamSearchScreen extends StatelessWidget {
                             fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        TextButton(
-                          onPressed: controller.onTapGoLive,
-                          child: Text(LKey.startLive.tr),
-                        ),
                       ],
                     ),
                   ),
@@ -151,30 +137,67 @@ class LiveStreamSearchScreen extends StatelessWidget {
             child: Container(
               width: double.infinity,
               color: whitePure(context),
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  LiveHostActionBar(
-                    onBeauty: controller.openPreLiveBeauty,
-                    onInvite: controller.openPreLiveInvite,
-                    networkLabel: controller.networkLabel,
-                  ),
                   Obx(() {
                     if (controller.invitedIds.isEmpty) {
                       return const SizedBox.shrink();
                     }
                     return Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        '${LKey.invited.tr}: ${controller.invitedIds.length}',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: themeAccentSolid(context),
-                          fontSize: 12,
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${LKey.invited.tr}: ${controller.invitedIds.length}',
+                          style: TextStyleCustom.outFitMedium500(
+                            color: themeAccentSolid(context),
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     );
                   }),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      LiveHostActionBar(
+                        onBeauty: controller.openPreLiveBeauty,
+                        onInvite: controller.openPreLiveInvite,
+                        networkLabel: controller.networkLabel,
+                      ),
+                      const Spacer(),
+                      Material(
+                        color: ColorRes.themeGradient1,
+                        borderRadius: BorderRadius.circular(28),
+                        elevation: 2,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(28),
+                          onTap: controller.onTapGoLive,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const LiveTvIcon(
+                                    size: 20, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Text(
+                                  LKey.startLive.tr,
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

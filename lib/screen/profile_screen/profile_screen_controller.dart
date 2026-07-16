@@ -8,6 +8,7 @@ import 'package:krimson/common/extensions/list_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/moderator_service.dart';
 import 'package:krimson/common/service/api/post_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
@@ -24,6 +25,7 @@ import 'package:krimson/screen/blocked_user_screen/block_user_controller.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 import 'package:krimson/screen/chat_screen/chat_screen.dart';
 import 'package:krimson/screen/create_feed_screen/create_feed_screen.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
 import 'package:krimson/screen/post_screen/post_screen_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_sheet.dart';
@@ -99,6 +101,33 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
       userData.value = user;
     } else {
       isUserNotFound.value = true;
+    }
+  }
+
+  Future<void> openUserLiveIfAny() async {
+    final user = userData.value;
+    if (user == null || user.isLive != 1) return;
+    final roomId = (user.liveRoomId ?? '${user.id}').trim();
+    if (roomId.isEmpty) return;
+    if (user.id == SessionManager.instance.getUserID()) {
+      showSnackBar('You are already in your live');
+      return;
+    }
+    showLoader();
+    try {
+      final payload =
+          await LiveSessionService.instance.fetchSession(roomId: roomId);
+      stopLoader();
+      final stream = payload?.session;
+      if (stream == null) {
+        showSnackBar('Live not available');
+        return;
+      }
+      Get.to(() =>
+          LiveStreamAudienceScreen(isHost: false, livestream: stream));
+    } catch (e) {
+      stopLoader();
+      showSnackBar(e.toString());
     }
   }
 

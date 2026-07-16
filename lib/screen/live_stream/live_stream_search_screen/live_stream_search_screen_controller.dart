@@ -290,30 +290,33 @@ class LiveStreamSearchScreenController extends BaseController {
         inviteCandidates.refresh();
         showSnackBar(LKey.friendInvited.tr);
       },
+      onSearch: _searchInviteCandidates,
     );
   }
 
-  Future<void> _loadInviteCandidates() async {
-    if (inviteCandidates.isNotEmpty) return;
+  Future<void> _searchInviteCandidates(String keyword) async {
     inviteLoading.value = true;
     try {
-      final meId = SessionManager.instance.getUserID();
-      final following = await UserService.instance.fetchMyFollowing(
-        lastItemId: -1,
-        userId: meId,
+      final users = await UserService.instance.searchUsers(
+        keyWord: keyword,
+        limit: 40,
       );
-      inviteCandidates.assignAll(
-        following.map((e) => e.toUser).whereType<User>().toList(),
+      inviteCandidates.assignAll(users);
+    } catch (e) {
+      showSnackBar(e.toString());
+    } finally {
+      inviteLoading.value = false;
+    }
+  }
+
+  Future<void> _loadInviteCandidates() async {
+    inviteLoading.value = true;
+    try {
+      final users = await UserService.instance.searchUsers(
+        keyWord: '',
+        limit: 40,
       );
-      if (inviteCandidates.isEmpty) {
-        final followers = await UserService.instance.fetchMyFollowers(
-          lastItemId: -1,
-          userId: meId,
-        );
-        inviteCandidates.assignAll(
-          followers.map((e) => e.fromUser).whereType<User>().toList(),
-        );
-      }
+      inviteCandidates.assignAll(users);
     } catch (e) {
       showSnackBar(e.toString());
     } finally {
