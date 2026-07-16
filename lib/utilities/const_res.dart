@@ -2,6 +2,9 @@ const String baseURL = 'https://social.nexusdevtech.com/';
 const String apiURL = '${baseURL}api/';
 const String apiKey = 'retry123';
 
+/// WebSocket del servidor LiveKit auto-alojado.
+const String liveKitWsUrl = 'wss://live.nexusdevtech.com';
+
 /// Firebase Auth / Firestore (legado). Chat y Live van por Laravel.
 const bool useFirebase = false;
 

@@ -116,12 +116,18 @@ class _ReelsScreenState extends State<ReelsScreen> {
                                 VisibilityDetector(
                                   key: Key('reels_list_${widget.pageType}'),
                                   onVisibilityChanged: (info) {
-                                    if (info.visibleFraction == 1) {
+                                    if (info.visibleFraction > 0.9) {
                                       if (controller.players.isEmpty) {
                                         controller.initVideoPlayer();
+                                      } else {
+                                        controller.resumeCurrent();
                                       }
                                     } else {
-                                      controller.pauseAllPlayers();
+                                      // No reset a 0: evita artefactos al cambiar de tab.
+                                      controller.pauseAllPlayers(
+                                        reset: false,
+                                        markInvisible: true,
+                                      );
                                     }
                                   },
                                   child: Obx(

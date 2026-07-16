@@ -12,7 +12,7 @@ import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_c
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// Tres acciones del host: beauty, red e invitar amigos.
+/// Un solo botón lateral que abre Beauty / Network / Invite.
 class LiveHostActionBar extends StatelessWidget {
   final VoidCallback onBeauty;
   final VoidCallback onInvite;
@@ -30,96 +30,139 @@ class LiveHostActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = foreground ?? whitePure(context);
-    return Row(
-      children: [
-        Expanded(
-          child: _ActionCard(
-            icon: Icons.auto_awesome,
-            title: LKey.beautySettings.tr,
-            subtitle: LKey.gettingPrettier.tr,
-            onTap: onBeauty,
-            foreground: fg,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(28),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: () => openLiveHostOptionsMenu(
+            onBeauty: onBeauty,
+            onInvite: onInvite,
+            networkLabel: networkLabel,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.tune_rounded, color: fg, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Options',
+                  style: TextStyleCustom.outFitMedium500(
+                    color: fg,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.keyboard_arrow_up_rounded, color: fg, size: 18),
+              ],
+            ),
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Obx(() => _ActionCard(
-                icon: Icons.wifi,
-                title: LKey.networkConnection.tr,
-                subtitle: networkLabel.value,
-                onTap: () {},
-                foreground: fg,
-              )),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _ActionCard(
-            icon: Icons.group_add,
-            title: LKey.inviteFriends.tr,
-            subtitle: LKey.inviteToLiveBonus.tr,
-            onTap: onInvite,
-            foreground: fg,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _ActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  final Color foreground;
-
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    required this.foreground,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+void openLiveHostOptionsMenu({
+  required VoidCallback onBeauty,
+  required VoidCallback onInvite,
+  required RxString networkLabel,
+}) {
+  Get.bottomSheet(
+    SafeArea(
       child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.45),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white24),
+          color: whitePure(Get.context!),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: foreground, size: 22),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyleCustom.outFitMedium500(
-                color: foreground,
-                fontSize: 12,
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: bgGrey(Get.context!),
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyleCustom.outFitLight300(
-                color: foreground.withValues(alpha: 0.75),
-                fontSize: 10,
-              ),
+            _HostOptionTile(
+              icon: Icons.auto_awesome,
+              title: LKey.beautySettings.tr,
+              subtitle: LKey.gettingPrettier.tr,
+              onTap: () {
+                Get.back();
+                onBeauty();
+              },
+            ),
+            Obx(() => _HostOptionTile(
+                  icon: networkIconForLabel(networkLabel.value),
+                  title: LKey.networkConnection.tr,
+                  subtitle: networkLabel.value,
+                  onTap: () {
+                    Get.back();
+                    openNetworkInfoSheet(networkLabel.value);
+                  },
+                )),
+            _HostOptionTile(
+              icon: Icons.group_add,
+              title: LKey.inviteFriends.tr,
+              subtitle: LKey.inviteToLiveBonus.tr,
+              onTap: () {
+                Get.back();
+                onInvite();
+              },
             ),
           ],
         ),
       ),
+    ),
+    backgroundColor: Colors.transparent,
+  );
+}
+
+class _HostOptionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _HostOptionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: CircleAvatar(
+        backgroundColor: themeAccentSolid(context).withValues(alpha: 0.12),
+        child: Icon(icon, color: themeAccentSolid(context), size: 20),
+      ),
+      title: Text(
+        title,
+        style: TextStyleCustom.outFitMedium500(
+          color: textDarkGrey(context),
+          fontSize: 15,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyleCustom.outFitRegular400(
+          color: textLightGrey(context),
+          fontSize: 12,
+        ),
+      ),
+      trailing: Icon(Icons.chevron_right, color: textLightGrey(context)),
     );
   }
 }
@@ -397,4 +440,103 @@ String networkLabelFromResults(List<ConnectivityResult> results) {
     return 'Ethernet';
   }
   return results.first.name;
+}
+
+IconData networkIconForLabel(String label) {
+  final lower = label.toLowerCase();
+  if (lower.contains('off') || lower.contains('sin')) {
+    return Icons.wifi_off;
+  }
+  if (lower.contains('mobile') || lower.contains('móvil') || lower.contains('movil')) {
+    return Icons.signal_cellular_alt;
+  }
+  if (lower.contains('ethernet')) {
+    return Icons.settings_ethernet;
+  }
+  return Icons.wifi;
+}
+
+void openNetworkInfoSheet(String networkLabel) {
+  final isOffline = networkLabel.toLowerCase().contains('off') ||
+      networkLabel.toLowerCase().contains('sin');
+  final isWifi = networkLabel.toLowerCase().contains('wi');
+  final tip = isOffline
+      ? 'Sin conexión. Conéctate a Wi‑Fi o datos móviles para transmitir.'
+      : isWifi
+          ? 'Wi‑Fi estable recomendado para LIVE. Evita cambiar de red durante la transmisión.'
+          : 'Estás en datos móviles. El LIVE puede consumir mucha data y tener más latencia.';
+
+  Get.bottomSheet(
+    Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Icon(networkIconForLabel(networkLabel), size: 28),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    LKey.networkConnection.tr,
+                    style: TextStyleCustom.unboundedSemiBold600(
+                      color: Colors.black87,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              networkLabel,
+              style: TextStyleCustom.outFitMedium500(
+                color: themeAccentSolid(Get.context!),
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              tip,
+              style: TextStyleCustom.outFitRegular400(
+                color: Colors.black54,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton(
+              onPressed: Get.back,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeColor(Get.context!),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

@@ -196,8 +196,17 @@ class _ReelPageState extends State<ReelPage> {
       return Positioned.fill(child: _ReelFallbackPoster(reel: widget.reelData));
     }
 
-    if (player != null && player.value.isInitialized) {
-      return CustomCacheVideoPlayer(videoPlayer: player, onPlayPause: onPlayPause);
+    if (_isControllerAlive(player)) {
+      return Positioned.fill(
+        child: CustomCacheVideoPlayer(
+          videoPlayer: player,
+          onPlayPause: onPlayPause,
+          fallback: _ReelFallbackPoster(
+            reel: widget.reelData,
+            showErrorLabel: false,
+          ),
+        ),
+      );
     }
 
     // Loading / not ready yet — poster + loader
@@ -260,32 +269,54 @@ class ReelInfoRow extends StatelessWidget {
 class CustomCacheVideoPlayer extends StatelessWidget {
   final VideoPlayerController? videoPlayer;
   final VoidCallback onPlayPause;
+  final Widget? fallback;
 
-  const CustomCacheVideoPlayer({super.key, required this.videoPlayer, required this.onPlayPause});
+  const CustomCacheVideoPlayer({
+    super.key,
+    required this.videoPlayer,
+    required this.onPlayPause,
+    this.fallback,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (videoPlayer != null && videoPlayer?.value.isInitialized == true) {
-      final videoSize = (videoPlayer?.value.size)!;
-      final fitType = videoSize.width < videoSize.height ? BoxFit.cover : BoxFit.fitWidth;
-      return InkWell(
-          onTap: onPlayPause,
-          child: Container(
-            color: blackPure(context),
-            child: SizedBox.expand(
-              child: FittedBox(
-                fit: fitType,
-                child: SizedBox(
-                  width: videoSize.width,
-                  height: videoSize.height,
-                  child: videoPlayer == null ? null : VideoPlayer(videoPlayer!),
-                ),
-              ),
-            ),
-          ));
-    } else {
-      return const LoaderWidget();
+    final player = videoPlayer;
+    if (player == null) {
+      return fallback ?? const LoaderWidget();
     }
+
+    VideoPlayerValue value;
+    try {
+      value = player.value;
+    } catch (_) {
+      return fallback ?? const LoaderWidget();
+    }
+
+    if (!value.isInitialized ||
+        value.hasError ||
+        value.size.width <= 0 ||
+        value.size.height <= 0) {
+      return fallback ?? const LoaderWidget();
+    }
+
+    final videoSize = value.size;
+    return InkWell(
+      onTap: onPlayPause,
+      child: ColoredBox(
+        color: blackPure(context),
+        child: SizedBox.expand(
+          child: FittedBox(
+            fit: BoxFit.cover,
+            clipBehavior: Clip.hardEdge,
+            child: SizedBox(
+              width: videoSize.width,
+              height: videoSize.height,
+              child: VideoPlayer(player),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

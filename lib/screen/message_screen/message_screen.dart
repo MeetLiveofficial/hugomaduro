@@ -79,27 +79,15 @@ class MessageScreen extends StatelessWidget {
                         curve: Curves.linear);
                   },
                   selectedIndex: controller.selectedChatCategory,
-                  widget: Obx(() {
-                    int length = controller
-                        .dashboardController.requestUnReadCount.value;
-                    if (length <= 0) {
-                      return const SizedBox();
-                    }
-                    return Container(
-                      height: 22,
-                      width: 22,
-                      margin: const EdgeInsets.symmetric(horizontal: 5),
-                      decoration: const BoxDecoration(
-                          shape: BoxShape.circle, color: ColorRes.likeRed),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$length',
-                        style: TextStyleCustom.outFitRegular400(
-                            fontSize: 12, color: whitePure(context)),
-                      ),
-                    );
-                  }),
-                  widgetTabIndex: 1,
+                  badges: {
+                    0: _MessageTabBadge(
+                        count: controller.dashboardController.chatUnReadCount),
+                    1: _MessageTabBadge(
+                        count:
+                            controller.dashboardController.requestUnReadCount),
+                    2: _MessageTabBadge(
+                        count: controller.dashboardController.callsUnReadCount),
+                  },
                   margin: const EdgeInsets.all(10),
                 ),
               ],
@@ -224,6 +212,38 @@ class RequestsListView extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class _MessageTabBadge extends StatelessWidget {
+  final RxInt count;
+
+  const _MessageTabBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final length = count.value;
+      if (length <= 0) return const SizedBox.shrink();
+      return Container(
+        height: 20,
+        constraints: const BoxConstraints(minWidth: 20),
+        margin: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: ColorRes.likeRed,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          length > 99 ? '99+' : '$length',
+          style: TextStyleCustom.outFitRegular400(
+            fontSize: 10,
+            color: whitePure(context),
+          ),
+        ),
+      );
+    });
   }
 }
 

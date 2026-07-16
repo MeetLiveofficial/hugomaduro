@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
@@ -33,7 +34,6 @@ class LivestreamHostScreen extends StatelessWidget {
       LivestreamScreenController(isHost: true, livestream: livestream),
       tag: tag,
     );
-    // Solo aplicar prefs iniciales una vez (antes de que Zego aplique beauty).
     if (!controller.beautyPrefsApplied) {
       controller.beautyOn.value = initialBeautyOn;
       controller.whiten.value = initialWhiten;
@@ -67,7 +67,44 @@ class LivestreamHostScreen extends StatelessWidget {
                     ),
                   );
                 }
-                if (c.zegoView != null) return c.zegoView!;
+                final lk = c.liveKit;
+                if (lk != null && lk.isConnected.value) {
+                  return Obx(() {
+                    lk.mediaRevision.value;
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        LiveKitParticipantVideo(
+                          participant: lk.localParticipant.value,
+                          mirror: true,
+                        ),
+                        if (lk.remoteParticipants.isNotEmpty)
+                          Positioned(
+                            left: 8,
+                            bottom: 120,
+                            height: 100,
+                            child: Row(
+                              children: [
+                                for (final p in lk.remoteParticipants)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: SizedBox(
+                                      width: 72,
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: LiveKitParticipantVideo(
+                                          participant: p,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    );
+                  });
+                }
                 return Center(
                   child: Obx(() => Text(
                         c.statusMessage.value.isEmpty
@@ -162,6 +199,38 @@ class LivestreamHostScreen extends StatelessWidget {
                       ],
                     ),
                     const Spacer(),
+                    // Controles mic / cámara LiveKit
+                    Obx(() {
+                      final lk = controller.liveKit;
+                      if (lk == null) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              onPressed: lk.toggleMicrophone,
+                              icon: Icon(
+                                lk.microphoneEnabled.value
+                                    ? Icons.mic
+                                    : Icons.mic_off,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            IconButton(
+                              onPressed: lk.toggleCamera,
+                              icon: Icon(
+                                lk.cameraEnabled.value
+                                    ? Icons.videocam
+                                    : Icons.videocam_off,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                     LiveHostActionBar(
                       onBeauty: controller.openBeauty,
                       onInvite: controller.openInvite,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -36,7 +37,8 @@ class LiveStreamAudienceScreen extends StatelessWidget {
             GetBuilder<LivestreamScreenController>(
               tag: tag,
               builder: (c) {
-                if (c.dummyPlayer != null && c.dummyPlayer!.value.isInitialized) {
+                if (c.dummyPlayer != null &&
+                    c.dummyPlayer!.value.isInitialized) {
                   return FittedBox(
                     fit: BoxFit.cover,
                     child: SizedBox(
@@ -46,7 +48,31 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                     ),
                   );
                 }
-                if (c.zegoView != null) return c.zegoView!;
+                final lk = c.liveKit;
+                if (lk != null && lk.isConnected.value) {
+                  return Obx(() {
+                    lk.mediaRevision.value;
+                    // Audiencia: video del host (primer remoto con track).
+                    final remotes = lk.remoteParticipants.toList();
+                    if (remotes.isEmpty) {
+                      return Center(
+                        child: Text(
+                          c.statusMessage.value.isEmpty
+                              ? 'Waiting for host…'
+                              : c.statusMessage.value,
+                          textAlign: TextAlign.center,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      );
+                    }
+                    return LiveKitParticipantVideo(
+                      participant: remotes.first,
+                    );
+                  });
+                }
                 return Center(
                   child: Obx(() => Text(
                         c.statusMessage.value.isEmpty
@@ -82,8 +108,8 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.redAccent,
                         borderRadius: BorderRadius.circular(12),

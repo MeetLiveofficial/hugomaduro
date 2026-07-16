@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
@@ -12,6 +14,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/incoming_call_screen.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
+import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -20,15 +23,25 @@ class CallsListController extends BaseController {
   final RxList<CallRequestModel> sent = <CallRequestModel>[].obs;
   final Set<int> _seenIncomingIds = {};
   bool _didPrimeIncoming = false;
+  Timer? _pollTimer;
 
   @override
   void onInit() {
     super.onInit();
     refreshInbox();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      refreshInbox(silent: true);
+    });
   }
 
-  Future<void> refreshInbox() async {
-    isLoading.value = true;
+  @override
+  void onClose() {
+    _pollTimer?.cancel();
+    super.onClose();
+  }
+
+  Future<void> refreshInbox({bool silent = false}) async {
+    if (!silent) isLoading.value = true;
     try {
       final inbox = await CallService.instance.inbox();
       received.assignAll(inbox.received);
@@ -36,21 +49,33 @@ class CallsListController extends BaseController {
 
       final pendingIncoming =
           inbox.received.where((e) => e.isPending && e.id != null).toList();
+
+      if (Get.isRegistered<DashboardScreenController>()) {
+        final dash = Get.find<DashboardScreenController>();
+        dash.callsUnReadCount.value = pendingIncoming.length;
+        dash.unReadCount.value = dash.chatUnReadCount.value +
+            dash.requestUnReadCount.value +
+            dash.callsUnReadCount.value;
+      }
+
       if (!_didPrimeIncoming) {
         _seenIncomingIds.addAll(pendingIncoming.map((e) => e.id!));
         _didPrimeIncoming = true;
       } else {
         for (final item in pendingIncoming) {
           if (_seenIncomingIds.add(item.id!)) {
-            Get.to(() => IncomingCallScreen(call: item));
+            final tag = 'incoming_${item.id}';
+            if (!Get.isRegistered<IncomingCallController>(tag: tag)) {
+              Get.to(() => IncomingCallScreen(call: item));
+            }
             break;
           }
         }
       }
     } catch (e) {
-      showSnackBar(e.toString());
+      if (!silent) showSnackBar(e.toString());
     } finally {
-      isLoading.value = false;
+      if (!silent) isLoading.value = false;
     }
   }
 

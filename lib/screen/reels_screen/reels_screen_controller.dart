@@ -24,7 +24,8 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 class ReelsScreenController extends BaseController {
   RxMap<int, ReelPlayerEntry> players = <int, ReelPlayerEntry>{}.obs;
 
-  static const String tag = "REEL";
+  /// Debe coincidir con [ReelPageType.home.withId] → `home`.
+  static const String tag = 'home';
   RxInt position = 0.obs;
 
   PageController pageController = PageController();
@@ -38,16 +39,17 @@ class ReelsScreenController extends BaseController {
 
   ReelPageType reelPageType;
 
-  ReelsScreenController({required this.reels,
-    required this.position,
-    this.onFetchMoreData,
-    required this.reelPageType});
+  ReelsScreenController(
+      {required this.reels,
+      required this.position,
+      this.onFetchMoreData,
+      required this.reelPageType});
 
-  void controllerAlreadyInitialize({required RxList<Post> reels,
-    required RxInt position,
-    Future<void> Function()? onFetchMoreData,
-    required ReelPageType reelPageType}) {
-    print("POSITION : $position");
+  void controllerAlreadyInitialize(
+      {required RxList<Post> reels,
+      required RxInt position,
+      Future<void> Function()? onFetchMoreData,
+      required ReelPageType reelPageType}) {
     this.reels = reels;
     this.position = position;
     this.onFetchMoreData = onFetchMoreData;
@@ -59,7 +61,6 @@ class ReelsScreenController extends BaseController {
   @override
   void onInit() {
     super.onInit();
-    // pageController = PageController(initialPage: position.value);
     WakelockPlus.enable();
   }
 
@@ -72,17 +73,18 @@ class ReelsScreenController extends BaseController {
   }
 
   Future<void> initVideoPlayer() async {
-    /// Initialize 1st video
     await _initializeControllerAtIndex(position.value);
-
-    /// Play 1st video
     _playControllerAtIndex(position.value);
-
-    /// Initialize 2nd vide
-    if (position >= 0) {
+    if (position.value > 0) {
       await _initializeControllerAtIndex(position.value - 1);
     }
     await _initializeControllerAtIndex(position.value + 1);
+  }
+
+  /// Reanuda el reel actual sin reiniciar desde 0 (vuelta al tab Home).
+  void resumeCurrent() {
+    isCurrentPageVisible = true;
+    _playControllerAtIndex(position.value);
   }
 
   void onPageChanged(int index) {
@@ -93,7 +95,6 @@ class ReelsScreenController extends BaseController {
       _playPreviousReel(index);
     }
     position.value = index;
-
     _playControllerAtIndex(index);
   }
 
@@ -108,27 +109,24 @@ class ReelsScreenController extends BaseController {
   }
 
   void _playNextReel(int index) {
-    pauseAllPlayers();
+    pauseAllPlayers(reset: true);
     _initializeControllerAtIndex(index);
     _initializeControllerAtIndex(index + 1);
     _initializeControllerAtIndex(index - 1);
-
     _disposeAllExcept(index);
   }
 
   void _playPreviousReel(int index) {
-    pauseAllPlayers();
+    pauseAllPlayers(reset: true);
     _initializeControllerAtIndex(index);
     _initializeControllerAtIndex(index + 1);
     _initializeControllerAtIndex(index - 1);
-
     _disposeAllExcept(index);
   }
 
   void _disposeAllExcept(int index) {
     final validIndexes = {index - 1, index, index + 1};
-
-    final keys = players.keys.toList(); // 👈 COPY
+    final keys = players.keys.toList();
 
     for (final i in keys) {
       if (!validIndexes.contains(i)) {
@@ -139,41 +137,52 @@ class ReelsScreenController extends BaseController {
   }
 
   void _disposeControllerAtIndex(int index) {
-    ReelPlayerEntry? entry = players[index];
+    final entry = players[index];
     if (entry == null) return;
-    if (entry.status == PlayerStatus.disposed || entry.status == PlayerStatus.none) return;
-
-    final controller = entry.controller;
-
-    if (controller != null) {
-      if (entry.listener != null) {
-        controller.removeListener(entry.listener!);
-      }
-      controller.pause();
-      controller.dispose();
+    if (entry.status == PlayerStatus.disposed ||
+        entry.status == PlayerStatus.none) {
+      return;
     }
 
+    // Invalida cualquier init en vuelo para este índice.
+    entry.generation++;
+    final controller = entry.controller;
+    final listener = entry.listener;
+    entry.status = PlayerStatus.disposed;
     entry.controller = null;
     entry.listener = null;
-    entry.status = PlayerStatus.disposed;
     players[index] = entry;
-    players.refresh();
 
-    Loggers.info("🗑 DISPOSED $index");
+    if (controller != null) {
+      try {
+        if (listener != null) {
+          controller.removeListener(listener);
+        }
+      } catch (_) {}
+      try {
+        controller.pause();
+      } catch (_) {}
+      try {
+        controller.dispose();
+      } catch (_) {}
+    }
+
+    players.refresh();
+    Loggers.info('🗑 DISPOSED $index');
   }
 
   Future<void> _initializeControllerAtIndex(int index) async {
     if (index < 0 || index >= reels.length) return;
 
-    /// 🔒 HARD GUARD (no race possible)
-    if (players[index]?.status == PlayerStatus.initializing ||
-        players[index]?.status == PlayerStatus.initialized) {
+    final existing = players[index];
+    if (existing?.status == PlayerStatus.initializing ||
+        existing?.status == PlayerStatus.initialized) {
       return;
     }
 
-    /// 🔒 Mark initializing IMMEDIATELY
-    players[index] = ReelPlayerEntry(status: PlayerStatus.initializing);
+    final generation = (existing?.generation ?? 0) + 1;
     VideoPlayerController? controller;
+
     try {
       final reel = reels[index];
       if (reel.id == -1) {
@@ -181,34 +190,96 @@ class ReelsScreenController extends BaseController {
           File(reel.video ?? ''),
         );
       } else {
-        controller = VideoPlayerController.networkUrl(
-          Uri.parse(reel.video?.addBaseURL() ?? ''),
-        );
+        final url = reel.video?.addBaseURL() ?? '';
+        if (url.isEmpty) {
+          players[index] = ReelPlayerEntry(
+            status: PlayerStatus.failed,
+            generation: generation,
+          );
+          return;
+        }
+        controller = VideoPlayerController.networkUrl(Uri.parse(url));
       }
 
+      // Guardar controller ya en initializing para poder disposearlo si cancela.
+      players[index] = ReelPlayerEntry(
+        controller: controller,
+        status: PlayerStatus.initializing,
+        generation: generation,
+      );
+      players.refresh();
+
       await controller.initialize();
-      controller.setLooping(true);
+
+      final current = players[index];
+      if (current == null ||
+          current.generation != generation ||
+          current.status == PlayerStatus.disposed) {
+        try {
+          await controller.dispose();
+        } catch (_) {}
+        Loggers.info('⏭ INIT ABORTED $index (stale generation)');
+        return;
+      }
+
+      if (!controller.value.isInitialized ||
+          controller.value.size.width <= 0 ||
+          controller.value.size.height <= 0) {
+        try {
+          await controller.dispose();
+        } catch (_) {}
+        players[index] = ReelPlayerEntry(
+          status: PlayerStatus.failed,
+          generation: generation,
+        );
+        players.refresh();
+        return;
+      }
+
+      await controller.setLooping(true);
+
+      // Re-check after async gap.
+      final afterLoop = players[index];
+      if (afterLoop == null ||
+          afterLoop.generation != generation ||
+          afterLoop.status == PlayerStatus.disposed) {
+        try {
+          await controller.dispose();
+        } catch (_) {}
+        return;
+      }
 
       players[index] = ReelPlayerEntry(
         controller: controller,
         status: PlayerStatus.initialized,
+        generation: generation,
       );
+      players.refresh();
 
-      Loggers.info("🚀 INITIALIZED $index");
+      Loggers.info('🚀 INITIALIZED $index');
 
       if (index == position.value) {
         _playControllerAtIndex(index);
       }
     } catch (e) {
-      Loggers.error("❌ INIT FAILED $index $e");
+      Loggers.error('❌ INIT FAILED $index $e');
       try {
         await controller?.dispose();
       } catch (_) {}
-      players[index] = ReelPlayerEntry(status: PlayerStatus.failed);
+      final current = players[index];
+      if (current != null && current.generation == generation) {
+        players[index] = ReelPlayerEntry(
+          status: PlayerStatus.failed,
+          generation: generation,
+        );
+        players.refresh();
+      }
     }
   }
 
   void _playControllerAtIndex(int index) {
+    if (!isCurrentPageVisible) return;
+
     final dashController = Get.find<DashboardScreenController>();
     if (reelPageType == ReelPageType.home &&
         (dashController.selectedPageIndex.value !=
@@ -219,14 +290,23 @@ class ReelsScreenController extends BaseController {
 
     final entry = players[index];
     final controller = entry?.controller;
+    if (entry?.status != PlayerStatus.initialized || controller == null) {
+      return;
+    }
 
-    if (controller == null) return;
-    if (!controller.value.isInitialized) return;
-
-    controller.play();
+    try {
+      if (!controller.value.isInitialized) return;
+      if (controller.value.hasError) return;
+      controller.play();
+    } catch (e) {
+      Loggers.error('PLAY FAILED $index $e');
+      return;
+    }
 
     DebounceAction.shared.call(milliseconds: 3000, () {
-      _increaseViewsCount(reels[index]);
+      if (index >= 0 && index < reels.length) {
+        _increaseViewsCount(reels[index]);
+      }
     });
     Loggers.info('🚀🚀🚀 PLAYING $index');
   }
@@ -242,35 +322,51 @@ class ReelsScreenController extends BaseController {
     });
   }
 
-  void pauseAllPlayers() {
-    final keys = players.keys.toList(); // 👈 COPY
+  void pauseAllPlayers({bool reset = false, bool markInvisible = false}) {
+    if (markInvisible) {
+      isCurrentPageVisible = false;
+    }
+    final keys = players.keys.toList();
     for (var i in keys) {
-      _stopControllerAtIndex(i);
+      _stopControllerAtIndex(i, reset: reset);
     }
   }
 
-  void _stopControllerAtIndex(int index) {
+  void _stopControllerAtIndex(int index, {bool reset = false}) {
     if (reels.length > index && index >= 0) {
       final controller = players[index]?.controller;
-      if (controller != null) {
+      if (controller == null) return;
+      try {
         controller.pause();
-        controller.seekTo(const Duration()); // Reset position
-        Loggers.info('🚀🚀🚀 STOPPED $index');
+        if (reset) {
+          controller.seekTo(const Duration());
+        }
+        Loggers.info('🚀🚀🚀 STOPPED $index reset=$reset');
+      } catch (e) {
+        Loggers.error('STOP FAILED $index $e');
       }
     }
   }
 
   Future<void> disposeAllController() async {
-    final entries = players.entries.toList(); // 👈 COPY
+    final entries = players.entries.toList();
     for (var entry in entries) {
+      entry.value.generation++;
       final controller = entry.value.controller;
       final listener = entry.value.listener;
-      if (listener != null) {
-        controller?.removeListener(listener);
-      }
-      controller?.pause();
-      await controller?.dispose();
+      try {
+        if (listener != null) {
+          controller?.removeListener(listener);
+        }
+      } catch (_) {}
+      try {
+        controller?.pause();
+      } catch (_) {}
+      try {
+        await controller?.dispose();
+      } catch (_) {}
       entry.value.controller = null;
+      entry.value.status = PlayerStatus.disposed;
     }
     players.clear();
   }
@@ -284,9 +380,12 @@ class ReelsScreenController extends BaseController {
     await Future.delayed(const Duration(milliseconds: 200));
     if (reels.isNotEmpty) {
       position.value = 0;
-      pageController.jumpToPage(0);
+      if (pageController.hasClients) {
+        pageController.jumpToPage(0);
+      }
       await disposeAllController();
-      initVideoPlayer();
+      isCurrentPageVisible = true;
+      await initVideoPlayer();
     }
 
     isRefreshing.value = false;
@@ -294,7 +393,10 @@ class ReelsScreenController extends BaseController {
   }
 
   void onReportTap() {
-    Get.bottomSheet(ReportSheet(reportType: ReportType.post, id: reels[position.value].id?.toInt()),
+    Get.bottomSheet(
+        ReportSheet(
+            reportType: ReportType.post,
+            id: reels[position.value].id?.toInt()),
         isScrollControlled: true);
   }
 
@@ -316,7 +418,9 @@ class ReelsScreenController extends BaseController {
 
     final controller = Get.isRegistered<ProfileScreenController>(tag: tag)
         ? Get.find<ProfileScreenController>(tag: tag)
-        : Get.put(ProfileScreenController(SessionManager.instance.getUser().obs, (user) {}),
+        : Get.put(
+            ProfileScreenController(
+                SessionManager.instance.getUser().obs, (user) {}),
             tag: tag);
 
     Get.bottomSheet(
@@ -340,7 +444,7 @@ class ReelsScreenController extends BaseController {
   onUpdateReelData(Post reel) {
     final index = reels.indexWhere((element) => element.id == reel.id);
     if (index != -1) {
-      reels[index] = reel; // ✅ update field only
+      reels[index] = reel;
     }
   }
 }
@@ -349,8 +453,14 @@ class ReelPlayerEntry {
   VideoPlayerController? controller;
   VoidCallback? listener;
   PlayerStatus status;
+  int generation;
 
-  ReelPlayerEntry({this.controller, this.listener, this.status = PlayerStatus.none});
+  ReelPlayerEntry({
+    this.controller,
+    this.listener,
+    this.status = PlayerStatus.none,
+    this.generation = 0,
+  });
 }
 
 enum PlayerStatus { none, initializing, initialized, disposed, failed }

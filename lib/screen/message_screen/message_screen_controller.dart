@@ -11,6 +11,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
 import 'package:krimson/utilities/const_res.dart';
 
 class MessageScreenController extends BaseController {
@@ -58,6 +59,10 @@ class MessageScreenController extends BaseController {
   void onInit() {
     super.onInit();
     pageController = PageController(initialPage: selectedChatCategory.value);
+    // Poll de llamadas activo aunque el tab Calls no se haya abierto aún.
+    if (!Get.isRegistered<CallsListController>()) {
+      Get.put(CallsListController());
+    }
     _bootstrapChat();
   }
 
@@ -113,6 +118,7 @@ class MessageScreenController extends BaseController {
       final result = await ChatService.instance.fetchThreads();
       chatsUsers.assignAll(result.chats);
       requestsUsers.assignAll(result.requests);
+      _syncUnreadBadges(result.chats, result.requests);
       chatError.value = null;
     } catch (e) {
       Loggers.error('fetchThreads: $e');
@@ -122,6 +128,16 @@ class MessageScreenController extends BaseController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void _syncUnreadBadges(List<ChatThread> chats, List<ChatThread> requests) {
+    final chatUnread = chats.where((e) => (e.msgCount ?? 0) > 0).length;
+    final requestUnread = requests.where((e) => (e.msgCount ?? 0) > 0).length;
+    dashboardController.chatUnReadCount.value = chatUnread;
+    dashboardController.requestUnReadCount.value = requestUnread;
+    dashboardController.unReadCount.value = chatUnread +
+        requestUnread +
+        dashboardController.callsUnReadCount.value;
   }
 
   Future<void> onRefresh() => _refreshThreads();
