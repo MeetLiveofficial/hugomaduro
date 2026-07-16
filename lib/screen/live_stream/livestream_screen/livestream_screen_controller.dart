@@ -152,6 +152,8 @@ class LivestreamScreenController extends BaseController {
       _startSessionPolling();
       _startCommentPolling();
       _startIncomingCallPolling();
+      // Mantener presencia ACTIVE mientras el LIVE sigue abierto.
+      unawaited(UserService.instance.updateLastUsedAt());
       mediaReady.value = true;
       if (kIsWeb && isHost) {
         statusMessage.value =

@@ -141,7 +141,8 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
 
   void startCacheCleanupScheduler() {
     UserService.instance.updateLastUsedAt();
-    Timer.periodic(const Duration(minutes: 15), (_) {
+    // Heartbeat frecuente para que ACTIVE/INACTIVE no parpadee.
+    Timer.periodic(const Duration(minutes: 2), (_) {
       UserService.instance.updateLastUsedAt();
     });
   }

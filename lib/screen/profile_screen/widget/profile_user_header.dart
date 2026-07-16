@@ -122,6 +122,7 @@ class ProfileUserHeader extends StatelessWidget {
             Wrap(
               spacing: 6,
               runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 if (user.isLive == 1)
                   InkWell(
@@ -142,11 +143,13 @@ class ProfileUserHeader extends StatelessWidget {
                       ),
                     ),
                   ),
+                // Siempre visible: ACTIVE o INACTIVE (nunca se oculta).
                 Container(
+                  key: const ValueKey('presence_badge'),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: user.isActive == 1
+                    color: (user.isActive == 1 || user.isLive == 1)
                         ? const Color(0xFF22C55E).withValues(alpha: 0.15)
                         : const Color(0xFF9CA3AF).withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(10),
@@ -158,7 +161,7 @@ class ProfileUserHeader extends StatelessWidget {
                         width: 7,
                         height: 7,
                         decoration: BoxDecoration(
-                          color: user.isActive == 1
+                          color: (user.isActive == 1 || user.isLive == 1)
                               ? const Color(0xFF22C55E)
                               : const Color(0xFF9CA3AF),
                           shape: BoxShape.circle,
@@ -166,9 +169,11 @@ class ProfileUserHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        user.isActive == 1 ? 'ACTIVE' : 'INACTIVE',
+                        (user.isActive == 1 || user.isLive == 1)
+                            ? 'ACTIVE'
+                            : 'INACTIVE',
                         style: TextStyleCustom.outFitMedium500(
-                          color: user.isActive == 1
+                          color: (user.isActive == 1 || user.isLive == 1)
                               ? const Color(0xFF15803D)
                               : const Color(0xFF6B7280),
                           fontSize: 11,
@@ -474,7 +479,7 @@ class _Avatar extends StatelessWidget {
               width: 14,
               height: 14,
               decoration: BoxDecoration(
-                color: user.isActive == 1
+                color: (user.isActive == 1 || user.isLive == 1)
                     ? const Color(0xFF22C55E)
                     : const Color(0xFF9CA3AF),
                 shape: BoxShape.circle,
