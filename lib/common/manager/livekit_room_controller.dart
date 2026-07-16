@@ -18,6 +18,7 @@ class LiveKitRoomController extends GetxController {
   final LiveKitRoomService _service = LiveKitRoomService();
   StreamSubscription? _mediaSub;
   StreamSubscription? _statusSub;
+  StreamSubscription? _statsSub;
 
   final RxBool isConnecting = false.obs;
   final RxBool isConnected = false.obs;
@@ -27,8 +28,11 @@ class LiveKitRoomController extends GetxController {
   final Rxn<LocalParticipant> localParticipant = Rxn<LocalParticipant>();
   final RxList<RemoteParticipant> remoteParticipants = <RemoteParticipant>[].obs;
   final RxInt mediaRevision = 0.obs;
+  final RxInt pingMs = 0.obs;
+  final RxInt fps = 0.obs;
 
   Room? get room => _service.room;
+  Stream<DataReceivedEvent> get onDataReceived => _service.onDataReceived;
 
   bool get isSupported => !kIsWeb;
 
@@ -38,6 +42,10 @@ class LiveKitRoomController extends GetxController {
     _mediaSub = _service.onMediaChanged.listen((_) => _syncFromService());
     _statusSub = _service.onStatus.listen((msg) {
       statusMessage.value = msg;
+    });
+    _statsSub = _service.onStats.listen((pair) {
+      pingMs.value = pair.$1;
+      fps.value = pair.$2;
     });
   }
 
@@ -116,6 +124,9 @@ class LiveKitRoomController extends GetxController {
   Future<void> toggleMicrophone() =>
       setMicrophoneEnabled(!microphoneEnabled.value);
 
+  Future<void> publishData(List<int> bytes, {String topic = 'live_chat'}) =>
+      _service.publishDataBytes(bytes, topic: topic);
+
   Future<void> disconnect() async {
     statusMessage.value = 'Leaving…';
     try {
@@ -133,6 +144,7 @@ class LiveKitRoomController extends GetxController {
   void onClose() {
     unawaited(_mediaSub?.cancel());
     unawaited(_statusSub?.cancel());
+    unawaited(_statsSub?.cancel());
     unawaited(_service.dispose());
     super.onClose();
   }

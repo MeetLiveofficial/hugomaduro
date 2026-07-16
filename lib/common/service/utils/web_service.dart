@@ -48,7 +48,11 @@ class _Live {
   String join = "${apiURL}live/join";
   String leave = "${apiURL}live/leave";
   String like = "${apiURL}live/like";
+  String sendComment = "${apiURL}live/sendComment";
+  String fetchComments = "${apiURL}live/fetchComments";
   String fetchSession = "${apiURL}live/fetchSession";
+  String invite = "${apiURL}live/invite";
+  String pendingInvites = "${apiURL}live/pendingInvites";
 }
 
 class _LiveKit {
@@ -75,6 +79,7 @@ class _Notification {
 class _GiftWallet {
   String sendGift = "${apiURL}misc/sendGift";
   String fetchMyWithdrawalRequest = "${apiURL}misc/fetchMyWithdrawalRequest";
+  String fetchMyRecharges = "${apiURL}misc/fetchMyRecharges";
   String submitWithdrawalRequest = "${apiURL}misc/submitWithdrawalRequest";
   String buyCoins = "${apiURL}misc/buyCoins";
 }
@@ -85,6 +90,7 @@ class _User {
   String registerUser = "${apiURL}user/registerUser";
   String deleteMyAccount = "${apiURL}user/deleteMyAccount";
   String logOutUser = "${apiURL}user/logOutUser";
+  String subscribePlus = "${apiURL}user/subscribePlus";
   String fetchUserDetails = "${apiURL}user/fetchUserDetails";
   String updateUserDetails = "${apiURL}user/updateUserDetails";
   String checkUsernameAvailability = "${apiURL}user/checkUsernameAvailability";

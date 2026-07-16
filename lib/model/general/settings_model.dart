@@ -41,6 +41,9 @@ class Setting {
   String? currency;
   double? coinValue;
   int? minRedeemCoins;
+  double? minWithdrawUsd;
+  double? plusMembershipPrice;
+  int? plusMembershipEnabled;
   int? registrationBonusStatus;
   int? registrationBonusAmount;
   int? minFollowersForLive;
@@ -102,6 +105,9 @@ class Setting {
     this.currency,
     this.coinValue,
     this.minRedeemCoins,
+    this.minWithdrawUsd,
+    this.plusMembershipPrice,
+    this.plusMembershipEnabled,
     this.minFollowersForLive,
     this.registrationBonusStatus,
     this.registrationBonusAmount,
@@ -159,59 +165,64 @@ class Setting {
   });
 
   factory Setting.fromJson(Map<String, dynamic> json) => Setting(
-        id: json["id"],
-        appName: json["app_name"],
-        currency: json["currency"],
-        registrationBonusStatus: json["registration_bonus_status"],
-        registrationBonusAmount: json["registration_bonus_amount"],
-        coinValue: json["coin_value"]?.toDouble(),
-        minRedeemCoins: json["min_redeem_coins"],
-        minFollowersForLive: json["min_followers_for_live"],
-        admobBanner: json["admob_banner"],
-        admobInt: json["admob_int"],
-        admobBannerIos: json["admob_banner_ios"],
-        admobIntIos: json["admob_int_ios"],
-        admobAndroidStatus: json["admob_android_status"],
-        admobIosStatus: json["admob_ios_status"],
-        maxUploadDaily: json["max_upload_daily"],
-        maxStoryDaily: json["max_story_daily"],
-        maxCommentDaily: json["max_comment_daily"],
-        maxCommentReplyDaily: json["max_comment_reply_daily"],
-        maxPostPins: json["max_post_pins"],
-        maxCommentPins: json["max_comment_pins"],
-        maxImagesPerPost: json["max_images_per_post"],
-        maxUserLinks: json["max_user_links"],
-        liveMinViewers: json["live_min_viewers"],
-        liveTimeout: json["live_timeout"],
-        liveBattle: json["live_battle"],
-        liveDummyShow: json["live_dummy_show"],
-        zegoAppId: json["zego_app_id"],
-        zegoAppSign: json["zego_app_sign"],
-        isCompress: json["is_compress"],
-        isDeepAr: json["is_deepAR"],
-        isWithdrawalOn: json["is_withdrawal_on"],
-        helpMail: json["help_mail"],
-        isContentModeration: json["is_content_moderation"],
-        sightEngineApiUser: json["sight_engine_api_user"],
-        sightEngineApiSecret: json["sight_engine_api_secret"],
-        sightEngineImageWorkflowId: json["sight_engine_image_workflow_id"],
-        sightEngineVideoWorkflowId: json["sight_engine_video_workflow_id"],
-        gifSupport: json["gif_support"],
-        giphyKey: json["giphy_key"],
-        watermarkStatus: json["watermark_status"],
-        watermarkImage: json["watermark_image"],
-        privacyPolicy: json["privacy_policy"],
-        termsOfUses: json["terms_of_uses"],
-        placeApiAccessToken: json["place_api_access_token"],
-        itemBaseUrl: json["itemBaseUrl"],
-        deeparAndroidKey: json["deepar_android_key"],
-        deeparIOSKey: json["deepar_iOS_key"],
+        id: _asInt(json["id"]),
+        appName: json["app_name"]?.toString(),
+        currency: json["currency"]?.toString(),
+        registrationBonusStatus: _asInt(json["registration_bonus_status"]),
+        registrationBonusAmount: _asInt(json["registration_bonus_amount"]),
+        coinValue: _asDouble(json["coin_value"]),
+        minRedeemCoins: _asInt(json["min_redeem_coins"]),
+        minWithdrawUsd: _asDouble(json["min_withdraw_usd"]) ?? 20.0,
+        plusMembershipPrice: _asDouble(json["plus_membership_price"]),
+        plusMembershipEnabled: _asInt(json["plus_membership_enabled"]) ?? 1,
+        minFollowersForLive: _asInt(json["min_followers_for_live"]),
+        admobBanner: json["admob_banner"]?.toString(),
+        admobInt: json["admob_int"]?.toString(),
+        admobBannerIos: json["admob_banner_ios"]?.toString(),
+        admobIntIos: json["admob_int_ios"]?.toString(),
+        admobAndroidStatus: _asInt(json["admob_android_status"]),
+        admobIosStatus: _asInt(json["admob_ios_status"]),
+        maxUploadDaily: _asInt(json["max_upload_daily"]),
+        maxStoryDaily: _asInt(json["max_story_daily"]),
+        maxCommentDaily: _asInt(json["max_comment_daily"]),
+        maxCommentReplyDaily: _asInt(json["max_comment_reply_daily"]),
+        maxPostPins: _asInt(json["max_post_pins"]),
+        maxCommentPins: _asInt(json["max_comment_pins"]),
+        maxImagesPerPost: _asInt(json["max_images_per_post"]),
+        maxUserLinks: _asInt(json["max_user_links"]),
+        liveMinViewers: _asInt(json["live_min_viewers"]),
+        liveTimeout: _asInt(json["live_timeout"]),
+        liveBattle: _asInt(json["live_battle"]),
+        liveDummyShow: _asInt(json["live_dummy_show"]),
+        zegoAppId: json["zego_app_id"]?.toString(),
+        zegoAppSign: json["zego_app_sign"]?.toString(),
+        isCompress: _asInt(json["is_compress"]),
+        isDeepAr: _asInt(json["is_deepAR"]),
+        isWithdrawalOn: _asInt(json["is_withdrawal_on"]),
+        helpMail: json["help_mail"]?.toString(),
+        isContentModeration: _asInt(json["is_content_moderation"]),
+        sightEngineApiUser: json["sight_engine_api_user"]?.toString(),
+        sightEngineApiSecret: json["sight_engine_api_secret"]?.toString(),
+        sightEngineImageWorkflowId:
+            json["sight_engine_image_workflow_id"]?.toString(),
+        sightEngineVideoWorkflowId:
+            json["sight_engine_video_workflow_id"]?.toString(),
+        gifSupport: _asInt(json["gif_support"]),
+        giphyKey: json["giphy_key"]?.toString(),
+        watermarkStatus: _asInt(json["watermark_status"]),
+        watermarkImage: json["watermark_image"]?.toString(),
+        privacyPolicy: json["privacy_policy"]?.toString(),
+        termsOfUses: json["terms_of_uses"]?.toString(),
+        placeApiAccessToken: json["place_api_access_token"]?.toString(),
+        itemBaseUrl: json["itemBaseUrl"]?.toString(),
+        deeparAndroidKey: json["deepar_android_key"]?.toString(),
+        deeparIOSKey: json["deepar_iOS_key"]?.toString(),
         createdAt: json["created_at"] == null
             ? null
-            : DateTime.parse(json["created_at"]),
+            : DateTime.tryParse(json["created_at"].toString()),
         updatedAt: json["updated_at"] == null
             ? null
-            : DateTime.parse(json["updated_at"]),
+            : DateTime.tryParse(json["updated_at"].toString()),
         languages: json["languages"] == null
             ? []
             : List<Language>.from(
@@ -261,6 +272,9 @@ class Setting {
         "registration_bonus_amount": registrationBonusAmount,
         "coin_value": coinValue,
         "min_redeem_coins": minRedeemCoins,
+        "min_withdraw_usd": minWithdrawUsd,
+        "plus_membership_price": plusMembershipPrice,
+        "plus_membership_enabled": plusMembershipEnabled,
         "min_followers_for_live": minFollowersForLive,
         "admob_banner": admobBanner,
         "admob_int": admobInt,
@@ -334,6 +348,20 @@ class Setting {
             ? []
             : List<dynamic>.from(deepARFilters!.map((x) => x.toJson())),
       };
+
+  static int? _asInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse('$v');
+  }
+
+  static double? _asDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is double) return v;
+    if (v is num) return v.toDouble();
+    return double.tryParse('$v');
+  }
 }
 
 class CoinPackage {
@@ -360,11 +388,11 @@ class CoinPackage {
   });
 
   factory CoinPackage.fromJson(Map<String, dynamic> json) => CoinPackage(
-        id: (json["id"] as num?)?.toInt(),
+        id: Setting._asInt(json["id"]),
         image: json["image"],
-        status: (json["status"] as num?)?.toInt(),
-        coinAmount: (json["coin_amount"] as num?)?.toInt(),
-        coinPlanPrice: json["coin_plan_price"] as num?,
+        status: Setting._asInt(json["status"]),
+        coinAmount: Setting._asInt(json["coin_amount"]),
+        coinPlanPrice: Setting._asDouble(json["coin_plan_price"]),
         playStoreProductId: json["playstore_product_id"],
         appstoreProductId: json["appstore_product_id"],
         createdAt: json["created_at"] == null
@@ -452,15 +480,15 @@ class Gift {
   });
 
   factory Gift.fromJson(Map<String, dynamic> json) => Gift(
-        id: json["id"],
-        coinPrice: json["coin_price"],
-        image: json["image"],
+        id: Setting._asInt(json["id"]),
+        coinPrice: Setting._asInt(json["coin_price"]),
+        image: json["image"]?.toString(),
         createdAt: json["created_at"] == null
             ? null
-            : DateTime.parse(json["created_at"]),
+            : DateTime.tryParse(json["created_at"].toString()),
         updatedAt: json["updated_at"] == null
             ? null
-            : DateTime.parse(json["updated_at"]),
+            : DateTime.tryParse(json["updated_at"].toString()),
       );
 
   Map<String, dynamic> toJson() => {

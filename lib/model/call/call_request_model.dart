@@ -58,6 +58,8 @@ class CallRequestModel {
 
   bool get isPending => status == 'pending';
   bool get isAccepted => status == 'accepted';
+  bool get isRejected =>
+      (status ?? '').toLowerCase().trim() == 'rejected';
 }
 
 class CallParty {

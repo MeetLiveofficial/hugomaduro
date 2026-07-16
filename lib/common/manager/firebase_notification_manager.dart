@@ -1,38 +1,42 @@
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart' show SessionManager;
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/notification_service.dart';
 import 'package:krimson/common/service/api/post_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
 import 'package:krimson/languages/dynamic_translations.dart';
-import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/post_story/post_model.dart';
 import 'package:krimson/screen/call_screen/incoming_call_screen.dart';
+import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
+import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/chat_screen/chat_screen.dart';
 import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
-import 'package:krimson/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
-import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_invite_dialog.dart';
+import 'package:krimson/screen/message_screen/message_screen_controller.dart';
+import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
 import 'package:krimson/screen/post_screen/single_post_screen.dart';
 import 'package:krimson/screen/reels_screen/reels_screen.dart';
 import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
 import 'package:krimson/utilities/app_platform.dart';
 import 'package:krimson/utilities/const_res.dart';
-import 'package:krimson/utilities/firebase_const.dart';
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
@@ -146,7 +150,28 @@ class FirebaseNotificationManager {
         }
       } else if (type == 'call_request') {
         showNotification(message, isCall: true);
-        _openIncomingCallFromPush(message.data);
+        _refreshCallsBadge();
+        // Solo overlay si está en LIVE; si no, solo notificación + pestaña CALL.
+        if (LivestreamScreenController.activeInstance != null) {
+          _openIncomingCallFromPush(message.data);
+        }
+        return;
+      } else if (type == 'call_rejected') {
+        showNotification(message, isCall: true);
+        final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+        OutgoingCallController.handleRemoteRejected(id);
+        return;
+      } else if (type == 'call_accepted') {
+        showNotification(message, isCall: true);
+        _openAcceptedCallFromPush(message.data);
+        return;
+      } else if (type == NotificationType.liveStream.type) {
+        showNotification(message);
+        // App en foreground: diálogo Unirse / Más tarde (no auto-navegar).
+        final data = message.data['notification_data'] ?? '';
+        if (data.toString().isNotEmpty) {
+          _showLiveInviteFromPayload(data.toString());
+        }
         return;
       } else {
         SessionManager.instance.setNotifyCount(1);
@@ -226,7 +251,13 @@ class FirebaseNotificationManager {
     if (dataType == null) return;
 
     if (dataType == 'call_request') {
-      await _openIncomingCallFromPush(message.data);
+      // Tap en notificación: abrir UI de llamada (o ir a CALL).
+      await _openIncomingCallFromPush(message.data, forceOpen: true);
+      return;
+    }
+    if (dataType == 'call_rejected') {
+      final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+      OutgoingCallController.handleRemoteRejected(id);
       return;
     }
     if (dataType == 'call_accepted') {
@@ -254,28 +285,67 @@ class FirebaseNotificationManager {
         await _handleUserNotification(dataString);
         break;
       case 'live_stream':
-        controller.selectedPageIndex.value =
-            DashboardScreenController.tabLive;
-        await _handleLivestreamNotification(dataString);
+        await _showLiveInviteFromPayload(dataString);
         break;
       default:
         Loggers.warning('Unknown notification type: $dataType');
     }
   }
 
-  Future<void> _openIncomingCallFromPush(Map<String, dynamic> data) async {
+  Future<void> _showLiveInviteFromPayload(String dataString) async {
+    try {
+      final incomingStream = Livestream.fromJson(jsonDecode(dataString));
+      final roomId = incomingStream.roomID ?? '${incomingStream.hostId ?? ''}';
+      if (roomId.isEmpty) return;
+
+      Livestream stream = incomingStream;
+      try {
+        final payload =
+            await LiveSessionService.instance.fetchSession(roomId: roomId);
+        if (payload?.session != null) {
+          stream = payload!.session;
+        }
+      } catch (_) {}
+
+      await LiveInviteDialog.showIfNeeded(stream);
+    } catch (e) {
+      Loggers.error('live invite dialog: $e');
+    }
+  }
+
+  Future<void> _openIncomingCallFromPush(
+    Map<String, dynamic> data, {
+    bool forceOpen = false,
+  }) async {
     final id = int.tryParse('${data['call_request_id'] ?? ''}');
     if (id == null) return;
     final tag = 'incoming_$id';
     if (Get.isRegistered<IncomingCallController>(tag: tag)) return;
     try {
       final inbox = await CallService.instance.inbox();
-      final call = inbox.received
+      final pending = inbox.received
           .where((e) => e.id == id && e.isPending)
-          .cast<dynamic>()
           .toList();
-      if (call.isEmpty) return;
-      Get.to(() => IncomingCallScreen(call: call.first));
+      if (pending.isEmpty) return;
+      final call = pending.first;
+      final onLive = LivestreamScreenController.activeInstance != null;
+
+      if (onLive) {
+        await LiveIncomingCallOverlay.show(call);
+        return;
+      }
+
+      // Fuera de LIVE: solo abrir UI si el usuario tocó la notificación.
+      if (!forceOpen) return;
+
+      if (Get.isRegistered<DashboardScreenController>()) {
+        final dash = Get.find<DashboardScreenController>();
+        dash.selectedPageIndex.value = DashboardScreenController.tabChat;
+      }
+      if (Get.isRegistered<MessageScreenController>()) {
+        Get.find<MessageScreenController>().openCallsTab();
+      }
+      Get.to(() => IncomingCallScreen(call: call));
     } catch (e) {
       Loggers.error('open incoming call from push: $e');
     }
@@ -283,16 +353,60 @@ class FirebaseNotificationManager {
 
   Future<void> _openAcceptedCallFromPush(Map<String, dynamic> data) async {
     final id = int.tryParse('${data['call_request_id'] ?? ''}');
+    final roomId = '${data['room_id'] ?? ''}'.trim();
     if (id == null) return;
+
+    // Emisor con Outgoing abierto: una sola transición (no apilar VideoCall).
+    if (OutgoingCallController.activeInstance != null) {
+      OutgoingCallController.handleRemoteAccepted(
+        callRequestId: id,
+        roomId: roomId.isEmpty ? null : roomId,
+      );
+      return;
+    }
+
+    final tag = 'call_$id';
+    if (Get.isRegistered<VideoCallController>(tag: tag)) return;
+
     try {
       final inbox = await CallService.instance.inbox();
       final all = [...inbox.received, ...inbox.sent];
-      final match =
-          all.where((e) => e.id == id && e.isAccepted).toList();
-      if (match.isEmpty) return;
-      Get.to(() => VideoCallScreen(call: match.first));
+      CallRequestModel? match;
+      for (final e in all) {
+        if (e.id == id && e.isAccepted) {
+          match = e;
+          break;
+        }
+      }
+      if (match == null && roomId.isNotEmpty) {
+        match = CallRequestModel(
+          id: id,
+          status: 'accepted',
+          roomId: roomId,
+        );
+      }
+      if (match == null || (match.roomId ?? '').isEmpty) return;
+      Get.to(() => VideoCallScreen(call: match!));
     } catch (e) {
       Loggers.error('open accepted call from push: $e');
+    }
+  }
+
+  void _refreshCallsBadge() {
+    try {
+      if (Get.isRegistered<DashboardScreenController>()) {
+        final dash = Get.find<DashboardScreenController>();
+        dash.callsUnReadCount.value = dash.callsUnReadCount.value + 1;
+        dash.unReadCount.value = dash.chatUnReadCount.value +
+            dash.requestUnReadCount.value +
+            dash.callsUnReadCount.value;
+      }
+      if (Get.isRegistered<CallsListController>()) {
+        unawaited(
+            Get.find<CallsListController>().refreshInbox(silent: true));
+      }
+    } catch (e) {
+      Loggers.error('refresh calls badge: $e');
     }
   }
 
@@ -392,6 +506,7 @@ class FirebaseNotificationManager {
     String? languageCode = 'en',
     required NotificationInfo body,
     required NotificationType type,
+    Map<String, dynamic>? extraData,
   }) async {
     // Early return if no device token provided
     if ((deviceToken ?? '').isEmpty) {
@@ -429,40 +544,10 @@ class FirebaseNotificationManager {
     await NotificationService.instance.pushNotification(
         title: title,
         body: description,
-        data: body.toJson(),
+        data: extraData ?? body.toJson(),
         deviceType: deviceType,
         token: deviceToken,
         type: type);
-  }
-
-  Future<void> _handleLivestreamNotification(String dataString) async {
-    final incomingStream = Livestream.fromJson(jsonDecode(dataString));
-
-    // If controller not registered, fetch from Firestore
-    final snapshot = await FirebaseFirestore.instance
-        .collection(FirebaseConst.liveStreams)
-        .withConverter<Livestream>(
-          fromFirestore: (snapshot, _) => Livestream.fromJson(snapshot.data()!),
-          toFirestore: (livestream, _) => livestream.toJson(),
-        )
-        .get();
-
-    final matchedDoc =
-        snapshot.docs.firstWhereOrNull((doc) => doc.data().roomID == incomingStream.roomID);
-
-    if (matchedDoc == null) {
-      BaseController.share.showSnackBar(LKey.livestreamHasEnded.tr);
-      return;
-    }
-
-    final stream = matchedDoc.data();
-    final myUser = SessionManager.instance.getUser();
-
-    if (stream.hostId == myUser?.id) {
-      Get.to(() => LivestreamHostScreen(isHost: true, livestream: stream));
-    } else {
-      Get.to(() => LiveStreamAudienceScreen(isHost: false, livestream: stream));
-    }
   }
 }
 

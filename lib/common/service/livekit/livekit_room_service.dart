@@ -9,11 +9,11 @@ import 'package:permission_handler/permission_handler.dart';
 
 /// Servicio de conexión a salas LiveKit (sin GetX).
 ///
-/// Optimizado para arrancar la cámara más rápido:
+/// Optimizado para calidad fluida y arranque estable:
 /// - Permisos antes de conectar
 /// - Token y warm-up de tracks en paralelo
-/// - Resolución inicial h540 (más rápida que 720p)
-/// - Reintentos si falla el publish (no tumba la sala)
+/// - Captura 720p @ 30 fps (bitrate alto) para imagen fluida
+/// - Reintentos a 540/360 solo si el publish falla
 class LiveKitRoomService {
   Room? _room;
   EventsListener<RoomEvent>? _listener;
@@ -36,8 +36,31 @@ class LiveKitRoomService {
       StreamController<String>.broadcast();
   Stream<String> get onStatus => _status.stream;
 
+  final StreamController<DataReceivedEvent> _dataEvents =
+      StreamController<DataReceivedEvent>.broadcast();
+  Stream<DataReceivedEvent> get onDataReceived => _dataEvents.stream;
+
+  final StreamController<(int pingMs, int fps)> _stats =
+      StreamController<(int, int)>.broadcast();
+  Stream<(int pingMs, int fps)> get onStats => _stats.stream;
+
+  Timer? _statsTimer;
+  int _lastFps = 0;
+
   void _emitStatus(String msg) {
     if (!_status.isClosed) _status.add(msg);
+  }
+
+  void _emitStats() {
+    if (_stats.isClosed || _room == null) return;
+    var ping = 0;
+    try {
+      // ignore: invalid_use_of_internal_member
+      ping = _room!.engine.signalClient.rtt;
+    } catch (_) {}
+    if (!_stats.isClosed) {
+      _stats.add((ping, _lastFps));
+    }
   }
 
   /// Conecta a una sala LiveKit.
@@ -100,13 +123,23 @@ class LiveKitRoomService {
         dynacast: true,
         defaultCameraCaptureOptions: CameraCaptureOptions(
           cameraPosition: CameraPosition.front,
-          // h540 arranca más rápido que 720p en muchos dispositivos.
-          params: VideoParametersPresets.h540_169,
+          // 720p @ 30fps → imagen más nítida y fluida.
+          params: VideoParametersPresets.h720_169,
         ),
         defaultAudioCaptureOptions: AudioCaptureOptions(
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
+        ),
+        // Encoding de publicación: prioriza fluidez (30 fps) y bitrate alto.
+        defaultVideoPublishOptions: VideoPublishOptions(
+          videoCodec: 'h264',
+          simulcast: true,
+          videoEncoding: VideoEncoding(
+            maxBitrate: 2 * 1000 * 1000, // ~2 Mbps
+            maxFramerate: 30,
+          ),
+          degradationPreference: DegradationPreference.maintainFramerate,
         ),
       ),
     );
@@ -155,7 +188,71 @@ class LiveKitRoomService {
 
     _emitStatus('');
     _mediaChanges.add(null);
+    _startStatsPolling();
     return room;
+  }
+
+  void _startStatsPolling() {
+    _statsTimer?.cancel();
+    _statsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _sampleFps();
+      _emitStats();
+    });
+  }
+
+  Future<void> _sampleFps() async {
+    try {
+      Future<int?> readFpsFromReports(List<dynamic> reports) async {
+        for (final r in reports) {
+          final values = r.values;
+          if (values is! Map) continue;
+          final raw = values['framesPerSecond'] ??
+              values['googFrameRateSent'] ??
+              values['googFrameRateReceived'] ??
+              values['framesPerSecondDecoded'];
+          final n = num.tryParse('$raw');
+          if (n != null && n > 0) return n.round();
+        }
+        return null;
+      }
+
+      final lp = _room?.localParticipant;
+      for (final pub in lp?.videoTrackPublications ?? []) {
+        final track = pub.track;
+        if (track is! LocalVideoTrack) continue;
+        final sender = track.sender;
+        if (sender == null) continue;
+        final fps = await readFpsFromReports(await sender.getStats());
+        if (fps != null) {
+          _lastFps = fps;
+          return;
+        }
+      }
+      for (final p in _room?.remoteParticipants.values ??
+          const Iterable<RemoteParticipant>.empty()) {
+        for (final pub in p.videoTrackPublications) {
+          final track = pub.track;
+          if (track is! RemoteVideoTrack) continue;
+          final receiver = track.receiver;
+          if (receiver == null) continue;
+          final fps = await readFpsFromReports(await receiver.getStats());
+          if (fps != null) {
+            _lastFps = fps;
+            return;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> publishDataBytes(List<int> bytes, {String topic = 'live_chat'}) async {
+    final lp = _room?.localParticipant;
+    if (lp == null) return;
+    await lp.publishData(
+      Uint8List.fromList(bytes),
+      reliable: true,
+      topic: topic,
+    );
   }
 
   Future<void> _ensureMediaPermissions({
@@ -175,17 +272,39 @@ class LiveKitRoomService {
     }
   }
 
+  static const CameraCaptureOptions _camera720 = CameraCaptureOptions(
+    cameraPosition: CameraPosition.front,
+    params: VideoParametersPresets.h720_169,
+  );
+
+  static const VideoPublishOptions _publishSmooth = VideoPublishOptions(
+    videoCodec: 'h264',
+    simulcast: true,
+    videoEncoding: VideoEncoding(
+      maxBitrate: 2 * 1000 * 1000,
+      maxFramerate: 30,
+    ),
+    degradationPreference: DegradationPreference.maintainFramerate,
+  );
+
   Future<LocalVideoTrack?> _createCameraTrackSafe() async {
     try {
-      return await LocalVideoTrack.createCameraTrack(
-        const CameraCaptureOptions(
-          cameraPosition: CameraPosition.front,
-          params: VideoParametersPresets.h540_169,
-        ),
-      ).timeout(const Duration(seconds: 8));
+      return await LocalVideoTrack.createCameraTrack(_camera720)
+          .timeout(const Duration(seconds: 10));
     } catch (e) {
-      Loggers.error('createCameraTrack: $e');
-      return null;
+      Loggers.error('createCameraTrack 720p: $e');
+      // Fallback rápido si el dispositivo no abre 720p a tiempo.
+      try {
+        return await LocalVideoTrack.createCameraTrack(
+          const CameraCaptureOptions(
+            cameraPosition: CameraPosition.front,
+            params: VideoParametersPresets.h540_169,
+          ),
+        ).timeout(const Duration(seconds: 8));
+      } catch (e2) {
+        Loggers.error('createCameraTrack 540p: $e2');
+        return null;
+      }
     }
   }
 
@@ -211,8 +330,8 @@ class LiveKitRoomService {
     if (warm != null) {
       try {
         await lp
-            .publishVideoTrack(warm)
-            .timeout(const Duration(seconds: 10));
+            .publishVideoTrack(warm, publishOptions: _publishSmooth)
+            .timeout(const Duration(seconds: 12));
         return;
       } catch (e) {
         Loggers.error('publishVideoTrack(warm): $e');
@@ -223,21 +342,23 @@ class LiveKitRoomService {
       }
     }
 
-    // Fallback: setCameraEnabled con reintentos y calidad más baja.
+    // Preferir 720p; bajar solo si el publish falla.
     final presets = <VideoParameters>[
+      VideoParametersPresets.h720_169,
       VideoParametersPresets.h540_169,
       VideoParametersPresets.h360_169,
-      VideoParametersPresets.h180_169,
     ];
     for (var i = 0; i < presets.length; i++) {
       try {
-        await lp.setCameraEnabled(
-          true,
-          cameraCaptureOptions: CameraCaptureOptions(
-            cameraPosition: CameraPosition.front,
-            params: presets[i],
-          ),
-        ).timeout(const Duration(seconds: 8));
+        await lp
+            .setCameraEnabled(
+              true,
+              cameraCaptureOptions: CameraCaptureOptions(
+                cameraPosition: CameraPosition.front,
+                params: presets[i],
+              ),
+            )
+            .timeout(const Duration(seconds: 10));
         return;
       } catch (e) {
         Loggers.error('setCameraEnabled attempt ${i + 1}: $e');
@@ -320,6 +441,8 @@ class LiveKitRoomService {
   }
 
   Future<void> disconnect() async {
+    _statsTimer?.cancel();
+    _statsTimer = null;
     try {
       final lp = _room?.localParticipant;
       if (lp != null) {
@@ -349,7 +472,10 @@ class LiveKitRoomService {
       ..on<LocalTrackPublishedEvent>((_) => _mediaChanges.add(null))
       ..on<LocalTrackUnpublishedEvent>((_) => _mediaChanges.add(null))
       ..on<TrackMutedEvent>((_) => _mediaChanges.add(null))
-      ..on<TrackUnmutedEvent>((_) => _mediaChanges.add(null));
+      ..on<TrackUnmutedEvent>((_) => _mediaChanges.add(null))
+      ..on<DataReceivedEvent>((event) {
+        if (!_dataEvents.isClosed) _dataEvents.add(event);
+      });
   }
 
   Future<void> _release() async {
@@ -368,5 +494,7 @@ class LiveKitRoomService {
     await disconnect();
     await _mediaChanges.close();
     await _status.close();
+    await _dataEvents.close();
+    await _stats.close();
   }
 }

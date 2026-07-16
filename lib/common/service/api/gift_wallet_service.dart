@@ -2,6 +2,7 @@ import 'package:krimson/common/service/api/api_service.dart';
 import 'package:krimson/common/service/utils/params.dart';
 import 'package:krimson/common/service/utils/web_service.dart';
 import 'package:krimson/model/general/status_model.dart';
+import 'package:krimson/model/gift_wallet/coin_recharge_model.dart';
 import 'package:krimson/model/gift_wallet/withdraw_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/utilities/app_res.dart';
@@ -29,6 +30,23 @@ class GiftWalletService {
         });
 
     return response.data ?? [];
+  }
+
+  Future<List<CoinRecharge>> fetchMyRecharges({int? lastItemId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.fetchMyRecharges,
+      fromJson: (j) => j,
+      param: {
+        Params.limit: AppRes.paginationLimit,
+        Params.lastItemId: lastItemId,
+      },
+    );
+    if (json['status'] != true) return [];
+    final data = json['data'];
+    if (data is! List) return [];
+    return data
+        .map((e) => CoinRecharge.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
   }
 
   Future<StatusModel> submitWithdrawalRequest(

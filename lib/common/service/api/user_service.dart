@@ -141,6 +141,18 @@ class UserService {
     return response;
   }
 
+  Future<User?> subscribePlus() async {
+    UserModel userModel = await ApiService.instance.call(
+      url: WebService.user.subscribePlus,
+      fromJson: UserModel.fromJson,
+    );
+    if (userModel.status == true && userModel.data != null) {
+      SessionManager.instance.setUser(userModel.data);
+      return userModel.data;
+    }
+    throw Exception(userModel.message ?? 'PLUS+ subscription failed');
+  }
+
   Future<User?> fetchUserDetails({int? userId, Function()? onError}) async {
     UserModel userModel = await ApiService.instance.call(
         url: WebService.user.fetchUserDetails,
