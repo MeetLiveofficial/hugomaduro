@@ -1,15 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
+import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
-import 'package:krimson/common/manager/zego_engine_manager.dart';
+import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -24,6 +28,7 @@ import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class LiveStreamSearchScreenController extends BaseController {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
@@ -34,6 +39,10 @@ class LiveStreamSearchScreenController extends BaseController {
   StreamSubscription<List<ConnectivityResult>>? _netSub;
   Timer? _laravelPoll;
   final TextEditingController titleController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  final RxnString coverImageLocalPath = RxnString();
+  final RxnString coverImageUploaded = RxnString();
+  final Rxn<Uint8List> coverImageBytes = Rxn<Uint8List>();
 
   /// Preferencias pre-live (beauty / invite / red).
   final RxBool beautyOn = false.obs;
@@ -236,7 +245,7 @@ class LiveStreamSearchScreenController extends BaseController {
     }
 
     if (kIsWeb) {
-      // En Web no hay cámara Zego nativa; aún así permitimos abrir host en modo demo.
+      // En Web no hay cámara LiveKit nativa; aún así permitimos abrir host en modo demo.
       showSnackBar(
         'Live publishing on Web is limited. Prefer Android/iOS for full camera.',
         second: 3,
@@ -323,22 +332,118 @@ class LiveStreamSearchScreenController extends BaseController {
     }
   }
 
+  Future<void> pickLiveCover() async {
+    try {
+      if (!kIsWeb) {
+        // Android 13+: photos; antiguos: storage.
+        final photos = await Permission.photos.request();
+        if (!photos.isGranted && !photos.isLimited) {
+          final storage = await Permission.storage.request();
+          if (!storage.isGranted) {
+            showSnackBar(LKey.enablePhotoAccessTitle.tr);
+            return;
+          }
+        }
+      }
+
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 85,
+      );
+      if (file == null) {
+        showSnackBar('No se seleccionó imagen');
+        return;
+      }
+
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        showSnackBar('Imagen inválida');
+        return;
+      }
+
+      // Copia a path estable: en Android FileImage a veces falla con el path temporal.
+      String stablePath = file.path;
+      if (!kIsWeb) {
+        final dir = await PlatformPathExtension.localPath;
+        stablePath =
+            '${dir}live_cover_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        await File(stablePath).writeAsBytes(bytes, flush: true);
+      }
+
+      coverImageBytes.value = bytes;
+      coverImageLocalPath.value = stablePath;
+      coverImageUploaded.value = null;
+      Loggers.info('Live cover selected: $stablePath (${bytes.length} bytes)');
+    } catch (e) {
+      Loggers.error('pickLiveCover: $e');
+      showSnackBar('Error al elegir imagen: $e');
+    }
+  }
+
+  void clearLiveCover() {
+    coverImageBytes.value = null;
+    coverImageLocalPath.value = null;
+    coverImageUploaded.value = null;
+  }
+
   Future<void> _startLive(User user) async {
     final title = titleController.text.trim();
+    final details = descriptionController.text.trim();
     if (title.isEmpty) {
       showSnackBar(LKey.enterLiveStreamTitle.tr);
       return;
     }
 
+    final description = details.isEmpty ? title : '$title\n$details';
+
     showLoader();
     try {
+      String? coverPath = coverImageUploaded.value;
+      final localCover = coverImageLocalPath.value;
+      final bytes = coverImageBytes.value;
+      if (coverPath == null &&
+          ((localCover ?? '').isNotEmpty || (bytes?.isNotEmpty ?? false))) {
+        try {
+          XFile uploadFile;
+          if ((localCover ?? '').isNotEmpty &&
+              !kIsWeb &&
+              File(localCover!).existsSync()) {
+            uploadFile = XFile(localCover);
+          } else if (bytes != null && bytes.isNotEmpty) {
+            final dir = await PlatformPathExtension.localPath;
+            final path =
+                '${dir}live_cover_upload_${DateTime.now().millisecondsSinceEpoch}.jpg';
+            await File(path).writeAsBytes(bytes, flush: true);
+            uploadFile = XFile(path);
+            coverImageLocalPath.value = path;
+          } else {
+            throw Exception('Archivo de portada no encontrado');
+          }
+          final uploaded =
+              await CommonService.instance.uploadFileGivePath(uploadFile);
+          if (uploaded.status != true ||
+              (uploaded.data == null || uploaded.data!.isEmpty)) {
+            throw Exception(uploaded.message ?? 'Upload de portada falló');
+          }
+          coverPath = uploaded.data;
+          coverImageUploaded.value = coverPath;
+        } catch (e) {
+          stopLoader();
+          showSnackBar('No se pudo subir la portada: $e');
+          return;
+        }
+      }
+
       final now = DateTime.now().millisecondsSinceEpoch;
       final coHosts = invitedIds.toList();
       Livestream stream;
 
       if (!useFirebase) {
         stream = await LiveSessionService.instance.start(
-          description: title,
+          description: description,
+          coverImage: coverPath,
           coHostIds: coHosts,
           isRestrictToJoin: 0,
         );
@@ -346,7 +451,7 @@ class LiveStreamSearchScreenController extends BaseController {
         stream = user.livestream(
           type: LivestreamType.livestream,
           time: now,
-          description: title,
+          description: description,
           restrictToJoin: 0,
           isDummyLive: 0,
           coHostIds: coHosts,
@@ -384,11 +489,7 @@ class LiveStreamSearchScreenController extends BaseController {
         }
       }
 
-      // Motor listo antes de entrar a la sala (evita loginRoom sobre null).
-      if (!kIsWeb) {
-        await ZegoEngineManager.ensureCreated();
-      }
-
+      // Token LiveKit se solicita al entrar en LivestreamHostScreen.
       stopLoader();
       Get.to(() => LivestreamHostScreen(
             isHost: true,
@@ -411,6 +512,7 @@ class LiveStreamSearchScreenController extends BaseController {
     _netSub?.cancel();
     _laravelPoll?.cancel();
     titleController.dispose();
+    descriptionController.dispose();
     super.onClose();
   }
 }
@@ -432,72 +534,154 @@ class _StartLiveSheet extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         child: SafeArea(
           top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: bgGrey(context),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              Text(
-                LKey.goLive.tr,
-                textAlign: TextAlign.center,
-                style: TextStyleCustom.unboundedSemiBold600(
-                  color: textDarkGrey(context),
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller.titleController,
-                autofocus: true,
-                maxLength: 80,
-                decoration: InputDecoration(
-                  hintText: LKey.enterLiveStreamTitle.tr,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  counterText: '',
-                ),
-              ),
-              Obx(() {
-                if (controller.invitedIds.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    '${LKey.invited.tr}: ${controller.invitedIds.length}',
-                    textAlign: TextAlign.center,
-                    style: TextStyleCustom.outFitMedium500(
-                      color: themeAccentSolid(context),
-                      fontSize: 13,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: bgGrey(context),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-                );
-              }),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Get.back(result: true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: themeColor(context),
-                  foregroundColor: whitePure(context),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                ),
+                Text(
+                  LKey.goLive.tr,
+                  textAlign: TextAlign.center,
+                  style: TextStyleCustom.unboundedSemiBold600(
+                    color: textDarkGrey(context),
+                    fontSize: 16,
                   ),
                 ),
-                child: Text(LKey.startLive.tr),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller.titleController,
+                  autofocus: true,
+                  maxLength: 80,
+                  decoration: InputDecoration(
+                    hintText: LKey.enterLiveStreamTitle.tr,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller.descriptionController,
+                  maxLength: 500,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Describe your live...',
+                    alignLabelWithHint: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Obx(() {
+                  final bytes = controller.coverImageBytes.value;
+                  final hasCover = bytes != null && bytes.isNotEmpty;
+                  return Material(
+                    color: bgGrey(context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      onTap: controller.pickLiveCover,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        height: 140,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.black12),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            if (hasCover)
+                              Image.memory(
+                                bytes,
+                                fit: BoxFit.cover,
+                                gaplessPlayback: true,
+                              )
+                            else
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_photo_alternate_outlined,
+                                      color: textLightGrey(context), size: 32),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Add cover image',
+                                    style: TextStyleCustom.outFitMedium500(
+                                      color: textLightGrey(context),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            if (hasCover)
+                              Positioned(
+                                top: 6,
+                                right: 6,
+                                child: Material(
+                                  color: Colors.black54,
+                                  shape: const CircleBorder(),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: controller.clearLiveCover,
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6),
+                                      child: Icon(Icons.close,
+                                          color: Colors.white, size: 16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                Obx(() {
+                  if (controller.invitedIds.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(
+                      '${LKey.invited.tr}: ${controller.invitedIds.length}',
+                      textAlign: TextAlign.center,
+                      style: TextStyleCustom.outFitMedium500(
+                        color: themeAccentSolid(context),
+                        fontSize: 13,
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => Get.back(result: true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: themeColor(context),
+                    foregroundColor: whitePure(context),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(LKey.startLive.tr),
+                ),
+              ],
+            ),
           ),
         ),
       ),

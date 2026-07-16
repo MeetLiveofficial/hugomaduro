@@ -77,6 +77,10 @@ class CameraEditScreenController extends BaseController {
 
   @override
   void onClose() {
+    if (Get.isRegistered<StoryTextViewController>()) {
+      Get.delete<StoryTextViewController>();
+    }
+    onNewTexFieldAdd = null;
     super.onClose();
     _disposeControllers();
   }
@@ -92,23 +96,48 @@ class CameraEditScreenController extends BaseController {
       required int duration,
       int? musicId}) async {
     try {
-      StoryModel? response = await PostService.instance.createStory(files: {
-        Params.content: [XFile(content)],
-        if (type == PostStoryContentType.storyVideo)
-          Params.thumbnail: [XFile(thumbnail!)]
-      }, param: {
-        Params.type: type == PostStoryContentType.storyVideo ? 1 : 0,
-        Params.duration: duration,
-        if (musicId != -1) Params.soundID: musicId
+      final contentFile = File(content);
+      if (!contentFile.existsSync() || contentFile.lengthSync() <= 0) {
+        failedResponseSnackBar(message: 'Archivo de story no encontrado');
+        return;
+      }
+
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      final isVideo = type == PostStoryContentType.storyVideo;
+      final contentName = isVideo ? 'story_$stamp.mp4' : 'story_$stamp.jpg';
+
+      final files = <String, List<XFile?>>{
+        Params.content: [
+          XFile(content, name: contentName, mimeType: isVideo ? 'video/mp4' : 'image/jpeg'),
+        ],
+      };
+
+      if (isVideo && thumbnail != null && thumbnail.isNotEmpty) {
+        final thumbFile = File(thumbnail);
+        if (thumbFile.existsSync()) {
+          files[Params.thumbnail] = [
+            XFile(thumbnail, name: 'story_thumb_$stamp.jpg', mimeType: 'image/jpeg'),
+          ];
+        }
+      }
+
+      Loggers.info('[Story Upload] POST createStory type=${isVideo ? 1 : 0} bytes=${contentFile.lengthSync()}');
+
+      StoryModel? response = await PostService.instance.createStory(files: files, param: {
+        Params.type: isVideo ? 1 : 0,
+        Params.duration: duration <= 0 ? 5 : duration,
+        if (musicId != null && musicId != -1) Params.soundID: musicId
       });
       Loggers.info(response.message);
       if (response.status == true && response.data != null) {
         addStoryResponse(response.data!);
       } else {
-        failedResponseSnackBar();
+        failedResponseSnackBar(
+            message: response.message ?? 'Error al subir story');
       }
     } catch (e) {
-      failedResponseSnackBar();
+      Loggers.error('addStory exception: $e');
+      failedResponseSnackBar(message: e.toString());
     }
   }
 
@@ -479,10 +508,7 @@ class CameraEditScreenController extends BaseController {
       xFile: XFile(inputFile),
       duration: storyDuration,
       completion: () async {
-        Get.back();
-        Get.back();
-        Get.back();
-        Get.back();
+        _closeStoryScreens();
         Loggers.info('[Story Upload] Moderation completed.');
         updateUploadingProgress(progress: 20);
 
@@ -509,12 +535,24 @@ class CameraEditScreenController extends BaseController {
             if (result == true) finalVideoPath = outputPath;
           } catch (e) {
             Loggers.error('[Story Upload] Failed to apply filter/audio: $e');
-            failedResponseSnackBar();
+            failedResponseSnackBar(message: 'Error al procesar video: $e');
             return;
           }
         }
 
         updateUploadingProgress(progress: 90);
+
+        // Thumbnail: preferir imagePath si el content actual es imagen/frame.
+        String? thumb = content.value.thumbNail;
+        if (thumb == null || thumb.isEmpty || !File(thumb).existsSync()) {
+          try {
+            final extracted = await MediaPickerHelper.shared
+                .extractThumbnail(videoPath: finalVideoPath);
+            thumb = extracted.path;
+          } catch (_) {
+            thumb = null;
+          }
+        }
 
         try {
           await addStory(
@@ -522,9 +560,10 @@ class CameraEditScreenController extends BaseController {
               duration: storyDuration,
               type: PostStoryContentType.storyVideo,
               musicId: story.sound?.music?.id ?? -1,
-              thumbnail: inputFile);
+              thumbnail: thumb);
         } catch (e) {
-          Loggers.error('❌ Error posting image/text story: $e');
+          Loggers.error('❌ Error posting video story: $e');
+          failedResponseSnackBar(message: e.toString());
         } finally {
           isMergingVideo.value = false;
         }
@@ -535,71 +574,91 @@ class CameraEditScreenController extends BaseController {
   /// Handles image/text story: moderation, screenshot, optional music or filter
   Future<void> _processImageOrTextStory(int storyDuration) async {
     final story = content.value;
+    if (!Get.isRegistered<StoryTextViewController>()) {
+      failedResponseSnackBar(message: 'Vista de story no disponible');
+      return;
+    }
     final controller = Get.find<StoryTextViewController>();
     showLoader();
-    final screenshot =
-        await ScreenshotManager.captureScreenshot(controller.previewContainer);
-    await Future.delayed(const Duration(seconds: 2));
-    if (screenshot == null) {
-      stopLoader();
-      return Loggers.error('❌ Failed to capture screenshot');
-    }
-
-    final imagePath = screenshot.path;
-    MediaPickerHelper.shared
-        .compressImage(screenshot.path, '${localPath}compress_images.jpg')
-        .then((value) async {
-      stopLoader();
-      if (value == null) {
-        return Loggers.error('❌ Failed to compress image');
+    try {
+      final screenshot =
+          await ScreenshotManager.captureScreenshot(controller.previewContainer);
+      if (screenshot == null) {
+        stopLoader();
+        failedResponseSnackBar(message: 'No se pudo capturar la story');
+        return;
       }
+
+      final compressTarget =
+          '${localPath}compress_story_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      XFile? compressed = await MediaPickerHelper.shared
+          .compressImage(screenshot.path, compressTarget);
+
+      // Si falla la compresión, usar el screenshot original.
+      final uploadPath = (compressed?.path.isNotEmpty == true)
+          ? compressed!.path
+          : screenshot.path;
+
+      stopLoader();
+      _closeStoryScreens();
+      updateUploadingProgress(progress: 20);
+
       await SightEngineService.shared.checkImagesInSightEngine(
-        xFiles: [value],
+        xFiles: [XFile(uploadPath)],
         completion: () async {
-          Get.back();
-          Get.back();
-          Get.back();
-          Get.back();
           Loggers.info('[Story Upload] Moderation completed.');
-          updateUploadingProgress(progress: 20);
+          updateUploadingProgress(progress: 40);
 
           final audioPath = story.sound?.downloadedURL;
           final audioStartMS =
               double.tryParse('${story.sound?.audioStartMS ?? 0.0}') ?? 0.0;
           final musicId = story.sound?.music?.id ?? -1;
-          final videoPath = '${localPath}image_to_video.mp4';
+          final videoPath =
+              '${localPath}image_to_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
 
           if (audioPath != null) {
             Loggers.info('🎵 Music found, generating video from image...');
-
             bool? success = await _retrytechPlugin.createVideoFromImage(
-                inputPath: imagePath,
+                inputPath: uploadPath,
                 outputPath: videoPath,
                 audioStartTimeInMS: audioStartMS,
                 audioPath: audioPath,
                 videoTotalDurationInSec: storyDuration.toDouble());
 
-            final contentPath = success == true ? videoPath : imagePath;
-
+            final contentPath = success == true ? videoPath : uploadPath;
             updateUploadingProgress(progress: 90);
-
             await addStory(
                 duration: storyDuration,
                 content: contentPath,
-                type: PostStoryContentType.storyVideo,
+                type: success == true
+                    ? PostStoryContentType.storyVideo
+                    : PostStoryContentType.storyImage,
                 musicId: musicId,
-                thumbnail: imagePath);
+                thumbnail: uploadPath);
           } else {
             updateUploadingProgress(progress: 90);
             await addStory(
                 duration: storyDuration,
-                content: imagePath,
+                content: uploadPath,
                 type: PostStoryContentType.storyImage,
                 musicId: -1);
           }
         },
       );
-    });
+    } catch (e) {
+      stopLoader();
+      Loggers.error('_processImageOrTextStory: $e');
+      failedResponseSnackBar(message: e.toString());
+    }
+  }
+
+  void _closeStoryScreens() {
+    // Cierra edición/cámara sin vaciar toda la pila del dashboard.
+    for (var i = 0; i < 3; i++) {
+      if (Get.key.currentState?.canPop() == true) {
+        Get.back();
+      }
+    }
   }
 
   void updateUploadingProgress({required double progress}) {
@@ -628,10 +687,13 @@ class CameraEditScreenController extends BaseController {
     });
   }
 
-  Future<void> failedResponseSnackBar() async {
+  Future<void> failedResponseSnackBar({String? message}) async {
     _lastUploadType = UploadType.error;
     updateUploadingProgress(progress: 100);
-    return;
+    final msg = (message ?? '').trim();
+    if (msg.isNotEmpty) {
+      showSnackBar(msg);
+    }
   }
 
   void onMusicDelete() {

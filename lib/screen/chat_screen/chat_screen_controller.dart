@@ -37,6 +37,7 @@ import 'package:krimson/screen/chat_screen/widget/select_media_sheet.dart';
 import 'package:krimson/screen/chat_screen/widget/send_media_sheet.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
+import 'package:krimson/screen/message_screen/message_screen_controller.dart';
 import 'package:krimson/screen/post_screen/post_screen_controller.dart';
 import 'package:krimson/screen/post_screen/single_post_screen.dart';
 import 'package:krimson/screen/reels_screen/reel/reel_page_controller.dart';
@@ -182,7 +183,7 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   }
 
   _fetchOtherUser() async {
-    int userId = conversationUser.value.userId ?? -1;
+    final userId = conversationUser.value.peerUserId;
     if (userId != -1) {
       otherUser = await UserService.instance.fetchUserDetails(userId: userId);
       Loggers.info('Other User Device Token: ${otherUser?.deviceToken}');
@@ -485,6 +486,11 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
       }
       chatList.sort((a, b) => b.id?.compareTo(a.id ?? 0) ?? 0);
       chatList.refresh();
+      // Push al receptor (Firebase path lo hace en sendMessageToFireStore).
+      if (otherUser == null) {
+        await _fetchOtherUser();
+      }
+      pushNotificationToUser(message);
     } catch (e) {
       Loggers.error('Laravel sendMessage: $e');
       showSnackBar(e.toString());
@@ -832,6 +838,7 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
           startAudioPlayback();
           break;
         case PlayerState.stopped:
+          playAudioMessage(message);
           break;
       }
     } else {
@@ -841,18 +848,26 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
 
   void playAudioMessage(MessageData message) async {
     String audioUrl = message.audioMessage?.addBaseURL() ?? '';
-    if (audioUrl.isEmpty) return;
+    if (audioUrl.isEmpty) {
+      showSnackBar('Audio no disponible');
+      return;
+    }
 
-    DefaultCacheManager().getSingleFile(audioUrl).then((file) async {
-      playerController.release();
+    try {
+      final file = await DefaultCacheManager().getSingleFile(audioUrl);
+      await playerController.stopPlayer();
       await playerController.preparePlayer(
         path: file.path,
         noOfSamples: playerWaveStyle.getSamplesForWidth(wavesWidth),
       );
 
-      playerValue.value = PlayerValue(state: PlayerState.initialized, id: message.id ?? 0);
+      playerValue.value =
+          PlayerValue(state: PlayerState.initialized, id: message.id ?? 0);
       startAudioPlayback();
-    });
+    } catch (e) {
+      Loggers.error('playAudioMessage: $e');
+      showSnackBar('No se pudo reproducir el audio');
+    }
   }
 
   void onDeleteForYou(MessageData message) async {
@@ -927,6 +942,10 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   }
 
   void onChatRequestTap(UserRequestAction requestType, ChatThread conversation) async {
+    if (!useFirebase) {
+      await _onChatRequestTapLaravel(requestType, conversation);
+      return;
+    }
     switch (requestType) {
       case UserRequestAction.block:
         AppUser? user = conversation.chatUser;
@@ -953,6 +972,90 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
           FirebaseConst.requestType: UserRequestAction.accept.title,
         });
         break;
+    }
+  }
+
+  Future<void> _onChatRequestTapLaravel(
+    UserRequestAction requestType,
+    ChatThread conversation,
+  ) async {
+    final peerId = conversation.peerUserId;
+    if (peerId == -1) {
+      showSnackBar('Usuario no válido');
+      return;
+    }
+
+    showLoader();
+    try {
+      switch (requestType) {
+        case UserRequestAction.accept:
+          await ChatService.instance.updateThread(
+            peerUserId: peerId,
+            chatType: ChatType.approved.value,
+            requestType: UserRequestAction.accept.title,
+          );
+          conversationUser.update((val) {
+            val?.chatType = ChatType.approved;
+            val?.requestType = UserRequestAction.accept.title;
+          });
+          conversationUser.refresh();
+          break;
+        case UserRequestAction.reject:
+          await ChatService.instance.updateThread(
+            peerUserId: peerId,
+            requestType: UserRequestAction.reject.title,
+            isDeleted: true,
+          );
+          _refreshMessageThreads();
+          Get.back();
+          break;
+        case UserRequestAction.block:
+          final user = conversation.chatUser;
+          var didBlock = false;
+          await blockUser(
+            User(
+              id: user?.userId ?? peerId,
+              profilePhoto: user?.profile,
+              username: user?.username,
+              fullname: user?.fullname,
+              isVerify: user?.isVerify,
+            ),
+            () {
+              didBlock = true;
+            },
+          );
+          if (!didBlock) {
+            showSnackBar('No se pudo bloquear al usuario');
+            break;
+          }
+          await ChatService.instance.updateThread(
+            peerUserId: peerId,
+            requestType: UserRequestAction.block.title,
+            iBlocked: true,
+            isDeleted: true,
+          );
+          conversationUser.update((val) {
+            val?.iBlocked = true;
+            val?.requestType = UserRequestAction.block.title;
+          });
+          _refreshMessageThreads();
+          Get.back();
+          break;
+      }
+      if (requestType == UserRequestAction.accept) {
+        _refreshMessageThreads();
+      }
+    } catch (e) {
+      Loggers.error('chat request action failed: $e');
+      showSnackBar(e.toString());
+    } finally {
+      stopLoader();
+    }
+  }
+
+  void _refreshMessageThreads() {
+    if (Get.isRegistered<MessageScreenController>()) {
+      Get.find<MessageScreenController>().onRefresh();
     }
   }
 

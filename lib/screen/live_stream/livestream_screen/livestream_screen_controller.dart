@@ -4,10 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/app_user.dart';
@@ -15,11 +16,10 @@ import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/livestream/livestream_user_state.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
-import 'package:krimson/common/manager/zego_engine_manager.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
+import 'package:livekit_client/livekit_client.dart';
 import 'package:video_player/video_player.dart';
-import 'package:zego_express_engine/zego_express_engine.dart';
 
 class LivestreamScreenController extends BaseController {
   final bool isHost;
@@ -47,15 +47,18 @@ class LivestreamScreenController extends BaseController {
   bool beautyPrefsApplied = false;
 
   StreamSubscription<List<ConnectivityResult>>? _netSub;
-  bool _effectsEnvReady = false;
 
   VideoPlayerController? dummyPlayer;
-  Widget? zegoView;
-  int? localViewId;
+
+  /// A/V LiveKit (null en dummy / web).
+  LiveKitRoomController? liveKit;
 
   String get roomId => livestream.roomID ?? '${livestream.hostId}';
-  String get streamId => 'stream_$roomId';
   bool get isDummy => (livestream.isDummyLive ?? 0) == 1;
+
+  LocalParticipant? get localParticipant => liveKit?.localParticipant.value;
+  List<RemoteParticipant> get remoteParticipants =>
+      liveKit?.remoteParticipants.toList() ?? const [];
 
   @override
   void onInit() {
@@ -92,12 +95,9 @@ class LivestreamScreenController extends BaseController {
 
     try {
       statusMessage.value = isHost ? 'Starting live…' : 'Joining live…';
-      await _joinZego();
+      await _joinLiveKit();
       mediaReady.value = true;
       statusMessage.value = '';
-    } on MissingPluginException {
-      statusMessage.value = 'Zego plugin not available on this platform.';
-      mediaReady.value = true;
     } catch (e) {
       statusMessage.value = e.toString();
       mediaReady.value = true;
@@ -127,66 +127,42 @@ class LivestreamScreenController extends BaseController {
     }
   }
 
-  Future<void> _joinZego() async {
+  Future<void> _joinLiveKit() async {
     final me = SessionManager.instance.getUser();
     if (me == null) return;
 
-    await ZegoEngineManager.ensureCreated();
+    final tag = 'lk_live_$roomId';
+    liveKit = Get.put(LiveKitRoomController(), tag: tag);
 
-    final zegoUser = ZegoUser('${me.id}', me.fullname ?? me.username ?? 'user');
-    await ZegoExpressEngine.instance.loginRoom(
-      roomId,
-      zegoUser,
-      config: ZegoRoomConfig.defaultConfig()..isUserStatusNotify = true,
+    // Propagar status del room hacia la UI del live.
+    ever(liveKit!.statusMessage, (msg) {
+      if (msg.isNotEmpty) {
+        statusMessage.value = msg;
+      }
+    });
+    ever(liveKit!.mediaRevision, (_) => update());
+
+    await liveKit!.connect(
+      roomName: roomId,
+      identity: '${me.id}',
+      name: me.fullname ?? me.username ?? 'user',
+      publishCamera: isHost,
+      publishMicrophone: isHost,
+      wsUrl: liveKitWsUrl,
     );
 
-    if (isHost) {
-      zegoView = await ZegoExpressEngine.instance.createCanvasView((id) async {
-        localViewId = id;
-        await ZegoExpressEngine.instance.startPreview(
-          canvas: ZegoCanvas(id, viewMode: ZegoViewMode.AspectFill),
-        );
-        await ZegoExpressEngine.instance.startPublishingStream(streamId);
-        await applyBeauty();
-        update();
-      });
-      update();
-    } else {
-      zegoView = await ZegoExpressEngine.instance.createCanvasView((id) async {
-        localViewId = id;
-        await ZegoExpressEngine.instance.startPlayingStream(
-          streamId,
-          canvas: ZegoCanvas(id, viewMode: ZegoViewMode.AspectFill),
-        );
-        update();
-      });
+    if (!isHost) {
       await _bumpWatching(1);
       await _saveAudienceState();
-      update();
     }
+    update();
   }
 
+  /// Beauty effects eran nativos de Zego; LiveKit no los incluye.
+  /// Se mantienen prefs de UI por compatibilidad (hooks futuros / DeepAR).
   Future<void> applyBeauty() async {
     if (kIsWeb || isDummy) return;
-    try {
-      if (!_effectsEnvReady) {
-        await ZegoExpressEngine.instance.startEffectsEnv();
-        _effectsEnvReady = true;
-      }
-      await ZegoExpressEngine.instance.enableEffectsBeauty(beautyOn.value);
-      if (beautyOn.value) {
-        await ZegoExpressEngine.instance.setEffectsBeautyParam(
-          ZegoEffectsBeautyParam(
-            whiten.value.round(),
-            rosy.value.round(),
-            smooth.value.round(),
-            sharpen.value.round(),
-          ),
-        );
-      }
-    } catch (e) {
-      statusMessage.value = e.toString();
-    }
+    // No-op: integrar procesador de video externo si se requiere.
   }
 
   void openBeauty() {
@@ -305,8 +281,15 @@ class LivestreamScreenController extends BaseController {
     });
   }
 
+  Future<void> setCameraEnabled(bool enabled) async {
+    await liveKit?.setCameraEnabled(enabled);
+  }
+
+  Future<void> setMicrophoneEnabled(bool enabled) async {
+    await liveKit?.setMicrophoneEnabled(enabled);
+  }
+
   Future<void> confirmExit(BuildContext context) async {
-    // Si un cierre previo falló a mitad, forzar salida.
     if (isEnding.value) {
       await _popLiveUi();
       return;
@@ -338,8 +321,18 @@ class LivestreamScreenController extends BaseController {
       return;
     }
     isEnding.value = true;
+    // Cerrar UI primero: si LiveKit/API se cuelgan, el usuario ya pudo salir.
+    await _popLiveUi();
     try {
-      await _cleanupMedia();
+      await _cleanupMedia().timeout(const Duration(seconds: 8));
+
+      if (!isDummy) {
+        try {
+          await LiveSessionService.instance
+              .leave(roomId: roomId)
+              .timeout(const Duration(seconds: 5));
+        } catch (_) {}
+      }
 
       if (isHost && !isDummy && useFirebase) {
         try {
@@ -350,34 +343,25 @@ class LivestreamScreenController extends BaseController {
         } catch (_) {}
       }
     } catch (e) {
-      // No bloquear la salida por errores de red/SDK.
       statusMessage.value = e.toString();
     } finally {
-      await _popLiveUi();
       isEnding.value = false;
     }
   }
 
   Future<void> _cleanupMedia() async {
     if (!isDummy && !kIsWeb) {
-      if (isHost) {
-        await ZegoEngineManager.safe(
-            () => ZegoExpressEngine.instance.stopPublishingStream());
-        await ZegoEngineManager.safe(
-            () => ZegoExpressEngine.instance.stopPreview());
-      } else {
-        await ZegoEngineManager.safe(
-            () => ZegoExpressEngine.instance.stopPlayingStream(streamId));
+      if (!isHost) {
         await _bumpWatching(-1);
       }
-      if (localViewId != null) {
-        final viewId = localViewId!;
-        await ZegoEngineManager.safe(
-            () => ZegoExpressEngine.instance.destroyCanvasView(viewId));
-        localViewId = null;
+      final tag = 'lk_live_$roomId';
+      if (liveKit != null) {
+        await liveKit!.disconnect();
+        if (Get.isRegistered<LiveKitRoomController>(tag: tag)) {
+          Get.delete<LiveKitRoomController>(tag: tag);
+        }
+        liveKit = null;
       }
-      await ZegoEngineManager.safe(
-          () => ZegoExpressEngine.instance.logoutRoom(roomId));
     }
 
     try {
@@ -385,11 +369,11 @@ class LivestreamScreenController extends BaseController {
       await dummyPlayer?.dispose();
     } catch (_) {}
     dummyPlayer = null;
-    zegoView = null;
   }
 
   Future<void> _popLiveUi() async {
-    // Cerrar dialogs/sheets encima del live.
+    // PopScope(canPop: false) hace que Navigator.canPop() sea false;
+    // igual se puede hacer pop programático para salir del live.
     for (var i = 0; i < 3; i++) {
       if (Get.isDialogOpen == true || Get.isBottomSheetOpen == true) {
         Get.back();
@@ -398,15 +382,22 @@ class LivestreamScreenController extends BaseController {
         break;
       }
     }
-    if (Get.key.currentState?.canPop() == true) {
-      Get.back();
+    final context = Get.context;
+    if (context != null && context.mounted) {
+      Navigator.of(context).pop();
+      return;
     }
+    Get.back(closeOverlays: true);
   }
 
   @override
   void onClose() {
     _netSub?.cancel();
     dummyPlayer?.dispose();
+    final tag = 'lk_live_$roomId';
+    if (Get.isRegistered<LiveKitRoomController>(tag: tag)) {
+      Get.delete<LiveKitRoomController>(tag: tag);
+    }
     super.onClose();
   }
 }

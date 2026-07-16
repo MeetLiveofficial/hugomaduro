@@ -51,11 +51,17 @@ class CameraScreenController extends BaseController
   Rx<SelectedMusic?> selectedMusic = Rx(null);
   RxDouble progress = 0.0.obs;
   RxBool isDeepARInitialized = false.obs;
+  RxBool isNativeCameraReady = false.obs;
+  bool _forceNativeCamera = false;
 
   Setting? get appSetting => SessionManager.instance.getSettings();
   late Rx<DeepARFilters> selectedEffect;
 
-  bool get isDeepAr => appSetting?.isDeepAr == 1;
+  bool get isDeepAr => !_forceNativeCamera && (appSetting?.isDeepAr == 1);
+
+  /// Shutter usable: DeepAR listo o cámara nativa lista.
+  bool get isCaptureReady =>
+      isDeepAr ? isDeepARInitialized.value : isNativeCameraReady.value;
 
   // Private variables
   Timer? _progressTimer;
@@ -132,28 +138,43 @@ class CameraScreenController extends BaseController
 
   Future<void> _initCamera() async {
     Loggers.info('Initialize camera');
+    isNativeCameraReady.value = false;
     if (isDeepAr) {
       deepArControllerPlus.value.fireTrigger(trigger: 's');
       await _initDeepArCamera();
     } else {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        RetrytechPlugin.shared.initCamera();
-      });
+      await _initNativeCamera();
+    }
+  }
+
+  Future<void> _initNativeCamera() async {
+    try {
+      RetrytechPlugin.shared.initCamera();
+      // CameraX suele estar listo en ~300–500ms; marcamos ready con margen.
+      await Future.delayed(const Duration(milliseconds: 450));
+      isNativeCameraReady.value = true;
+      _forceNativeCamera = true;
+      isDeepARInitialized.value = false;
+    } catch (e) {
+      Loggers.error('Native camera init error: $e');
+      isNativeCameraReady.value = false;
     }
   }
 
   Future<void> _initDeepArCamera() async {
     try {
-      // Initialize DeepAR
       await deepArControllerPlus.value.initialize(
           androidLicenseKey: appSetting?.deeparAndroidKey,
           iosLicenseKey: appSetting?.deeparIOSKey,
           resolution: Resolution.high);
       deepArControllerPlus.value.switchEffect('');
       isDeepARInitialized.value = true;
+      isNativeCameraReady.value = false;
     } catch (e) {
-      Loggers.error('Error initializing AR: $e');
-      RetrytechPlugin.shared.initCamera();
+      Loggers.error('Error initializing AR: $e — fallback a cámara nativa');
+      _forceNativeCamera = true;
+      isDeepARInitialized.value = false;
+      await _initNativeCamera();
     }
   }
 
@@ -440,26 +461,36 @@ class CameraScreenController extends BaseController
   }
 
   Future<void> capturePhoto() async {
-    if (isDeepAr) {
-      if (isDeepARInitialized.value == false) {
-        return;
-      }
+    if (!isCaptureReady) {
+      showSnackBar('Cámara aún no está lista');
+      return;
     }
     if (isRecording.value) return;
 
+    showLoader();
     try {
       XFile file;
       if (isDeepAr) {
         File photo = await deepArControllerPlus.value.takeScreenshot();
-        print(photo.path);
         file = XFile(photo.path);
       } else {
-        file = XFile(await RetrytechPlugin.shared.captureImage() ?? '');
+        final path = await RetrytechPlugin.shared
+            .captureImage()
+            .timeout(const Duration(seconds: 8));
+        if (path == null || path.isEmpty) {
+          showSnackBar('No se pudo capturar la foto');
+          return;
+        }
+        file = XFile(path);
       }
+      stopLoader();
       await handleImageStory(
           MediaFile(file: file, type: MediaType.image, thumbNail: file));
     } catch (e) {
-      Loggers.error("Photo capture error: $e");
+      Loggers.error('Photo capture error: $e');
+      showSnackBar('Error al capturar: $e');
+    } finally {
+      stopLoader();
     }
   }
 

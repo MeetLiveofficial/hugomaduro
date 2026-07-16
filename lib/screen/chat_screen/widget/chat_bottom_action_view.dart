@@ -40,7 +40,6 @@ class ChatBottomActionView extends StatelessWidget {
             } else if (iAmBlocked) {
               return const ChatIBlockedView();
             } else {
-              print("123456 ${conversationUser.chatType}");
               if (conversationUser.chatType == ChatType.request) {
                 return ChatBottomRequestView(
                     controller: controller, conversation: conversationUser);

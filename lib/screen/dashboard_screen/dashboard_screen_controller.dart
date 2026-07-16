@@ -14,7 +14,6 @@ import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
-import 'package:krimson/common/manager/zego_engine_manager.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/subscription/subscription_manager.dart';
 import 'package:krimson/common/widget/restart_widget.dart';
@@ -58,7 +57,9 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   /// Lazy: no tocar Firestore en el constructor (evita [core/no-app]).
   FirebaseFirestore get db => FirebaseFirestore.instance;
   RxInt unReadCount = 0.obs;
+  RxInt chatUnReadCount = 0.obs;
   RxInt requestUnReadCount = 0.obs;
+  RxInt callsUnReadCount = 0.obs;
 
   StreamSubscription? _unReadCountSubscription;
   late Animation<double> scaleAnimation;
@@ -107,7 +108,6 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     }
 
     // Run below in parallel
-    _createZegoEngine();
     _fetchLanguageFromUser();
     _fetchUnReadCount();
     startCacheCleanupScheduler();
@@ -198,14 +198,6 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
       unReadCount.value = totalUnread;
       requestUnReadCount.value = requestUnread;
     });
-  }
-
-  Future<void> _createZegoEngine() async {
-    try {
-      await ZegoEngineManager.ensureCreated();
-    } catch (e) {
-      Loggers.error('Create Zego Engine : $e');
-    }
   }
 
   Future<void> _fetchLanguageFromUser() async {

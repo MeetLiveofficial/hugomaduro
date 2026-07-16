@@ -233,17 +233,34 @@ class _LiveCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            ColoredBox(
-              color: Colors.black.withValues(alpha: 0.35),
-              child: Center(
+            if ((stream.coverImage ?? '').isNotEmpty)
+              Positioned.fill(
                 child: CustomImage(
-                  size: const Size(72, 72),
-                  image: host?.profile,
-                  fullName: host?.fullname ?? title,
-                  radius: 40,
+                  size: const Size(400, 400),
+                  image: stream.coverImage,
+                  fit: BoxFit.cover,
+                  radius: 0,
+                  isShowPlaceHolder: true,
+                ),
+              )
+            else
+              ColoredBox(
+                color: Colors.black.withValues(alpha: 0.35),
+                child: Center(
+                  child: CustomImage(
+                    size: const Size(72, 72),
+                    image: host?.profile,
+                    fullName: host?.fullname ?? title,
+                    radius: 40,
+                  ),
                 ),
               ),
-            ),
+            if ((stream.coverImage ?? '').isNotEmpty)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.black.withValues(alpha: 0.25),
+                ),
+              ),
             Positioned(
               top: 10,
               left: 10,
