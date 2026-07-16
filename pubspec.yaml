@@ -127,7 +127,7 @@ dependencies:
   flutter_widget_from_html_core: ^0.17.2
   wakelock_plus: ^1.4.0
   permission_handler: ^12.0.1
-  zego_express_engine: ^3.24.1
+  livekit_client: ^2.4.9
   rxdart: ^0.28.0
   image: ^4.8.0
 
