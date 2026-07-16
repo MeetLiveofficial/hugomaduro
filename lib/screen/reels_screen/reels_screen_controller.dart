@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
@@ -21,6 +21,10 @@ import 'package:krimson/screen/report_sheet/report_sheet.dart';
 import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+// Condicional: File solo en móvil (web no soporta dart:io).
+import 'reels_io_stub.dart'
+    if (dart.library.io) 'reels_io_io.dart' as reels_io;
+
 class ReelsScreenController extends BaseController {
   RxMap<int, ReelPlayerEntry> players = <int, ReelPlayerEntry>{}.obs;
 
@@ -36,6 +40,7 @@ class ReelsScreenController extends BaseController {
   final RxBool isRefreshing = false.obs;
   CommentHelper commentHelper = CommentHelper();
   bool isCurrentPageVisible = true;
+  bool _playersHidden = false;
 
   ReelPageType reelPageType;
 
@@ -75,15 +80,41 @@ class ReelsScreenController extends BaseController {
   Future<void> initVideoPlayer() async {
     await _initializeControllerAtIndex(position.value);
     _playControllerAtIndex(position.value);
-    if (position.value > 0) {
-      await _initializeControllerAtIndex(position.value - 1);
-    }
+    // Solo precargar el siguiente (menos texturas = menos artefactos GPU).
     await _initializeControllerAtIndex(position.value + 1);
+  }
+
+  /// Al volver al tab: recrear players limpios.
+  Future<void> rebindPlayersOnVisible() async {
+    if (!_playersHidden &&
+        players.values.any((e) => e.status == PlayerStatus.initialized)) {
+      isCurrentPageVisible = true;
+      _playControllerAtIndex(position.value);
+      return;
+    }
+    isCurrentPageVisible = true;
+    _playersHidden = false;
+    await disposeAllController();
+    await initVideoPlayer();
+  }
+
+  /// Al ocultar el tab: liberar texturas (no solo pause).
+  Future<void> releasePlayersOnHidden() async {
+    if (_playersHidden) return;
+    _playersHidden = true;
+    isCurrentPageVisible = false;
+    await disposeAllController();
   }
 
   /// Reanuda el reel actual sin reiniciar desde 0 (vuelta al tab Home).
   void resumeCurrent() {
     isCurrentPageVisible = true;
+    final entry = players[position.value];
+    if (entry?.controller == null ||
+        entry?.status != PlayerStatus.initialized) {
+      unawaited(rebindPlayersOnVisible());
+      return;
+    }
     _playControllerAtIndex(position.value);
   }
 
@@ -112,7 +143,6 @@ class ReelsScreenController extends BaseController {
     pauseAllPlayers(reset: true);
     _initializeControllerAtIndex(index);
     _initializeControllerAtIndex(index + 1);
-    _initializeControllerAtIndex(index - 1);
     _disposeAllExcept(index);
   }
 
@@ -120,12 +150,12 @@ class ReelsScreenController extends BaseController {
     pauseAllPlayers(reset: true);
     _initializeControllerAtIndex(index);
     _initializeControllerAtIndex(index + 1);
-    _initializeControllerAtIndex(index - 1);
     _disposeAllExcept(index);
   }
 
   void _disposeAllExcept(int index) {
-    final validIndexes = {index - 1, index, index + 1};
+    // Solo índice actual + siguiente.
+    final validIndexes = {index, index + 1};
     final keys = players.keys.toList();
 
     for (final i in keys) {
@@ -186,9 +216,21 @@ class ReelsScreenController extends BaseController {
     try {
       final reel = reels[index];
       if (reel.id == -1) {
-        controller = VideoPlayerController.file(
-          File(reel.video ?? ''),
-        );
+        if (kIsWeb) {
+          players[index] = ReelPlayerEntry(
+            status: PlayerStatus.failed,
+            generation: generation,
+          );
+          return;
+        }
+        controller = reels_io.createLocalVideoController(reel.video ?? '');
+        if (controller == null) {
+          players[index] = ReelPlayerEntry(
+            status: PlayerStatus.failed,
+            generation: generation,
+          );
+          return;
+        }
       } else {
         final url = reel.video?.addBaseURL() ?? '';
         if (url.isEmpty) {
@@ -198,7 +240,10 @@ class ReelsScreenController extends BaseController {
           );
           return;
         }
-        controller = VideoPlayerController.networkUrl(Uri.parse(url));
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(url),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
       }
 
       // Guardar controller ya en initializing para poder disposearlo si cancela.

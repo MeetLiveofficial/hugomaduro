@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
@@ -117,17 +119,14 @@ class _ReelsScreenState extends State<ReelsScreen> {
                                   key: Key('reels_list_${widget.pageType}'),
                                   onVisibilityChanged: (info) {
                                     if (info.visibleFraction > 0.9) {
-                                      if (controller.players.isEmpty) {
-                                        controller.initVideoPlayer();
-                                      } else {
-                                        controller.resumeCurrent();
-                                      }
+                                      // Re-crear players al volver: evita texturas
+                                      // negras/artefactos tras IndexedStack.
+                                      unawaited(
+                                          controller.rebindPlayersOnVisible());
                                     } else {
-                                      // No reset a 0: evita artefactos al cambiar de tab.
-                                      controller.pauseAllPlayers(
-                                        reset: false,
-                                        markInvisible: true,
-                                      );
+                                      // Liberar texturas GPU al ocultar el tab.
+                                      unawaited(
+                                          controller.releasePlayersOnHidden());
                                     }
                                   },
                                   child: Obx(

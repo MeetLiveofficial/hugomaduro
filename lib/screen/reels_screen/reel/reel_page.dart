@@ -266,7 +266,7 @@ class ReelInfoRow extends StatelessWidget {
   }
 }
 
-class CustomCacheVideoPlayer extends StatelessWidget {
+class CustomCacheVideoPlayer extends StatefulWidget {
   final VideoPlayerController? videoPlayer;
   final VoidCallback onPlayPause;
   final Widget? fallback;
@@ -279,29 +279,73 @@ class CustomCacheVideoPlayer extends StatelessWidget {
   });
 
   @override
+  State<CustomCacheVideoPlayer> createState() => _CustomCacheVideoPlayerState();
+}
+
+class _CustomCacheVideoPlayerState extends State<CustomCacheVideoPlayer> {
+  VideoPlayerController? _bound;
+
+  @override
+  void initState() {
+    super.initState();
+    _bind(widget.videoPlayer);
+  }
+
+  @override
+  void didUpdateWidget(covariant CustomCacheVideoPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.videoPlayer != widget.videoPlayer) {
+      _unbind(oldWidget.videoPlayer);
+      _bind(widget.videoPlayer);
+    }
+  }
+
+  @override
+  void dispose() {
+    _unbind(_bound);
+    super.dispose();
+  }
+
+  void _bind(VideoPlayerController? c) {
+    _bound = c;
+    c?.addListener(_onValue);
+  }
+
+  void _unbind(VideoPlayerController? c) {
+    try {
+      c?.removeListener(_onValue);
+    } catch (_) {}
+  }
+
+  void _onValue() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final player = videoPlayer;
+    final player = widget.videoPlayer;
     if (player == null) {
-      return fallback ?? const LoaderWidget();
+      return widget.fallback ?? const LoaderWidget();
     }
 
     VideoPlayerValue value;
     try {
       value = player.value;
     } catch (_) {
-      return fallback ?? const LoaderWidget();
+      return widget.fallback ?? const LoaderWidget();
     }
 
     if (!value.isInitialized ||
         value.hasError ||
         value.size.width <= 0 ||
         value.size.height <= 0) {
-      return fallback ?? const LoaderWidget();
+      return widget.fallback ?? const LoaderWidget();
     }
 
     final videoSize = value.size;
+    // Key por identityHashCode: fuerza texture nueva si el controller cambia.
     return InkWell(
-      onTap: onPlayPause,
+      onTap: widget.onPlayPause,
       child: ColoredBox(
         color: blackPure(context),
         child: SizedBox.expand(
@@ -311,7 +355,10 @@ class CustomCacheVideoPlayer extends StatelessWidget {
             child: SizedBox(
               width: videoSize.width,
               height: videoSize.height,
-              child: VideoPlayer(player),
+              child: VideoPlayer(
+                player,
+                key: ValueKey('vp_${identityHashCode(player)}'),
+              ),
             ),
           ),
         ),
