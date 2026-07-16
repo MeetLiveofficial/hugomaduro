@@ -172,7 +172,8 @@ class GiftForLiveStream extends StatelessWidget {
       children: [
         Obx(() {
           AppUser? giftUser =
-              controller.livestreamController.selectedGiftUser.value;
+              controller.livestreamController?.selectedGiftUser.value ??
+                  (streamUsers.isNotEmpty ? streamUsers.first : null);
           if (giftUser == null) {
             return const SizedBox();
           }
@@ -183,8 +184,10 @@ class GiftForLiveStream extends StatelessWidget {
               : PopupMenuButton<AppUser>(
                   initialValue: giftUser,
                   onSelected: (AppUser value) {
-                    controller.livestreamController.selectedGiftUser.value =
-                        value;
+                    final live = controller.livestreamController;
+                    if (live != null) {
+                      live.selectedGiftUser.value = value;
+                    }
                   },
                   shape: const RoundedRectangleBorder(
                     borderRadius: SmoothBorderRadius.vertical(

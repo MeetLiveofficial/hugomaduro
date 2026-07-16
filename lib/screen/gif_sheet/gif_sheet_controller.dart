@@ -16,55 +16,82 @@ class GifSheetController extends BaseController {
   RxBool isSearchLoading = false.obs;
   TextEditingController searchTextController = TextEditingController();
   RxBool isTextEmpty = true.obs;
+  RxnString emptyMessage = RxnString();
 
   @override
   void onInit() {
     super.onInit();
-
     fetchTrendingGiphy();
   }
 
-    Future<void> fetchTrendingGiphy({bool isEmpty = false}) async {
-    if (isTrendingLoading.value || trendingList.length > 89) return;
+  Future<void> fetchTrendingGiphy({bool isEmpty = false}) async {
+    if (isTrendingLoading.value || (!isEmpty && trendingList.length > 89)) {
+      return;
+    }
     String apiKey = setting?.giphyKey ?? '';
     if (apiKey.trim().isEmpty) {
+      emptyMessage.value =
+          'GIPHY no configurado. Activa gif_support y giphy_key en el panel admin.';
       Loggers.warning('GIPHY key empty — configure giphy_key in settings');
       return;
     }
     isTrendingLoading.value = true;
-    List<GiphyData> items = await GiphyService.instance.trending(
-        apiKey: apiKey,
-        startCount:
-            isEmpty ? 0 : (trendingList.isEmpty ? 0 : trendingList.length));
-    if (isEmpty) trendingList.clear();
-    if (items.isNotEmpty) {
-      trendingList.addAll(items);
+    emptyMessage.value = null;
+    try {
+      List<GiphyData> items = await GiphyService.instance.trending(
+          apiKey: apiKey,
+          startCount:
+              isEmpty ? 0 : (trendingList.isEmpty ? 0 : trendingList.length));
+      if (isEmpty) trendingList.clear();
+      if (items.isNotEmpty) {
+        trendingList.addAll(items);
+      } else if (trendingList.isEmpty) {
+        emptyMessage.value = 'No GIFs available from GIPHY right now.';
+      }
+    } catch (e) {
+      emptyMessage.value = e.toString().replaceFirst('Exception: ', '');
+      Loggers.error('GIPHY trending: $e');
+    } finally {
+      isTrendingLoading.value = false;
     }
-    isTrendingLoading.value = false;
   }
 
   Future<void> fetchSearchGiphy({bool isEmpty = false}) async {
     if (isSearchLoading.value) return;
     if (!isEmpty && searchingGiphyList.length > 89) return;
-    isSearchLoading.value = true;
     String apiKey = setting?.giphyKey ?? '';
-    List<GiphyData> items = await GiphyService.instance.search(
-        apiKey: apiKey,
-        keyWord: searchTextController.text.trim(),
-        startCount: isEmpty
-            ? 0
-            : (searchingGiphyList.isEmpty ? 0 : searchingGiphyList.length));
-    if (isEmpty) searchingGiphyList.clear();
-    if (items.isNotEmpty) {
-      searchingGiphyList.addAll(items);
+    if (apiKey.trim().isEmpty) {
+      emptyMessage.value =
+          'GIPHY no configurado. Activa gif_support y giphy_key en el panel admin.';
+      return;
     }
-    isSearchLoading.value = false;
+    isSearchLoading.value = true;
+    emptyMessage.value = null;
+    try {
+      List<GiphyData> items = await GiphyService.instance.search(
+          apiKey: apiKey,
+          keyWord: searchTextController.text.trim(),
+          startCount: isEmpty
+              ? 0
+              : (searchingGiphyList.isEmpty ? 0 : searchingGiphyList.length));
+      if (isEmpty) searchingGiphyList.clear();
+      if (items.isNotEmpty) {
+        searchingGiphyList.addAll(items);
+      } else if (searchingGiphyList.isEmpty) {
+        emptyMessage.value = 'No GIFs found for this search.';
+      }
+    } catch (e) {
+      emptyMessage.value = e.toString().replaceFirst('Exception: ', '');
+      Loggers.error('GIPHY search: $e');
+    } finally {
+      isSearchLoading.value = false;
+    }
   }
 
-  onChanged(String value) async {
+  void onChanged(String value) {
     isTextEmpty.value = value.trim().isEmpty;
     DebounceAction.shared.call(() {
-      if (value.isEmpty) {
+      if (isTextEmpty.value) {
         fetchTrendingGiphy(isEmpty: true);
       } else {
         fetchSearchGiphy(isEmpty: true);

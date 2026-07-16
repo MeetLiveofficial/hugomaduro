@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/manager/haptic_manager.dart';
@@ -23,7 +24,7 @@ class SendGiftSheetController extends BaseController {
   int? userId;
   List<AppUser> liveUsers;
   GiftType? giftType;
-  late LivestreamScreenController livestreamController;
+  LivestreamScreenController? livestreamController;
 
   SendGiftSheetController(this.giftType, this.userId, this.liveUsers);
 
@@ -34,17 +35,22 @@ class SendGiftSheetController extends BaseController {
 
     if (liveUsers.isNotEmpty &&
         (giftType == GiftType.livestream || giftType == GiftType.battle)) {
-      livestreamController = Get.find<LivestreamScreenController>();
-      if (livestreamController.selectedGiftUser.value == null) {
-        livestreamController.selectedGiftUser = liveUsers.first.obs;
+      livestreamController = LivestreamScreenController.activeInstance;
+      if (livestreamController != null) {
+        if (livestreamController!.selectedGiftUser.value == null) {
+          livestreamController!.selectedGiftUser = liveUsers.first.obs;
+        } else {
+          DebounceAction.shared.call(() {
+            livestreamController!.selectedGiftUser.value =
+                liveUsers.firstWhere(
+                    (element) =>
+                        element.userId ==
+                        livestreamController!.selectedGiftUser.value?.userId,
+                    orElse: () => liveUsers.first);
+          });
+        }
       } else {
-        DebounceAction.shared.call(() {
-          livestreamController.selectedGiftUser.value = liveUsers.firstWhere(
-              (element) =>
-                  element.userId ==
-                  livestreamController.selectedGiftUser.value?.userId,
-              orElse: () => liveUsers.first);
-        });
+        // Fallback: usar primer stream user como destino.
       }
     }
   }
@@ -60,8 +66,11 @@ class SendGiftSheetController extends BaseController {
       return showSnackBar('Gift Not Found');
     }
 
-    if ((gift.coinPrice ?? 0) >= (myUser.value?.coinWallet ?? 0)) {
-      return showSnackBar('Insufficient fund');
+    final price = gift.coinPrice ?? 0;
+    final wallet = (myUser.value?.coinWallet ?? 0).toInt();
+    if (wallet < price) {
+      CoinGate.ensureEnough(price);
+      return;
     }
 
     sendGift(gift, context);
@@ -71,9 +80,10 @@ class SendGiftSheetController extends BaseController {
     final giftId = gift.id?.toInt() ?? -1;
 
     final coinPrice = gift.coinPrice ?? 0;
-    userId ??= livestreamController.selectedGiftUser.value?.userId;
+    userId ??= livestreamController?.selectedGiftUser.value?.userId ??
+        (liveUsers.isNotEmpty ? liveUsers.first.userId : null);
 
-    if (giftId == -1 || userId == -1) {
+    if (giftId == -1 || userId == null || userId == -1) {
       return Loggers.error('Invalid Gift: $giftId or User: $userId');
     }
 
@@ -97,7 +107,8 @@ class SendGiftSheetController extends BaseController {
       } else {
         Get.back(
             result: GiftManager(gift,
-                streamUser: livestreamController.selectedGiftUser.value));
+                streamUser: livestreamController?.selectedGiftUser.value ??
+                    (liveUsers.isNotEmpty ? liveUsers.first : null)));
       }
     } else {
       showSnackBar(response.message);
@@ -134,26 +145,27 @@ class GiftManager {
   }
 
   static void showAnimationDialog(Gift gift) {
+    final ctx = Get.context;
+    if (ctx == null) return;
     showGeneralDialog(
-      context: Get.context!,
+      context: ctx,
+      barrierDismissible: true,
+      barrierLabel: 'gift',
+      barrierColor: Colors.transparent,
       pageBuilder: (context, animation, secondaryAnimation) {
         return SendGiftDialog(gift: gift);
       },
-      transitionDuration: const Duration(milliseconds: 400),
+      transitionDuration: const Duration(milliseconds: 350),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
-        final slideAnimation = Tween<Offset>(
-          begin: const Offset(0, 1),
-          end: Offset.zero,
-        ).animate(animation);
-
-        if (slideAnimation.isForwardOrCompleted) {
+        if (animation.status == AnimationStatus.forward) {
           HapticManager.shared.light();
         }
-
-        return SlideTransition(
-          position: slideAnimation,
-          child: FadeTransition(
-            opacity: animation,
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.7, end: 1).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+            ),
             child: child,
           ),
         );

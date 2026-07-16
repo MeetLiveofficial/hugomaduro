@@ -6,8 +6,10 @@ import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
+import 'package:krimson/screen/recharge_history_screen/recharge_history_screen.dart';
 import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -99,19 +101,40 @@ class CoinWalletTopView extends StatelessWidget {
             );
           }),
         ),
-        if (withdrawalOn)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
-            child: TextButtonCustom(
-              onTap: () => Get.to(() => const WithdrawalsScreen()),
-              title: LKey.withdrawals.tr,
-              backgroundColor: bgGrey(context),
-              titleColor: textDarkGrey(context),
-              btnHeight: 34,
-              horizontalMargin: 0,
-              margin: EdgeInsets.zero,
-            ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextButtonCustom(
+                  onTap: () => Get.to(() => const RechargeHistoryScreen()),
+                  title: 'Historial de Recargas',
+                  backgroundColor: bgGrey(context),
+                  titleColor: textDarkGrey(context),
+                  btnHeight: 34,
+                  horizontalMargin: 0,
+                  margin: EdgeInsets.zero,
+                  fontSize: 13,
+                ),
+              ),
+              if (withdrawalOn) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButtonCustom(
+                    onTap: () => Get.to(() => const WithdrawalsScreen()),
+                    title: LKey.withdrawals.tr,
+                    backgroundColor: ColorRes.themeAccentSolid,
+                    titleColor: Colors.white,
+                    btnHeight: 34,
+                    horizontalMargin: 0,
+                    margin: EdgeInsets.zero,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ],
           ),
+        ),
       ],
     );
   }

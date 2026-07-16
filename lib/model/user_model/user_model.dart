@@ -222,66 +222,82 @@ class User {
         followingIds: followingIds ?? this.followingIds,
       );
 
+  static num? _asNum(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v;
+    return num.tryParse('$v');
+  }
+
+  static int? _asInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse('$v');
+  }
+
   User.fromJson(dynamic json) {
-    id = json['id'];
-    identity = json['identity'];
-    isDummy = json['is_dummy'];
-    fullname = json['fullname'];
-    username = json['username'];
-    userEmail = json['user_email'];
-    mobileCountryCode = json['mobile_country_code'];
-    userMobileNo = json['user_mobile_no'];
-    profilePhoto = json['profile_photo'];
-    loginMethod = json['login_method'];
-    device = json['device'];
-    deviceToken = json['device_token'];
-    notifyPostLike = json['notify_post_like'];
-    notifyPostComment = json['notify_post_comment'];
-    notifyFollow = json['notify_follow'];
-    notifyMention = json['notify_mention'];
-    notifyGiftReceived = json['notify_gift_received'];
-    notifyChat = json['notify_chat'];
-    isVerify = json['is_verify'];
-    whoCanViewPost = json['who_can_view_post'];
-    showMyFollowing = json['show_my_following'];
-    receiveMessage = json['receive_message'];
-    coinWallet = json['coin_wallet'];
-    coinCollectedLifetime = json['coin_collected_lifetime'];
-    coinGiftedLifetime = json['coin_gifted_lifetime'];
-    coinPurchasedLifetime = json['coin_purchased_lifetime'];
-    bio = json['bio'];
-    followerCount = json['follower_count'];
-    followingCount = json['following_count'];
-    totalPostLikesCount = json['total_post_likes_count'];
-    isFreez = json['is_freez'];
-    country = json['country'];
-    countryCode = json['countryCode'];
-    region = json['region'];
-    regionName = json['regionName'];
-    city = json['city'];
-    lat = json['lat'];
-    lon = json['lon'];
-    timezone = json['timezone'];
-    appLastUsedAt = json['app_last_used_at'];
-    savedMusicIds = json['saved_music_ids'];
-    isModerator = json['is_moderator'];
-    createdAt = json['created_at'];
-    updatedAt = json['updated_at'];
-    isFollowing = json['is_following'];
-    followStatus = json['follow_status'];
-    isBlock = json['is_block'];
-    appLanguage = json['app_language'];
-    newRegister = json['new_register'];
-    levelNumber = json['level_number'] is num
-        ? (json['level_number'] as num).toInt()
-        : int.tryParse('${json['level_number'] ?? ''}');
+    id = _asInt(json['id']);
+    identity = json['identity']?.toString();
+    isDummy = _asInt(json['is_dummy']);
+    fullname = json['fullname']?.toString();
+    username = json['username']?.toString();
+    userEmail = json['user_email']?.toString();
+    mobileCountryCode = _asInt(json['mobile_country_code']);
+    userMobileNo = json['user_mobile_no']?.toString();
+    profilePhoto = json['profile_photo']?.toString();
+    loginMethod = json['login_method']?.toString();
+    device = _asInt(json['device']);
+    deviceToken = json['device_token']?.toString();
+    notifyPostLike = _asNum(json['notify_post_like']);
+    notifyPostComment = _asNum(json['notify_post_comment']);
+    notifyFollow = _asNum(json['notify_follow']);
+    notifyMention = _asNum(json['notify_mention']);
+    notifyGiftReceived = _asNum(json['notify_gift_received']);
+    notifyChat = _asNum(json['notify_chat']);
+    isVerify = _asInt(json['is_verify']);
+    whoCanViewPost = _asNum(json['who_can_view_post']);
+    showMyFollowing = _asNum(json['show_my_following']);
+    receiveMessage = _asNum(json['receive_message']);
+    coinWallet = _asNum(json['coin_wallet']);
+    coinCollectedLifetime = _asNum(json['coin_collected_lifetime']);
+    coinGiftedLifetime = _asNum(json['coin_gifted_lifetime']);
+    coinPurchasedLifetime = _asNum(json['coin_purchased_lifetime']);
+    bio = json['bio']?.toString();
+    followerCount = _asNum(json['follower_count']);
+    followingCount = _asNum(json['following_count']);
+    totalPostLikesCount = _asInt(json['total_post_likes_count']);
+    isFreez = _asNum(json['is_freez']);
+    country = json['country']?.toString();
+    countryCode = json['countryCode']?.toString();
+    region = json['region']?.toString();
+    regionName = json['regionName']?.toString();
+    city = json['city']?.toString();
+    lat = _asNum(json['lat']);
+    lon = _asNum(json['lon']);
+    timezone = json['timezone']?.toString();
+    appLastUsedAt = json['app_last_used_at']?.toString();
+    savedMusicIds = json['saved_music_ids']?.toString();
+    isModerator = _asInt(json['is_moderator']);
+    createdAt = json['created_at']?.toString();
+    updatedAt = json['updated_at']?.toString();
+    isFollowing = json['is_following'] == null
+        ? null
+        : (json['is_following'] == true || json['is_following'] == 1);
+    followStatus = _asInt(json['follow_status']);
+    isBlock = json['is_block'] == null
+        ? null
+        : (json['is_block'] == true || json['is_block'] == 1);
+    appLanguage = json['app_language']?.toString();
+    newRegister = json['new_register'] == null
+        ? null
+        : (json['new_register'] == true || json['new_register'] == 1);
+    levelNumber = _asInt(json['level_number']);
     levelTitle = json['level_title']?.toString();
-    callRequestCoins = json['call_request_coins'] is num
-        ? (json['call_request_coins'] as num).toInt()
-        : int.tryParse('${json['call_request_coins'] ?? 0}') ?? 0;
-    canReceiveCalls = json['can_receive_calls'] is num
-        ? (json['can_receive_calls'] as num).toInt()
-        : int.tryParse('${json['can_receive_calls'] ?? 0}') ?? 0;
+    callRequestCoins = _asInt(json['call_request_coins']) ?? 0;
+    canReceiveCalls = _asInt(json['can_receive_calls']) ?? 0;
+    isLive = _asInt(json['is_live']) ?? 0;
+    liveRoomId = json['live_room_id']?.toString();
+    isActive = _asInt(json['is_active']) ?? 0;
     if (json['level_benefits'] is List) {
       levelBenefits = (json['level_benefits'] as List)
           .map((e) => e.toString())
@@ -366,6 +382,9 @@ class User {
   int callRequestCoins = 0;
   int canReceiveCalls = 0;
   List<String> levelBenefits = const [];
+  int isLive = 0;
+  String? liveRoomId;
+  int isActive = 0;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -423,6 +442,9 @@ class User {
     map['call_request_coins'] = callRequestCoins;
     map['can_receive_calls'] = canReceiveCalls;
     map['level_benefits'] = levelBenefits;
+    map['is_live'] = isLive;
+    map['live_room_id'] = liveRoomId;
+    map['is_active'] = isActive;
     map["following_ids"] = followingIds;
     if (token != null) {
       map['token'] = token?.toJson();

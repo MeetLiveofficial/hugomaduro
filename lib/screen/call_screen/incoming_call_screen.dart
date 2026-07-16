@@ -10,16 +10,22 @@ import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// Pantalla entrante estilo WhatsApp.
+/// Pantalla / diálogo entrante estilo WhatsApp.
 class IncomingCallScreen extends StatelessWidget {
   final CallRequestModel call;
+  final bool asDialog;
 
-  const IncomingCallScreen({super.key, required this.call});
+  const IncomingCallScreen({
+    super.key,
+    required this.call,
+    this.asDialog = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,106 +35,221 @@ class IncomingCallScreen extends StatelessWidget {
         : Get.put(IncomingCallController(call), tag: tag);
     final peer = call.caller;
 
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0B0F14),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              children: [
-                const SizedBox(height: 28),
-                Text(
-                  LKey.incomingCall.tr,
-                  style: TextStyleCustom.outFitRegular400(
-                    color: whitePure(context).withValues(alpha: 0.75),
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 36),
-                CustomImage(
-                  size: const Size(120, 120),
-                  image: peer?.profilePhoto?.addBaseURL(),
-                  fullName: peer?.fullname ?? peer?.username,
-                  strokeWidth: 0,
-                ),
-                const SizedBox(height: 22),
-                Text(
-                  peer?.fullname ?? peer?.username ?? '-',
-                  textAlign: TextAlign.center,
-                  style: TextStyleCustom.unboundedSemiBold600(
-                    color: whitePure(context),
-                    fontSize: 24,
-                  ),
-                ),
-                if ((peer?.username ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    '@${peer!.username}',
-                    style: TextStyleCustom.outFitRegular400(
-                      color: whitePure(context).withValues(alpha: 0.55),
-                      fontSize: 14,
+    if (asDialog) {
+      // Panel inferior = mitad de pantalla (el LIVE sigue visible arriba).
+      final h = MediaQuery.sizeOf(context).height;
+      return Material(
+        color: Colors.transparent,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            width: double.infinity,
+            height: h * 0.5,
+            decoration: const BoxDecoration(
+              color: Color(0xFF0B0F14),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                ],
-                if (call.coinsCost > 0) ...[
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(AssetRes.icCoin, height: 16, width: 16),
-                      const SizedBox(width: 6),
+                    const SizedBox(height: 12),
+                    Text(
+                      LKey.incomingCall.tr,
+                      style: TextStyleCustom.outFitRegular400(
+                        color: whitePure(context).withValues(alpha: 0.75),
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    CustomImage(
+                      size: const Size(72, 72),
+                      image: peer?.profilePhoto?.addBaseURL(),
+                      fullName: peer?.fullname ?? peer?.username,
+                      strokeWidth: 0,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      peer?.fullname ?? peer?.username ?? '-',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyleCustom.unboundedSemiBold600(
+                        color: whitePure(context),
+                        fontSize: 18,
+                      ),
+                    ),
+                    if ((peer?.username ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        '${call.coinsCost}',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: whitePure(context),
+                        '@${peer!.username}',
+                        style: TextStyleCustom.outFitRegular400(
+                          color: whitePure(context).withValues(alpha: 0.55),
                           fontSize: 13,
                         ),
                       ),
                     ],
-                  ),
-                ],
-                const Spacer(),
-                Obx(() {
-                  final err = controller.errorText.value;
-                  if (err == null || err.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      err,
-                      textAlign: TextAlign.center,
-                      style: TextStyleCustom.outFitRegular400(
-                        color: ColorRes.likeRed,
-                        fontSize: 14,
-                      ),
+                    Obx(() {
+                      final err = controller.errorText.value;
+                      if (err == null || err.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          err,
+                          textAlign: TextAlign.center,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.redAccent,
+                            fontSize: 12,
+                          ),
+                        ),
+                      );
+                    }),
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _CircleAction(
+                          color: Colors.red,
+                          icon: Icons.call_end,
+                          label: 'Decline',
+                          compact: true,
+                          onTap: controller.reject,
+                        ),
+                        _CircleAction(
+                          color: ColorRes.themeAccentSolid,
+                          icon: Icons.call,
+                          label: LKey.accept.tr,
+                          compact: true,
+                          onTap: controller.accept,
+                        ),
+                      ],
                     ),
-                  );
-                }),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _CircleAction(
-                      color: ColorRes.likeRed,
-                      icon: Icons.call_end,
-                      label: LKey.refuse.tr,
-                      onTap: controller.reject,
-                    ),
-                    _CircleAction(
-                      color: const Color(0xFF22C55E),
-                      icon: Icons.videocam,
-                      label: LKey.accept.tr,
-                      onTap: controller.accept,
-                    ),
+                    const SizedBox(height: 8),
                   ],
                 ),
-                const SizedBox(height: 36),
-              ],
+              ),
             ),
           ),
         ),
+      );
+    }
+
+    final content = SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Column(
+          children: [
+            const SizedBox(height: 28),
+            Text(
+              LKey.incomingCall.tr,
+              style: TextStyleCustom.outFitRegular400(
+                color: whitePure(context).withValues(alpha: 0.75),
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 36),
+            Center(
+              child: CustomImage(
+                size: const Size(120, 120),
+                image: peer?.profilePhoto?.addBaseURL(),
+                fullName: peer?.fullname ?? peer?.username,
+                strokeWidth: 0,
+              ),
+            ),
+            const SizedBox(height: 22),
+            Text(
+              peer?.fullname ?? peer?.username ?? '-',
+              textAlign: TextAlign.center,
+              style: TextStyleCustom.unboundedSemiBold600(
+                color: whitePure(context),
+                fontSize: 24,
+              ),
+            ),
+            if ((peer?.username ?? '').isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                '@${peer!.username}',
+                style: TextStyleCustom.outFitRegular400(
+                  color: whitePure(context).withValues(alpha: 0.55),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+            if (call.coinsCost > 0) ...[
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(AssetRes.icCoin, height: 16, width: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${call.coinsCost}',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: whitePure(context),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const Spacer(),
+            Obx(() {
+              final err = controller.errorText.value;
+              if (err == null || err.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  err,
+                  textAlign: TextAlign.center,
+                  style: TextStyleCustom.outFitRegular400(
+                    color: Colors.redAccent,
+                    fontSize: 13,
+                  ),
+                ),
+              );
+            }),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _CircleAction(
+                  color: Colors.red,
+                  icon: Icons.call_end,
+                  label: 'Decline',
+                  onTap: controller.reject,
+                ),
+                _CircleAction(
+                  color: ColorRes.themeAccentSolid,
+                  icon: Icons.call,
+                  label: LKey.accept.tr,
+                  onTap: controller.accept,
+                ),
+              ],
+            ),
+            const SizedBox(height: 28),
+          ],
+        ),
+      ),
+    );
+
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0B0F14),
+        body: content,
       ),
     );
   }
@@ -139,33 +260,37 @@ class _CircleAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool compact;
 
   const _CircleAction({
     required this.color,
     required this.icon,
     required this.label,
     required this.onTap,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final radius = compact ? 26.0 : 34.0;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(40),
           child: CircleAvatar(
-            radius: 34,
+            radius: radius,
             backgroundColor: color,
-            child: Icon(icon, color: Colors.white, size: 30),
+            child: Icon(icon, color: Colors.white, size: compact ? 24 : 30),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           label,
           style: TextStyleCustom.outFitMedium500(
             color: whitePure(context).withValues(alpha: 0.85),
-            fontSize: 13,
+            fontSize: compact ? 12 : 13,
           ),
         ),
       ],
@@ -213,13 +338,41 @@ class IncomingCallController extends GetxController {
     } catch (_) {}
   }
 
+  void _closeIncomingUi() {
+    final ctx = Get.overlayContext ?? Get.context;
+    if (ctx != null) {
+      final nav = Navigator.of(ctx, rootNavigator: true);
+      if (nav.canPop()) {
+        nav.pop();
+        return;
+      }
+    }
+    if (Get.isDialogOpen == true || Get.key.currentState?.canPop() == true) {
+      Get.back();
+    }
+  }
+
   Future<void> accept() async {
     if (_busy || call.id == null) return;
     _busy = true;
     await _stopRingtone();
     try {
       final updated = await CallService.instance.accept(call.id!);
-      Get.off(() => VideoCallScreen(call: updated));
+      final live = LivestreamScreenController.activeInstance;
+      final keepLive = live != null;
+      // Liberar cámara/mic del LIVE para que la videollamada pueda conectar.
+      if (keepLive) {
+        try {
+          await live.pauseLiveKitForCall();
+        } catch (_) {}
+      }
+      _closeIncomingUi();
+      await Future.delayed(const Duration(milliseconds: 80));
+      if (keepLive) {
+        Get.to(() => VideoCallScreen(call: updated, resumeLiveOnHangup: true));
+      } else {
+        Get.off(() => VideoCallScreen(call: updated));
+      }
     } catch (e) {
       errorText.value = e.toString().replaceFirst('Exception: ', '');
       _busy = false;
@@ -233,7 +386,7 @@ class IncomingCallController extends GetxController {
     await _stopRingtone();
     try {
       await CallService.instance.reject(call.id!);
-      if (Get.key.currentState?.canPop() == true) Get.back();
+      _closeIncomingUi();
     } catch (e) {
       errorText.value = e.toString().replaceFirst('Exception: ', '');
       _busy = false;

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
@@ -49,21 +50,25 @@ class OutgoingCallScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 24),
                 Obx(() => Text(
                       controller.subtitle.value,
+                      textAlign: TextAlign.center,
                       style: TextStyleCustom.outFitRegular400(
                         color: whitePure(context).withValues(alpha: 0.75),
                         fontSize: 15,
                       ),
                     )),
                 const SizedBox(height: 36),
-                CustomImage(
-                  size: const Size(120, 120),
-                  image: callee.profilePhoto?.addBaseURL(),
-                  fullName: callee.fullname ?? callee.username,
-                  strokeWidth: 0,
+                Center(
+                  child: CustomImage(
+                    size: const Size(120, 120),
+                    image: callee.profilePhoto?.addBaseURL(),
+                    fullName: callee.fullname ?? callee.username,
+                    strokeWidth: 0,
+                  ),
                 ),
                 const SizedBox(height: 22),
                 Text(
@@ -78,6 +83,7 @@ class OutgoingCallScreen extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     '@${callee.username}',
+                    textAlign: TextAlign.center,
                     style: TextStyleCustom.outFitRegular400(
                       color: whitePure(context).withValues(alpha: 0.55),
                       fontSize: 14,
@@ -86,26 +92,28 @@ class OutgoingCallScreen extends StatelessWidget {
                 ],
                 const SizedBox(height: 14),
                 if (cost > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white10,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Image.asset(AssetRes.icCoin, height: 16, width: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          LKey.callCostPerMin.trParams({'coins': '$cost'}),
-                          style: TextStyleCustom.outFitMedium500(
-                            color: whitePure(context),
-                            fontSize: 13,
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(AssetRes.icCoin, height: 16, width: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            LKey.callCostPerMin.trParams({'coins': '$cost'}),
+                            style: TextStyleCustom.outFitMedium500(
+                              color: whitePure(context),
+                              fontSize: 13,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 const Spacer(),
@@ -126,19 +134,22 @@ class OutgoingCallScreen extends StatelessWidget {
                     ),
                   );
                 }),
-                InkWell(
-                  onTap: controller.cancelAndClose,
-                  borderRadius: BorderRadius.circular(40),
-                  child: const CircleAvatar(
-                    radius: 34,
-                    backgroundColor: ColorRes.likeRed,
-                    child: Icon(Icons.call_end,
-                        color: Colors.white, size: 32),
+                Center(
+                  child: InkWell(
+                    onTap: controller.cancelAndClose,
+                    borderRadius: BorderRadius.circular(40),
+                    child: const CircleAvatar(
+                      radius: 34,
+                      backgroundColor: ColorRes.likeRed,
+                      child: Icon(Icons.call_end,
+                          color: Colors.white, size: 32),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   LKey.cancelCall.tr,
+                  textAlign: TextAlign.center,
                   style: TextStyleCustom.outFitMedium500(
                     color: whitePure(context).withValues(alpha: 0.8),
                     fontSize: 14,
@@ -157,6 +168,9 @@ class OutgoingCallScreen extends StatelessWidget {
 class OutgoingCallController extends BaseController {
   OutgoingCallController({required this.callee, required this.cost});
 
+  /// Instancia activa para cerrar desde FCM `call_rejected`.
+  static OutgoingCallController? activeInstance;
+
   final User callee;
   final int cost;
 
@@ -171,6 +185,12 @@ class OutgoingCallController extends BaseController {
   final AudioPlayer _ringback = AudioPlayer();
 
   @override
+  void onInit() {
+    super.onInit();
+    activeInstance = this;
+  }
+
+  @override
   void onReady() {
     super.onReady();
     _startCall();
@@ -178,10 +198,118 @@ class OutgoingCallController extends BaseController {
 
   @override
   void onClose() {
+    if (identical(activeInstance, this)) {
+      activeInstance = null;
+    }
     _poll?.cancel();
     _timeout?.cancel();
     unawaited(_stopRingback(disposePlayer: true));
     super.onClose();
+  }
+
+  /// Cierre inmediato cuando el callee rechaza (push FCM).
+  static void handleRemoteRejected(int? callRequestId) {
+    final c = activeInstance;
+    if (c == null || c._closing || c._joined) return;
+    if (callRequestId != null &&
+        c.call?.id != null &&
+        c.call!.id != callRequestId) {
+      return;
+    }
+    unawaited(c._onRejected());
+  }
+
+  /// El receptor aceptó: una sola navegación a VideoCall (evita doble pantalla / kick LiveKit).
+  static void handleRemoteAccepted({
+    int? callRequestId,
+    String? roomId,
+    CallRequestModel? call,
+  }) {
+    final c = activeInstance;
+    if (c == null || c._closing || c._joined) return;
+    if (callRequestId != null &&
+        c.call?.id != null &&
+        c.call!.id != callRequestId) {
+      return;
+    }
+    unawaited(c._enterAcceptedCall(updated: call, roomId: roomId));
+  }
+
+  Future<void> _enterAcceptedCall({
+    CallRequestModel? updated,
+    String? roomId,
+  }) async {
+    if (_joined || _closing) return;
+    _joined = true;
+    _poll?.cancel();
+    _timeout?.cancel();
+    await _stopRingback();
+    subtitle.value = LKey.connecting.tr;
+
+    CallRequestModel? current = updated ?? call;
+    final rid = (roomId ?? current?.roomId ?? '').trim();
+
+    if (current == null ||
+        !current.isAccepted ||
+        (current.roomId ?? '').isEmpty) {
+      // Completar desde inbox o con room_id del push.
+      try {
+        final inbox = await CallService.instance.inbox();
+        for (final e in [...inbox.sent, ...inbox.received]) {
+          if (e.id == call?.id) {
+            current = e;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+
+    current ??= call;
+    if (current == null) {
+      _joined = false;
+      return;
+    }
+
+    if (rid.isNotEmpty && (current.roomId ?? '').isEmpty) {
+      current = CallRequestModel(
+        id: current.id,
+        callerId: current.callerId,
+        calleeId: current.calleeId,
+        coinsCost: current.coinsCost,
+        userLevel: current.userLevel,
+        status: 'accepted',
+        roomId: rid,
+        respondedAt: current.respondedAt,
+        endedAt: current.endedAt,
+        createdAt: current.createdAt,
+        caller: current.caller,
+        callee: current.callee,
+      );
+    } else if (current.status != 'accepted' && rid.isNotEmpty) {
+      current = CallRequestModel(
+        id: current.id,
+        callerId: current.callerId,
+        calleeId: current.calleeId,
+        coinsCost: current.coinsCost,
+        userLevel: current.userLevel,
+        status: 'accepted',
+        roomId: rid.isNotEmpty ? rid : current.roomId,
+        respondedAt: current.respondedAt,
+        endedAt: current.endedAt,
+        createdAt: current.createdAt,
+        caller: current.caller,
+        callee: current.callee,
+      );
+    }
+
+    if ((current.roomId ?? '').isEmpty) {
+      _joined = false;
+      subtitle.value = LKey.callFailed.tr;
+      return;
+    }
+
+    call = current;
+    Get.off(() => VideoCallScreen(call: current!));
   }
 
   Future<void> _startRingback() async {
@@ -223,7 +351,7 @@ class OutgoingCallController extends BaseController {
       }
       subtitle.value = LKey.ringing.tr;
       await _startRingback();
-      _poll = Timer.periodic(const Duration(seconds: 2), (_) => _checkStatus());
+      _poll = Timer.periodic(const Duration(seconds: 1), (_) => _checkStatus());
       _timeout = Timer(const Duration(seconds: 45), () async {
         if (_joined || _closing) return;
         await _stopRingback();
@@ -234,13 +362,33 @@ class OutgoingCallController extends BaseController {
       });
     } catch (e) {
       await _stopRingback();
-      errorText.value = e.toString().replaceFirst('Exception: ', '');
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      errorText.value = msg;
       subtitle.value = LKey.callFailed.tr;
+      if (msg.toLowerCase().contains('insufficient') ||
+          msg.toLowerCase().contains('coin')) {
+        CoinGate.ensureEnough(cost, message: 'Moneda insuficiente');
+      }
       await Future.delayed(const Duration(milliseconds: 1200));
       if (!_closing && Get.key.currentState?.canPop() == true) {
         Get.back();
       }
     }
+  }
+
+  Future<void> _onRejected() async {
+    if (_joined || _closing) return;
+    _poll?.cancel();
+    _timeout?.cancel();
+    await _stopRingback();
+    subtitle.value = LKey.callRejected.tr;
+    final me = SessionManager.instance.getUser();
+    if (me != null && cost > 0) {
+      me.coinWallet = (me.coinWallet ?? 0) + cost;
+      SessionManager.instance.setUser(me);
+    }
+    await Future.delayed(const Duration(milliseconds: 900));
+    await cancelAndClose(skipCancelApi: true);
   }
 
   Future<void> _checkStatus() async {
@@ -258,36 +406,21 @@ class OutgoingCallController extends BaseController {
       if (updated == null) return;
       final current = updated;
       call = current;
+      final status = (current.status ?? '').toLowerCase().trim();
 
       if (current.isAccepted && (current.roomId ?? '').isNotEmpty) {
-        _joined = true;
-        _poll?.cancel();
-        _timeout?.cancel();
-        await _stopRingback();
-        subtitle.value = LKey.connecting.tr;
-        Get.off(() => VideoCallScreen(call: current));
+        await _enterAcceptedCall(updated: current);
         return;
       }
 
-      if (current.status == 'rejected') {
-        _poll?.cancel();
-        _timeout?.cancel();
-        await _stopRingback();
-        subtitle.value = LKey.callRejected.tr;
-        final me = SessionManager.instance.getUser();
-        // Reembolso lo hace el backend al reject; sincronizar local best-effort.
-        if (me != null && cost > 0) {
-          me.coinWallet = (me.coinWallet ?? 0) + cost;
-          SessionManager.instance.setUser(me);
-        }
-        await Future.delayed(const Duration(milliseconds: 1100));
-        await cancelAndClose(skipCancelApi: true);
+      if (status == 'rejected' || current.isRejected) {
+        await _onRejected();
         return;
       }
 
-      if (current.status == 'cancelled' ||
-          current.status == 'expired' ||
-          current.status == 'ended') {
+      if (status == 'cancelled' ||
+          status == 'expired' ||
+          status == 'ended') {
         _poll?.cancel();
         _timeout?.cancel();
         await _stopRingback();

@@ -1,4 +1,5 @@
 import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/post_story/comment/fetch_comment_model.dart';
 import 'package:krimson/model/post_story/post_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
@@ -102,6 +103,7 @@ class ActivityNotificationData {
     this.comment,
     this.reply,
     this.gift,
+    this.livestream,
   });
 
   ActivityNotificationData.fromJson(dynamic json) {
@@ -110,12 +112,16 @@ class ActivityNotificationData {
     reply = json['reply'] != null ? Comment.fromJson(json['reply']) : null;
     post = json['post'] != null ? Post.fromJson(json['post']) : null;
     gift = json['gift'] != null ? Gift.fromJson(json['gift']) : null;
+    livestream = json['livestream'] != null
+        ? Livestream.fromJson(Map<String, dynamic>.from(json['livestream']))
+        : null;
   }
 
   Post? post;
   Comment? comment;
   Comment? reply;
   Gift? gift;
+  Livestream? livestream;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -130,6 +136,9 @@ class ActivityNotificationData {
     }
     if (gift != null) {
       map['gift'] = gift?.toJson();
+    }
+    if (livestream != null) {
+      map['livestream'] = livestream?.toJson();
     }
     return map;
   }

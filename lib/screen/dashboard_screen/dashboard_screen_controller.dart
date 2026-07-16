@@ -14,6 +14,7 @@ import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/subscription/subscription_manager.dart';
 import 'package:krimson/common/widget/restart_widget.dart';
@@ -24,6 +25,7 @@ import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/feed_screen/feed_screen_controller.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_invite_dialog.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
@@ -111,8 +113,30 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     _fetchLanguageFromUser();
     _fetchUnReadCount();
     startCacheCleanupScheduler();
+    _startLiveInvitePoll();
     _subscribeFollowUserIds();
     updateDummyUsers();
+  }
+
+  Timer? _liveInvitePollTimer;
+
+  /// Poll de invitaciones LIVE (cubre Web/sin FCM real).
+  void _startLiveInvitePoll() {
+    _liveInvitePollTimer?.cancel();
+    Future.microtask(_pollLiveInvites);
+    _liveInvitePollTimer =
+        Timer.periodic(const Duration(seconds: 4), (_) => _pollLiveInvites());
+  }
+
+  Future<void> _pollLiveInvites() async {
+    try {
+      final invites = await LiveSessionService.instance.pendingInvites();
+      for (final stream in invites) {
+        await LiveInviteDialog.showIfNeeded(stream);
+      }
+    } catch (e) {
+      Loggers.error('pending live invites poll: $e');
+    }
   }
 
   void startCacheCleanupScheduler() {
@@ -124,6 +148,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
 
   @override
   void onClose() {
+    _liveInvitePollTimer?.cancel();
     animationController.dispose();
     _unReadCountSubscription?.cancel();
     super.onClose();

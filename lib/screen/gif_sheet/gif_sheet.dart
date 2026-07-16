@@ -50,6 +50,13 @@ class GifSheet extends StatelessWidget {
                   ? const LoaderWidget()
                   : NoDataView(
                       showShow: items.isEmpty,
+                      title: controller.emptyMessage.value?.isNotEmpty == true
+                          ? controller.emptyMessage.value
+                          : null,
+                      description: controller.emptyMessage.value?.isNotEmpty ==
+                              true
+                          ? ' '
+                          : null,
                       child: LoadMoreWidget(
                         loadMore: isTextEmpty
                             ? controller.fetchTrendingGiphy
