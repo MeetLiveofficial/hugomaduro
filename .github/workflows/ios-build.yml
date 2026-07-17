@@ -9,7 +9,7 @@ jobs:
   build-ios:
     name: Build iOS IPA (no codesign)
     runs-on: macos-14
-    timeout-minutes: 15
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
@@ -19,6 +19,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.44.0'
           cache: true
 
       - name: Flutter version
