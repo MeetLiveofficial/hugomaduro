@@ -8,7 +8,6 @@ import 'package:krimson/screen/hashtag_screen/hashtag_screen.dart';
 import 'package:krimson/screen/post_screen/single_post_screen.dart';
 import 'package:krimson/screen/reels_screen/reels_screen.dart';
 import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
-import 'package:krimson/screen/scan_qr_code_screen/scan_qr_code_screen.dart';
 
 class ExploreScreenController extends BaseController {
   Rx<ExplorePageData?> explorePageData = Rx(null);
@@ -45,9 +44,5 @@ class ExploreScreenController extends BaseController {
         Loggers.error('Post Type none');
         break;
     }
-  }
-
-  void onScanQrCode() {
-    Get.to(() => const ScanQrCodeScreen());
   }
 }

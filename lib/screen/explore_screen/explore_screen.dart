@@ -98,7 +98,7 @@ class SearchScreenTopView extends StatelessWidget {
                 ),
                 alignment: AlignmentDirectional.centerStart,
                 child: Text(
-                  LKey.searchHere.tr,
+                  '${LKey.posts.tr}, ${LKey.reels.tr}, ${LKey.users.tr}...',
                   style: TextStyleCustom.outFitLight300(
                     fontSize: 15,
                     color: textLightGrey(context),
@@ -107,11 +107,7 @@ class SearchScreenTopView extends StatelessWidget {
               ),
             ),
           ),
-          InkWell(
-            onTap: controller.onScanQrCode,
-            child: Image.asset(AssetRes.icQrCode, height: 26, width: 26),
-          ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 15),
         ],
       ),
     );
@@ -215,7 +211,18 @@ class SearchScreenGridView extends StatelessWidget {
   }
 
   List<Post> _preparePostList(HighPostHashtags highPostHashtags) {
-    final posts = List<Post>.from(highPostHashtags.postList ?? []);
+    // Explore: solo Posts y Reels (imagen / texto / reel / video).
+    final posts = List<Post>.from(highPostHashtags.postList ?? []).where((p) {
+      switch (p.postType) {
+        case PostType.image:
+        case PostType.text:
+        case PostType.reel:
+        case PostType.video:
+          return true;
+        case PostType.none:
+          return false;
+      }
+    }).toList();
 
     if (posts.length >= 5) {
       final reelPostIndex =

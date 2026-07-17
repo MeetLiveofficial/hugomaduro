@@ -45,10 +45,10 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     AssetRes.icChat,
     AssetRes.icProfile
   ];
-  /// Arranca siempre en LIVE (centro).
-  RxInt selectedPageIndex = tabLive.obs;
-  /// Dentro del tab Home: Reels o Feed (posts/stories).
-  final Rx<HomeTabMode> homeTabMode = HomeTabMode.reels.obs;
+  /// Home por defecto (descubrimiento LIVE). El tab centro es el estudio (cámara).
+  RxInt selectedPageIndex = tabHome.obs;
+  /// Dentro del tab Home: LIVE (activos) por defecto, Reels o Feed.
+  final Rx<HomeTabMode> homeTabMode = HomeTabMode.live.obs;
   RxDouble scaleValue = 1.0.obs;
   Function(int index)? onBottomIndexChanged;
   Rx<PostUploadingProgress> postProgress = Rx(PostUploadingProgress());
@@ -156,8 +156,9 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   onChanged(int index) {
-    final isDarkChrome =
-        index == tabHome && homeTabMode.value == HomeTabMode.reels;
+    final isDarkChrome = index == tabHome &&
+        (homeTabMode.value == HomeTabMode.reels ||
+            homeTabMode.value == HomeTabMode.live);
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
         statusBarBrightness:
             isDarkChrome ? Brightness.dark : Brightness.light));
@@ -175,11 +176,10 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
 
   void setHomeTabMode(HomeTabMode mode) {
     homeTabMode.value = mode;
+    final dark = (mode == HomeTabMode.reels || mode == HomeTabMode.live) &&
+        selectedPageIndex.value == tabHome;
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-        statusBarBrightness:
-            mode == HomeTabMode.reels && selectedPageIndex.value == tabHome
-                ? Brightness.dark
-                : Brightness.light));
+        statusBarBrightness: dark ? Brightness.dark : Brightness.light));
     if (mode == HomeTabMode.feed) {
       onFeedPostScrollDown(tabHome);
     }
@@ -268,7 +268,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 }
 
-enum HomeTabMode { reels, feed }
+enum HomeTabMode { live, reels, feed }
 
 class PostUploadingProgress {
   final CameraScreenType type;

@@ -1,205 +1,72 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:krimson/common/controller/firebase_firestore_controller.dart';
 import 'package:krimson/common/manager/session_manager.dart';
-import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/custom_border_round_icon.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/languages/languages_keys.dart';
-import 'package:krimson/model/livestream/app_user.dart';
-import 'package:krimson/model/livestream/livestream.dart';
+import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
-import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
+import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
+import 'package:retrytech_plugin/retrytech_plugin.dart';
 
+/// Estudio LIVE: preview estable (mismo patrón que CameraScreen) + Start Live.
 class LiveStreamSearchScreen extends StatelessWidget {
   const LiveStreamSearchScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(LiveStreamSearchScreenController());
+    final me = SessionManager.instance.getUser();
+    final displayName = () {
+      final n = (me?.fullname ?? me?.username ?? 'Host').trim();
+      return n.isEmpty ? 'Host' : n;
+    }();
 
     return Scaffold(
-      backgroundColor: scaffoldBackgroundColor(context),
-      appBar: AppBar(
-        backgroundColor: scaffoldBackgroundColor(context),
-        elevation: 0,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            LiveTvIcon(size: 28, color: textDarkGrey(context)),
-            const SizedBox(width: 8),
-            Text(
-              'LIVE',
-              style: TextStyleCustom.unboundedSemiBold600(
-                color: textDarkGrey(context),
-                fontSize: 18,
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Full-bleed: LayoutBuilder necesita bounds reales (Center+preload
+          // offstage dejaba size 0 → textura gris deformada).
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black,
+              child: _CameraPreview(controller: controller),
+            ),
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 240,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Color(0xE6000000)],
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: controller.refreshList,
-            icon: Icon(Icons.refresh, color: textDarkGrey(context)),
-            tooltip: LKey.refresh.tr,
-          ),
-        ],
-      ),
-      floatingActionButton: null,
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Obx(() {
-              final count = controller.livestreams.length;
-              return Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  count == 0
-                      ? LKey.noLivestreamsTitle.tr
-                      : '$count ${LKey.liveNow.tr}',
-                  style: TextStyleCustom.outFitMedium500(
-                    color: textLightGrey(context),
-                    fontSize: 13,
-                  ),
-                ),
-              );
-            }),
-          ),
-          Expanded(
-            child: Obx(() {
-              if (controller.isBootstrapping.value &&
-                  controller.livestreams.isEmpty) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (controller.livestreams.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        LiveTvIcon(
-                            size: 64, color: textLightGrey(context)),
-                        const SizedBox(height: 16),
-                        Text(
-                          LKey.noLivestreamsTitle.tr,
-                          textAlign: TextAlign.center,
-                          style: TextStyleCustom.unboundedSemiBold600(
-                            color: textDarkGrey(context),
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          LKey.noLivestreamsDescription.tr,
-                          textAlign: TextAlign.center,
-                          style: TextStyleCustom.outFitRegular400(
-                            color: textLightGrey(context),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              return RefreshIndicator(
-                onRefresh: controller.refreshList,
-                child: GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.72,
-                  ),
-                  itemCount: controller.livestreams.length,
-                  itemBuilder: (context, index) {
-                    final stream = controller.livestreams[index];
-                    return _LiveCard(
-                      stream: stream,
-                      onTap: () => controller.openLivestream(stream),
-                    );
-                  },
-                ),
-              );
-            }),
           ),
           SafeArea(
-            top: false,
-            child: Container(
-              width: double.infinity,
-              color: whitePure(context),
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Obx(() {
-                    if (controller.invitedIds.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '${LKey.invited.tr}: ${controller.invitedIds.length}',
-                          style: TextStyleCustom.outFitMedium500(
-                            color: themeAccentSolid(context),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      LiveHostActionBar(
-                        onBeauty: controller.openPreLiveBeauty,
-                        onInvite: controller.openPreLiveInvite,
-                        networkLabel: controller.networkLabel,
-                      ),
-                      const Spacer(),
-                      Material(
-                        color: ColorRes.themeGradient1,
-                        borderRadius: BorderRadius.circular(28),
-                        elevation: 2,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(28),
-                          onTap: controller.onTapGoLive,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const LiveTvIcon(
-                                    size: 20, color: Colors.white),
-                                const SizedBox(width: 8),
-                                Text(
-                                  LKey.startLive.tr,
-                                  style: TextStyleCustom.outFitMedium500(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            child: Column(
+              children: [
+                _TopBar(controller: controller),
+                const Spacer(),
+                _RightControls(controller: controller),
+                const SizedBox(height: 8),
+                _BottomBar(
+                  controller: controller,
+                  displayName: displayName,
+                ),
+              ],
             ),
           ),
         ],
@@ -208,155 +75,290 @@ class LiveStreamSearchScreen extends StatelessWidget {
   }
 }
 
-class _LiveCard extends StatelessWidget {
-  final Livestream stream;
-  final VoidCallback onTap;
+class _CameraPreview extends StatelessWidget {
+  final LiveStreamSearchScreenController controller;
 
-  const _LiveCard({required this.stream, required this.onTap});
-
-  AppUser? _resolveHost() {
-    if (Get.isRegistered<FirebaseFirestoreController>()) {
-      final users = Get.find<FirebaseFirestoreController>().users;
-      final fromFs = users.firstWhereOrNull((u) => u.userId == stream.hostId);
-      if (fromFs != null) return fromFs;
-    }
-    final dummy = SessionManager.instance
-        .getSettings()
-        ?.dummyLives
-        ?.firstWhereOrNull((d) => d.userId == stream.hostId)
-        ?.user;
-    if (dummy != null) {
-      return AppUser(
-        userId: dummy.id,
-        username: dummy.username,
-        fullname: dummy.fullname,
-        profile: dummy.profilePhoto,
-        isVerify: dummy.isVerify,
-        identity: dummy.identity,
-      );
-    }
-    return stream.hostUser;
-  }
+  const _CameraPreview({required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    final host = _resolveHost();
-    final title = (stream.description ?? '').trim().isEmpty
-        ? 'Live'
-        : stream.description!.trim();
+    return Obx(() {
+      final ready = controller.cameraReady.value;
+      final starting = controller.cameraStarting.value;
+      final gen = controller.cameraGeneration.value;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: StyleRes.themeGradient,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if ((stream.coverImage ?? '').isNotEmpty)
-              Positioned.fill(
-                child: CustomImage(
-                  size: const Size(400, 400),
-                  image: stream.coverImage,
-                  fit: BoxFit.cover,
-                  radius: 0,
-                  isShowPlaceHolder: true,
-                ),
-              )
-            else
-              ColoredBox(
-                color: Colors.black.withValues(alpha: 0.35),
-                child: Center(
-                  child: CustomImage(
-                    size: const Size(72, 72),
-                    image: host?.profile,
-                    fullName: host?.fullname ?? title,
-                    radius: 40,
+      if (!kIsWeb && ready) {
+        // Mismo enfoque que CameraScreen: AspectRatio fijo + clip.
+        // FittedBox/cover sin tamaño nativo deforma el PlatformView.
+        return KeyedSubtree(
+          key: ValueKey('live_cam_$gen'),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final maxH = constraints.maxHeight.isFinite
+                  ? constraints.maxHeight
+                  : MediaQuery.sizeOf(context).height;
+              final maxW = constraints.maxWidth.isFinite
+                  ? constraints.maxWidth
+                  : MediaQuery.sizeOf(context).width;
+              // 9:16 aprox. (0.56) — cubre sin estirar.
+              const ar = 9 / 16;
+              double w = maxW;
+              double h = w / ar;
+              if (h < maxH) {
+                h = maxH;
+                w = h * ar;
+              }
+              return ClipRect(
+                child: OverflowBox(
+                  minWidth: w,
+                  maxWidth: w,
+                  minHeight: h,
+                  maxHeight: h,
+                  alignment: Alignment.center,
+                  child: SizedBox(
+                    width: w,
+                    height: h,
+                    child: RetrytechPlugin.shared.cameraView,
                   ),
                 ),
-              ),
-            if ((stream.coverImage ?? '').isNotEmpty)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: Colors.black.withValues(alpha: 0.25),
-                ),
-              ),
-            Positioned(
-              top: 10,
-              left: 10,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'LIVE',
-                  style: TextStyleCustom.outFitMedium500(
-                    color: Colors.white,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.remove_red_eye,
-                        color: Colors.white, size: 12),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${stream.watchingCount ?? 0}',
-                      style: TextStyleCustom.outFitRegular400(
-                        color: Colors.white,
-                        fontSize: 11,
+              );
+            },
+          ),
+        );
+      }
+
+      return SizedBox(
+        width: MediaQuery.sizeOf(context).width,
+        height: MediaQuery.sizeOf(context).height * 0.7,
+        child: ColoredBox(
+          color: const Color(0xFF121212),
+          child: Center(
+            child: starting
+                ? const CircularProgressIndicator(color: Colors.white54)
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        kIsWeb
+                            ? Icons.smartphone_outlined
+                            : Icons.videocam_outlined,
+                        color: Colors.white38,
+                        size: 48,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      Text(
+                        kIsWeb
+                            ? 'Cámara en la app Android'
+                            : 'Activando cámara…',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (!kIsWeb) ...[
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: controller.restartPreviewCamera,
+                          child: Text(
+                            LKey.refresh.tr,
+                            style: TextStyleCustom.outFitMedium500(
+                              color: ColorRes.themeAccentSolid,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  final LiveStreamSearchScreenController controller;
+
+  const _TopBar({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Row(
+        children: [
+          CustomBorderRoundIcon(
+            image: AssetRes.icClose,
+            onTap: () {
+              controller.stopPreviewCamera();
+              if (Get.isRegistered<DashboardScreenController>()) {
+                Get.find<DashboardScreenController>()
+                    .onChanged(DashboardScreenController.tabHome);
+              }
+            },
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: ColorRes.themeAccentSolid,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.videocam, color: Colors.white, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  'LIVE',
+                  style: TextStyleCustom.outFitBold700(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
                 ),
+              ],
+            ),
+          ),
+          const Spacer(),
+          const SizedBox(width: 37),
+        ],
+      ),
+    );
+  }
+}
+
+class _RightControls extends StatelessWidget {
+  final LiveStreamSearchScreenController controller;
+
+  const _RightControls({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return const SizedBox.shrink();
+    }
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CustomBorderRoundIcon(
+              image: AssetRes.icCameraFlip,
+              onTap: controller.flipPreviewCamera,
+            ),
+            const SizedBox(height: 14),
+            CustomBorderRoundIcon(
+              widget: const Icon(Icons.auto_awesome,
+                  color: Colors.white, size: 22),
+              onTap: controller.openPreLiveBeauty,
+            ),
+            const SizedBox(height: 14),
+            CustomBorderRoundIcon(
+              widget:
+                  const Icon(Icons.group_add, color: Colors.white, size: 22),
+              onTap: controller.openPreLiveInvite,
+            ),
+            const SizedBox(height: 14),
+            CustomBorderRoundIcon(
+              widget: const Icon(Icons.refresh, color: Colors.white, size: 22),
+              onTap: controller.restartPreviewCamera,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomBar extends StatelessWidget {
+  final LiveStreamSearchScreenController controller;
+  final String displayName;
+
+  const _BottomBar({
+    required this.controller,
+    required this.displayName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              displayName,
+              style: TextStyleCustom.outFitSemiBold600(
+                color: Colors.white,
+                fontSize: 15,
               ),
             ),
-            Positioned(
-              left: 10,
-              right: 10,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    host?.fullname ?? host?.username ?? 'Host',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyleCustom.outFitMedium500(
-                      color: Colors.white,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: controller.editPreLiveTitle,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Obx(() {
+                  final t = controller.previewTitle.value.trim();
+                  return Text(
+                    t.isEmpty ? LKey.enterLiveStreamTitle.tr : t,
                     style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70,
-                      fontSize: 12,
+                      color: t.isEmpty ? Colors.white54 : Colors.white,
+                      fontSize: 14,
                     ),
+                  );
+                }),
+              ),
+            ),
+            Obx(() {
+              if (controller.invitedIds.isEmpty) {
+                return const SizedBox(height: 12);
+              }
+              return Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 4),
+                child: Text(
+                  '${LKey.invited.tr}: ${controller.invitedIds.length}',
+                  style: TextStyleCustom.outFitMedium500(
+                    color: ColorRes.themeAccentSolid,
+                    fontSize: 12,
                   ),
-                ],
+                ),
+              );
+            }),
+            Material(
+              color: ColorRes.themeAccentSolid,
+              borderRadius: BorderRadius.circular(28),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(28),
+                onTap: controller.onTapGoLive,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const LiveTvIcon(size: 22, color: Colors.white),
+                      const SizedBox(width: 10),
+                      Text(
+                        LKey.startLive.tr,
+                        style: TextStyleCustom.outFitSemiBold600(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],

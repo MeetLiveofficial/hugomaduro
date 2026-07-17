@@ -5,7 +5,7 @@ import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// Cambia entre Reels (videos) y Posts (feed) dentro del mismo tab.
+/// LIVE (lives activos) | REELS | POSTS dentro del tab Home.
 class HomeModeSwitcher extends StatelessWidget {
   final bool lightOnDark;
 
@@ -20,17 +20,20 @@ class HomeModeSwitcher extends StatelessWidget {
 
     return Obx(() {
       final mode = dash.homeTabMode.value;
-      final onLiveTab =
-          dash.selectedPageIndex.value == DashboardScreenController.tabLive;
+      final onHome =
+          dash.selectedPageIndex.value == DashboardScreenController.tabHome;
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _Chip(
             label: 'LIVE',
-            selected: onLiveTab,
+            selected: onHome && mode == HomeTabMode.live,
             selectedColor: active,
             unselectedColor: inactive,
-            onTap: () => dash.onChanged(DashboardScreenController.tabLive),
+            onTap: () {
+              dash.setHomeTabMode(HomeTabMode.live);
+              dash.onChanged(DashboardScreenController.tabHome);
+            },
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -44,7 +47,7 @@ class HomeModeSwitcher extends StatelessWidget {
           ),
           _Chip(
             label: LKey.reels.tr,
-            selected: !onLiveTab && mode == HomeTabMode.reels,
+            selected: onHome && mode == HomeTabMode.reels,
             selectedColor: active,
             unselectedColor: inactive,
             onTap: () {
@@ -64,7 +67,7 @@ class HomeModeSwitcher extends StatelessWidget {
           ),
           _Chip(
             label: LKey.posts.tr,
-            selected: !onLiveTab && mode == HomeTabMode.feed,
+            selected: onHome && mode == HomeTabMode.feed,
             selectedColor: active,
             unselectedColor: inactive,
             onTap: () {
