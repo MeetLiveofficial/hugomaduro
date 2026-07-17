@@ -78,4 +78,32 @@ class GiftWalletService {
     }
     return null;
   }
+
+  /// Crea factura NOWPayments. Devuelve mapa con invoice_url, order_id, etc.
+  Future<Map<String, dynamic>?> createCryptoPayment(
+      {required int coinPackageId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.createCryptoPayment,
+      fromJson: (j) => j,
+      param: {Params.coinPackageId: coinPackageId},
+    );
+    if (json['status'] != true) return null;
+    final data = json['data'];
+    if (data is! Map) return null;
+    return Map<String, dynamic>.from(data);
+  }
+
+  /// Consulta estado del pago crypto. Si finished, puede incluir user.
+  Future<Map<String, dynamic>?> checkCryptoPayment(
+      {required String orderId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.checkCryptoPayment,
+      fromJson: (j) => j,
+      param: {Params.orderId: orderId},
+    );
+    if (json['status'] != true) return null;
+    final data = json['data'];
+    if (data is! Map) return null;
+    return Map<String, dynamic>.from(data);
+  }
 }

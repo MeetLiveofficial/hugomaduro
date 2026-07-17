@@ -66,7 +66,9 @@ class RechargeHistoryScreen extends StatelessWidget {
                                   item.note ??
                                       (item.source == 'admin'
                                           ? 'Admin'
-                                          : 'In-app purchase'),
+                                          : item.source == 'crypto'
+                                              ? 'Crypto (NOWPayments)'
+                                              : 'In-app purchase'),
                                   style: TextStyleCustom.outFitRegular400(
                                     color: textLightGrey(context),
                                     fontSize: 12,

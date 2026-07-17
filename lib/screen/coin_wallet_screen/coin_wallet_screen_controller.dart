@@ -1,6 +1,11 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/gift_wallet_service.dart';
@@ -10,6 +15,9 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class CoinWalletScreenController extends BaseController {
   Rx<User?> myUser = Rx<User?>(null);
@@ -85,7 +93,7 @@ class CoinWalletScreenController extends BaseController {
               '',
           priceString: priceString,
           image: data.image,
-          canPurchaseViaStore: matched != null,
+          canPurchaseViaStore: matched != null && !kIsWeb,
         ),
       );
     }
@@ -97,6 +105,83 @@ class CoinWalletScreenController extends BaseController {
   }
 
   void onPurchase(CoinPlan offer) {
+    if (offer.canPurchaseViaStore) {
+      _showPaymentMethodSheet(offer);
+      return;
+    }
+    onPurchaseCrypto(offer);
+  }
+
+  void _showPaymentMethodSheet(CoinPlan offer) {
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          decoration: BoxDecoration(
+            color: Get.theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Método de pago',
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitMedium500(
+                  color: textDarkGrey(Get.context!),
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                offer.priceString.isEmpty
+                    ? '${offer.coin} monedas'
+                    : '${offer.coin} monedas · ${offer.priceString}',
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitRegular400(
+                  color: textLightGrey(Get.context!),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.phone_android),
+                title: const Text('App Store / Play Store'),
+                subtitle: const Text('Compra in-app'),
+                onTap: () {
+                  Get.back();
+                  onPurchaseStore(offer);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.currency_bitcoin),
+                title: const Text('Criptomonedas'),
+                subtitle: const Text('USDT, BTC y más (NOWPayments)'),
+                onTap: () {
+                  Get.back();
+                  onPurchaseCrypto(offer);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void onPurchaseStore(CoinPlan offer) {
     if (!offer.canPurchaseViaStore) {
       showSnackBar(
         'Las compras in-app requieren App Store / Play Store y RevenueCat configurado.',
@@ -134,6 +219,199 @@ class CoinWalletScreenController extends BaseController {
         stopLoader();
       }
     });
+  }
+
+  Future<void> onPurchaseCrypto(CoinPlan offer) async {
+    if (offer.coinPackageId < 1) {
+      showSnackBar(LKey.somethingWentWrong.tr);
+      return;
+    }
+
+    showLoader(barrierDismissible: false);
+    final created = await GiftWalletService.instance
+        .createCryptoPayment(coinPackageId: offer.coinPackageId);
+    stopLoader();
+
+    if (created == null) {
+      showSnackBar('No se pudo iniciar el pago crypto. Intenta de nuevo.');
+      return;
+    }
+
+    final invoiceUrl = (created['invoice_url'] ?? '').toString();
+    final orderId = (created['order_id'] ?? '').toString();
+    if (invoiceUrl.isEmpty || orderId.isEmpty) {
+      showSnackBar(LKey.somethingWentWrong.tr);
+      return;
+    }
+
+    final launched = await invoiceUrl.lunchUrl;
+    if (launched.status != true) {
+      showSnackBar('No se pudo abrir la página de pago.');
+      return;
+    }
+
+    await _showCryptoPendingDialog(orderId);
+  }
+
+  Future<void> _showCryptoPendingDialog(String orderId) async {
+    await Get.dialog(
+      _CryptoPaymentPendingDialog(
+        orderId: orderId,
+        onFinished: (user) {
+          if (user != null) {
+            myUser.value = user;
+            SessionManager.instance.setUser(user);
+          }
+        },
+      ),
+      barrierDismissible: false,
+    );
+  }
+}
+
+class _CryptoPaymentPendingDialog extends StatefulWidget {
+  final String orderId;
+  final void Function(User? user) onFinished;
+
+  const _CryptoPaymentPendingDialog({
+    required this.orderId,
+    required this.onFinished,
+  });
+
+  @override
+  State<_CryptoPaymentPendingDialog> createState() =>
+      _CryptoPaymentPendingDialogState();
+}
+
+class _CryptoPaymentPendingDialogState
+    extends State<_CryptoPaymentPendingDialog> {
+  Timer? _timer;
+  String _status = 'pending';
+  bool _checking = false;
+  String? _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) => _poll());
+    _poll();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _poll() async {
+    if (_checking) return;
+    _checking = true;
+    try {
+      final data = await GiftWalletService.instance
+          .checkCryptoPayment(orderId: widget.orderId);
+      if (!mounted || data == null) return;
+
+      final status = (data['status'] ?? 'pending').toString();
+      setState(() {
+        _status = status;
+        if (status == 'confirming') {
+          _message = 'Confirmando en blockchain…';
+        } else if (status == 'partially_paid') {
+          _message = 'Pago parcial detectado. Completa el monto.';
+        } else if (status == 'failed' || status == 'expired') {
+          _message = 'El pago no se completó.';
+        } else {
+          _message = 'Esperando tu pago en crypto…';
+        }
+      });
+
+      if (status == 'finished') {
+        _timer?.cancel();
+        final user = await UserService.instance.fetchUserDetails(
+          userId: SessionManager.instance.getUserID(),
+        );
+        widget.onFinished(user);
+        if (mounted) {
+          Get.back();
+          Get.snackbar(
+            '',
+            'Monedas acreditadas correctamente',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.black87,
+            colorText: Colors.white,
+            margin: const EdgeInsets.all(12),
+            titleText: const SizedBox.shrink(),
+            messageText: const Text(
+              'Monedas acreditadas correctamente',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white),
+            ),
+          );
+        }
+      } else if (status == 'failed' || status == 'expired' || status == 'refunded') {
+        _timer?.cancel();
+      }
+    } finally {
+      _checking = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = _status == 'failed' ||
+        _status == 'expired' ||
+        _status == 'refunded';
+
+    return AlertDialog(
+      title: Text(
+        failed ? 'Pago no completado' : 'Pago crypto en curso',
+        style: TextStyleCustom.outFitMedium500(
+          color: textDarkGrey(context),
+          fontSize: 16,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!failed) ...[
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(height: 14),
+          ],
+          Text(
+            _message ??
+                (failed
+                    ? 'Puedes cerrar e intentar de nuevo.'
+                    : 'Completa el pago en el navegador. Esta ventana se actualizará sola.'),
+            textAlign: TextAlign.center,
+            style: TextStyleCustom.outFitRegular400(
+              color: textLightGrey(context),
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Get.back(),
+          child: Text(
+            failed ? 'Cerrar' : 'Seguir en segundo plano',
+            style: TextStyle(color: ColorRes.themeAccentSolid),
+          ),
+        ),
+        if (!failed)
+          TextButton(
+            onPressed: _poll,
+            child: Text(
+              'Verificar ahora',
+              style: TextStyle(color: ColorRes.themeAccentSolid),
+            ),
+          ),
+      ],
+    );
   }
 }
 

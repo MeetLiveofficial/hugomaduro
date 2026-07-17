@@ -82,6 +82,8 @@ class _GiftWallet {
   String fetchMyRecharges = "${apiURL}misc/fetchMyRecharges";
   String submitWithdrawalRequest = "${apiURL}misc/submitWithdrawalRequest";
   String buyCoins = "${apiURL}misc/buyCoins";
+  String createCryptoPayment = "${apiURL}misc/createCryptoPayment";
+  String checkCryptoPayment = "${apiURL}misc/checkCryptoPayment";
 }
 
 class _User {
