@@ -329,7 +329,7 @@ class ReelsScreenController extends BaseController {
     if (reelPageType == ReelPageType.home &&
         (dashController.selectedPageIndex.value !=
                 DashboardScreenController.tabHome ||
-            dashController.homeTabMode.value == HomeTabMode.feed)) {
+            dashController.homeTabMode.value != HomeTabMode.reels)) {
       return;
     }
 

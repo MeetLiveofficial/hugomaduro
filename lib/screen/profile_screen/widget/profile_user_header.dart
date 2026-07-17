@@ -184,6 +184,33 @@ class ProfileUserHeader extends StatelessWidget {
                 ),
               ],
             ),
+            // Tags idioma / país (pills).
+            if (_profileTagLabels(user).isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final tag in _profileTagLabels(user))
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: tag.$2,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          tag.$1,
+                          style: TextStyleCustom.outFitMedium500(
+                            color: Colors.white,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: InkWell(
@@ -272,32 +299,35 @@ class ProfileUserHeader extends StatelessWidget {
             if (isMe) ...[
               InkWell(
                 onTap: () => Get.to(() => const PrivilegeHubScreen()),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(14),
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     gradient: StyleRes.themeGradient,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(LKey.svip.tr,
-                                style: TextStyleCustom.unboundedSemiBold600(
-                                    color: whitePure(context), fontSize: 18)),
-                            const SizedBox(height: 4),
-                            Text(LKey.learnMore.tr,
-                                style: TextStyleCustom.outFitRegular400(
-                                    color: whitePure(context), fontSize: 12)),
-                          ],
+                      Text(
+                        LKey.svip.tr,
+                        style: TextStyleCustom.unboundedSemiBold600(
+                          color: whitePure(context),
+                          fontSize: 12,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        LKey.learnMore.tr,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: whitePure(context).withValues(alpha: 0.85),
+                          fontSize: 11,
+                        ),
+                      ),
+                      const Spacer(),
                       Icon(Icons.workspace_premium,
-                          color: whitePure(context), size: 36),
+                          color: whitePure(context), size: 18),
                     ],
                   ),
                 ),
@@ -740,4 +770,38 @@ class _IconAction extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Pills de idioma / país para el header de perfil.
+List<(String, Color)> _profileTagLabels(User user) {
+  final tags = <(String, Color)>[];
+  final lang = _languageDisplayName(user.appLanguage);
+  if (lang != null) {
+    tags.add((lang, const Color(0xFF60A5FA)));
+  }
+  final country = (user.country ?? '').trim();
+  if (country.isNotEmpty) {
+    tags.add((country, const Color(0xFFA78BFA)));
+  }
+  return tags;
+}
+
+String? _languageDisplayName(String? code) {
+  if (code == null || code.trim().isEmpty) return null;
+  final c = code.trim().toLowerCase().split(RegExp(r'[_-]')).first;
+  const map = {
+    'es': 'Spanish',
+    'en': 'English',
+    'pt': 'Portuguese',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'ar': 'Arabic',
+    'hi': 'Hindi',
+    'zh': 'Chinese',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'ru': 'Russian',
+  };
+  return map[c] ?? c.toUpperCase();
 }

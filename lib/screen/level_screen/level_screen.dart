@@ -3,15 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
-import 'package:krimson/common/widget/gradient_border.dart';
-import 'package:krimson/common/widget/gradient_text.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/utilities/asset_res.dart';
-import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
+/// Pantalla de niveles con contraste y jerarquía más legibles.
 class LevelScreen extends StatelessWidget {
   final UserLevel? userLevels;
 
@@ -19,220 +18,355 @@ class LevelScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<UserLevel> levels =
-        SessionManager.instance.getSettings()?.userLevels ?? [];
-    levels = [...levels]
+    final levels = [...(SessionManager.instance.getSettings()?.userLevels ?? [])]
       ..sort((a, b) => a.coinsCollection.compareTo(b.coinsCollection));
     final current = userLevels ?? SessionManager.instance.getUser()?.getLevel;
+    final accent = themeAccentSolid(context);
+    final bg = scaffoldBackgroundColor(context);
 
     return Scaffold(
+      backgroundColor: bg,
       body: Column(
         children: [
-          Container(
-            decoration: BoxDecoration(gradient: StyleRes.themeGradient),
-            child: SafeArea(
-                bottom: false,
-                child: Column(
-                  children: [
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: InkWell(
-                        onTap: Get.back,
-                        child: Padding(
-                          padding: const EdgeInsets.only(
-                              left: 20.0, right: 20.0, top: 10),
-                          child: Icon(Icons.arrow_back,
-                              color: whitePure(context)),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                          left: 32, right: 32, bottom: 20),
-                      child: Column(
-                        children: [
-                          Text(
-                            LKey.myLevel.tr.toUpperCase(),
-                            style: TextStyleCustom.unboundedExtraBold800(
-                                fontSize: 36, color: whitePure(context)),
-                          ),
-                          if ((current?.title ?? '').isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              current!.title!,
-                              style: TextStyleCustom.outFitMedium500(
-                                  fontSize: 16, color: whitePure(context)),
-                            ),
-                          ],
-                          const SizedBox(height: 10),
-                          Text(
-                            LKey.gatherMoreCoins.tr,
-                            style: TextStyleCustom.outFitRegular400(
-                                fontSize: 15, color: whitePure(context)),
-                            textAlign: TextAlign.center,
-                          ),
-                          if ((current?.benefits ?? []).isNotEmpty) ...[
-                            const SizedBox(height: 14),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: whitePure(context).withValues(alpha: .15),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(LKey.benefits.tr,
-                                      style: TextStyleCustom.outFitMedium500(
-                                          color: whitePure(context),
-                                          fontSize: 14)),
-                                  const SizedBox(height: 6),
-                                  ...current!.benefits.map(
-                                    (b) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 4),
-                                      child: Text('• $b',
-                                          style:
-                                              TextStyleCustom.outFitRegular400(
-                                                  color: whitePure(context),
-                                                  fontSize: 13)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    )
-                  ],
-                )),
+          _Header(
+            current: current,
+            accent: accent,
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 25.0, right: 25.0, top: 20),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(LKey.level.tr,
-                    style: TextStyleCustom.outFitRegular400(
-                        color: textLightGrey(context), fontSize: 15)),
-                Text(LKey.collection.tr,
-                    style: TextStyleCustom.outFitRegular400(
-                        color: textLightGrey(context), fontSize: 15)),
+                Text(
+                  LKey.level.tr,
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: textDarkGrey(context),
+                    fontSize: 14,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  LKey.collection.tr,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: textLightGrey(context),
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
           ),
           Expanded(
             child: ListView.builder(
               itemCount: levels.length,
-              padding: const EdgeInsets.only(bottom: 24),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
               itemBuilder: (context, index) {
-                UserLevel level = levels[index];
-                bool isLevelCurrent = level.level == current?.level;
-                return Container(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                  decoration: ShapeDecoration(
-                      shape: SmoothRectangleBorder(
-                          borderRadius: SmoothBorderRadius(
-                              cornerRadius: 10, cornerSmoothing: 1))),
-                  child: GradientBorder(
-                    strokeWidth: 2,
-                    radius: 10,
-                    gradient: isLevelCurrent
-                        ? StyleRes.themeGradient
-                        : StyleRes.textLightGreyGradient(opacity: .2),
-                    child: Container(
-                      decoration: ShapeDecoration(
-                          shape: SmoothRectangleBorder(
-                              borderRadius: SmoothBorderRadius(
-                                  cornerRadius: 10, cornerSmoothing: 1),
-                              side: BorderSide(
-                                color:
-                                    textLightGrey(context).withValues(alpha: 0),
-                              )),
-                          color: bgLightGrey(context)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      margin: const EdgeInsets.all(2),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              GradientText(
-                                'Lv ${level.level}',
-                                gradient: isLevelCurrent
-                                    ? StyleRes.themeGradient
-                                    : StyleRes.textLightGreyGradient(),
-                                style: TextStyleCustom.outFitBold700(
-                                    color: textLightGrey(context),
-                                    fontSize: 18),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  level.title?.isNotEmpty == true
-                                      ? level.title!
-                                      : '${LKey.level.tr} ${level.level}',
-                                  style: TextStyleCustom.outFitMedium500(
-                                      color: textDarkGrey(context),
-                                      fontSize: 14),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (isLevelCurrent)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                      gradient: StyleRes.themeGradient,
-                                      borderRadius: BorderRadius.circular(8)),
-                                  child: Text(LKey.you.tr,
-                                      style: TextStyleCustom.outFitSemiBold600(
-                                          color: whitePure(context),
-                                          fontSize: 12)),
-                                ),
-                              const SizedBox(width: 8),
-                              Image.asset(AssetRes.icCoin,
-                                  width: 16, height: 16),
-                              const SizedBox(width: 4),
-                              Text(level.coinsCollection.numberFormat,
-                                  style: TextStyleCustom.outFitRegular400(
-                                      fontSize: 14,
-                                      color: textLightGrey(context))),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${LKey.callPrice.tr}: ${level.callRequestCoins} ${LKey.coins.tr}',
-                            style: TextStyleCustom.outFitRegular400(
-                                fontSize: 12, color: textLightGrey(context)),
-                          ),
-                          Text(
-                            '${LKey.receiveCalls.tr}: ${level.canReceiveCalls == 1 ? LKey.yes.tr : LKey.no.tr}',
-                            style: TextStyleCustom.outFitRegular400(
-                                fontSize: 12, color: textLightGrey(context)),
-                          ),
-                          if (level.benefits.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            ...level.benefits.take(3).map(
-                                  (b) => Text('• $b',
-                                      style: TextStyleCustom.outFitLight300(
-                                          fontSize: 12,
-                                          color: textLightGrey(context))),
-                                ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    onPressed: () {},
-                  ),
+                final level = levels[index];
+                final isCurrent = level.level == current?.level;
+                return _LevelCard(
+                  level: level,
+                  isCurrent: isCurrent,
+                  accent: accent,
                 );
               },
             ),
-          )
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  final UserLevel? current;
+  final Color accent;
+
+  const _Header({required this.current, required this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    final benefits = current?.benefits ?? const <String>[];
+
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Color(0xFF141418),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconButton(
+                onPressed: Get.back,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white, size: 20),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                LKey.myLevel.tr,
+                style: TextStyleCustom.unboundedBold700(
+                  fontSize: 26,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: accent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      current?.title?.isNotEmpty == true
+                          ? current!.title!
+                          : '${LKey.level.tr} ${current?.level ?? 1}',
+                      style: TextStyleCustom.outFitSemiBold600(
+                        fontSize: 13,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      LKey.gatherMoreCoins.tr,
+                      style: TextStyleCustom.outFitRegular400(
+                        fontSize: 13,
+                        color: Colors.white70,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              if (benefits.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E24),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.45),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        LKey.benefits.tr,
+                        style: TextStyleCustom.outFitSemiBold600(
+                          color: accent,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...benefits.map(
+                        (b) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: accent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  b,
+                                  style: TextStyleCustom.outFitRegular400(
+                                    color: Colors.white.withValues(alpha: 0.92),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LevelCard extends StatelessWidget {
+  final UserLevel level;
+  final bool isCurrent;
+  final Color accent;
+
+  const _LevelCard({
+    required this.level,
+    required this.isCurrent,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isCurrent
+        ? accent
+        : textLightGrey(context).withValues(alpha: 0.25);
+    final fill = isCurrent
+        ? accent.withValues(alpha: 0.06)
+        : bgLightGrey(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: ShapeDecoration(
+        color: fill,
+        shape: SmoothRectangleBorder(
+          borderRadius: SmoothBorderRadius(cornerRadius: 14, cornerSmoothing: 1),
+          side: BorderSide(color: borderColor, width: isCurrent ? 1.8 : 1),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isCurrent
+                      ? accent
+                      : textLightGrey(context).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Lv ${level.level}',
+                  style: TextStyleCustom.outFitBold700(
+                    color: isCurrent ? Colors.white : textDarkGrey(context),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  level.title?.isNotEmpty == true
+                      ? level.title!
+                      : '${LKey.level.tr} ${level.level}',
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: isCurrent ? accent : textDarkGrey(context),
+                    fontSize: 15,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (isCurrent)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    LKey.you.tr,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              Image.asset(AssetRes.icCoin, width: 16, height: 16),
+              const SizedBox(width: 4),
+              Text(
+                level.coinsCollection.numberFormat,
+                style: TextStyleCustom.outFitMedium500(
+                  fontSize: 14,
+                  color: textDarkGrey(context),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _MetaChip(
+                label:
+                    '${LKey.callPrice.tr}: ${level.callRequestCoins} ${LKey.coins.tr}',
+                emphasized: isCurrent,
+              ),
+              _MetaChip(
+                label:
+                    '${LKey.receiveCalls.tr}: ${level.canReceiveCalls == 1 ? LKey.yes.tr : LKey.no.tr}',
+                emphasized: isCurrent && level.canReceiveCalls == 1,
+              ),
+            ],
+          ),
+          if (level.benefits.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            ...level.benefits.take(3).map(
+                  (b) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '• $b',
+                      style: TextStyleCustom.outFitRegular400(
+                        fontSize: 12,
+                        color: textDarkGrey(context).withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ),
+                ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final String label;
+  final bool emphasized;
+
+  const _MetaChip({required this.label, this.emphasized = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: emphasized
+            ? ColorRes.themeAccentSolid.withValues(alpha: 0.1)
+            : bgMediumGrey(context),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyleCustom.outFitMedium500(
+          fontSize: 11,
+          color: emphasized
+              ? ColorRes.themeAccentSolid
+              : textDarkGrey(context).withValues(alpha: 0.8),
+        ),
       ),
     );
   }

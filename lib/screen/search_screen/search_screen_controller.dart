@@ -6,15 +6,12 @@ import 'package:krimson/common/service/api/post_service.dart';
 import 'package:krimson/common/service/api/search_service.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
 import 'package:krimson/languages/languages_keys.dart';
-import 'package:krimson/model/post_story/hashtag_model.dart';
 import 'package:krimson/model/post_story/post_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
-import 'package:krimson/screen/hashtag_screen/hashtag_screen.dart';
 
 class SearchScreenController extends BaseController {
   List<SearchTabs> searchTabs = SearchTabs.values;
   Rx<SearchTabs> selectedTabIndex = SearchTabs.values.first.obs;
-  RxList<Hashtag> hashtags = <Hashtag>[].obs;
   RxList<Post> posts = <Post>[].obs;
   RxList<Post> reels = <Post>[].obs;
   RxList<User> users = <User>[].obs;
@@ -22,7 +19,6 @@ class SearchScreenController extends BaseController {
   RxBool isFeedLoading = false.obs;
   RxBool isReelsLoading = false.obs;
   RxBool isUsersLoading = false.obs;
-  RxBool isHashTagsLoading = false.obs;
 
   TextEditingController searchKeyword = TextEditingController();
 
@@ -51,7 +47,7 @@ class SearchScreenController extends BaseController {
     }
     DebounceAction.shared.call(() {
       switch (selectedTabIndex.value) {
-        case SearchTabs.feed:
+        case SearchTabs.posts:
           searchPosts(reset: true);
           break;
         case SearchTabs.reels:
@@ -59,9 +55,6 @@ class SearchScreenController extends BaseController {
           break;
         case SearchTabs.users:
           searchUsers(reset: true);
-          break;
-        case SearchTabs.hashtags:
-          searchHashTags(reset: true);
           break;
       }
     }, milliseconds: milliSecond);
@@ -111,47 +104,25 @@ class SearchScreenController extends BaseController {
     isUsersLoading.value = false;
   }
 
-  Future<void> searchHashTags({bool reset = false}) async {
-    isHashTagsLoading.value = true;
-    await Future.delayed(const Duration(seconds: 1));
-    List<Hashtag> items = await SearchService.instance.searchHashtags(
-        keyword: searchKeyword.text.trim(),
-        lastItemId: reset ? null : hashtags.lastOrNull?.id);
-    if (reset) {
-      hashtags.clear();
-    }
-    if (items.isNotEmpty) {
-      hashtags.addAll(items);
-    }
-    isHashTagsLoading.value = false;
-  }
-
   onUserTap(User user) {
     NavigationService.shared.openProfileScreen(user);
   }
-
-  void onHashTagTap(Hashtag hashTag) {
-    Get.to(HashtagScreen(hashtag: hashTag.hashtag ?? ''),
-        preventDuplicates: false);
-  }
 }
 
+/// Explore Search: Posts + Reels + Users.
 enum SearchTabs {
-  feed,
+  posts,
   reels,
-  users,
-  hashtags;
+  users;
 
   String get title {
     switch (this) {
-      case SearchTabs.feed:
-        return LKey.feed;
+      case SearchTabs.posts:
+        return LKey.posts;
       case SearchTabs.reels:
         return LKey.reels;
       case SearchTabs.users:
         return LKey.users;
-      case SearchTabs.hashtags:
-        return LKey.hashtags;
     }
   }
 }

@@ -10,18 +10,16 @@ import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
-import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/languages/languages_keys.dart';
-import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/livestream/livestream_user_state.dart';
 import 'package:krimson/model/user_model/user_model.dart';
-import 'package:krimson/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
+import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/utilities/const_res.dart';
@@ -29,22 +27,22 @@ import 'package:krimson/utilities/firebase_const.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:retrytech_plugin/retrytech_plugin.dart';
 
+/// Pre-live: cámara + ajustes + Start Live.
 class LiveStreamSearchScreenController extends BaseController {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
-  final RxList<Livestream> livestreams = <Livestream>[].obs;
-  final RxBool isBootstrapping = true.obs;
 
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
   StreamSubscription<List<ConnectivityResult>>? _netSub;
-  Timer? _laravelPoll;
+  Worker? _tabWorker;
+
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
+  final RxString previewTitle = ''.obs;
   final RxnString coverImageLocalPath = RxnString();
   final RxnString coverImageUploaded = RxnString();
   final Rxn<Uint8List> coverImageBytes = Rxn<Uint8List>();
 
-  /// Preferencias pre-live (beauty / invite / red).
   final RxBool beautyOn = false.obs;
   final RxDouble whiten = 50.0.obs;
   final RxDouble rosy = 40.0.obs;
@@ -55,11 +53,28 @@ class LiveStreamSearchScreenController extends BaseController {
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxBool inviteLoading = false.obs;
 
+  final RxBool cameraReady = false.obs;
+  final RxBool cameraStarting = false.obs;
+  final RxBool torchOn = false.obs;
+  /// Fuerza rebuild del PlatformView al reiniciar cámara.
+  final RxInt cameraGeneration = 0.obs;
+  bool _cameraActive = false;
+  int _startToken = 0;
+
   @override
   void onInit() {
     super.onInit();
+    titleController.addListener(() {
+      previewTitle.value = titleController.text;
+    });
     _listenNetwork();
-    _bootstrap();
+    _watchLiveTab();
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    _syncCameraWithTab();
   }
 
   void _listenNetwork() {
@@ -72,159 +87,155 @@ class LiveStreamSearchScreenController extends BaseController {
     });
   }
 
-  Future<void> _bootstrap() async {
-    try {
-      if (useFirebase) {
-        final ok = await FirebaseAppHelper.ensureInitialized();
-        if (!ok) {
-          showSnackBar(
-            'Firebase no disponible: ${FirebaseAppHelper.lastError ?? "init failed"}',
-          );
-        }
-        if (FirebaseAppHelper.isReady) {
-          await syncDummyLivesToFirestore();
-        }
-      }
-      _listenActiveLives();
-    } catch (e) {
-      final msg = e.toString();
-      if (msg.contains('core/no-app') || msg.contains('no-app')) {
-        showSnackBar('Firebase no inicializado. Reinicia la app.');
-      } else if (msg.toLowerCase().contains('not found')) {
-        showSnackBar(
-          'Firestore no creado. Firebase Console → Firestore → Create database.',
-        );
-      } else {
-        showSnackBar(msg);
-      }
-    } finally {
-      isBootstrapping.value = false;
-    }
+  void _watchLiveTab() {
+    if (!Get.isRegistered<DashboardScreenController>()) return;
+    final dash = Get.find<DashboardScreenController>();
+    _tabWorker?.dispose();
+    _tabWorker = ever(dash.selectedPageIndex, (_) => _syncCameraWithTab());
   }
 
-  /// Publica en Firestore los dummy lives del admin para que aparezcan en la lista.
-  Future<void> syncDummyLivesToFirestore() async {
-    if (!useFirebase) return;
-    if (!FirebaseAppHelper.isReady) return;
-    final settings = SessionManager.instance.getSettings();
-    if ((settings?.liveDummyShow ?? 0) != 1) return;
-
-    final dummyLives = settings?.dummyLives ?? [];
-    for (final dummy in dummyLives) {
-      if ((dummy.status ?? 0) != 1 || dummy.userId == null) continue;
-      final roomId = dummy.userId.toString();
-      final stream = Livestream(
-        description: (dummy.title ?? '').trim().isEmpty
-            ? 'Live'
-            : dummy.title!.trim(),
-        isRestrictToJoin: 0,
-        type: LivestreamType.dummy,
-        watchingCount: 0,
-        roomID: roomId,
-        hostViewID: -1,
-        likeCount: 0,
-        coHostIds: [],
-        hostId: dummy.userId,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        battleType: BattleType.initiate,
-        isDummyLive: 1,
-        dummyUserLink: dummy.link ?? '',
-      );
-      await _db
-          .collection(FirebaseConst.liveStreams)
-          .doc(roomId)
-          .set(stream.toJson(), SetOptions(merge: true));
-    }
-  }
-
-  void _listenActiveLives() {
-    if (!useFirebase) {
-      _refreshLaravelLives();
-      _laravelPoll?.cancel();
-      _laravelPoll = Timer.periodic(const Duration(seconds: 5), (_) {
-        _refreshLaravelLives(silent: true);
+  void _syncCameraWithTab() {
+    if (!Get.isRegistered<DashboardScreenController>()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        startPreviewCamera();
       });
       return;
     }
-
-    if (!FirebaseAppHelper.isReady) {
-      // Sin Firebase: muestra dummy lives locales desde settings.
-      final settings = SessionManager.instance.getSettings();
-      final list = <Livestream>[];
-      if ((settings?.liveDummyShow ?? 0) == 1) {
-        for (final dummy in settings?.dummyLives ?? <DummyLive>[]) {
-          if ((dummy.status ?? 0) != 1) continue;
-          list.add(Livestream(
-            description: dummy.title ?? 'Live',
-            isRestrictToJoin: 0,
-            type: LivestreamType.dummy,
-            watchingCount: 0,
-            roomID: '${dummy.userId}',
-            hostViewID: -1,
-            likeCount: 0,
-            coHostIds: [],
-            hostId: dummy.userId,
-            createdAt: DateTime.now().millisecondsSinceEpoch,
-            battleType: BattleType.initiate,
-            isDummyLive: 1,
-            dummyUserLink: dummy.link ?? '',
-          ));
-        }
-      }
-      livestreams.assignAll(list);
-      return;
-    }
-
-    _sub?.cancel();
-    _sub = _db.collection(FirebaseConst.liveStreams).snapshots().listen(
-      (snap) {
-        final items = snap.docs
-            .map((d) {
-              try {
-                return Livestream.fromJson(_safeLiveJson(d.data()));
-              } catch (_) {
-                return null;
-              }
-            })
-            .whereType<Livestream>()
-            .where((e) => (e.roomID ?? '').isNotEmpty)
-            .toList();
-        items.sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
-        livestreams.assignAll(items);
-      },
-      onError: (e) => showSnackBar(e.toString()),
-    );
-  }
-
-  Map<String, dynamic> _safeLiveJson(Map<String, dynamic> raw) {
-    final data = Map<String, dynamic>.from(raw);
-    data['co-host_ids'] ??= <dynamic>[];
-    data['watching_count'] ??= 0;
-    data['like_count'] ??= 0;
-    data['is_dummy_live'] ??= 0;
-    data['dummy_user_link'] ??= '';
-    data['battle_duration'] ??= 5;
-    data['type'] ??= LivestreamType.livestream.value;
-    data['battle_type'] ??= BattleType.initiate.value;
-    return data;
-  }
-
-  Future<void> refreshList() async {
-    isBootstrapping.value = true;
-    await _bootstrap();
-  }
-
-  void openLivestream(Livestream stream) {
-    final me = SessionManager.instance.getUser();
-    if (me == null) {
-      showSnackBar(LKey.somethingWentWrong.tr);
-      return;
-    }
-    if (stream.hostId == me.id) {
-      Get.to(() => LivestreamHostScreen(isHost: true, livestream: stream));
+    final onLive = Get.find<DashboardScreenController>().selectedPageIndex.value ==
+        DashboardScreenController.tabLive;
+    if (onLive) {
+      // Esperar un frame: IndexedStack offstage da size 0 y deforma el preview.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (isClosed) return;
+        startPreviewCamera();
+      });
     } else {
-      Get.to(() => LiveStreamAudienceScreen(isHost: false, livestream: stream));
+      stopPreviewCamera();
     }
+  }
+
+  Future<void> restartPreviewCamera() async {
+    stopPreviewCamera();
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (isClosed) return;
+    await startPreviewCamera();
+  }
+
+  Future<void> startPreviewCamera() async {
+    if (kIsWeb) {
+      cameraReady.value = false;
+      cameraStarting.value = false;
+      return;
+    }
+    if (_cameraActive || cameraStarting.value) return;
+    final token = ++_startToken;
+    cameraStarting.value = true;
+    cameraReady.value = false;
+    try {
+      var cam = await Permission.camera.status;
+      if (!cam.isGranted) {
+        cam = await Permission.camera.request();
+      }
+      var mic = await Permission.microphone.status;
+      if (!mic.isGranted) {
+        mic = await Permission.microphone.request();
+      }
+      if (token != _startToken || isClosed) return;
+      if (!cam.isGranted) {
+        showSnackBar(LKey.cameraMicrophonePermissionTitle.tr);
+        return;
+      }
+
+      try {
+        RetrytechPlugin.shared.disposeCamera;
+      } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (token != _startToken || isClosed) return;
+
+      RetrytechPlugin.shared.initCamera();
+      // Primer frame CameraX: dar margen antes de montar el PlatformView.
+      await Future.delayed(const Duration(milliseconds: 700));
+      if (token != _startToken || isClosed) {
+        try {
+          RetrytechPlugin.shared.disposeCamera;
+        } catch (_) {}
+        return;
+      }
+      _cameraActive = true;
+      cameraGeneration.value++;
+      cameraReady.value = true;
+    } catch (e) {
+      Loggers.error('Pre-live camera: $e');
+      cameraReady.value = false;
+      _cameraActive = false;
+    } finally {
+      if (token == _startToken) {
+        cameraStarting.value = false;
+      }
+    }
+  }
+
+  void stopPreviewCamera() {
+    _startToken++;
+    cameraStarting.value = false;
+    if (!_cameraActive && !cameraReady.value) {
+      cameraReady.value = false;
+      return;
+    }
+    try {
+      RetrytechPlugin.shared.disposeCamera;
+    } catch (e) {
+      Loggers.error('Dispose pre-live camera: $e');
+    }
+    _cameraActive = false;
+    cameraReady.value = false;
+    torchOn.value = false;
+  }
+
+  void flipPreviewCamera() {
+    if (kIsWeb || !cameraReady.value) return;
+    try {
+      RetrytechPlugin.shared.toggleCamera;
+    } catch (e) {
+      Loggers.error('Flip camera: $e');
+    }
+  }
+
+  void toggleTorch() {
+    if (kIsWeb || !cameraReady.value) return;
+    try {
+      RetrytechPlugin.shared.flashOnOff;
+      torchOn.value = !torchOn.value;
+    } catch (e) {
+      Loggers.error('Torch: $e');
+    }
+  }
+
+  Future<void> editPreLiveTitle() async {
+    final draft = TextEditingController(text: titleController.text);
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text(LKey.enterLiveStreamTitle.tr),
+        content: TextField(
+          controller: draft,
+          autofocus: true,
+          maxLength: 80,
+          decoration: InputDecoration(
+            hintText: LKey.enterLiveStreamTitle.tr,
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: Text(LKey.cancel.tr)),
+          TextButton(onPressed: () => Get.back(result: true), child: Text(LKey.done.tr)),
+        ],
+      ),
+    );
+    if (ok == true) {
+      titleController.text = draft.text.trim();
+      previewTitle.value = titleController.text;
+    }
+    draft.dispose();
   }
 
   Future<void> onTapGoLive() async {
@@ -235,7 +246,6 @@ class LiveStreamSearchScreenController extends BaseController {
       return;
     }
 
-    // Perfil usado como dummy live en admin
     final dummyConflict = (settings?.dummyLives ?? []).any(
       (d) => d.userId == user.id && (d.status ?? 0) == 1,
     );
@@ -245,14 +255,12 @@ class LiveStreamSearchScreenController extends BaseController {
     }
 
     if (kIsWeb) {
-      // En Web no hay cámara LiveKit nativa; aún así permitimos abrir host en modo demo.
       showSnackBar(
         'Live publishing on Web is limited. Prefer Android/iOS for full camera.',
         second: 3,
       );
     }
 
-    titleController.clear();
     invitedIds.clear();
     inviteCandidates.clear();
     final ok = await Get.bottomSheet<bool>(
@@ -261,6 +269,9 @@ class LiveStreamSearchScreenController extends BaseController {
       backgroundColor: Colors.transparent,
     );
     if (ok == true) {
+      // Liberar cámara nativa antes de LiveKit (evita conflicto de hardware).
+      stopPreviewCamera();
+      await Future.delayed(const Duration(milliseconds: 400));
       await _startLive(user);
     }
   }
@@ -324,21 +335,9 @@ class LiveStreamSearchScreenController extends BaseController {
     }
   }
 
-  Future<void> _refreshLaravelLives({bool silent = false}) async {
-    try {
-      final list = await LiveSessionService.instance.listActive();
-      livestreams.assignAll(list);
-    } catch (e) {
-      if (!silent) {
-        showSnackBar('Lives: $e');
-      }
-    }
-  }
-
   Future<void> pickLiveCover() async {
     try {
       if (!kIsWeb) {
-        // Android 13+: photos; antiguos: storage.
         final photos = await Permission.photos.request();
         if (!photos.isGranted && !photos.isLimited) {
           final storage = await Permission.storage.request();
@@ -366,7 +365,6 @@ class LiveStreamSearchScreenController extends BaseController {
         return;
       }
 
-      // Copia a path estable: en Android FileImage a veces falla con el path temporal.
       String stablePath = file.path;
       if (!kIsWeb) {
         final dir = await PlatformPathExtension.localPath;
@@ -396,6 +394,8 @@ class LiveStreamSearchScreenController extends BaseController {
     final details = descriptionController.text.trim();
     if (title.isEmpty) {
       showSnackBar(LKey.enterLiveStreamTitle.tr);
+      // Reabrir cámara si cancelamos por título vacío.
+      _syncCameraWithTab();
       return;
     }
 
@@ -435,6 +435,7 @@ class LiveStreamSearchScreenController extends BaseController {
         } catch (e) {
           stopLoader();
           showSnackBar('No se pudo subir la portada: $e');
+          _syncCameraWithTab();
           return;
         }
       }
@@ -473,8 +474,8 @@ class LiveStreamSearchScreenController extends BaseController {
             .set(hostState.toJson());
 
         for (final coHostId in coHosts) {
-          final invitee = inviteCandidates
-              .firstWhereOrNull((u) => u.id == coHostId);
+          final invitee =
+              inviteCandidates.firstWhereOrNull((u) => u.id == coHostId);
           final state = LivestreamUserState(
             type: LivestreamUserType.invited,
             userId: coHostId,
@@ -492,9 +493,8 @@ class LiveStreamSearchScreenController extends BaseController {
         }
       }
 
-      // Token LiveKit se solicita al entrar en LivestreamHostScreen.
       stopLoader();
-      Get.to(() => LivestreamHostScreen(
+      await Get.to(() => LivestreamHostScreen(
             isHost: true,
             livestream: stream,
             initialBeautyOn: beautyOn.value,
@@ -503,17 +503,20 @@ class LiveStreamSearchScreenController extends BaseController {
             initialSmooth: smooth.value,
             initialSharpen: sharpen.value,
           ));
+      // Al volver del host, reactivar preview si seguimos en tab LIVE.
+      _syncCameraWithTab();
     } catch (e) {
       stopLoader();
       showSnackBar(e.toString());
+      _syncCameraWithTab();
     }
   }
 
   @override
   void onClose() {
-    _sub?.cancel();
+    _tabWorker?.dispose();
     _netSub?.cancel();
-    _laravelPoll?.cancel();
+    stopPreviewCamera();
     titleController.dispose();
     descriptionController.dispose();
     super.onClose();

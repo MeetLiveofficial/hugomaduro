@@ -32,7 +32,8 @@ class DashboardScreen extends StatelessWidget {
       body: Obx(() {
         final hideBanner = controller.selectedPageIndex.value ==
                 DashboardScreenController.tabHome &&
-            controller.homeTabMode.value == HomeTabMode.reels;
+            (controller.homeTabMode.value == HomeTabMode.reels ||
+                controller.homeTabMode.value == HomeTabMode.live);
         return Column(
           children: [
             Expanded(
@@ -44,7 +45,7 @@ class DashboardScreen extends StatelessWidget {
                   IndexedStackChild(
                       child: const ExploreScreen(), preload: true),
                   IndexedStackChild(
-                      child: const LiveStreamSearchScreen(), preload: true),
+                      child: const LiveStreamSearchScreen(), preload: false),
                   IndexedStackChild(
                       child: const MessageScreen(), preload: true),
                   IndexedStackChild(

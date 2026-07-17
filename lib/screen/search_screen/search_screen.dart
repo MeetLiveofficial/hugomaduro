@@ -4,12 +4,10 @@ import 'package:krimson/common/widget/custom_back_button.dart';
 import 'package:krimson/common/widget/custom_search_text_field.dart';
 import 'package:krimson/common/widget/post_list.dart';
 import 'package:krimson/common/widget/reel_list.dart';
-import 'package:krimson/common/widget/search_result_tile.dart';
 import 'package:krimson/common/widget/user_list.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
 import 'package:krimson/screen/search_screen/search_screen_controller.dart';
-import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -43,6 +41,8 @@ class SearchScreen extends StatelessWidget {
                               () => CustomSearchTextField(
                                 controller: controller.searchKeyword,
                                 onChanged: (value) => controller.onChanged(600),
+                                hintText:
+                                    '${LKey.posts.tr}, ${LKey.reels.tr}, ${LKey.users.tr}...',
                                 suffixIcon: controller.isTextEmpty.value
                                     ? null
                                     : InkWell(
@@ -81,7 +81,7 @@ class SearchScreen extends StatelessWidget {
                             bool isSelected =
                                 controller.selectedTabIndex.value == tabs;
                             return Text(
-                              tabs.title,
+                              tabs.title.tr,
                               style: isSelected
                                   ? TextStyleCustom.outFitRegular400(
                                       fontSize: 15,
@@ -123,16 +123,6 @@ class SearchScreen extends StatelessWidget {
                   getProfilePhoto: (p0) => p0.profilePhoto ?? '',
                   getUserName: (p0) => p0.username ?? '',
                   getVerified: (p0) => p0.isVerify ?? 0,
-                ),
-                ImageTextListTile(
-                  items: controller.hashtags,
-                  onTap: controller.onHashTagTap,
-                  image: AssetRes.icHashtag,
-                  getDisplayText: (p0) => '${AppRes.hash}${p0.hashtag ?? ''}',
-                  getDisplayDescription: (p0) =>
-                      '${p0.postCount} ${LKey.posts.tr}',
-                  isLoading: controller.isHashTagsLoading,
-                  loadMore: controller.searchHashTags,
                 ),
               ],
             ),
