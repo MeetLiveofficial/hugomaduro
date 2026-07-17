@@ -29,8 +29,6 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependency_overrides:
   permission_handler: ^11.4.0
-  # 12.4.0 needs Xcode 26+ (isiOSAppOnVision); breaks GitHub Actions macos-14
-  device_info_plus: 12.3.0
 
 
 dependencies:
