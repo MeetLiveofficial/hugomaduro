@@ -12,6 +12,7 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/giphy/giphy_model.dart';
@@ -880,6 +881,44 @@ class LivestreamScreenController extends BaseController {
 
   Future<void> setMicrophoneEnabled(bool enabled) async {
     await liveKit?.setMicrophoneEnabled(enabled);
+  }
+
+  /// Abre el perfil de un usuario (host, chat, invitados, etc.).
+  Future<void> openUserProfile({
+    required int? userId,
+    String? fullname,
+    String? username,
+    String? profilePhoto,
+  }) async {
+    if (userId == null || userId <= 0) return;
+    final me = SessionManager.instance.getUser()?.id;
+    await NavigationService.shared.openProfileScreen(
+      User(
+        id: userId,
+        fullname: fullname,
+        username: username,
+        profilePhoto: profilePhoto,
+      ),
+      isTopBarVisible: me == null || me != userId,
+    );
+  }
+
+  Future<void> openHostProfile() async {
+    final host = livestream.hostUser;
+    await openUserProfile(
+      userId: livestream.hostId ?? host?.userId,
+      fullname: host?.fullname,
+      username: host?.username,
+      profilePhoto: host?.profile,
+    );
+  }
+
+  Future<void> openChatUserProfile(LiveChatMessage message) async {
+    await openUserProfile(
+      userId: message.userId,
+      fullname: message.userName,
+      username: message.userName,
+    );
   }
 
   Future<void> confirmExit(BuildContext context) async {

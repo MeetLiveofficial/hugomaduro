@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:krimson/common/service/api/user_service.dart';
@@ -135,7 +136,11 @@ class SessionManager {
 
   void setLang(String langCode) {
     storage.write(SessionKeys.lang, langCode);
-    UserService.instance.updateUserDetails(appLanguage: langCode);
+    // Sin esto GetX sigue mostrando el idioma anterior (claves en inglés).
+    Get.updateLocale(Locale(langCode));
+    if (getUser() != null && hasAuthToken) {
+      UserService.instance.updateUserDetails(appLanguage: langCode);
+    }
   }
 
   String getLang() {

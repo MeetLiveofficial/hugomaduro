@@ -82,95 +82,103 @@ class _TopBar extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: Row(
-              children: [
-                CustomImage(
-                  size: const Size(36, 36),
-                  image: photo?.addBaseURL(),
-                  fullName: name,
-                  strokeWidth: 0,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white,
-                          fontSize: 13,
-                        ),
+          child: Material(
+            color: Colors.black.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(28),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(24),
+                      onTap: controller.openHostProfile,
+                      child: Row(
+                        children: [
+                          CustomImage(
+                            size: const Size(36, 36),
+                            image: photo?.addBaseURL(),
+                            fullName: name,
+                            strokeWidth: 0,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  'ID: ${controller.livestream.hostId ?? ''}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyleCustom.outFitRegular400(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'ID: ${controller.livestream.hostId ?? ''}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyleCustom.outFitRegular400(
-                          color: Colors.white70,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-                if (!controller.isHost)
-                  Obx(() {
-                    if (controller.isFollowingHost.value) {
-                      return const SizedBox.shrink();
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: Material(
-                        color: ColorRes.themeAccentSolid,
-                        borderRadius: BorderRadius.circular(14),
-                        child: InkWell(
+                  if (!controller.isHost)
+                    Obx(() {
+                      if (controller.isFollowingHost.value) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Material(
+                          color: ColorRes.themeAccentSolid,
                           borderRadius: BorderRadius.circular(14),
-                          onTap: controller.isFollowBusy.value
-                              ? null
-                              : controller.followHost,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            child: Text(
-                              controller.isFollowBusy.value
-                                  ? '…'
-                                  : 'Follow',
-                              style: TextStyleCustom.outFitMedium500(
-                                color: Colors.white,
-                                fontSize: 11,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: controller.isFollowBusy.value
+                                ? null
+                                : controller.followHost,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              child: Text(
+                                controller.isFollowBusy.value ? '…' : 'Follow',
+                                style: TextStyleCustom.outFitMedium500(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                ),
                               ),
                             ),
                           ),
                         ),
+                      );
+                    }),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: ColorRes.themeAccentSolid,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'LIVE',
+                      style: TextStyleCustom.outFitMedium500(
+                        color: Colors.white,
+                        fontSize: 10,
                       ),
-                    );
-                  }),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: ColorRes.themeAccentSolid,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'LIVE',
-                    style: TextStyleCustom.outFitMedium500(
-                      color: Colors.white,
-                      fontSize: 10,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -186,10 +194,7 @@ class _TopBar extends StatelessWidget {
             )),
         IconButton(
           onPressed: onClose,
-          icon: Icon(
-            controller.isHost ? Icons.close : Icons.close,
-            color: Colors.white,
-          ),
+          icon: const Icon(Icons.close, color: Colors.white),
         ),
       ],
     );
@@ -256,7 +261,7 @@ class _ChatList extends StatelessWidget {
             final msg = visible[visible.length - 1 - index];
             return Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: _ChatBubble(message: msg),
+              child: _ChatBubble(controller: controller, message: msg),
             );
           },
         ),
@@ -266,9 +271,10 @@ class _ChatList extends StatelessWidget {
 }
 
 class _ChatBubble extends StatelessWidget {
+  final LivestreamScreenController controller;
   final LiveChatMessage message;
 
-  const _ChatBubble({required this.message});
+  const _ChatBubble({required this.controller, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -284,11 +290,15 @@ class _ChatBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              message.userName,
-              style: TextStyleCustom.outFitMedium500(
-                color: ColorRes.themeAccentSolid,
-                fontSize: 11,
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => controller.openChatUserProfile(message),
+              child: Text(
+                message.userName,
+                style: TextStyleCustom.outFitMedium500(
+                  color: ColorRes.themeAccentSolid,
+                  fontSize: 11,
+                ),
               ),
             ),
             const SizedBox(height: 2),

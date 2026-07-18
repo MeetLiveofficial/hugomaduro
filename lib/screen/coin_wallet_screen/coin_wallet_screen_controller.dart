@@ -228,10 +228,19 @@ class CoinWalletScreenController extends BaseController {
     }
 
     showLoader(barrierDismissible: false);
-    final created = await GiftWalletService.instance
+    final result = await GiftWalletService.instance
         .createCryptoPayment(coinPackageId: offer.coinPackageId);
     stopLoader();
 
+    if (result['ok'] != true) {
+      showSnackBar(
+        (result['message'] ?? 'No se pudo iniciar el pago crypto. Intenta de nuevo.')
+            .toString(),
+      );
+      return;
+    }
+
+    final created = result['data'] as Map<String, dynamic>?;
     if (created == null) {
       showSnackBar('No se pudo iniciar el pago crypto. Intenta de nuevo.');
       return;

@@ -42,6 +42,7 @@ class Setting {
   double? coinValue;
   int? minRedeemCoins;
   double? minWithdrawUsd;
+  double? withdrawalCommissionPercent;
   double? plusMembershipPrice;
   int? plusMembershipEnabled;
   int? registrationBonusStatus;
@@ -106,6 +107,7 @@ class Setting {
     this.coinValue,
     this.minRedeemCoins,
     this.minWithdrawUsd,
+    this.withdrawalCommissionPercent,
     this.plusMembershipPrice,
     this.plusMembershipEnabled,
     this.minFollowersForLive,
@@ -173,6 +175,8 @@ class Setting {
         coinValue: _asDouble(json["coin_value"]),
         minRedeemCoins: _asInt(json["min_redeem_coins"]),
         minWithdrawUsd: _asDouble(json["min_withdraw_usd"]) ?? 20.0,
+        withdrawalCommissionPercent:
+            _asDouble(json["withdrawal_commission_percent"]) ?? 0.0,
         plusMembershipPrice: _asDouble(json["plus_membership_price"]),
         plusMembershipEnabled: _asInt(json["plus_membership_enabled"]) ?? 1,
         minFollowersForLive: _asInt(json["min_followers_for_live"]),
@@ -273,6 +277,7 @@ class Setting {
         "coin_value": coinValue,
         "min_redeem_coins": minRedeemCoins,
         "min_withdraw_usd": minWithdrawUsd,
+        "withdrawal_commission_percent": withdrawalCommissionPercent,
         "plus_membership_price": plusMembershipPrice,
         "plus_membership_enabled": plusMembershipEnabled,
         "min_followers_for_live": minFollowersForLive,

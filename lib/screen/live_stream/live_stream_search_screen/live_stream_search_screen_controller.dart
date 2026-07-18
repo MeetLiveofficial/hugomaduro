@@ -19,7 +19,6 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/livestream/livestream_user_state.dart';
 import 'package:krimson/model/user_model/user_model.dart';
-import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/utilities/const_res.dart';
@@ -29,12 +28,11 @@ import 'package:krimson/utilities/theme_res.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:retrytech_plugin/retrytech_plugin.dart';
 
-/// Pre-live: cámara + ajustes + Start Live.
+/// Pre-live: portada + ajustes + Start Live (cámara solo en LiveKit).
 class LiveStreamSearchScreenController extends BaseController {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   StreamSubscription<List<ConnectivityResult>>? _netSub;
-  Worker? _tabWorker;
 
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
@@ -53,14 +51,6 @@ class LiveStreamSearchScreenController extends BaseController {
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxBool inviteLoading = false.obs;
 
-  final RxBool cameraReady = false.obs;
-  final RxBool cameraStarting = false.obs;
-  final RxBool torchOn = false.obs;
-  /// Fuerza rebuild del PlatformView al reiniciar cámara.
-  final RxInt cameraGeneration = 0.obs;
-  bool _cameraActive = false;
-  int _startToken = 0;
-
   @override
   void onInit() {
     super.onInit();
@@ -68,13 +58,6 @@ class LiveStreamSearchScreenController extends BaseController {
       previewTitle.value = titleController.text;
     });
     _listenNetwork();
-    _watchLiveTab();
-  }
-
-  @override
-  void onReady() {
-    super.onReady();
-    _syncCameraWithTab();
   }
 
   void _listenNetwork() {
@@ -87,128 +70,12 @@ class LiveStreamSearchScreenController extends BaseController {
     });
   }
 
-  void _watchLiveTab() {
-    if (!Get.isRegistered<DashboardScreenController>()) return;
-    final dash = Get.find<DashboardScreenController>();
-    _tabWorker?.dispose();
-    _tabWorker = ever(dash.selectedPageIndex, (_) => _syncCameraWithTab());
-  }
-
-  void _syncCameraWithTab() {
-    if (!Get.isRegistered<DashboardScreenController>()) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        startPreviewCamera();
-      });
-      return;
-    }
-    final onLive = Get.find<DashboardScreenController>().selectedPageIndex.value ==
-        DashboardScreenController.tabLive;
-    if (onLive) {
-      // Esperar un frame: IndexedStack offstage da size 0 y deforma el preview.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (isClosed) return;
-        startPreviewCamera();
-      });
-    } else {
-      stopPreviewCamera();
-    }
-  }
-
-  Future<void> restartPreviewCamera() async {
-    stopPreviewCamera();
-    await Future.delayed(const Duration(milliseconds: 350));
-    if (isClosed) return;
-    await startPreviewCamera();
-  }
-
-  Future<void> startPreviewCamera() async {
-    if (kIsWeb) {
-      cameraReady.value = false;
-      cameraStarting.value = false;
-      return;
-    }
-    if (_cameraActive || cameraStarting.value) return;
-    final token = ++_startToken;
-    cameraStarting.value = true;
-    cameraReady.value = false;
-    try {
-      var cam = await Permission.camera.status;
-      if (!cam.isGranted) {
-        cam = await Permission.camera.request();
-      }
-      var mic = await Permission.microphone.status;
-      if (!mic.isGranted) {
-        mic = await Permission.microphone.request();
-      }
-      if (token != _startToken || isClosed) return;
-      if (!cam.isGranted) {
-        showSnackBar(LKey.cameraMicrophonePermissionTitle.tr);
-        return;
-      }
-
-      try {
-        RetrytechPlugin.shared.disposeCamera;
-      } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 250));
-      if (token != _startToken || isClosed) return;
-
-      RetrytechPlugin.shared.initCamera();
-      // Primer frame CameraX: dar margen antes de montar el PlatformView.
-      await Future.delayed(const Duration(milliseconds: 700));
-      if (token != _startToken || isClosed) {
-        try {
-          RetrytechPlugin.shared.disposeCamera;
-        } catch (_) {}
-        return;
-      }
-      _cameraActive = true;
-      cameraGeneration.value++;
-      cameraReady.value = true;
-    } catch (e) {
-      Loggers.error('Pre-live camera: $e');
-      cameraReady.value = false;
-      _cameraActive = false;
-    } finally {
-      if (token == _startToken) {
-        cameraStarting.value = false;
-      }
-    }
-  }
-
-  void stopPreviewCamera() {
-    _startToken++;
-    cameraStarting.value = false;
-    if (!_cameraActive && !cameraReady.value) {
-      cameraReady.value = false;
-      return;
-    }
+  /// Libera cámara nativa Retrytech si quedó abierta (p.ej. desde Create Reel).
+  void releaseNativeCameraIfNeeded() {
+    if (kIsWeb) return;
     try {
       RetrytechPlugin.shared.disposeCamera;
-    } catch (e) {
-      Loggers.error('Dispose pre-live camera: $e');
-    }
-    _cameraActive = false;
-    cameraReady.value = false;
-    torchOn.value = false;
-  }
-
-  void flipPreviewCamera() {
-    if (kIsWeb || !cameraReady.value) return;
-    try {
-      RetrytechPlugin.shared.toggleCamera;
-    } catch (e) {
-      Loggers.error('Flip camera: $e');
-    }
-  }
-
-  void toggleTorch() {
-    if (kIsWeb || !cameraReady.value) return;
-    try {
-      RetrytechPlugin.shared.flashOnOff;
-      torchOn.value = !torchOn.value;
-    } catch (e) {
-      Loggers.error('Torch: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> editPreLiveTitle() async {
@@ -270,8 +137,8 @@ class LiveStreamSearchScreenController extends BaseController {
     );
     if (ok == true) {
       // Liberar cámara nativa antes de LiveKit (evita conflicto de hardware).
-      stopPreviewCamera();
-      await Future.delayed(const Duration(milliseconds: 400));
+      releaseNativeCameraIfNeeded();
+      await Future.delayed(const Duration(milliseconds: 250));
       await _startLive(user);
     }
   }
@@ -394,8 +261,6 @@ class LiveStreamSearchScreenController extends BaseController {
     final details = descriptionController.text.trim();
     if (title.isEmpty) {
       showSnackBar(LKey.enterLiveStreamTitle.tr);
-      // Reabrir cámara si cancelamos por título vacío.
-      _syncCameraWithTab();
       return;
     }
 
@@ -435,7 +300,6 @@ class LiveStreamSearchScreenController extends BaseController {
         } catch (e) {
           stopLoader();
           showSnackBar('No se pudo subir la portada: $e');
-          _syncCameraWithTab();
           return;
         }
       }
@@ -503,20 +367,16 @@ class LiveStreamSearchScreenController extends BaseController {
             initialSmooth: smooth.value,
             initialSharpen: sharpen.value,
           ));
-      // Al volver del host, reactivar preview si seguimos en tab LIVE.
-      _syncCameraWithTab();
     } catch (e) {
       stopLoader();
       showSnackBar(e.toString());
-      _syncCameraWithTab();
     }
   }
 
   @override
   void onClose() {
-    _tabWorker?.dispose();
     _netSub?.cancel();
-    stopPreviewCamera();
+    releaseNativeCameraIfNeeded();
     titleController.dispose();
     descriptionController.dispose();
     super.onClose();

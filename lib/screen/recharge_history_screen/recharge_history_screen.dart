@@ -5,11 +5,13 @@ import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/gift_wallet_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/gift_wallet/coin_recharge_model.dart';
+import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -119,8 +121,19 @@ class RechargeHistoryController extends BaseController {
     if (isLoading.value) return;
     isLoading.value = true;
     try {
+      // Intenta acreditar pagos crypto pendientes antes de listar
+      await GiftWalletService.instance.syncPendingCryptoPayments();
       final list = await GiftWalletService.instance.fetchMyRecharges();
       items.assignAll(list);
+      final user = await UserService.instance.fetchUserDetails(
+        userId: SessionManager.instance.getUserID(),
+      );
+      if (user != null) {
+        SessionManager.instance.setUser(user);
+        if (Get.isRegistered<CoinWalletScreenController>()) {
+          Get.find<CoinWalletScreenController>().myUser.value = user;
+        }
+      }
     } catch (_) {
     } finally {
       isLoading.value = false;

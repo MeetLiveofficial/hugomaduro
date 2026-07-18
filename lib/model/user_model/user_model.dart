@@ -77,6 +77,7 @@ class User {
       this.showMyFollowing,
       this.receiveMessage,
       this.coinWallet,
+      this.withdrawWalletAccount,
       this.coinCollectedLifetime,
       this.coinGiftedLifetime,
       this.coinPurchasedLifetime,
@@ -259,6 +260,7 @@ class User {
     showMyFollowing = _asNum(json['show_my_following']);
     receiveMessage = _asNum(json['receive_message']);
     coinWallet = _asNum(json['coin_wallet']);
+    withdrawWalletAccount = json['withdraw_wallet_account']?.toString();
     coinCollectedLifetime = _asNum(json['coin_collected_lifetime']);
     coinGiftedLifetime = _asNum(json['coin_gifted_lifetime']);
     coinPurchasedLifetime = _asNum(json['coin_purchased_lifetime']);
@@ -347,6 +349,7 @@ class User {
   num? showMyFollowing;
   num? receiveMessage;
   num? coinWallet;
+  String? withdrawWalletAccount;
   num? coinCollectedLifetime;
   num? coinGiftedLifetime;
   num? coinPurchasedLifetime;
@@ -411,6 +414,7 @@ class User {
     map['show_my_following'] = showMyFollowing;
     map['receive_message'] = receiveMessage;
     map['coin_wallet'] = coinWallet;
+    map['withdraw_wallet_account'] = withdrawWalletAccount;
     map['coin_collected_lifetime'] = coinCollectedLifetime;
     map['coin_gifted_lifetime'] = coinGiftedLifetime;
     map['coin_purchased_lifetime'] = coinPurchasedLifetime;

@@ -84,6 +84,7 @@ class _GiftWallet {
   String buyCoins = "${apiURL}misc/buyCoins";
   String createCryptoPayment = "${apiURL}misc/createCryptoPayment";
   String checkCryptoPayment = "${apiURL}misc/checkCryptoPayment";
+  String syncPendingCryptoPayments = "${apiURL}misc/syncPendingCryptoPayments";
 }
 
 class _User {

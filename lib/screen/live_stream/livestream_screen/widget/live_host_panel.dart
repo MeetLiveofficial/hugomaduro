@@ -428,6 +428,16 @@ Future<void> openLiveInviteSheet({
                     final id = user.id ?? -1;
                     final invited = selectedIds.contains(id);
                     return ListTile(
+                      onTap: () {
+                        if (Get.isRegistered<LivestreamScreenController>()) {
+                          Get.find<LivestreamScreenController>().openUserProfile(
+                            userId: user.id,
+                            fullname: user.fullname,
+                            username: user.username,
+                            profilePhoto: user.profilePhoto,
+                          );
+                        }
+                      },
                       leading: Stack(
                         clipBehavior: Clip.none,
                         children: [

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:csv/csv.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:krimson/common/controller/base_controller.dart';
@@ -91,6 +92,9 @@ class SplashScreenController extends BaseController {
       if (defaultLang != null) {
         SessionManager.instance.setFallbackLang(defaultLang.code ?? 'en');
       }
+
+      // Alinear locale GetX con el idioma guardado (tras cargar CSV).
+      Get.updateLocale(Locale(SessionManager.instance.getLang()));
 
       // No reiniciar toda la app aquí: RestartWidget + Get.off dejaba
       // navigator vacío (pantalla blanca) en emuladores.

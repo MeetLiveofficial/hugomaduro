@@ -67,7 +67,10 @@ class SelectLanguageScreen extends StatelessWidget {
                             itemBuilder: (_, i) {
                               final lang = active[i];
                               return _LangTile(
-                                label: lang.title ?? lang.code ?? 'Lang',
+                                label: lang.localizedTitle ??
+                                    lang.title ??
+                                    lang.code ??
+                                    'Lang',
                                 code: lang.code ?? 'en',
                                 onTap: () => _select(lang.code ?? 'en'),
                               );
@@ -84,11 +87,11 @@ class SelectLanguageScreen extends StatelessWidget {
   }
 
   void _select(String code) {
-    SessionManager.instance.storage.write(SessionKeys.lang, code);
     SessionManager.instance.setBool(SessionKeys.isLanguageScreenSelect, true);
+    // Aplica locale GetX de inmediato (sin esto el login sigue en inglés).
+    SessionManager.instance.setLang(code);
 
     if (languageNavigationType == LanguageNavigationType.fromSetting) {
-      SessionManager.instance.setLang(code);
       Get.back();
       return;
     }

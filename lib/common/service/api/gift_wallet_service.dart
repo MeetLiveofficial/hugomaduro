@@ -79,18 +79,26 @@ class GiftWalletService {
     return null;
   }
 
-  /// Crea factura NOWPayments. Devuelve mapa con invoice_url, order_id, etc.
-  Future<Map<String, dynamic>?> createCryptoPayment(
+  /// Crea factura NOWPayments.
+  /// Devuelve `{ok: true, data: {...}}` o `{ok: false, message: '...'}`.
+  Future<Map<String, dynamic>> createCryptoPayment(
       {required int coinPackageId}) async {
     final json = await ApiService.instance.call(
       url: WebService.giftWallet.createCryptoPayment,
       fromJson: (j) => j,
       param: {Params.coinPackageId: coinPackageId},
     );
-    if (json['status'] != true) return null;
-    final data = json['data'];
-    if (data is! Map) return null;
-    return Map<String, dynamic>.from(data);
+    if (json['status'] == true && json['data'] is Map) {
+      return {
+        'ok': true,
+        'data': Map<String, dynamic>.from(json['data'] as Map),
+      };
+    }
+    return {
+      'ok': false,
+      'message': (json['message'] ?? 'No se pudo iniciar el pago crypto')
+          .toString(),
+    };
   }
 
   /// Consulta estado del pago crypto. Si finished, puede incluir user.
@@ -105,5 +113,20 @@ class GiftWalletService {
     final data = json['data'];
     if (data is! Map) return null;
     return Map<String, dynamic>.from(data);
+  }
+
+  /// Sincroniza pagos crypto pendientes con NOWPayments (recupera si falló el IPN).
+  Future<int> syncPendingCryptoPayments() async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.syncPendingCryptoPayments,
+      fromJson: (j) => j,
+      param: {},
+    );
+    if (json['status'] != true) return 0;
+    final data = json['data'];
+    if (data is Map && data['credited_count'] != null) {
+      return int.tryParse('${data['credited_count']}') ?? 0;
+    }
+    return 0;
   }
 }
