@@ -126,10 +126,13 @@ class SessionManager {
 
   Setting? getSettings() {
     var data = storage.read(SessionKeys.setting);
-    if (data is Map<String, dynamic>) {
-      return Setting.fromJson(data);
-    } else if (data is Setting) {
-      return data;
+    if (data is Setting) return data;
+    if (data is Map) {
+      try {
+        return Setting.fromJson(Map<String, dynamic>.from(data));
+      } catch (_) {
+        return null;
+      }
     }
     return null;
   }

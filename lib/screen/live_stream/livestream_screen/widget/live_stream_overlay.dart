@@ -36,20 +36,9 @@ class LiveStreamOverlay extends StatelessWidget {
             const SizedBox(height: 6),
             Obx(() => Align(
                   alignment: Alignment.centerRight,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (controller.liveKit?.qualityProfile.value ==
-                          LiveKitQualityProfile.low)
-                        const Padding(
-                          padding: EdgeInsets.only(right: 6),
-                          child: _Pill(label: 'LOW'),
-                        ),
-                      _Pill(
-                        label:
-                            '${controller.pingMs.value} ms · ${controller.fps.value} fps',
-                      ),
-                    ],
+                  child: _Pill(
+                    label:
+                        '${controller.pingMs.value} ms · ${controller.fps.value} fps',
                   ),
                 )),
             Obx(() {
@@ -62,13 +51,16 @@ class LiveStreamOverlay extends StatelessWidget {
             }),
             Expanded(
               child: Stack(
+                clipBehavior: Clip.none,
                 children: [
                   Align(
                     alignment: Alignment.bottomLeft,
                     child: _ChatList(controller: controller),
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
+                  // Corazones flotantes (abajo-derecha, sobre el chat/controles).
+                  Positioned(
+                    right: 4,
+                    bottom: 8,
                     child: _FloatingLikes(controller: controller),
                   ),
                   Obx(() {
@@ -81,8 +73,6 @@ class LiveStreamOverlay extends StatelessWidget {
               ),
             ),
             _TitleDescription(controller: controller),
-            const SizedBox(height: 8),
-            _LiveActionRow(controller: controller),
             const SizedBox(height: 8),
             _ComposerRow(
               controller: controller,
@@ -159,38 +149,97 @@ class _PausedBadge extends StatelessWidget {
   }
 }
 
-/// Pause / mute / regalos — controles visibles del LIVE.
-class _LiveActionRow extends StatelessWidget {
+/// Controles LIVE: host = Pausar/Mute/Regalos/Calidad/Options; audiencia = solo Calidad.
+class _LiveControlsBar extends StatelessWidget {
   final LivestreamScreenController controller;
+  final bool showHostControls;
 
-  const _LiveActionRow({required this.controller});
+  const _LiveControlsBar({
+    required this.controller,
+    required this.showHostControls,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final paused = controller.isStreamPaused.value;
-      final muted = controller.isLiveAudioMuted.value;
+      final muted = showHostControls
+          ? !(controller.liveKit?.microphoneEnabled.value ?? true)
+          : controller.isLiveAudioMuted.value;
       final gifts = controller.giftSenders.length;
-      return Row(
-        children: [
-          _ActionChip(
-            icon: paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-            label: paused ? 'Reanudar' : 'Pausar',
-            onTap: controller.togglePauseLive,
+      final quality = controller.liveKit?.qualityProfile.value ??
+          LiveKitQualityProfile.low;
+      final qualityText = switch (quality) {
+        LiveKitQualityProfile.low => 'Baja',
+        LiveKitQualityProfile.medium => 'Media',
+        LiveKitQualityProfile.high => 'Alta',
+      };
+
+      // Audiencia: solo calidad de video (sin Pausar/Mute/Regalos).
+      if (!showHostControls) {
+        return SizedBox(
+          height: 40,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _ActionChip(
+              icon: Icons.high_quality_rounded,
+              label: qualityText,
+              onTap: controller.openQualitySheet,
+            ),
           ),
-          const SizedBox(width: 6),
-          _ActionChip(
-            icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
-            label: muted ? 'Unmute' : 'Mute',
-            onTap: controller.toggleLiveAudioMute,
-          ),
-          const SizedBox(width: 6),
-          _ActionChip(
-            icon: Icons.card_giftcard_rounded,
-            label: gifts > 0 ? 'Regalos ($gifts)' : 'Regalos',
-            onTap: controller.openGiftSendersSheet,
-          ),
-        ],
+        );
+      }
+
+      return SizedBox(
+        height: 40,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Flexible(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _ActionChip(
+                      icon: paused
+                          ? Icons.play_arrow_rounded
+                          : Icons.pause_rounded,
+                      label: paused ? 'Reanudar' : 'Pausar',
+                      onTap: controller.togglePauseLive,
+                    ),
+                    const SizedBox(width: 6),
+                    _ActionChip(
+                      // Estado real del mic: Mute = silenciado; Abierto = puede hablar.
+                      icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                      label: muted ? 'Mute' : 'Abierto',
+                      onTap: controller.toggleLiveAudioMute,
+                    ),
+                    const SizedBox(width: 6),
+                    _ActionChip(
+                      icon: Icons.card_giftcard_rounded,
+                      label: gifts > 0 ? 'Regalos ($gifts)' : 'Regalos',
+                      onTap: controller.openGiftSendersSheet,
+                    ),
+                    const SizedBox(width: 6),
+                    _ActionChip(
+                      icon: Icons.high_quality_rounded,
+                      label: qualityText,
+                      onTap: controller.openQualitySheet,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            LiveHostActionBar(
+              onBeauty: controller.openBeauty,
+              onInvite: controller.openInvite,
+              onQuality: controller.openQualitySheet,
+              networkLabel: controller.networkLabel,
+              qualityLabel: qualityText,
+            ),
+          ],
+        ),
       );
     });
   }
@@ -216,7 +265,7 @@ class _ActionChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -539,7 +588,7 @@ class _ChatBubble extends StatelessWidget {
                       Flexible(
                         child: Text(
                           'sent a gift'
-                          '${message.giftCoins != null ? ' · ${message.giftCoins}' : ''}',
+                          '${message.giftCoins != null && message.giftCoins! > 0 ? ' · ${message.giftCoins} coins' : ''}',
                           style: TextStyleCustom.outFitRegular400(
                             color: Colors.white,
                             fontSize: 13,
@@ -573,26 +622,88 @@ class _FloatingLikes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final n = controller.floatingLikes.value.clamp(0, 6);
+      final n = controller.floatingLikes.value.clamp(0, 8);
       if (n == 0) return const SizedBox.shrink();
-      return Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+      return SizedBox(
+        width: 56,
+        height: 180,
+        child: Stack(
+          alignment: Alignment.bottomCenter,
           children: [
             for (var i = 0; i < n; i++)
-              Padding(
-                padding: EdgeInsets.only(bottom: 4.0 + i),
-                child: Icon(
-                  Icons.favorite,
-                  color: ColorRes.themeAccentSolid.withValues(alpha: 0.85),
-                  size: 22 + (i % 3) * 2,
-                ),
+              _FloatingHeart(
+                key: ValueKey('like_$i}_${controller.floatingLikes.value}'),
+                index: i,
               ),
           ],
         ),
       );
     });
+  }
+}
+
+class _FloatingHeart extends StatefulWidget {
+  final int index;
+
+  const _FloatingHeart({super.key, required this.index});
+
+  @override
+  State<_FloatingHeart> createState() => _FloatingHeartState();
+}
+
+class _FloatingHeartState extends State<_FloatingHeart>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _rise;
+  late final Animation<double> _fade;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..forward();
+    _rise = Tween<double>(begin: 0, end: -150 - (widget.index % 3) * 12.0)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
+    _fade = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(parent: _c, curve: const Interval(0.35, 1)),
+    );
+    _scale = Tween<double>(begin: 0.6, end: 1.25).animate(
+      CurvedAnimation(parent: _c, curve: Curves.easeOutBack),
+    );
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dx = ((widget.index % 3) - 1) * 10.0;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) => Opacity(
+        opacity: _fade.value.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(dx, _rise.value),
+          child: Transform.scale(
+            scale: _scale.value,
+            child: Icon(
+              Icons.favorite,
+              color: ColorRes.themeAccentSolid.withValues(alpha: 0.95),
+              size: 28 + (widget.index % 3) * 4,
+              shadows: const [
+                Shadow(color: Colors.black54, blurRadius: 6),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -705,15 +816,9 @@ class _ComposerRow extends StatelessWidget {
             if (lk == null) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    const Spacer(),
-                    LiveHostActionBar(
-                      onBeauty: controller.openBeauty,
-                      onInvite: controller.openInvite,
-                      networkLabel: controller.networkLabel,
-                    ),
-                  ],
+                child: _LiveControlsBar(
+                  controller: controller,
+                  showHostControls: true,
                 ),
               );
             }
@@ -722,37 +827,63 @@ class _ComposerRow extends StatelessWidget {
               final camOn = lk.cameraEnabled.value;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      onPressed: () async {
-                        await lk.toggleMicrophone();
-                        controller.isLiveAudioMuted.value =
-                            !lk.microphoneEnabled.value;
-                      },
-                      icon: Icon(
-                        micOn ? Icons.mic : Icons.mic_off,
-                        color: Colors.white,
-                      ),
+                    _LiveControlsBar(
+                      controller: controller,
+                      showHostControls: true,
                     ),
-                    IconButton(
-                      onPressed: lk.toggleCamera,
-                      icon: Icon(
-                        camOn ? Icons.videocam : Icons.videocam_off,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Spacer(),
-                    LiveHostActionBar(
-                      onBeauty: controller.openBeauty,
-                      onInvite: controller.openInvite,
-                      networkLabel: controller.networkLabel,
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          onPressed: () async {
+                            await lk.toggleMicrophone();
+                            controller.isLiveAudioMuted.value =
+                                !lk.microphoneEnabled.value;
+                          },
+                          icon: Icon(
+                            micOn ? Icons.mic : Icons.mic_off,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          onPressed: lk.toggleCamera,
+                          icon: Icon(
+                            camOn ? Icons.videocam : Icons.videocam_off,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               );
             });
           }),
+        ] else ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _LiveControlsBar(
+              controller: controller,
+              showHostControls: false,
+            ),
+          ),
         ],
         Row(
           children: [

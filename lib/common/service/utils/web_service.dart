@@ -49,6 +49,7 @@ class _Live {
   String join = "${apiURL}live/join";
   String leave = "${apiURL}live/leave";
   String like = "${apiURL}live/like";
+  String recordGift = "${apiURL}live/recordGift";
   String sendComment = "${apiURL}live/sendComment";
   String fetchComments = "${apiURL}live/fetchComments";
   String fetchSession = "${apiURL}live/fetchSession";

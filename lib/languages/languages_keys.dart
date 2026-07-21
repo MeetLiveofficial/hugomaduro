@@ -103,6 +103,9 @@ class LKey {
   static const String benefits = "Benefits";
   static const String callPrice = "Call price";
   static const String receiveCalls = "Can receive calls";
+  static const String canGoLive = "Can go Live";
+  static const String liveLockedUntilLevel =
+      "Live unlocks from Level 2. Complete activity, tasks or transactions to level up.";
   static const String svip = "SVIP";
   static const String learnMore = "Learn more";
   static const String dressingCenter = "Dressing Center";

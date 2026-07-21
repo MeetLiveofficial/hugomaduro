@@ -35,7 +35,7 @@ class LiveKitRoomController extends GetxController {
   final RxInt pingMs = 0.obs;
   final RxInt fps = 0.obs;
   final Rx<LiveKitQualityProfile> qualityProfile =
-      LiveKitQualityProfile.medium.obs;
+      LiveKitQualityProfile.low.obs;
 
   Room? get room => _service.room;
   Stream<DataReceivedEvent> get onDataReceived => _service.onDataReceived;
@@ -89,14 +89,14 @@ class LiveKitRoomController extends GetxController {
         publishCamera: publishCamera,
         publishMicrophone: publishMicrophone,
         wsUrl: wsUrl,
-        forceProfile: forceProfile,
+        // Entrada silenciosa siempre en baja calidad.
+        forceProfile: forceProfile ?? LiveKitQualityProfile.low,
       );
       _syncFromService();
       isConnected.value = true;
       qualityProfile.value = _service.qualityProfile;
-      if (statusMessage.value.startsWith('Camera failed') ||
-          statusMessage.value.contains('calidad baja')) {
-        // Mantener aviso de calidad / cámara.
+      if (statusMessage.value.startsWith('Camera failed')) {
+        // Mantener aviso de cámara.
       } else {
         statusMessage.value = '';
       }
@@ -110,6 +110,16 @@ class LiveKitRoomController extends GetxController {
     } finally {
       isConnecting.value = false;
     }
+  }
+
+  /// Cambia resolución/calidad desde el LIVE (Baja / Media / Alta).
+  Future<void> setQualityProfile(
+    LiveKitQualityProfile profile, {
+    required bool asHost,
+  }) async {
+    await _service.setQualityProfile(profile, asHost: asHost);
+    qualityProfile.value = profile;
+    mediaRevision.value++;
   }
 
   /// Reconecta forzando calidad baja (útil tras fallo o red mala).

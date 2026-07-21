@@ -176,14 +176,16 @@ class LiveKitRoomService {
       await disconnect();
     }
 
-    qualityProfile = forceProfile ?? await detectQualityProfile();
+    // Siempre entrar en calidad baja (sin preguntar). El usuario puede subirla en el LIVE.
+    qualityProfile = forceProfile ?? LiveKitQualityProfile.low;
     if (!_qualityChanges.isClosed) {
       _qualityChanges.add(qualityProfile);
     }
 
+    // Si falla el primer intento, reintentar otra vez en baja (mismo perfil).
     final profilesToTry = <LiveKitQualityProfile>[
       qualityProfile,
-      if (qualityProfile != LiveKitQualityProfile.low) LiveKitQualityProfile.low,
+      LiveKitQualityProfile.low,
     ];
 
     Object? lastError;
@@ -195,16 +197,7 @@ class LiveKitRoomService {
         _qualityChanges.add(profile);
       }
 
-      final label = switch (profile) {
-        LiveKitQualityProfile.high => 'alta',
-        LiveKitQualityProfile.medium => 'media',
-        LiveKitQualityProfile.low => 'baja',
-      };
-      _emitStatus(
-        attempt == 0
-            ? 'Conectando (calidad $label)…'
-            : 'Reintentando en calidad $label…',
-      );
+      _emitStatus(attempt == 0 ? 'Conectando…' : 'Reintentando…');
 
       try {
         final room = await _connectOnce(
@@ -216,11 +209,7 @@ class LiveKitRoomService {
           wsUrl: wsUrl,
           profile: profile,
         );
-        _emitStatus(
-          profile == LiveKitQualityProfile.low
-              ? 'Conectado · calidad baja'
-              : '',
-        );
+        _emitStatus('');
         return room;
       } catch (e) {
         lastError = e;
@@ -253,6 +242,10 @@ class LiveKitRoomService {
       roomName: roomName,
       identity: identity,
       name: name,
+      // Solo host publica A/V; audiencia solo escucha/ve + data (chat).
+      canPublish: publishCamera || publishMicrophone,
+      canPublishData: true,
+      roomAdmin: publishCamera || publishMicrophone,
     );
 
     final warmFuture = () async {
@@ -335,11 +328,20 @@ class LiveKitRoomService {
         _emitStatus('Micrófono…');
         await _publishMic(lp, warmAudio);
         warmAudio = null;
+      } else {
+        // Audiencia: nunca publicar mic.
+        try {
+          await lp.setMicrophoneEnabled(false);
+        } catch (_) {}
       }
       if (publishCamera) {
         _emitStatus('Cámara…');
         await _publishCamera(lp, warmVideo, profile);
         warmVideo = null;
+      } else {
+        try {
+          await lp.setCameraEnabled(false);
+        } catch (_) {}
       }
     }
 
@@ -369,27 +371,52 @@ class LiveKitRoomService {
     }
   }
 
-  /// Ajusta calidad según [ConnectionQuality] del propio participante.
+  /// Calidad elegida manualmente por el usuario (no auto-subir).
+  bool userSelectedQuality = false;
+
+  /// Cambia calidad en caliente (audiencia: suscripción; host: republica cámara).
+  Future<void> setQualityProfile(
+    LiveKitQualityProfile profile, {
+    bool asHost = false,
+  }) async {
+    userSelectedQuality = true;
+    qualityProfile = profile;
+    if (!_qualityChanges.isClosed) {
+      _qualityChanges.add(profile);
+    }
+    await preferRemoteVideoQuality(_subscribeQuality(profile));
+    if (asHost && _room?.localParticipant != null) {
+      final lp = _room!.localParticipant!;
+      final wasCam = lp.isCameraEnabled();
+      if (wasCam) {
+        try {
+          await lp.setCameraEnabled(false);
+        } catch (_) {}
+        await _publishCamera(lp, null, profile);
+      }
+    }
+    _mediaChanges.add(null);
+    Loggers.info('LiveKit quality set manually → $profile');
+  }
+
+  /// Solo baja automática si la red se pone mala. Nunca sube sola.
   Future<void> applyConnectionQuality(ConnectionQuality q) async {
-    final next = switch (q) {
-      ConnectionQuality.excellent || ConnectionQuality.good =>
-        qualityProfile == LiveKitQualityProfile.low
-            ? LiveKitQualityProfile.medium
-            : qualityProfile,
-      ConnectionQuality.poor || ConnectionQuality.lost =>
-        LiveKitQualityProfile.low,
-      _ => qualityProfile,
-    };
-    if (next == qualityProfile) {
+    if (q != ConnectionQuality.poor && q != ConnectionQuality.lost) {
+      // Si el usuario eligió calidad, respetarla; si no, mantener baja.
       await preferRemoteVideoQuality(_subscribeQuality(qualityProfile));
       return;
     }
-    qualityProfile = next;
-    if (!_qualityChanges.isClosed) {
-      _qualityChanges.add(next);
+    if (qualityProfile == LiveKitQualityProfile.low) {
+      await preferRemoteVideoQuality(VideoQuality.LOW);
+      return;
     }
-    await preferRemoteVideoQuality(_subscribeQuality(next));
-    Loggers.info('LiveKit quality adapted → $next (from $q)');
+    // Red mala: bajar a low (aunque el usuario hubiera subido).
+    qualityProfile = LiveKitQualityProfile.low;
+    if (!_qualityChanges.isClosed) {
+      _qualityChanges.add(qualityProfile);
+    }
+    await preferRemoteVideoQuality(VideoQuality.LOW);
+    Loggers.info('LiveKit quality forced LOW (connection $q)');
   }
 
   void _startStatsPolling() {

@@ -106,6 +106,49 @@ class LiveSessionService {
     return 0;
   }
 
+  /// Registra regalo en la sesión (coins desde DB). Devuelve lista actualizada.
+  Future<List<LiveGiftSender>> recordGift({
+    required String roomId,
+    required int giftId,
+    int coins = 0,
+    String? image,
+    String? clientId,
+  }) async {
+    final json = await ApiService.instance.call(
+      url: WebService.live.recordGift,
+      param: {
+        'room_id': roomId,
+        'gift_id': giftId,
+        'coins': coins,
+        if (image != null && image.isNotEmpty) 'image': image,
+        if (clientId != null && clientId.isNotEmpty) 'client_id': clientId,
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'recordGift failed');
+    }
+    final data = json['data'];
+    final list = (data is Map ? data['gift_senders'] : null);
+    if (list is! List) return const [];
+    return list.map((e) {
+      final m = Map<String, dynamic>.from(e as Map);
+      return LiveGiftSender(
+        userId: m['user_id'] is num
+            ? (m['user_id'] as num).toInt()
+            : int.tryParse('${m['user_id']}') ?? 0,
+        userName: '${m['user_name'] ?? 'User'}',
+        totalCoins: m['total_coins'] is num
+            ? (m['total_coins'] as num).toInt()
+            : int.tryParse('${m['total_coins']}') ?? 0,
+        giftCount: m['gift_count'] is num
+            ? (m['gift_count'] as num).toInt()
+            : int.tryParse('${m['gift_count']}') ?? 0,
+        lastGiftImage: m['last_gift_image']?.toString(),
+      );
+    }).toList();
+  }
+
   Future<LiveChatMessage?> sendComment({
     required String roomId,
     required String clientId,

@@ -111,6 +111,7 @@ class User {
       this.levelTitle,
       this.callRequestCoins = 0,
       this.canReceiveCalls = 0,
+      this.canGoLive = 0,
       this.levelBenefits = const []});
 
   User copyWith({
@@ -297,6 +298,7 @@ class User {
     levelTitle = json['level_title']?.toString();
     callRequestCoins = _asInt(json['call_request_coins']) ?? 0;
     canReceiveCalls = _asInt(json['can_receive_calls']) ?? 0;
+    canGoLive = _asInt(json['can_go_live']) ?? 0;
     isLive = _asInt(json['is_live']) ?? 0;
     liveRoomId = json['live_room_id']?.toString();
     isActive = _asInt(json['is_active']) ?? 0;
@@ -384,6 +386,7 @@ class User {
   String? levelTitle;
   int callRequestCoins = 0;
   int canReceiveCalls = 0;
+  int canGoLive = 0;
   List<String> levelBenefits = const [];
   int isLive = 0;
   String? liveRoomId;
@@ -445,6 +448,7 @@ class User {
     map['level_title'] = levelTitle;
     map['call_request_coins'] = callRequestCoins;
     map['can_receive_calls'] = canReceiveCalls;
+    map['can_go_live'] = canGoLive;
     map['level_benefits'] = levelBenefits;
     map['is_live'] = isLive;
     map['live_room_id'] = liveRoomId;

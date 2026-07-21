@@ -125,7 +125,7 @@ class LivestreamHostScreen extends StatelessWidget {
                                 ),
                               ),
                               icon: const Icon(Icons.refresh_rounded, size: 18),
-                              label: const Text('Reintentar · calidad baja'),
+                              label: const Text('Reintentar'),
                             ),
                           ],
                         ],

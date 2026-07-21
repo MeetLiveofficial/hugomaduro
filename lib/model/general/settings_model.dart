@@ -245,7 +245,13 @@ class Setting {
                 json["redeemGateways"]?.map((x) => RedeemGateway.fromJson(x))),
         gifts: json["gifts"] == null
             ? []
-            : List<Gift>.from(json["gifts"]?.map((x) => Gift.fromJson(x))),
+            : List<Gift>.from((json["gifts"] as List).map((x) {
+                if (x is Gift) return x;
+                if (x is Map) {
+                  return Gift.fromJson(Map<String, dynamic>.from(x));
+                }
+                return Gift();
+              })),
         musicCategories: json["musicCategories"] == null
             ? []
             : List<MusicCategory>.from(
@@ -486,7 +492,8 @@ class Gift {
 
   factory Gift.fromJson(Map<String, dynamic> json) => Gift(
         id: Setting._asInt(json["id"]),
-        coinPrice: Setting._asInt(json["coin_price"]),
+        coinPrice: Setting._asInt(json["coin_price"]) ??
+            Setting._asInt(json["coinPrice"]),
         image: json["image"]?.toString(),
         createdAt: json["created_at"] == null
             ? null
@@ -683,6 +690,7 @@ class UserLevel {
   int coinsCollection;
   int callRequestCoins;
   int canReceiveCalls;
+  int canGoLive;
   String? title;
   List<String> benefits;
   int isSvipLevel;
@@ -697,6 +705,7 @@ class UserLevel {
     this.coinsCollection = 0,
     this.callRequestCoins = 0,
     this.canReceiveCalls = 0,
+    this.canGoLive = 0,
     this.title,
     this.benefits = const [],
     this.isSvipLevel = 0,
@@ -718,6 +727,9 @@ class UserLevel {
         canReceiveCalls: json["can_receive_calls"] is num
             ? (json["can_receive_calls"] as num).toInt()
             : int.tryParse('${json["can_receive_calls"] ?? 0}') ?? 0,
+        canGoLive: json["can_go_live"] is num
+            ? (json["can_go_live"] as num).toInt()
+            : int.tryParse('${json["can_go_live"] ?? 0}') ?? 0,
         title: json["title"]?.toString(),
         benefits: _parseBenefits(json["benefits_json"]),
         isSvipLevel: json["is_svip_level"] is num
@@ -768,8 +780,12 @@ class UserLevel {
         "coins_collection": coinsCollection,
         "call_request_coins": callRequestCoins,
         "can_receive_calls": canReceiveCalls,
+        "can_go_live": canGoLive,
         "title": title,
         "benefits_json": benefits,
+        "is_svip_level": isSvipLevel,
+        "unlock_dressing": unlockDressing,
+        "show_on_honor_wall": showOnHonorWall,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };

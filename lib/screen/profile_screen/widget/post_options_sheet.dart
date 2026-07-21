@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/create_feed_screen/create_feed_screen.dart';
@@ -22,6 +23,12 @@ class PostOptionsSheet extends StatelessWidget {
     required this.controller,
     this.onChanged,
   });
+
+  bool get _canGoLive {
+    final user = SessionManager.instance.getUser();
+    if (user == null) return false;
+    return user.canGoLive == 1 || user.getLevel.canGoLive == 1;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +100,12 @@ class PostOptionsSheet extends StatelessWidget {
   }
 
   void _onSelect(PublishType type) {
+    if (type == PublishType.goLive && !_canGoLive) {
+      Get.back();
+      BaseController.share.showSnackBar(LKey.liveLockedUntilLevel.tr);
+      return;
+    }
+
     Get.back();
     onChanged?.call(type);
 

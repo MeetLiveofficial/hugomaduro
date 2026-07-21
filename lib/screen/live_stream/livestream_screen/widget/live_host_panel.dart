@@ -13,11 +13,13 @@ import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// Un solo botón lateral que abre Beauty / Network / Invite.
+/// Un solo botón lateral que abre Beauty / Network / Calidad / Invite.
 class LiveHostActionBar extends StatelessWidget {
   final VoidCallback onBeauty;
   final VoidCallback onInvite;
+  final VoidCallback? onQuality;
   final RxString networkLabel;
+  final String? qualityLabel;
   final Color? foreground;
 
   const LiveHostActionBar({
@@ -25,42 +27,43 @@ class LiveHostActionBar extends StatelessWidget {
     required this.onBeauty,
     required this.onInvite,
     required this.networkLabel,
+    this.onQuality,
+    this.qualityLabel,
     this.foreground,
   });
 
   @override
   Widget build(BuildContext context) {
     final fg = foreground ?? whitePure(context);
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(28),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: () => openLiveHostOptionsMenu(
-            onBeauty: onBeauty,
-            onInvite: onInvite,
-            networkLabel: networkLabel,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.tune_rounded, color: fg, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Options',
-                  style: TextStyleCustom.outFitMedium500(
-                    color: fg,
-                    fontSize: 13,
-                  ),
+    return Material(
+      color: Colors.black.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => openLiveHostOptionsMenu(
+          onBeauty: onBeauty,
+          onInvite: onInvite,
+          onQuality: onQuality,
+          networkLabel: networkLabel,
+          qualityLabel: qualityLabel,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.tune_rounded, color: fg, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                'Options',
+                style: TextStyleCustom.outFitMedium500(
+                  color: fg,
+                  fontSize: 12,
                 ),
-                const SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_up_rounded, color: fg, size: 18),
-              ],
-            ),
+              ),
+              const SizedBox(width: 2),
+              Icon(Icons.keyboard_arrow_up_rounded, color: fg, size: 16),
+            ],
           ),
         ),
       ),
@@ -72,6 +75,8 @@ void openLiveHostOptionsMenu({
   required VoidCallback onBeauty,
   required VoidCallback onInvite,
   required RxString networkLabel,
+  VoidCallback? onQuality,
+  String? qualityLabel,
 }) {
   Get.bottomSheet(
     SafeArea(
@@ -93,6 +98,18 @@ void openLiveHostOptionsMenu({
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
+            if (onQuality != null)
+              _HostOptionTile(
+                icon: Icons.high_quality_rounded,
+                title: 'Calidad de video',
+                subtitle: qualityLabel != null
+                    ? 'Actual: $qualityLabel'
+                    : 'Baja / Media / Alta',
+                onTap: () {
+                  Get.back();
+                  onQuality();
+                },
+              ),
             _HostOptionTile(
               icon: Icons.auto_awesome,
               title: LKey.beautySettings.tr,

@@ -119,7 +119,7 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                               ),
                               icon: const Icon(Icons.refresh_rounded, size: 18),
                               label: Text(
-                                'Reintentar · calidad baja',
+                                'Reintentar',
                                 style: TextStyleCustom.outFitMedium500(
                                   color: Colors.white,
                                   fontSize: 13,

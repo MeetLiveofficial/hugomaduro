@@ -113,6 +113,13 @@ class LiveStreamSearchScreenController extends BaseController {
       return;
     }
 
+    final canGoLive =
+        user.canGoLive == 1 || user.getLevel.canGoLive == 1;
+    if (!canGoLive) {
+      showSnackBar(LKey.liveLockedUntilLevel.tr, second: 4);
+      return;
+    }
+
     final dummyConflict = (settings?.dummyLives ?? []).any(
       (d) => d.userId == user.id && (d.status ?? 0) == 1,
     );

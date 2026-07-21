@@ -320,6 +320,11 @@ class _LevelCard extends StatelessWidget {
                     '${LKey.receiveCalls.tr}: ${level.canReceiveCalls == 1 ? LKey.yes.tr : LKey.no.tr}',
                 emphasized: isCurrent && level.canReceiveCalls == 1,
               ),
+              _MetaChip(
+                label:
+                    '${LKey.canGoLive.tr}: ${level.canGoLive == 1 ? LKey.yes.tr : LKey.no.tr}',
+                emphasized: isCurrent && level.canGoLive == 1,
+              ),
             ],
           ),
           if (level.benefits.isNotEmpty) ...[

@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
 import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/utilities/app_res.dart';
 
 class Livestream {
@@ -14,6 +15,7 @@ class Livestream {
   int? hostViewID;
   String? roomID;
   int? likeCount;
+  List<LiveGiftSender>? giftSenders;
   int? hostId;
   List<int>? coHostIds;
   AppUser? hostUser;
@@ -50,7 +52,28 @@ class Livestream {
     isRestrictToJoin = json['is_restrict_to_join'];
     hostViewID = json['host_view_id'];
     roomID = json['room_id']?.toString();
-    likeCount = json['like_count'];
+    likeCount = json['like_count'] is num
+        ? (json['like_count'] as num).toInt()
+        : int.tryParse('${json['like_count'] ?? ''}');
+    final rawSenders = json['gift_senders'];
+    if (rawSenders is List) {
+      giftSenders = rawSenders.map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+        return LiveGiftSender(
+          userId: m['user_id'] is num
+              ? (m['user_id'] as num).toInt()
+              : int.tryParse('${m['user_id']}') ?? 0,
+          userName: '${m['user_name'] ?? 'User'}',
+          totalCoins: m['total_coins'] is num
+              ? (m['total_coins'] as num).toInt()
+              : int.tryParse('${m['total_coins']}') ?? 0,
+          giftCount: m['gift_count'] is num
+              ? (m['gift_count'] as num).toInt()
+              : int.tryParse('${m['gift_count']}') ?? 0,
+          lastGiftImage: m['last_gift_image']?.toString(),
+        );
+      }).toList();
+    }
     hostId = json['host_id'];
     final coHosts = json['co-host_ids'];
     coHostIds = coHosts is List

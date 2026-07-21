@@ -46,7 +46,10 @@ class SplashScreenController extends BaseController {
         // Get.back() sacaba el Splash dejando pantalla blanca).
         if (_noInternetSheetOpen) {
           _noInternetSheetOpen = false;
-          Get.back();
+          if (Get.isDialogOpen == true ||
+              (Get.key.currentState?.canPop() ?? false)) {
+            Get.back();
+          }
         }
       } else if (!_noInternetSheetOpen) {
         _noInternetSheetOpen = true;
@@ -64,7 +67,17 @@ class SplashScreenController extends BaseController {
   Future<void> fetchSettings() async {
     try {
       await Future.delayed(const Duration(milliseconds: 800));
-      bool showNavigate = await CommonService.instance.fetchGlobalSettings();
+      bool showNavigate = false;
+      try {
+        showNavigate = await CommonService.instance
+            .fetchGlobalSettings()
+            .timeout(const Duration(seconds: 15));
+      } catch (e) {
+        Loggers.error('fetchGlobalSettings timeout/error: $e');
+        showSnackBar('Sin conexión al servidor. Revisa tu red.', second: 5);
+        Get.off(() => const LoginScreen(), routeName: '/login');
+        return;
+      }
       if (!showNavigate) {
         showSnackBar('No se pudo cargar la configuración del servidor.', second: 5);
         Get.off(() => const LoginScreen(), routeName: '/login');
