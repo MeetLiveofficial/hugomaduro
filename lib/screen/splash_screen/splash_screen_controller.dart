@@ -14,6 +14,7 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/network_helper/network_helper.dart';
+import 'package:krimson/common/service/translation/chat_translator_service.dart';
 import 'package:krimson/common/widget/no_internet_sheet.dart';
 import 'package:krimson/languages/dynamic_translations.dart';
 import 'package:krimson/model/general/settings_model.dart';
@@ -93,8 +94,17 @@ class SplashScreenController extends BaseController {
         SessionManager.instance.setFallbackLang(defaultLang.code ?? 'en');
       }
 
-      // Alinear locale GetX con el idioma guardado (tras cargar CSV).
-      Get.updateLocale(Locale(SessionManager.instance.getLang()));
+      // Solo idiomas activos del panel (ES/EN/PT, etc.) impulsan la UI.
+      final activeLang = SessionManager.instance.ensureActiveLang();
+      Get.updateLocale(Locale(activeLang));
+
+      // Precarga silenciosa de modelos ML Kit (EN + idioma del usuario).
+      // No bloquea la navegación; la primera traducción en chat será instantánea.
+      unawaited(
+        ChatTranslatorService.instance.preloadForUserLanguage(
+          langCode: activeLang,
+        ),
+      );
 
       // No reiniciar toda la app aquí: RestartWidget + Get.off dejaba
       // navigator vacío (pantalla blanca) en emuladores.

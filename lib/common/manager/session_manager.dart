@@ -138,13 +138,64 @@ class SessionManager {
     storage.write(SessionKeys.lang, langCode);
     // Sin esto GetX sigue mostrando el idioma anterior (claves en inglés).
     Get.updateLocale(Locale(langCode));
-    if (getUser() != null && hasAuthToken) {
+    final user = getUser();
+    if (user != null) {
+      user.appLanguage = langCode;
+      setUser(user);
+    }
+    if (user != null && hasAuthToken) {
       UserService.instance.updateUserDetails(appLanguage: langCode);
     }
   }
 
   String getLang() {
     return storage.read(SessionKeys.lang) ?? getFallbackLang();
+  }
+
+  /// Idiomas activos del panel admin (APP LANGUAGES con status = 1).
+  List<Language> getActiveLanguages() {
+    return (getSettings()?.languages ?? [])
+        .where((e) => e.status == 1 && (e.code?.isNotEmpty ?? false))
+        .toList();
+  }
+
+  /// Garantiza que el locale sea uno de los idiomas activos (p. ej. es/en/pt).
+  /// Si [preferred] no está activo, usa el default del admin o el primero disponible.
+  String ensureActiveLang([String? preferred]) {
+    final active = getActiveLanguages();
+    final codes = active.map((e) => e.code!).toList();
+    final candidate = (preferred ?? getLang()).trim().toLowerCase();
+
+    // Fallback local si el admin aún no envió idiomas (mismo set del seeder).
+    if (codes.isEmpty) {
+      const seeded = ['en', 'es', 'pt'];
+      final resolved = seeded.contains(candidate) ? candidate : 'en';
+      if (resolved != getLang()) {
+        storage.write(SessionKeys.lang, resolved);
+        Get.updateLocale(Locale(resolved));
+      }
+      return resolved;
+    }
+
+    if (codes.contains(candidate)) {
+      if (candidate != getLang()) {
+        setLang(candidate);
+      }
+      return candidate;
+    }
+
+    final defaultLang =
+        active.firstWhereOrNull((e) => e.isDefault == 1)?.code ?? codes.first;
+    if (defaultLang != getLang()) {
+      setLang(defaultLang);
+    }
+    return defaultLang;
+  }
+
+  /// Aplica el idioma del perfil (app_language) a la sesión / UI.
+  void applyUserAppLanguage(String? code) {
+    if (code == null || code.trim().isEmpty) return;
+    ensureActiveLang(code.trim().toLowerCase());
   }
 
   void setFallbackLang(String langCode) {

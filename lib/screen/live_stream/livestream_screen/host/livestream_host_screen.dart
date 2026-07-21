@@ -4,6 +4,7 @@ import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_stream_overlay.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:video_player/video_player.dart';
 
@@ -81,16 +82,56 @@ class LivestreamHostScreen extends StatelessWidget {
                   });
                 }
                 return Center(
-                  child: Obx(() => Text(
-                        c.statusMessage.value.isEmpty
-                            ? 'You are live'
-                            : c.statusMessage.value,
-                        textAlign: TextAlign.center,
-                        style: TextStyleCustom.outFitRegular400(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      )),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Obx(() {
+                      final busy = lk?.isConnecting.value == true;
+                      final msg = c.statusMessage.value.isEmpty
+                          ? 'You are live'
+                          : c.statusMessage.value;
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (busy)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 16),
+                              child: CircularProgressIndicator(
+                                color: Colors.white70,
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                          Text(
+                            msg,
+                            textAlign: TextAlign.center,
+                            style: TextStyleCustom.outFitRegular400(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (!busy &&
+                              (lk == null || lk.isConnected.value != true)) ...[
+                            const SizedBox(height: 16),
+                            TextButton.icon(
+                              onPressed: c.retryLiveConnection,
+                              style: TextButton.styleFrom(
+                                backgroundColor: ColorRes.themeAccentSolid,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                              ),
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text('Reintentar · calidad baja'),
+                            ),
+                          ],
+                        ],
+                      );
+                    }),
+                  ),
                 );
               },
             ),

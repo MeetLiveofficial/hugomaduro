@@ -40,6 +40,7 @@ class _Chat {
   String sendMessage = "${apiURL}chat/sendMessage";
   String updateThread = "${apiURL}chat/updateThread";
   String markRead = "${apiURL}chat/markRead";
+  String translate = "${apiURL}chat/translate";
 }
 
 class _Live {

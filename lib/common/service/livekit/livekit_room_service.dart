@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/service/api/livekit_token_service.dart';
@@ -7,13 +8,23 @@ import 'package:krimson/utilities/const_res.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+/// Perfil de calidad de publicación/suscripción LiveKit.
+enum LiveKitQualityProfile {
+  /// Red buena: 720p / ~1.5 Mbps
+  high,
+
+  /// Red media (datos móviles): 360p / ~600 kbps
+  medium,
+
+  /// Red mala: 180p / ~250 kbps — prioriza conectar sí o sí
+  low,
+}
+
 /// Servicio de conexión a salas LiveKit (sin GetX).
 ///
-/// Optimizado para calidad fluida y arranque estable:
-/// - Permisos antes de conectar
-/// - Token y warm-up de tracks en paralelo
-/// - Captura 720p @ 30 fps (bitrate alto) para imagen fluida
-/// - Reintentos a 540/360 solo si el publish falla
+/// - Timeout + reintentos al conectar
+/// - Perfil de calidad según red (baja calidad si Wi‑Fi/datos flojos)
+/// - Simulcast + adaptiveStream para que la audiencia baje sola
 class LiveKitRoomService {
   Room? _room;
   EventsListener<RoomEvent>? _listener;
@@ -27,6 +38,8 @@ class LiveKitRoomService {
       _room != null &&
       (_room?.connectionState == ConnectionState.connected ||
           _room?.connectionState == ConnectionState.reconnecting);
+
+  LiveKitQualityProfile qualityProfile = LiveKitQualityProfile.medium;
 
   final StreamController<void> _mediaChanges =
       StreamController<void>.broadcast();
@@ -43,6 +56,10 @@ class LiveKitRoomService {
   final StreamController<(int pingMs, int fps)> _stats =
       StreamController<(int, int)>.broadcast();
   Stream<(int pingMs, int fps)> get onStats => _stats.stream;
+
+  final StreamController<LiveKitQualityProfile> _qualityChanges =
+      StreamController<LiveKitQualityProfile>.broadcast();
+  Stream<LiveKitQualityProfile> get onQualityChanged => _qualityChanges.stream;
 
   Timer? _statsTimer;
   int _lastFps = 0;
@@ -63,7 +80,83 @@ class LiveKitRoomService {
     }
   }
 
-  /// Conecta a una sala LiveKit.
+  Future<LiveKitQualityProfile> detectQualityProfile() async {
+    try {
+      final results = await Connectivity().checkConnectivity();
+      if (results.contains(ConnectivityResult.none) || results.isEmpty) {
+        return LiveKitQualityProfile.low;
+      }
+      if (results.contains(ConnectivityResult.mobile)) {
+        return LiveKitQualityProfile.low;
+      }
+      // Wi‑Fi / ethernet: empezar en medium (más estable que 720p) y subir si va bien.
+      return LiveKitQualityProfile.medium;
+    } catch (_) {
+      return LiveKitQualityProfile.low;
+    }
+  }
+
+  VideoParameters _captureParams(LiveKitQualityProfile profile) {
+    switch (profile) {
+      case LiveKitQualityProfile.high:
+        return VideoParametersPresets.h720_169;
+      case LiveKitQualityProfile.medium:
+        return VideoParametersPresets.h360_169;
+      case LiveKitQualityProfile.low:
+        return VideoParametersPresets.h180_169;
+    }
+  }
+
+  VideoPublishOptions _publishOptions(LiveKitQualityProfile profile) {
+    switch (profile) {
+      case LiveKitQualityProfile.high:
+        return const VideoPublishOptions(
+          videoCodec: 'h264',
+          simulcast: true,
+          videoEncoding: VideoEncoding(
+            maxBitrate: 1500 * 1000,
+            maxFramerate: 24,
+          ),
+          degradationPreference: DegradationPreference.balanced,
+        );
+      case LiveKitQualityProfile.medium:
+        return const VideoPublishOptions(
+          videoCodec: 'h264',
+          simulcast: true,
+          videoEncoding: VideoEncoding(
+            maxBitrate: 600 * 1000,
+            maxFramerate: 20,
+          ),
+          degradationPreference: DegradationPreference.balanced,
+        );
+      case LiveKitQualityProfile.low:
+        return const VideoPublishOptions(
+          videoCodec: 'h264',
+          simulcast: true,
+          videoEncoding: VideoEncoding(
+            maxBitrate: 250 * 1000,
+            maxFramerate: 15,
+          ),
+          degradationPreference: DegradationPreference.maintainFramerate,
+        );
+    }
+  }
+
+  VideoQuality _subscribeQuality(LiveKitQualityProfile profile) {
+    switch (profile) {
+      case LiveKitQualityProfile.high:
+        return VideoQuality.HIGH;
+      case LiveKitQualityProfile.medium:
+        return VideoQuality.MEDIUM;
+      case LiveKitQualityProfile.low:
+        return VideoQuality.LOW;
+    }
+  }
+
+  /// Conecta a una sala LiveKit (con timeout y reintentos).
+  ///
+  /// En Web solo se permite suscripción (audiencia). Publicar cámara/mic
+  /// sigue siendo nativo.
   Future<Room> connect({
     required String roomName,
     required String identity,
@@ -71,21 +164,91 @@ class LiveKitRoomService {
     bool publishCamera = true,
     bool publishMicrophone = true,
     String? wsUrl,
+    LiveKitQualityProfile? forceProfile,
+    int maxAttempts = 3,
   }) async {
-    if (kIsWeb) {
+    if (kIsWeb && (publishCamera || publishMicrophone)) {
       throw UnsupportedError(
-        'LiveKit A/V completo requiere Android/iOS. Web está limitado.',
+        'Publicar cámara/mic en Web no está soportado. Usa Android/iOS.',
       );
     }
     if (_room != null) {
       await disconnect();
     }
 
-    _emitStatus('Preparing camera…');
+    qualityProfile = forceProfile ?? await detectQualityProfile();
+    if (!_qualityChanges.isClosed) {
+      _qualityChanges.add(qualityProfile);
+    }
+
+    final profilesToTry = <LiveKitQualityProfile>[
+      qualityProfile,
+      if (qualityProfile != LiveKitQualityProfile.low) LiveKitQualityProfile.low,
+    ];
+
+    Object? lastError;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      final profile = profilesToTry[
+          attempt < profilesToTry.length ? attempt : profilesToTry.length - 1];
+      qualityProfile = profile;
+      if (!_qualityChanges.isClosed) {
+        _qualityChanges.add(profile);
+      }
+
+      final label = switch (profile) {
+        LiveKitQualityProfile.high => 'alta',
+        LiveKitQualityProfile.medium => 'media',
+        LiveKitQualityProfile.low => 'baja',
+      };
+      _emitStatus(
+        attempt == 0
+            ? 'Conectando (calidad $label)…'
+            : 'Reintentando en calidad $label…',
+      );
+
+      try {
+        final room = await _connectOnce(
+          roomName: roomName,
+          identity: identity,
+          name: name,
+          publishCamera: publishCamera,
+          publishMicrophone: publishMicrophone,
+          wsUrl: wsUrl,
+          profile: profile,
+        );
+        _emitStatus(
+          profile == LiveKitQualityProfile.low
+              ? 'Conectado · calidad baja'
+              : '',
+        );
+        return room;
+      } catch (e) {
+        lastError = e;
+        Loggers.error('LiveKit connect attempt ${attempt + 1}: $e');
+        await _release();
+        if (attempt < maxAttempts - 1) {
+          await Future.delayed(Duration(milliseconds: 600 * (attempt + 1)));
+        }
+      }
+    }
+
+    _emitStatus('Sin video. Toca Reintentar.');
+    throw lastError ?? Exception('LiveKit connect failed');
+  }
+
+  Future<Room> _connectOnce({
+    required String roomName,
+    required String identity,
+    String? name,
+    required bool publishCamera,
+    required bool publishMicrophone,
+    String? wsUrl,
+    required LiveKitQualityProfile profile,
+  }) async {
+    _emitStatus('Preparando…');
     LocalVideoTrack? warmVideo;
     LocalAudioTrack? warmAudio;
 
-    // Token + permisos/warm-up en paralelo para acortar espera.
     final tokenFuture = LiveKitTokenService.instance.createToken(
       roomName: roomName,
       identity: identity,
@@ -93,12 +256,13 @@ class LiveKitRoomService {
     );
 
     final warmFuture = () async {
+      if (!publishCamera && !publishMicrophone) return;
       await _ensureMediaPermissions(
         camera: publishCamera,
         microphone: publishMicrophone,
       );
       if (publishCamera) {
-        warmVideo = await _createCameraTrackSafe();
+        warmVideo = await _createCameraTrackSafe(profile);
       }
       if (publishMicrophone) {
         warmAudio = await _createMicTrackSafe();
@@ -107,7 +271,10 @@ class LiveKitRoomService {
 
     late final LiveKitTokenResult tokenResult;
     try {
-      final results = await Future.wait([tokenFuture, warmFuture]);
+      final results = await Future.wait([
+        tokenFuture.timeout(const Duration(seconds: 12)),
+        warmFuture.timeout(const Duration(seconds: 15)),
+      ]);
       tokenResult = results[0] as LiveKitTokenResult;
     } catch (e) {
       await warmVideo?.stop();
@@ -117,30 +284,23 @@ class LiveKitRoomService {
       rethrow;
     }
 
+    final capture = _captureParams(profile);
+    final publish = _publishOptions(profile);
+
     final room = Room(
-      roomOptions: const RoomOptions(
+      roomOptions: RoomOptions(
         adaptiveStream: true,
         dynacast: true,
         defaultCameraCaptureOptions: CameraCaptureOptions(
           cameraPosition: CameraPosition.front,
-          // 720p @ 30fps → imagen más nítida y fluida.
-          params: VideoParametersPresets.h720_169,
+          params: capture,
         ),
-        defaultAudioCaptureOptions: AudioCaptureOptions(
+        defaultAudioCaptureOptions: const AudioCaptureOptions(
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
         ),
-        // Encoding de publicación: prioriza fluidez (30 fps) y bitrate alto.
-        defaultVideoPublishOptions: VideoPublishOptions(
-          videoCodec: 'h264',
-          simulcast: true,
-          videoEncoding: VideoEncoding(
-            maxBitrate: 2 * 1000 * 1000, // ~2 Mbps
-            maxFramerate: 30,
-          ),
-          degradationPreference: DegradationPreference.maintainFramerate,
-        ),
+        defaultVideoPublishOptions: publish,
       ),
     );
 
@@ -151,16 +311,19 @@ class LiveKitRoomService {
         ? liveKitWsUrl
         : (wsUrl ?? tokenResult.wsUrl).trim();
 
-    _emitStatus('Connecting…');
+    _emitStatus('Conectando…');
     Loggers.info(
-      'LiveKitRoomService connect room=$roomName identity=$identity url=$url',
+      'LiveKitRoomService connect room=$roomName identity=$identity '
+      'url=$url profile=$profile',
     );
 
-    await room.connect(
-      url,
-      tokenResult.token,
-      connectOptions: const ConnectOptions(autoSubscribe: true),
-    );
+    await room
+        .connect(
+          url,
+          tokenResult.token,
+          connectOptions: const ConnectOptions(autoSubscribe: true),
+        )
+        .timeout(const Duration(seconds: 18));
 
     _room = room;
     _listener = listener;
@@ -169,27 +332,64 @@ class LiveKitRoomService {
     final lp = room.localParticipant;
     if (lp != null) {
       if (publishMicrophone) {
-        _emitStatus('Starting microphone…');
+        _emitStatus('Micrófono…');
         await _publishMic(lp, warmAudio);
         warmAudio = null;
       }
       if (publishCamera) {
-        _emitStatus('Starting camera…');
-        await _publishCamera(lp, warmVideo);
+        _emitStatus('Cámara…');
+        await _publishCamera(lp, warmVideo, profile);
         warmVideo = null;
       }
     }
 
-    // Por si warm-up quedó huérfano tras fallo.
     await warmVideo?.stop();
     await warmVideo?.dispose();
     await warmAudio?.stop();
     await warmAudio?.dispose();
 
-    _emitStatus('');
+    // Preferir capa baja al entrar; adaptiveStream puede subir después.
+    await preferRemoteVideoQuality(_subscribeQuality(profile));
+
     _mediaChanges.add(null);
     _startStatsPolling();
     return room;
+  }
+
+  /// Fija la calidad de suscripción de video remoto (LOW/MEDIUM/HIGH).
+  Future<void> preferRemoteVideoQuality(VideoQuality quality) async {
+    for (final p in remoteParticipants) {
+      for (final pub in p.videoTrackPublications) {
+        try {
+          await pub.setVideoQuality(quality);
+        } catch (e) {
+          Loggers.error('setVideoQuality: $e');
+        }
+      }
+    }
+  }
+
+  /// Ajusta calidad según [ConnectionQuality] del propio participante.
+  Future<void> applyConnectionQuality(ConnectionQuality q) async {
+    final next = switch (q) {
+      ConnectionQuality.excellent || ConnectionQuality.good =>
+        qualityProfile == LiveKitQualityProfile.low
+            ? LiveKitQualityProfile.medium
+            : qualityProfile,
+      ConnectionQuality.poor || ConnectionQuality.lost =>
+        LiveKitQualityProfile.low,
+      _ => qualityProfile,
+    };
+    if (next == qualityProfile) {
+      await preferRemoteVideoQuality(_subscribeQuality(qualityProfile));
+      return;
+    }
+    qualityProfile = next;
+    if (!_qualityChanges.isClosed) {
+      _qualityChanges.add(next);
+    }
+    await preferRemoteVideoQuality(_subscribeQuality(next));
+    Loggers.info('LiveKit quality adapted → $next (from $q)');
   }
 
   void _startStatsPolling() {
@@ -245,7 +445,8 @@ class LiveKitRoomService {
     } catch (_) {}
   }
 
-  Future<void> publishDataBytes(List<int> bytes, {String topic = 'live_chat'}) async {
+  Future<void> publishDataBytes(List<int> bytes,
+      {String topic = 'live_chat'}) async {
     final lp = _room?.localParticipant;
     if (lp == null) return;
     await lp.publishData(
@@ -259,6 +460,7 @@ class LiveKitRoomService {
     required bool camera,
     required bool microphone,
   }) async {
+    if (kIsWeb) return;
     final needed = <Permission>[];
     if (camera) needed.add(Permission.camera);
     if (microphone) needed.add(Permission.microphone);
@@ -272,40 +474,30 @@ class LiveKitRoomService {
     }
   }
 
-  static const CameraCaptureOptions _camera720 = CameraCaptureOptions(
-    cameraPosition: CameraPosition.front,
-    params: VideoParametersPresets.h720_169,
-  );
-
-  static const VideoPublishOptions _publishSmooth = VideoPublishOptions(
-    videoCodec: 'h264',
-    simulcast: true,
-    videoEncoding: VideoEncoding(
-      maxBitrate: 2 * 1000 * 1000,
-      maxFramerate: 30,
-    ),
-    degradationPreference: DegradationPreference.maintainFramerate,
-  );
-
-  Future<LocalVideoTrack?> _createCameraTrackSafe() async {
-    try {
-      return await LocalVideoTrack.createCameraTrack(_camera720)
-          .timeout(const Duration(seconds: 10));
-    } catch (e) {
-      Loggers.error('createCameraTrack 720p: $e');
-      // Fallback rápido si el dispositivo no abre 720p a tiempo.
+  Future<LocalVideoTrack?> _createCameraTrackSafe(
+    LiveKitQualityProfile profile,
+  ) async {
+    final presets = <VideoParameters>[
+      _captureParams(profile),
+      VideoParametersPresets.h180_169,
+    ];
+    // Evitar duplicados.
+    final tried = <String>{};
+    for (final params in presets) {
+      final key = '${params.dimensions.width}x${params.dimensions.height}';
+      if (!tried.add(key)) continue;
       try {
         return await LocalVideoTrack.createCameraTrack(
-          const CameraCaptureOptions(
+          CameraCaptureOptions(
             cameraPosition: CameraPosition.front,
-            params: VideoParametersPresets.h540_169,
+            params: params,
           ),
         ).timeout(const Duration(seconds: 8));
-      } catch (e2) {
-        Loggers.error('createCameraTrack 540p: $e2');
-        return null;
+      } catch (e) {
+        Loggers.error('createCameraTrack $key: $e');
       }
     }
+    return null;
   }
 
   Future<LocalAudioTrack?> _createMicTrackSafe() async {
@@ -326,11 +518,13 @@ class LiveKitRoomService {
   Future<void> _publishCamera(
     LocalParticipant lp,
     LocalVideoTrack? warm,
+    LiveKitQualityProfile profile,
   ) async {
+    final publish = _publishOptions(profile);
     if (warm != null) {
       try {
         await lp
-            .publishVideoTrack(warm, publishOptions: _publishSmooth)
+            .publishVideoTrack(warm, publishOptions: publish)
             .timeout(const Duration(seconds: 12));
         return;
       } catch (e) {
@@ -342,13 +536,16 @@ class LiveKitRoomService {
       }
     }
 
-    // Preferir 720p; bajar solo si el publish falla.
     final presets = <VideoParameters>[
-      VideoParametersPresets.h720_169,
-      VideoParametersPresets.h540_169,
+      _captureParams(profile),
       VideoParametersPresets.h360_169,
+      VideoParametersPresets.h180_169,
     ];
+    final tried = <String>{};
     for (var i = 0; i < presets.length; i++) {
+      final key =
+          '${presets[i].dimensions.width}x${presets[i].dimensions.height}';
+      if (!tried.add(key)) continue;
       try {
         await lp
             .setCameraEnabled(
@@ -402,7 +599,7 @@ class LiveKitRoomService {
     final lp = _room?.localParticipant;
     if (lp == null) return;
     if (enabled) {
-      await _publishCamera(lp, null);
+      await _publishCamera(lp, null, qualityProfile);
     } else {
       try {
         await lp.setCameraEnabled(false);
@@ -467,12 +664,29 @@ class LiveKitRoomService {
       ..on<RoomDisconnectedEvent>((_) => _mediaChanges.add(null))
       ..on<ParticipantConnectedEvent>((_) => _mediaChanges.add(null))
       ..on<ParticipantDisconnectedEvent>((_) => _mediaChanges.add(null))
-      ..on<TrackSubscribedEvent>((_) => _mediaChanges.add(null))
+      ..on<TrackSubscribedEvent>((event) async {
+        _mediaChanges.add(null);
+        if (event.track is RemoteVideoTrack) {
+          try {
+            await event.publication.setVideoQuality(
+              _subscribeQuality(qualityProfile),
+            );
+          } catch (_) {}
+        }
+      })
       ..on<TrackUnsubscribedEvent>((_) => _mediaChanges.add(null))
       ..on<LocalTrackPublishedEvent>((_) => _mediaChanges.add(null))
       ..on<LocalTrackUnpublishedEvent>((_) => _mediaChanges.add(null))
       ..on<TrackMutedEvent>((_) => _mediaChanges.add(null))
       ..on<TrackUnmutedEvent>((_) => _mediaChanges.add(null))
+      ..on<ParticipantConnectionQualityUpdatedEvent>((event) {
+        // Solo reaccionar a la calidad local.
+        final localId = _room?.localParticipant?.identity;
+        if (localId != null && event.participant.identity == localId) {
+          unawaited(applyConnectionQuality(event.connectionQuality));
+        }
+        _mediaChanges.add(null);
+      })
       ..on<DataReceivedEvent>((event) {
         if (!_dataEvents.isClosed) _dataEvents.add(event);
       });
@@ -496,5 +710,6 @@ class LiveKitRoomService {
     await _status.close();
     await _dataEvents.close();
     await _stats.close();
+    await _qualityChanges.close();
   }
 }

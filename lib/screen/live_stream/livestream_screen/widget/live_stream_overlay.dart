@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
@@ -35,11 +36,30 @@ class LiveStreamOverlay extends StatelessWidget {
             const SizedBox(height: 6),
             Obx(() => Align(
                   alignment: Alignment.centerRight,
-                  child: _Pill(
-                    label:
-                        '${controller.pingMs.value} ms · ${controller.fps.value} fps',
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (controller.liveKit?.qualityProfile.value ==
+                          LiveKitQualityProfile.low)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 6),
+                          child: _Pill(label: 'LOW'),
+                        ),
+                      _Pill(
+                        label:
+                            '${controller.pingMs.value} ms · ${controller.fps.value} fps',
+                      ),
+                    ],
                   ),
                 )),
+            Obx(() {
+              final banner = controller.followBanner.value;
+              if (banner == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _FollowBanner(message: banner),
+              );
+            }),
             Expanded(
               child: Stack(
                 children: [
@@ -51,16 +71,166 @@ class LiveStreamOverlay extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     child: _FloatingLikes(controller: controller),
                   ),
+                  Obx(() {
+                    if (!controller.isStreamPaused.value) {
+                      return const SizedBox.shrink();
+                    }
+                    return const Center(child: _PausedBadge());
+                  }),
                 ],
               ),
             ),
             _TitleDescription(controller: controller),
+            const SizedBox(height: 8),
+            _LiveActionRow(controller: controller),
             const SizedBox(height: 8),
             _ComposerRow(
               controller: controller,
               showHostControls: showHostControls,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FollowBanner extends StatelessWidget {
+  final LiveChatMessage message;
+
+  const _FollowBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: ColorRes.themeAccentSolid.withValues(alpha: 0.92),
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            const Icon(Icons.person_add_alt_1_rounded,
+                color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${message.userName} te sigue',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyleCustom.outFitMedium500(
+                  color: Colors.white,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PausedBadge extends StatelessWidget {
+  const _PausedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.pause_circle_filled, color: Colors.white, size: 22),
+          const SizedBox(width: 8),
+          Text(
+            'PAUSADO',
+            style: TextStyleCustom.outFitMedium500(
+              color: Colors.white,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pause / mute / regalos — controles visibles del LIVE.
+class _LiveActionRow extends StatelessWidget {
+  final LivestreamScreenController controller;
+
+  const _LiveActionRow({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final paused = controller.isStreamPaused.value;
+      final muted = controller.isLiveAudioMuted.value;
+      final gifts = controller.giftSenders.length;
+      return Row(
+        children: [
+          _ActionChip(
+            icon: paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+            label: paused ? 'Reanudar' : 'Pausar',
+            onTap: controller.togglePauseLive,
+          ),
+          const SizedBox(width: 6),
+          _ActionChip(
+            icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+            label: muted ? 'Unmute' : 'Mute',
+            onTap: controller.toggleLiveAudioMute,
+          ),
+          const SizedBox(width: 6),
+          _ActionChip(
+            icon: Icons.card_giftcard_rounded,
+            label: gifts > 0 ? 'Regalos ($gifts)' : 'Regalos',
+            onTap: controller.openGiftSendersSheet,
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 16),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyleCustom.outFitMedium500(
+                  color: Colors.white,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -278,88 +448,117 @@ class _ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canReply =
+        message.type == 'text' || message.type == 'gif' || message.type == 'gift';
+
     return Align(
       alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.45),
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
           borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => controller.openChatUserProfile(message),
-              child: Text(
-                message.userName,
-                style: TextStyleCustom.outFitMedium500(
-                  color: ColorRes.themeAccentSolid,
-                  fontSize: 11,
-                ),
-              ),
-            ),
-            const SizedBox(height: 2),
-            if (message.type == 'gif' && (message.gifUrl ?? '').isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  message.gifUrl!,
-                  height: 72,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Text(
-                    'GIF',
-                    style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70,
-                      fontSize: 12,
+          onTap: canReply ? () => controller.setReplyTo(message) : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => controller.openChatUserProfile(message),
+                  child: Text(
+                    message.userName,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: ColorRes.themeAccentSolid,
+                      fontSize: 11,
                     ),
                   ),
                 ),
-              )
-            else if (message.type == 'gift')
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if ((message.giftImage ?? '').isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: Image.network(
-                        message.giftImage!.addBaseURL(),
-                        width: 36,
-                        height: 36,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.card_giftcard,
-                          color: Colors.white70,
-                          size: 28,
-                        ),
-                      ),
-                    )
-                  else
-                    const Icon(Icons.card_giftcard,
-                        color: Colors.white70, size: 28),
-                  Flexible(
-                    child: Text(
-                      'sent a gift'
-                      '${message.giftCoins != null ? ' · ${message.giftCoins}' : ''}',
-                      style: TextStyleCustom.outFitRegular400(
-                        color: Colors.white,
-                        fontSize: 13,
-                      ),
+                if (message.isReply) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '↳ ${message.replyToUserName ?? ''}'
+                    '${(message.replyToText ?? '').isNotEmpty ? ': ${message.replyToText}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white60,
+                      fontSize: 10,
                     ),
                   ),
                 ],
-              )
-            else
-              Text(
-                message.text ?? '',
-                style: TextStyleCustom.outFitRegular400(
-                  color: Colors.white,
-                  fontSize: 13,
-                ),
-              ),
-          ],
+                const SizedBox(height: 2),
+                if (message.type == 'follow')
+                  Text(
+                    message.text ?? 'te sigue',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white,
+                      fontSize: 13,
+                    ),
+                  )
+                else if (message.type == 'gif' &&
+                    (message.gifUrl ?? '').isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      message.gifUrl!,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Text(
+                        'GIF',
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  )
+                else if (message.type == 'gift')
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if ((message.giftImage ?? '').isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Image.network(
+                            message.giftImage!.addBaseURL(),
+                            width: 36,
+                            height: 36,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.card_giftcard,
+                              color: Colors.white70,
+                              size: 28,
+                            ),
+                          ),
+                        )
+                      else
+                        const Icon(Icons.card_giftcard,
+                            color: Colors.white70, size: 28),
+                      Flexible(
+                        child: Text(
+                          'sent a gift'
+                          '${message.giftCoins != null ? ' · ${message.giftCoins}' : ''}',
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    message.text ?? '',
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white,
+                      fontSize: 13,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -461,6 +660,45 @@ class _ComposerRow extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        Obx(() {
+          final reply = controller.replyingTo.value;
+          if (reply == null) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Material(
+              color: Colors.black.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.reply_rounded,
+                        color: Colors.white70, size: 16),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Respondiendo a ${reply.userName}'
+                        '${(reply.text ?? '').isNotEmpty ? ': ${reply.text}' : ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: controller.clearReply,
+                      icon: const Icon(Icons.close,
+                          color: Colors.white70, size: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
         if (showHostControls) ...[
           Builder(builder: (context) {
             final lk = controller.liveKit;
@@ -487,7 +725,11 @@ class _ComposerRow extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      onPressed: lk.toggleMicrophone,
+                      onPressed: () async {
+                        await lk.toggleMicrophone();
+                        controller.isLiveAudioMuted.value =
+                            !lk.microphoneEnabled.value;
+                      },
                       icon: Icon(
                         micOn ? Icons.mic : Icons.mic_off,
                         color: Colors.white,
@@ -525,25 +767,30 @@ class _ComposerRow extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: controller.commentController,
-                        style: TextStyleCustom.outFitRegular400(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        cursorColor: ColorRes.themeAccentSolid,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: controller.sendComment,
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          isDense: true,
-                          hintText: 'Di Hola',
-                          hintStyle: TextStyleCustom.outFitRegular400(
-                            color: Colors.white54,
+                      child: Obx(() {
+                        final reply = controller.replyingTo.value;
+                        return TextField(
+                          controller: controller.commentController,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white,
                             fontSize: 14,
                           ),
-                        ),
-                      ),
+                          cursorColor: ColorRes.themeAccentSolid,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: controller.sendComment,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            isDense: true,
+                            hintText: reply != null
+                                ? 'Responder a ${reply.userName}…'
+                                : 'Di Hola',
+                            hintStyle: TextStyleCustom.outFitRegular400(
+                              color: Colors.white54,
+                              fontSize: 14,
+                            ),
+                          ),
+                        );
+                      }),
                     ),
                     IconButton(
                       onPressed: () => controller

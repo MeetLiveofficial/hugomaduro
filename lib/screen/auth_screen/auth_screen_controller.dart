@@ -87,6 +87,7 @@ class AuthScreenController extends BaseController {
       SessionManager.instance.setUser(data);
       SessionManager.instance.setAuthToken(data.token);
       SessionManager.instance.setLogin(true);
+      SessionManager.instance.applyUserAppLanguage(data.appLanguage);
 
       _notifyRegistrationBonusIfNeeded(data);
       // ignore: unawaited_futures
@@ -440,6 +441,7 @@ class AuthScreenController extends BaseController {
     // y dejaba el login "pegado" mucho tiempo antes de entrar.
     SessionManager.instance.setLogin(true);
     SessionManager.instance.setUser(data);
+    SessionManager.instance.applyUserAppLanguage(data?.appLanguage);
     Get.offAll(
       () => DashboardScreen(myUser: data),
       routeName: '/dashboard',

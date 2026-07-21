@@ -15,7 +15,10 @@ import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
 import 'package:krimson/utilities/const_res.dart';
 
 class MessageScreenController extends BaseController {
-  List<String> chatCategories = [LKey.chats.tr, LKey.requests.tr, LKey.calls.tr];
+  /// Getter: debe llamar `.tr` en cada rebuild (si se cachea al crear el
+  /// controller, el idioma queda congelado en el del momento del login).
+  List<String> get chatCategories =>
+      [LKey.chats.tr, LKey.requests.tr, LKey.calls.tr];
   RxInt selectedChatCategory = 0.obs;
   PageController pageController = PageController();
   User? myUser = SessionManager.instance.getUser();

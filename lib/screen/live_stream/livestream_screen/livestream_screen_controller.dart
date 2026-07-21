@@ -12,6 +12,7 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
@@ -29,8 +30,11 @@ import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_private_call_sheet.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:video_player/video_player.dart';
 
@@ -73,6 +77,19 @@ class LivestreamScreenController extends BaseController {
   final RxInt floatingLikes = 0.obs;
   final RxBool isFollowingHost = false.obs;
   final RxBool isFollowBusy = false.obs;
+
+  /// Comentario al que se responde (tap en burbuja).
+  final Rxn<LiveChatMessage> replyingTo = Rxn<LiveChatMessage>();
+  /// Remitentes de regalos acumulados en esta sesión.
+  final RxList<LiveGiftSender> giftSenders = <LiveGiftSender>[].obs;
+  /// Banner "X te sigue" (solo host).
+  final Rxn<LiveChatMessage> followBanner = Rxn<LiveChatMessage>();
+  Timer? _followBannerTimer;
+
+  /// Pausa del LIVE (host o local en audiencia).
+  final RxBool isStreamPaused = false.obs;
+  /// Mute del audio del LIVE (host: mic; audiencia: audio remoto).
+  final RxBool isLiveAudioMuted = false.obs;
 
   StreamSubscription<List<ConnectivityResult>>? _netSub;
   StreamSubscription? _dataSub;
@@ -156,9 +173,20 @@ class LivestreamScreenController extends BaseController {
       // Mantener presencia ACTIVE mientras el LIVE sigue abierto.
       unawaited(UserService.instance.updateLastUsedAt());
       mediaReady.value = true;
-      if (kIsWeb && isHost) {
+      if (liveKit == null || liveKit!.isConnected.value != true) {
+        if (statusMessage.value.isEmpty) {
+          statusMessage.value = 'Sin video. Toca Reintentar (calidad baja).';
+        }
+      } else if (kIsWeb && isHost) {
         statusMessage.value =
             'Live camera on Web is limited. Chat works; prefer Android/iOS for full camera.';
+      } else if (liveKit!.qualityProfile.value == LiveKitQualityProfile.low) {
+        statusMessage.value = 'Conectado · calidad baja';
+        Future.delayed(const Duration(seconds: 3), () {
+          if (statusMessage.value == 'Conectado · calidad baja') {
+            statusMessage.value = '';
+          }
+        });
       } else {
         statusMessage.value = '';
       }
@@ -253,6 +281,7 @@ class LivestreamScreenController extends BaseController {
       final res = await UserService.instance.followUser(userId: hostId);
       if (res.status == true) {
         isFollowingHost.value = true;
+        await _broadcastFollow();
       } else {
         showSnackBar(res.message ?? LKey.somethingWentWrong.tr);
       }
@@ -261,6 +290,225 @@ class LivestreamScreenController extends BaseController {
     } finally {
       isFollowBusy.value = false;
     }
+  }
+
+  Future<void> _broadcastFollow() async {
+    final me = SessionManager.instance.getUser();
+    if (me?.id == null) return;
+    final clientId = '${me!.id}_follow_${DateTime.now().millisecondsSinceEpoch}';
+    final name = _liveDisplayName(me);
+    final msg = LiveChatMessage(
+      id: clientId,
+      userId: me.id!,
+      userName: name,
+      type: 'follow',
+      text: '$name te sigue',
+    );
+    _appendChatMessage(msg);
+    try {
+      await LiveSessionService.instance.sendComment(
+        roomId: roomId,
+        clientId: clientId,
+        type: 'text',
+        text: '👤 $name te sigue',
+      );
+    } catch (_) {}
+    try {
+      await liveKit?.publishData(msg.toBytes());
+    } catch (_) {}
+  }
+
+  void setReplyTo(LiveChatMessage message) {
+    if (message.type == 'like' || message.type == 'follow') return;
+    replyingTo.value = message;
+  }
+
+  void clearReply() => replyingTo.value = null;
+
+  Future<void> togglePauseLive() async {
+    final lk = liveKit;
+    if (lk == null || !lk.isConnected.value) {
+      if (dummyPlayer != null && dummyPlayer!.value.isInitialized) {
+        if (dummyPlayer!.value.isPlaying) {
+          await dummyPlayer!.pause();
+          isStreamPaused.value = true;
+        } else {
+          await dummyPlayer!.play();
+          isStreamPaused.value = false;
+        }
+      } else {
+        isStreamPaused.value = !isStreamPaused.value;
+      }
+      update();
+      return;
+    }
+    await lk.toggleStreamPaused(asHost: isHost);
+    isStreamPaused.value = lk.streamPaused.value;
+    if (isHost) {
+      isLiveAudioMuted.value = !lk.microphoneEnabled.value;
+    }
+    update();
+  }
+
+  Future<void> toggleLiveAudioMute() async {
+    final lk = liveKit;
+    if (lk == null) {
+      isLiveAudioMuted.value = !isLiveAudioMuted.value;
+      return;
+    }
+    if (isHost) {
+      await lk.toggleMicrophone();
+      isLiveAudioMuted.value = !lk.microphoneEnabled.value;
+    } else {
+      await lk.toggleRemoteAudio();
+      isLiveAudioMuted.value = lk.remoteAudioMuted.value;
+    }
+    update();
+  }
+
+  void openGiftSendersSheet() {
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(Get.context!).size.height * 0.55,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Text(
+                'Regalos recibidos',
+                style: TextStyleCustom.unboundedSemiBold600(
+                  color: Colors.black87,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: Obx(() {
+                  final items = giftSenders.toList()
+                    ..sort((a, b) => b.totalCoins.compareTo(a.totalCoins));
+                  if (items.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 28),
+                      child: Text(
+                        'Aún no hay regalos',
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.black54,
+                          fontSize: 14,
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final s = items[index];
+                      return Material(
+                        color: Colors.white,
+                        child: ListTile(
+                          onTap: () => openUserProfile(
+                            userId: s.userId,
+                            fullname: s.userName,
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: ColorRes.themeAccentSolid
+                                .withValues(alpha: 0.15),
+                            child: (s.lastGiftImage ?? '').isNotEmpty
+                                ? ClipOval(
+                                    child: Image.network(
+                                      s.lastGiftImage!.addBaseURL(),
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.card_giftcard,
+                                        color: ColorRes.themeAccentSolid,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(Icons.card_giftcard,
+                                    color: ColorRes.themeAccentSolid),
+                          ),
+                          title: Text(
+                            s.userName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            '${s.giftCount} regalo${s.giftCount == 1 ? '' : 's'}',
+                          ),
+                          trailing: Text(
+                            '${s.totalCoins}',
+                            style: TextStyleCustom.outFitMedium500(
+                              color: ColorRes.themeAccentSolid,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+    );
+  }
+
+  void _trackGiftSender(LiveChatMessage msg) {
+    if (msg.type != 'gift' || msg.userId <= 0) return;
+    final coins = msg.giftCoins ?? 0;
+    final idx = giftSenders.indexWhere((e) => e.userId == msg.userId);
+    if (idx >= 0) {
+      final existing = giftSenders[idx];
+      existing.giftCount += 1;
+      existing.totalCoins += coins;
+      if ((msg.giftImage ?? '').isNotEmpty) {
+        existing.lastGiftImage = msg.giftImage;
+      }
+      giftSenders[idx] = existing;
+      giftSenders.refresh();
+    } else {
+      giftSenders.add(LiveGiftSender(
+        userId: msg.userId,
+        userName: msg.userName,
+        totalCoins: coins,
+        giftCount: 1,
+        lastGiftImage: msg.giftImage,
+      ));
+    }
+  }
+
+  void _showFollowBanner(LiveChatMessage msg) {
+    if (!isHost) return;
+    followBanner.value = msg;
+    _followBannerTimer?.cancel();
+    _followBannerTimer = Timer(const Duration(seconds: 4), () {
+      if (followBanner.value?.id == msg.id) {
+        followBanner.value = null;
+      }
+    });
   }
 
   void _startSessionPolling() {
@@ -329,7 +577,11 @@ class LivestreamScreenController extends BaseController {
     if (me == null) return;
 
     final tag = 'lk_live_$roomId';
-    liveKit = Get.put(LiveKitRoomController(), tag: tag);
+    if (!Get.isRegistered<LiveKitRoomController>(tag: tag)) {
+      liveKit = Get.put(LiveKitRoomController(), tag: tag);
+    } else {
+      liveKit = Get.find<LiveKitRoomController>(tag: tag);
+    }
 
     ever(liveKit!.statusMessage, (msg) {
       if (msg.isNotEmpty) {
@@ -341,21 +593,65 @@ class LivestreamScreenController extends BaseController {
       update();
     });
 
-    await liveKit!.connect(
-      roomName: roomId,
-      identity: '${me.id}',
-      name: me.fullname ?? me.username ?? 'user',
-      // En Web el host puede no publicar cámara; audiencia siempre recibe.
-      publishCamera: isHost && !kIsWeb,
-      publishMicrophone: isHost && !kIsWeb,
-      wsUrl: liveKitWsUrl,
-    );
+    try {
+      await liveKit!.connect(
+        roomName: roomId,
+        identity: '${me.id}',
+        name: me.fullname ?? me.username ?? 'user',
+        // En Web el host puede no publicar cámara; audiencia siempre recibe.
+        publishCamera: isHost && !kIsWeb,
+        publishMicrophone: isHost && !kIsWeb,
+        wsUrl: liveKitWsUrl,
+      );
+    } catch (e) {
+      // No tumbar el LIVE: chat sigue; UI ofrece Reintentar.
+      Loggers.error('live join LiveKit: $e');
+      if (statusMessage.value.isEmpty) {
+        statusMessage.value = 'Sin video (red débil). Toca Reintentar.';
+      }
+    }
 
+    _dataSub?.cancel();
     _dataSub = liveKit!.onDataReceived.listen(_onLiveData);
     ever(liveKit!.pingMs, (v) => pingMs.value = v);
     ever(liveKit!.fps, (v) => fps.value = v);
     _syncViewersFromLiveKit();
 
+    update();
+  }
+
+  /// Reintenta LiveKit forzando calidad baja (red débil).
+  Future<void> retryLiveConnection() async {
+    final me = SessionManager.instance.getUser();
+    if (me == null || liveKit == null) {
+      await _joinLiveKit();
+      update();
+      return;
+    }
+    statusMessage.value = 'Reintentando en calidad baja…';
+    try {
+      await liveKit!.reconnectLowQuality(
+        roomName: roomId,
+        identity: '${me.id}',
+        name: me.fullname ?? me.username ?? 'user',
+        publishCamera: isHost && !kIsWeb,
+        publishMicrophone: isHost && !kIsWeb,
+        wsUrl: liveKitWsUrl,
+      );
+      _dataSub?.cancel();
+      _dataSub = liveKit!.onDataReceived.listen(_onLiveData);
+      if (liveKit!.isConnected.value) {
+        statusMessage.value = 'Conectado · calidad baja';
+        Future.delayed(const Duration(seconds: 3), () {
+          if (statusMessage.value == 'Conectado · calidad baja') {
+            statusMessage.value = '';
+          }
+        });
+      }
+    } catch (e) {
+      statusMessage.value = 'No se pudo conectar. Revisa tu red.';
+      Loggers.error('retryLiveConnection: $e');
+    }
     update();
   }
 
@@ -380,6 +676,25 @@ class LivestreamScreenController extends BaseController {
   void _appendChatMessage(LiveChatMessage msg) {
     if (msg.type == 'like') return;
     if (chatMessages.any((m) => m.id == msg.id)) return;
+    if (msg.type == 'gift') {
+      _trackGiftSender(msg);
+    }
+    final isFollow = msg.type == 'follow' ||
+        (msg.type == 'text' &&
+            (msg.text ?? '').contains('te sigue'));
+    if (isFollow) {
+      _showFollowBanner(
+        msg.type == 'follow'
+            ? msg
+            : LiveChatMessage(
+                id: msg.id,
+                userId: msg.userId,
+                userName: msg.userName,
+                type: 'follow',
+                text: msg.text,
+              ),
+      );
+    }
     chatMessages.add(msg);
     while (chatMessages.length > maxVisibleComments) {
       chatMessages.removeAt(0);
@@ -413,6 +728,10 @@ class LivestreamScreenController extends BaseController {
     if (msg.type == 'gift') {
       _appendChatMessage(msg);
       _showGiftOverlay(msg);
+      return;
+    }
+    if (msg.type == 'follow') {
+      _appendChatMessage(msg);
       return;
     }
     _appendChatMessage(msg);
@@ -462,24 +781,37 @@ class LivestreamScreenController extends BaseController {
     final me = SessionManager.instance.getUser();
     if (me?.id == null) return;
     isSendingComment.value = true;
+    final reply = replyingTo.value;
     try {
       final clientId = '${me!.id}_${DateTime.now().millisecondsSinceEpoch}';
+      final replyPreview = (reply?.text ?? '').trim();
       final msg = LiveChatMessage(
         id: clientId,
         userId: me.id!,
         userName: _liveDisplayName(me),
         type: 'text',
         text: trimmed,
+        replyToId: reply?.id,
+        replyToUserName: reply?.userName,
+        replyToText: replyPreview.isEmpty
+            ? null
+            : (replyPreview.length > 80
+                ? '${replyPreview.substring(0, 80)}…'
+                : replyPreview),
       );
       _appendChatMessage(msg);
       commentController.clear();
+      clearReply();
       // Persistencia Laravel (sincroniza a todos, también Web).
+      final apiText = reply == null
+          ? trimmed
+          : '↳ @${reply.userName}: $trimmed';
       try {
         final saved = await LiveSessionService.instance.sendComment(
           roomId: roomId,
           clientId: clientId,
           type: 'text',
-          text: trimmed,
+          text: apiText,
         );
         if (saved != null) {
           _appendChatMessage(saved);
@@ -1038,6 +1370,7 @@ class LivestreamScreenController extends BaseController {
     _sessionPoll?.cancel();
     _commentPoll?.cancel();
     _callPoll?.cancel();
+    _followBannerTimer?.cancel();
     _netSub?.cancel();
     _dataSub?.cancel();
     commentController.dispose();

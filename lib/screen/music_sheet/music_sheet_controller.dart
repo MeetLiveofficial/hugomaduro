@@ -16,7 +16,8 @@ import 'package:krimson/screen/selected_music_sheet/selected_music_sheet.dart';
 import 'package:krimson/screen/selected_music_sheet/selected_music_sheet_controller.dart';
 
 class MusicSheetController extends BaseController {
-  List<String> categories = [LKey.explore.tr, LKey.categories.tr, LKey.saved.tr];
+  List<String> get categories =>
+      [LKey.explore.tr, LKey.categories.tr, LKey.saved.tr];
   RxInt selectedMusicCategory = 0.obs;
   int videoSecond;
   RxBool isMusicDownloading = false.obs;
