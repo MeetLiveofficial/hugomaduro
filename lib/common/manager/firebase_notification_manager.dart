@@ -35,6 +35,7 @@ import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
 import 'package:krimson/screen/post_screen/single_post_screen.dart';
 import 'package:krimson/screen/reels_screen/reels_screen.dart';
 import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/app_platform.dart';
 import 'package:krimson/utilities/const_res.dart';
 
@@ -262,6 +263,13 @@ class FirebaseNotificationManager {
     }
     if (dataType == 'call_accepted') {
       await _openAcceptedCallFromPush(message.data);
+      return;
+    }
+
+    if (dataType == 'task') {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        Get.to(() => const TasksScreen());
+      });
       return;
     }
 
@@ -556,6 +564,7 @@ enum NotificationType {
   post('post'),
   user('user'),
   liveStream('live_stream'),
+  task('task'),
   other('other');
 
   final String type;

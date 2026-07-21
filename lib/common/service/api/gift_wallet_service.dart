@@ -79,20 +79,18 @@ class GiftWalletService {
         .toList();
   }
 
-  Future<StatusModel> submitWithdrawalRequest(
+  Future<Map<String, dynamic>> submitWithdrawalRequest(
       {required String coins,
       required String gateway,
       required String account}) async {
-    StatusModel response = await ApiService.instance.call(
+    return ApiService.instance.call(
         url: WebService.giftWallet.submitWithdrawalRequest,
-        fromJson: StatusModel.fromJson,
+        fromJson: (j) => Map<String, dynamic>.from(j),
         param: {
           Params.coins: coins,
           Params.gateway: gateway,
           Params.account: account
         });
-
-    return response;
   }
 
   Future<User?> buyCoins({required int id, String? purchasedAt}) async {

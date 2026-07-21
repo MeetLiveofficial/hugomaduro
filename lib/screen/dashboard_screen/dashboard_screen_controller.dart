@@ -228,12 +228,26 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
 
   Future<void> _fetchLanguageFromUser() async {
     final savedLanguage = SessionManager.instance.getLang();
+    // Perfil fresco de sesión (tras login ya sincronizado con el idioma elegido).
+    final profileLang =
+        SessionManager.instance.getUser()?.appLanguage ?? user?.appLanguage;
+
+    // Si el perfil no trae idioma, conservar el de sesión (p. ej. elegido pre-login).
+    if (profileLang == null || profileLang.trim().isEmpty) {
+      final resolved = SessionManager.instance.ensureActiveLang(savedLanguage);
+      if (resolved != savedLanguage) {
+        SessionManager.instance.setLang(resolved);
+      }
+      return;
+    }
+
     // Solo aplica app_language si está entre los idiomas activos del panel.
-    final resolved = SessionManager.instance.ensureActiveLang(user?.appLanguage);
+    final resolved = SessionManager.instance.ensureActiveLang(profileLang);
     if (resolved != savedLanguage) {
       SessionManager.instance.setLang(resolved);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        RestartWidget.restartApp(Get.context!);
+        final ctx = Get.context;
+        if (ctx != null) RestartWidget.restartApp(ctx);
       });
     }
   }

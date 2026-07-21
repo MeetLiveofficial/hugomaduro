@@ -245,7 +245,8 @@ class Setting {
                 json["redeemGateways"]?.map((x) => RedeemGateway.fromJson(x))),
         gifts: json["gifts"] == null
             ? []
-            : List<Gift>.from((json["gifts"] as List).map((x) {
+            : List<Gift>.from(((json["gifts"] is List) ? json["gifts"] as List : const [])
+                .map((x) {
                 if (x is Gift) return x;
                 if (x is Map) {
                   return Gift.fromJson(Map<String, dynamic>.from(x));

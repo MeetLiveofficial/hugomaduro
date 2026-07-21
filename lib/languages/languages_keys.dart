@@ -645,4 +645,32 @@ class LKey {
       "Your Profile is already in use for Dummy Live from admin panel. So you can't start livestreaming now.";
   static const String shareProfile = "Share Profile";
   static const String noPost = "No Post";
+
+  // Tasks / quests
+  static const String tasks = "Tasks";
+  static const String dailyTasks = "Daily";
+  static const String specialTasks = "Special";
+  static const String bonusTasks = "Bonus";
+  static const String withdrawalPoints = "Withdrawal Points";
+  static const String progressLabel = "Progress";
+  static const String claim = "Claim";
+  static const String claimed = "Claimed";
+  static const String inProgress = "In Progress";
+  static const String expired = "Expired";
+  static const String pts = "pts";
+  static const String noTasksAvailable = "No tasks available";
+  static const String taskRewardClaimed = "Task reward claimed";
+  static const String youCanWithdrawToday = "You can withdraw today";
+  static const String keepCompletingTasksToWithdraw =
+      "Keep completing tasks to unlock withdrawals";
+  static const String completeAllDailyTasksBeforeWithdrawing =
+      "Complete all daily tasks before withdrawing";
+  static const String maxWithdrawableToday = "Max withdrawable today";
+  static const String notEnoughWithdrawalPointsForThisAmount =
+      "Not enough withdrawal points for this amount";
+  static const String notEnoughCompletedTasksForThisWithdrawalAmount =
+      "Not enough completed tasks for this withdrawal amount";
+  static const String dailyTasksPending =
+      "You have daily tasks pending. Complete them to unlock withdrawals.";
+  static const String goToTasks = "Go to Tasks";
 }

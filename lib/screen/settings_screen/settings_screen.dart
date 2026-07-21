@@ -17,6 +17,7 @@ import 'package:krimson/screen/settings_screen/settings_screen_controller.dart';
 import 'package:krimson/screen/settings_screen/widget/notifications_page.dart';
 import 'package:krimson/screen/settings_screen/widget/setting_icon_text_with_arrow.dart';
 import 'package:krimson/screen/subscription_screen/subscription_screen.dart';
+import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/screen/term_and_privacy_screen/term_and_privacy_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/style_res.dart';
@@ -83,6 +84,13 @@ class SettingsScreen extends StatelessWidget {
                 title: LKey.coinWallet,
                 onTap: () {
                   Get.to(() => const CoinWalletScreen());
+                },
+              ),
+              SettingIconTextWithArrow(
+                icon: AssetRes.icVideoRequest,
+                title: LKey.tasks,
+                onTap: () {
+                  Get.to(() => const TasksScreen());
                 },
               ),
               SettingIconTextWithArrow(

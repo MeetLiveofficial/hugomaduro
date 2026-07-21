@@ -17,6 +17,7 @@ import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/user_link_sheet.dart';
 import 'package:krimson/screen/settings_screen/settings_screen.dart';
+import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
@@ -185,14 +186,14 @@ class ProfileUserHeader extends StatelessWidget {
               ],
             ),
             // Tags idioma / país (pills).
-            if (_profileTagLabels(user).isNotEmpty)
+            if (_profileTagLabels(user, isMe: isMe).isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final tag in _profileTagLabels(user))
+                    for (final tag in _profileTagLabels(user, isMe: isMe))
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
@@ -213,24 +214,56 @@ class ProfileUserHeader extends StatelessWidget {
               ),
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: InkWell(
-                onTap: () => Get.to(() => LevelScreen(userLevels: user.getLevel)),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: themeAccentSolid(context).withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}'
-                    '${(user.levelTitle ?? user.getLevel.title)?.isNotEmpty == true ? ' · ${user.levelTitle ?? user.getLevel.title}' : ''}',
-                    style: TextStyleCustom.outFitMedium500(
-                      color: themeAccentSolid(context),
-                      fontSize: 12,
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  InkWell(
+                    onTap: () =>
+                        Get.to(() => LevelScreen(userLevels: user.getLevel)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color:
+                            themeAccentSolid(context).withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}'
+                        '${(user.levelTitle ?? user.getLevel.title)?.isNotEmpty == true ? ' · ${user.levelTitle ?? user.getLevel.title}' : ''}',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: themeAccentSolid(context),
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (isMe)
+                    InkWell(
+                      onTap: () async {
+                        await Get.to(() => const TasksScreen());
+                        // Refresca saldo tras reclamaciones / auto-claim en Tasks.
+                        await controller.fetchUserDetail();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB).withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${LKey.withdrawalPoints.tr}: ${user.withdrawalPoints ?? 0}',
+                          style: TextStyleCustom.outFitMedium500(
+                            color: const Color(0xFF1D4ED8),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             if ((user.username ?? '').isNotEmpty)
@@ -773,9 +806,11 @@ class _IconAction extends StatelessWidget {
 }
 
 /// Pills de idioma / país para el header de perfil.
-List<(String, Color)> _profileTagLabels(User user) {
+List<(String, Color)> _profileTagLabels(User user, {required bool isMe}) {
   final tags = <(String, Color)>[];
-  final lang = _languageDisplayName(user.appLanguage);
+  // En el propio perfil, el locale de sesión es la fuente de verdad (Settings).
+  final code = isMe ? SessionManager.instance.getLang() : user.appLanguage;
+  final lang = _languageDisplayName(code);
   if (lang != null) {
     tags.add((lang, const Color(0xFF60A5FA)));
   }
@@ -789,19 +824,30 @@ List<(String, Color)> _profileTagLabels(User user) {
 String? _languageDisplayName(String? code) {
   if (code == null || code.trim().isEmpty) return null;
   final c = code.trim().toLowerCase().split(RegExp(r'[_-]')).first;
+
+  final fromSettings = SessionManager.instance
+      .getActiveLanguages()
+      .firstWhereOrNull((l) => (l.code ?? '').toLowerCase() == c);
+  if (fromSettings != null) {
+    final title =
+        (fromSettings.localizedTitle ?? fromSettings.title ?? '').trim();
+    if (title.isNotEmpty) return title;
+  }
+
   const map = {
-    'es': 'Spanish',
+    'es': 'Español',
     'en': 'English',
-    'pt': 'Portuguese',
-    'fr': 'French',
-    'de': 'German',
-    'it': 'Italian',
-    'ar': 'Arabic',
-    'hi': 'Hindi',
-    'zh': 'Chinese',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'ru': 'Russian',
+    'pt': 'Português',
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'it': 'Italiano',
+    'ar': 'العربية',
+    'hi': 'हिन्दी',
+    'zh': '中文',
+    'ja': '日本語',
+    'ko': '한국어',
+    'ru': 'Русский',
+    'uk': 'Українська',
   };
   return map[c] ?? c.toUpperCase();
 }

@@ -77,6 +77,7 @@ class User {
       this.showMyFollowing,
       this.receiveMessage,
       this.coinWallet,
+      this.withdrawalPoints,
       this.withdrawWalletAccount,
       this.coinCollectedLifetime,
       this.coinGiftedLifetime,
@@ -138,6 +139,7 @@ class User {
     int? showMyFollowing,
     int? receiveMessage,
     int? coinWallet,
+    int? withdrawalPoints,
     int? coinCollectedLifetime,
     int? coinGiftedLifetime,
     int? coinPurchasedLifetime,
@@ -193,6 +195,7 @@ class User {
         showMyFollowing: showMyFollowing ?? this.showMyFollowing,
         receiveMessage: receiveMessage ?? this.receiveMessage,
         coinWallet: coinWallet ?? this.coinWallet,
+        withdrawalPoints: withdrawalPoints ?? this.withdrawalPoints,
         coinCollectedLifetime:
             coinCollectedLifetime ?? this.coinCollectedLifetime,
         coinGiftedLifetime: coinGiftedLifetime ?? this.coinGiftedLifetime,
@@ -261,6 +264,7 @@ class User {
     showMyFollowing = _asNum(json['show_my_following']);
     receiveMessage = _asNum(json['receive_message']);
     coinWallet = _asNum(json['coin_wallet']);
+    withdrawalPoints = _asInt(json['withdrawal_points']);
     withdrawWalletAccount = json['withdraw_wallet_account']?.toString();
     coinCollectedLifetime = _asNum(json['coin_collected_lifetime']);
     coinGiftedLifetime = _asNum(json['coin_gifted_lifetime']);
@@ -351,6 +355,7 @@ class User {
   num? showMyFollowing;
   num? receiveMessage;
   num? coinWallet;
+  int? withdrawalPoints;
   String? withdrawWalletAccount;
   num? coinCollectedLifetime;
   num? coinGiftedLifetime;
@@ -417,6 +422,7 @@ class User {
     map['show_my_following'] = showMyFollowing;
     map['receive_message'] = receiveMessage;
     map['coin_wallet'] = coinWallet;
+    map['withdrawal_points'] = withdrawalPoints;
     map['withdraw_wallet_account'] = withdrawWalletAccount;
     map['coin_collected_lifetime'] = coinCollectedLifetime;
     map['coin_gifted_lifetime'] = coinGiftedLifetime;

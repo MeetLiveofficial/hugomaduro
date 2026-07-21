@@ -38,6 +38,10 @@ class SelectLanguageScreen extends StatelessWidget {
             (label: 'English', code: 'en'),
             (label: 'Español', code: 'es'),
             (label: 'Português', code: 'pt'),
+            (label: 'العربية', code: 'ar'),
+            (label: 'Русский', code: 'ru'),
+            (label: 'Українська', code: 'uk'),
+            (label: '中文', code: 'zh'),
           ];
 
     return Scaffold(
@@ -75,7 +79,7 @@ class SelectLanguageScreen extends StatelessWidget {
                           label: tile.label,
                           code: tile.code,
                           selected: tile.code == current,
-                          onTap: () => _select(tile.code),
+                          onTap: () => _select(context, tile.code),
                         );
                       },
                     ),
@@ -89,19 +93,15 @@ class SelectLanguageScreen extends StatelessWidget {
     );
   }
 
-  void _select(String code) {
+  Future<void> _select(BuildContext context, String code) async {
     SessionManager.instance.setBool(SessionKeys.isLanguageScreenSelect, true);
-    // Aplica locale GetX de inmediato (sin esto el login sigue en inglés).
-    SessionManager.instance.setLang(code);
+    // Esperar sync a app_language en el server antes de reiniciar;
+    // si no, el perfil vuelve a mostrar el idioma anterior.
+    await SessionManager.instance.setLang(code);
 
     if (languageNavigationType == LanguageNavigationType.fromSetting) {
-      // Reinicio completo: muchos controllers cachean `.tr` al crearse.
-      final ctx = Get.context;
-      if (ctx != null) {
-        RestartWidget.restartApp(ctx);
-      } else {
-        Get.back();
-      }
+      final ctx = Get.context ?? context;
+      RestartWidget.restartApp(ctx);
       return;
     }
 

@@ -137,7 +137,10 @@ class SessionManager {
     return null;
   }
 
-  void setLang(String langCode) {
+  /// Guarda el locale localmente y, si hay sesión, lo sincroniza al perfil
+  /// (`app_language`) en el backend. Hay que **await** antes de RestartWidget
+  /// para que el chip del perfil no vuelva a mostrar el idioma anterior.
+  Future<void> setLang(String langCode, {bool syncRemote = true}) async {
     storage.write(SessionKeys.lang, langCode);
     // Sin esto GetX sigue mostrando el idioma anterior (claves en inglés).
     Get.updateLocale(Locale(langCode));
@@ -146,8 +149,12 @@ class SessionManager {
       user.appLanguage = langCode;
       setUser(user);
     }
-    if (user != null && hasAuthToken) {
-      UserService.instance.updateUserDetails(appLanguage: langCode);
+    if (syncRemote && user != null && hasAuthToken) {
+      try {
+        await UserService.instance.updateUserDetails(appLanguage: langCode);
+      } catch (e) {
+        // Locale local ya aplicado; el perfil se reintentará en el próximo sync.
+      }
     }
   }
 
@@ -171,7 +178,7 @@ class SessionManager {
 
     // Fallback local si el admin aún no envió idiomas (mismo set del seeder).
     if (codes.isEmpty) {
-      const seeded = ['en', 'es', 'pt'];
+      const seeded = ['en', 'es', 'pt', 'ar', 'ru', 'uk', 'zh'];
       final resolved = seeded.contains(candidate) ? candidate : 'en';
       if (resolved != getLang()) {
         storage.write(SessionKeys.lang, resolved);

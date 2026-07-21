@@ -12,6 +12,7 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/dominant_color.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/status_model.dart';
+import 'package:krimson/utilities/const_res.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 extension StringExtention on String {
@@ -24,8 +25,12 @@ extension StringExtention on String {
         startsWith('data:')) {
       return this;
     }
-    final base = SessionManager.instance.getSettings()?.itemBaseUrl ?? '';
-    if (base.isEmpty) return this;
+    var base = SessionManager.instance.getSettings()?.itemBaseUrl ?? '';
+    // Fallback: sin settings aún (o itemBaseUrl vacío) los CSV quedan relativos
+    // y fallan por CORS/404 en Web → UI siempre en inglés (claves LKey).
+    if (base.isEmpty) {
+      base = '${baseURL}storage/';
+    }
     if (startsWith('/') && base.endsWith('/')) {
       return '$base${substring(1)}';
     }

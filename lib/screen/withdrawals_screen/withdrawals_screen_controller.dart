@@ -9,6 +9,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/gift_wallet/withdraw_model.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
+import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -170,7 +171,7 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
         gateway: selectedGateway!.title ?? '',
         account: account,
       );
-      if (res.status == true) {
+      if (res['status'] == true) {
         final user = SessionManager.instance.getUser();
         if (user != null) {
           user.coinWallet = (user.coinWallet ?? 0) - coinsEntered;
@@ -178,9 +179,27 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
           SessionManager.instance.setUser(user);
         }
         Get.back(result: true);
-        Get.snackbar('OK', res.message ?? 'Solicitud de retiro enviada');
+        Get.snackbar('OK', res['message']?.toString() ?? 'Solicitud de retiro enviada');
       } else {
-        setState(() => errorText = res.message ?? 'Error al solicitar retiro');
+        final msg = res['message']?.toString() ?? 'Error al solicitar retiro';
+        final data = res['data'];
+        final errorCode = data is Map ? data['error_code']?.toString() : null;
+        setState(() => errorText = msg.tr);
+        if (errorCode == 'DAILY_TASKS_INCOMPLETE' ||
+            errorCode == 'INSUFFICIENT_WITHDRAWAL_POINTS' ||
+            errorCode == 'INSUFFICIENT_TASKS_FOR_AMOUNT') {
+          Get.snackbar(
+            LKey.tasks.tr,
+            msg.tr,
+            mainButton: TextButton(
+              onPressed: () {
+                Get.back();
+                Get.to(() => const TasksScreen());
+              },
+              child: Text(LKey.goToTasks.tr),
+            ),
+          );
+        }
       }
     } catch (e) {
       setState(() => errorText = e.toString());

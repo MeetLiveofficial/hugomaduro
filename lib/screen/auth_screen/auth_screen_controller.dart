@@ -87,14 +87,15 @@ class AuthScreenController extends BaseController {
       SessionManager.instance.setUser(data);
       SessionManager.instance.setAuthToken(data.token);
       SessionManager.instance.setLogin(true);
-      SessionManager.instance.applyUserAppLanguage(data.appLanguage);
+      // No aplicar app_language del server aquí: pisa el idioma elegido
+      // en SelectLanguageScreen (p. ej. ru → en). _navigateScreen lo sincroniza.
 
       _notifyRegistrationBonusIfNeeded(data);
       // ignore: unawaited_futures
       SubscriptionManager.shared.login('${data.id}');
 
       stopLoader();
-      _navigateScreen(data);
+      await _navigateScreen(data);
 
       // Firebase / chat en background (nunca bloquea el login).
       // ignore: unawaited_futures
@@ -297,7 +298,8 @@ class AuthScreenController extends BaseController {
         data.newRegister == true &&
         setting?.registrationBonusStatus == 1) {
       final translations = Get.find<DynamicTranslations>();
-      final languageData = translations.keys[data.appLanguage] ?? {};
+      final languageData =
+          translations.keys[SessionManager.instance.getLang()] ?? {};
       NotificationService.instance.pushNotification(
           title: languageData[LKey.registrationBonusTitle] ??
               LKey.registrationBonusTitle.tr,
@@ -436,14 +438,20 @@ class AuthScreenController extends BaseController {
     }
   }
 
-  void _navigateScreen(user.User? data) {
+  Future<void> _navigateScreen(user.User? data) async {
     // NO usar DebounceAction.shared: se cancela con otros debounce de la app
     // y dejaba el login "pegado" mucho tiempo antes de entrar.
+    // Conservar el idioma elegido antes del login (SelectLanguage / Settings)
+    // y sincronizarlo al perfil; no pisar con app_language del server (suele ser en).
+    final selectedLang = SessionManager.instance.getLang();
+    if (data != null) {
+      data.appLanguage = selectedLang;
+    }
     SessionManager.instance.setLogin(true);
     SessionManager.instance.setUser(data);
-    SessionManager.instance.applyUserAppLanguage(data?.appLanguage);
+    await SessionManager.instance.setLang(selectedLang);
     Get.offAll(
-      () => DashboardScreen(myUser: data),
+      () => DashboardScreen(myUser: SessionManager.instance.getUser() ?? data),
       routeName: '/dashboard',
     );
   }

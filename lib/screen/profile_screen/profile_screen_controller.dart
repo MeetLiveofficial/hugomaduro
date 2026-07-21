@@ -95,6 +95,14 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
   Future<void> fetchUserDetail() async {
     isLoading.value = true;
     User? user = await UserService.instance.fetchUserDetails(userId: userData.value?.id?.toInt());
+    // Si es mi perfil, alinear app_language con el idioma elegido en Settings.
+    if (user != null && user.id == SessionManager.instance.getUserID()) {
+      final sessionLang = SessionManager.instance.getLang();
+      if (sessionLang.isNotEmpty && user.appLanguage != sessionLang) {
+        user.appLanguage = sessionLang;
+        SessionManager.instance.setUser(user);
+      }
+    }
     profileController.updateUser(user);
     isLoading.value = false;
     if (user != null) {

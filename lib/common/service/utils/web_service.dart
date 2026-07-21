@@ -16,6 +16,14 @@ class WebService {
   static var livekit = _LiveKit();
   static var call = _Call();
   static var privilege = _Privilege();
+  static var task = _Task();
+}
+
+class _Task {
+  String list = "${apiURL}task/list";
+  String claim = "${apiURL}task/claim";
+  String reportProgress = "${apiURL}task/reportProgress";
+  String withdrawalEligibility = "${apiURL}task/withdrawalEligibility";
 }
 
 class _Privilege {
