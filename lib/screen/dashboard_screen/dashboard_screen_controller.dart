@@ -26,6 +26,8 @@ import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/feed_screen/feed_screen_controller.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_invite_dialog.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_invite_dialog.dart';
+import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
@@ -132,7 +134,12 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     try {
       final invites = await LiveSessionService.instance.pendingInvites();
       for (final stream in invites) {
-        await LiveInviteDialog.showIfNeeded(stream);
+        if (stream.type == LivestreamType.battle &&
+            stream.battleType == BattleType.waiting) {
+          await LiveBattleInviteDialog.showIfNeeded(stream);
+        } else {
+          await LiveInviteDialog.showIfNeeded(stream);
+        }
       }
     } catch (e) {
       Loggers.error('pending live invites poll: $e');

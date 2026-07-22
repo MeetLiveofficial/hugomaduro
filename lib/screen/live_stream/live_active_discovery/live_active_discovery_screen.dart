@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -210,9 +211,15 @@ class _LiveGridCard extends StatelessWidget {
     final title = (stream.description ?? '').trim().isEmpty
         ? 'Live'
         : stream.description!.split('\n').first.trim();
-    final cover = (stream.coverImage ?? '').trim();
-    final profile = host?.profile;
+    final cover = (stream.coverImage ?? '').trim().addBaseURL();
+    final profileRaw = (host?.profile ?? '').trim();
+    final profile =
+        profileRaw.isEmpty ? '' : profileRaw.addBaseURL();
     final name = host?.fullname ?? host?.username ?? 'Host';
+    // Portada del LIVE; si no hay, foto de perfil del host (p.ej. invitado PK).
+    final cardImage = cover.isNotEmpty
+        ? cover
+        : (profile.isNotEmpty ? profile : '');
 
     return GestureDetector(
       onTap: onTap,
@@ -221,18 +228,10 @@ class _LiveGridCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (cover.isNotEmpty)
+            if (cardImage.isNotEmpty)
               CustomImage(
                 size: const Size(400, 600),
-                image: cover,
-                fit: BoxFit.cover,
-                radius: 0,
-                isShowPlaceHolder: true,
-              )
-            else if ((profile ?? '').isNotEmpty)
-              CustomImage(
-                size: const Size(400, 600),
-                image: profile,
+                image: cardImage,
                 fit: BoxFit.cover,
                 radius: 0,
                 isShowPlaceHolder: true,
@@ -243,7 +242,7 @@ class _LiveGridCard extends StatelessWidget {
                 child: Center(
                   child: CustomImage(
                     size: const Size(72, 72),
-                    image: profile,
+                    image: profile.isEmpty ? null : profile,
                     fullName: name,
                     radius: 40,
                   ),
@@ -291,7 +290,7 @@ class _LiveGridCard extends StatelessWidget {
                 ),
               ),
             ),
-            // LIVE badge
+            // LIVE / PK badge
             Positioned(
               top: 8,
               right: 8,
@@ -299,16 +298,24 @@ class _LiveGridCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: ColorRes.themeAccentSolid,
+                  color: stream.type == LivestreamType.battle
+                      ? const Color(0xFF7C3AED)
+                      : ColorRes.themeAccentSolid,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.videocam, color: Colors.white, size: 11),
+                    Icon(
+                      stream.type == LivestreamType.battle
+                          ? Icons.sports_kabaddi_rounded
+                          : Icons.videocam,
+                      color: Colors.white,
+                      size: 11,
+                    ),
                     const SizedBox(width: 3),
                     Text(
-                      'Live',
+                      stream.type == LivestreamType.battle ? 'PK' : 'Live',
                       style: TextStyleCustom.outFitMedium500(
                         color: Colors.white,
                         fontSize: 10,

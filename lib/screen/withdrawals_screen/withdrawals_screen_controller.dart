@@ -79,8 +79,31 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
   final coinsCtrl = TextEditingController();
   final accountCtrl = TextEditingController();
   final settings = SessionManager.instance.getSettings();
-  late final List<RedeemGateway> gateways =
-      settings?.redeemGateways ?? const <RedeemGateway>[];
+
+  /// Por ahora solo retiros a exchanges (sin Paytm/PayPal/etc.).
+  static const _allowedExchangeGateways = {
+    'binance',
+    'bybit',
+    'okx',
+    'otra exchange',
+  };
+
+  late final List<RedeemGateway> gateways = () {
+    final all = settings?.redeemGateways ?? const <RedeemGateway>[];
+    final filtered = all
+        .where((g) =>
+            _allowedExchangeGateways.contains((g.title ?? '').trim().toLowerCase()))
+        .toList();
+    if (filtered.isNotEmpty) return filtered;
+    // Fallback si settings aún tienen métodos viejos: opciones Exchange fijas.
+    return [
+      RedeemGateway(title: 'Binance'),
+      RedeemGateway(title: 'Bybit'),
+      RedeemGateway(title: 'OKX'),
+      RedeemGateway(title: 'Otra Exchange'),
+    ];
+  }();
+
   RedeemGateway? selectedGateway;
   bool submitting = false;
   String? errorText;
@@ -257,7 +280,7 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
                 ),
               ),
               const SizedBox(height: 14),
-              Text('Método / Gateway',
+              Text('Método / Exchange',
                   style: TextStyleCustom.outFitMedium500(
                       color: textDarkGrey(context), fontSize: 13)),
               const SizedBox(height: 6),
@@ -281,7 +304,7 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              Text('Wallet / cuenta de destino',
+              Text('Wallet / ID de exchange',
                   style: TextStyleCustom.outFitMedium500(
                       color: textDarkGrey(context), fontSize: 13)),
               const SizedBox(height: 6),
@@ -289,7 +312,7 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
                 controller: accountCtrl,
                 maxLines: 2,
                 decoration: InputDecoration(
-                  hintText: 'Ej: dirección USDT (TRC20) o correo PayPal',
+                  hintText: 'Ej: UID Binance o wallet USDT (TRC20/Polygon)',
                   filled: true,
                   fillColor: bgLightGrey(context),
                   border: OutlineInputBorder(

@@ -74,7 +74,12 @@ class AuthScreenController extends BaseController {
         throw TimeoutException('El servidor tardó demasiado en responder');
       });
 
+      // Cerrar loader ANTES del snackbar: si no, Get.back() del loader
+      // se come el mensaje y parece que se queda “pensando”.
+      stopLoader();
+
       if (data == null) {
+        showSnackBar('Credenciales inválidas. Revisa email y contraseña.');
         return;
       }
 
@@ -94,7 +99,6 @@ class AuthScreenController extends BaseController {
       // ignore: unawaited_futures
       SubscriptionManager.shared.login('${data.id}');
 
-      stopLoader();
       await _navigateScreen(data);
 
       // Firebase / chat en background (nunca bloquea el login).
@@ -107,7 +111,8 @@ class AuthScreenController extends BaseController {
       });
     } catch (e, st) {
       Loggers.error('onLogin: $e\n$st');
-      showSnackBar('No se pudo iniciar sesión: $e');
+      stopLoader();
+      showSnackBar('No se pudo iniciar sesión. Revisa tus datos e inténtalo de nuevo.');
     } finally {
       stopLoader();
     }

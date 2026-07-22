@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_split_view.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_stream_overlay.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -55,8 +56,19 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                 if (lk != null && lk.isConnected.value) {
                   return Obx(() {
                     lk.mediaRevision.value;
+                    if (c.isBattleRunning.value) {
+                      return LiveBattleSplitView(controller: c);
+                    }
                     final remotes = lk.remoteParticipants.toList();
                     if (remotes.isEmpty) {
+                      // Rival de PK puede ser el único local publicando.
+                      if (c.isBattleOpponentPublisher &&
+                          lk.localParticipant.value != null) {
+                        return LiveKitParticipantVideo(
+                          participant: lk.localParticipant.value,
+                          mirror: true,
+                        );
+                      }
                       return Center(
                         child: Text(
                           c.statusMessage.value.isEmpty

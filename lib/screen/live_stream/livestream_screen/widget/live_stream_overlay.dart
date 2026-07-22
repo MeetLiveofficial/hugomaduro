@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/double_tap_detector.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
@@ -49,10 +52,48 @@ class LiveStreamOverlay extends StatelessWidget {
                 child: _FollowBanner(message: banner),
               );
             }),
+            Obx(() {
+              if (controller.isBattleWaiting.value) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _BattleWaitingBanner(controller: controller),
+                );
+              }
+              if (!controller.isBattleRunning.value) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _BattleScoreBar(controller: controller),
+              );
+            }),
             Expanded(
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
+                  // Doble tap en el video → like (solo audiencia).
+                  // En batalla: modal de apoyo (lado = preferencia).
+                  Positioned.fill(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return DoubleTapDetector(
+                          onDoubleTap: (details) {
+                            if (controller.isHost) return;
+                            final box = context.findRenderObject() as RenderBox?;
+                            final local = box?.globalToLocal(
+                                  details.globalPosition,
+                                ) ??
+                                details.localPosition;
+                            controller.onBattleDoubleTap(
+                              local,
+                              Size(constraints.maxWidth, constraints.maxHeight),
+                            );
+                          },
+                          child: const ColoredBox(color: Colors.transparent),
+                        );
+                      },
+                    ),
+                  ),
                   Align(
                     alignment: Alignment.bottomLeft,
                     child: _ChatList(controller: controller),
@@ -120,6 +161,387 @@ class _FollowBanner extends StatelessWidget {
   }
 }
 
+class _BattleWaitingBanner extends StatelessWidget {
+  final LivestreamScreenController controller;
+
+  const _BattleWaitingBanner({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final name = controller.battleOpponentName.value;
+      final label = name.isEmpty
+          ? 'Esperando respuesta a la batalla…'
+          : 'Esperando a $name…';
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: ColorRes.themeAccentSolid.withValues(alpha: 0.7),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.hourglass_top_rounded,
+                color: ColorRes.themeAccentSolid, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyleCustom.outFitMedium500(
+                  color: Colors.white,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            Text(
+              'BATALLA',
+              style: TextStyleCustom.outFitSemiBold600(
+                color: ColorRes.themeAccentSolid,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+class _BattleScoreBar extends StatelessWidget {
+  final LivestreamScreenController controller;
+
+  const _BattleScoreBar({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final hostCoins = controller.battleHostCoins.value;
+      final oppCoins = controller.battleOpponentCoins.value;
+      final total = hostCoins + oppCoins;
+      // Empieza 50/50; luego se mueve con likes/regalos.
+      final hostPct = total <= 0 ? 0.5 : hostCoins / total;
+      final secs = controller.battleRemainingSeconds.value;
+      final mm = (secs ~/ 60).toString().padLeft(2, '0');
+      final ss = (secs % 60).toString().padLeft(2, '0');
+      final hostName =
+          controller.livestream.hostUser?.fullname ??
+              controller.livestream.hostUser?.username ??
+              'Host';
+      final oppName = controller.battleOpponentName.value.isEmpty
+          ? 'Rival'
+          : controller.battleOpponentName.value;
+
+      return Material(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.sports_kabaddi_rounded,
+                      color: ColorRes.themeAccentSolid, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    'BATALLA',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '$mm:$ss',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white70,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              SizedBox(
+                height: 28,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final barW = constraints.maxWidth;
+                    final junctionX = (hostPct * barW).clamp(0.0, barW);
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: SizedBox(
+                            height: 8,
+                            width: barW,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: total <= 0
+                                      ? 500
+                                      : (hostPct * 1000).round().clamp(1, 999),
+                                  child: Container(
+                                      color: ColorRes.themeAccentSolid),
+                                ),
+                                Expanded(
+                                  flex: total <= 0
+                                      ? 500
+                                      : ((1 - hostPct) * 1000)
+                                          .round()
+                                          .clamp(1, 999),
+                                  child: Container(
+                                      color: const Color(0xFF3B82F6)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: junctionX - 16,
+                          top: -2,
+                          child: const _BattleJunctionFire(
+                            width: 32,
+                            height: 32,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '$hostName · $hostCoins',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyleCustom.outFitRegular400(
+                        color: Colors.white,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'VS',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white70,
+                      fontSize: 10,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '$oppCoins · $oppName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: TextStyleCustom.outFitRegular400(
+                        color: Colors.white,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// Llama animada en la unión rojo/azul del marcador de batalla.
+class _BattleJunctionFire extends StatefulWidget {
+  final double width;
+  final double height;
+
+  const _BattleJunctionFire({
+    required this.width,
+    required this.height,
+  });
+
+  @override
+  State<_BattleJunctionFire> createState() => _BattleJunctionFireState();
+}
+
+class _BattleJunctionFireState extends State<_BattleJunctionFire>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (_, __) => CustomPaint(
+          painter: _BattleFirePainter(t: _c.value),
+          size: Size(widget.width, widget.height),
+        ),
+      ),
+    );
+  }
+}
+
+class _BattleFirePainter extends CustomPainter {
+  final double t;
+
+  _BattleFirePainter({required this.t});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final baseY = size.height * 0.78;
+    final glow = Paint()
+      ..color = const Color(0xFFFF6A00).withValues(alpha: 0.35)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    canvas.drawCircle(Offset(cx, baseY - 4), size.width * 0.42, glow);
+
+    // Capas: exterior (rojo), media (naranja), núcleo (amarillo/blanco).
+    _drawTongue(
+      canvas,
+      cx: cx,
+      baseY: baseY,
+      w: size.width * 0.55,
+      h: size.height * 0.78,
+      phase: t,
+      wobble: 0.9,
+      color: const Color(0xFFE11D48),
+    );
+    _drawTongue(
+      canvas,
+      cx: cx - size.width * 0.08,
+      baseY: baseY,
+      w: size.width * 0.38,
+      h: size.height * 0.62,
+      phase: t + 0.33,
+      wobble: 1.2,
+      color: const Color(0xFFFF6A00),
+    );
+    _drawTongue(
+      canvas,
+      cx: cx + size.width * 0.06,
+      baseY: baseY,
+      w: size.width * 0.32,
+      h: size.height * 0.55,
+      phase: t + 0.66,
+      wobble: 1.4,
+      color: const Color(0xFFFFB020),
+    );
+    _drawTongue(
+      canvas,
+      cx: cx,
+      baseY: baseY,
+      w: size.width * 0.18,
+      h: size.height * 0.38,
+      phase: t + 0.15,
+      wobble: 1.6,
+      color: const Color(0xFFFFF3C4),
+    );
+
+    // Chispas
+    final spark = Paint()..color = const Color(0xFFFFE08A);
+    for (var i = 0; i < 5; i++) {
+      final p = (t + i * 0.17) % 1.0;
+      final sx = cx +
+          (i.isEven ? -1 : 1) *
+              size.width *
+              (0.08 + 0.12 * (i % 3)) *
+              (0.4 + 0.6 * (1 - p));
+      final sy = baseY - size.height * (0.15 + p * 0.75);
+      final r = (1.2 + (1 - p) * 1.6) * (i.isOdd ? 0.85 : 1);
+      spark.color = Color.lerp(
+            const Color(0xFFFFB020),
+            const Color(0xFFFFF8E7),
+            p,
+          )!
+          .withValues(alpha: (1 - p) * 0.9);
+      canvas.drawCircle(Offset(sx, sy), r, spark);
+    }
+  }
+
+  void _drawTongue(
+    Canvas canvas, {
+    required double cx,
+    required double baseY,
+    required double w,
+    required double h,
+    required double phase,
+    required double wobble,
+    required Color color,
+  }) {
+    final sway = math.sin(phase * math.pi * 2) * w * 0.18 * wobble;
+    final stretch = 1 + 0.12 * math.sin((phase + 0.25) * math.pi * 2);
+    final tipY = baseY - h * stretch;
+    final tipX = cx + sway;
+    final left = cx - w / 2;
+    final right = cx + w / 2;
+
+    final path = Path()
+      ..moveTo(left, baseY)
+      ..cubicTo(
+        left - w * 0.05,
+        baseY - h * 0.35,
+        tipX - w * 0.25,
+        tipY + h * 0.2,
+        tipX,
+        tipY,
+      )
+      ..cubicTo(
+        tipX + w * 0.25,
+        tipY + h * 0.2,
+        right + w * 0.05,
+        baseY - h * 0.35,
+        right,
+        baseY,
+      )
+      ..close();
+
+    final paint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0, 0.55),
+        radius: 0.95,
+        colors: [
+          color.withValues(alpha: 0.95),
+          color.withValues(alpha: 0.55),
+          color.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(Rect.fromLTRB(left - 4, tipY - 4, right + 4, baseY + 2));
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BattleFirePainter oldDelegate) =>
+      oldDelegate.t != t;
+}
+
 class _PausedBadge extends StatelessWidget {
   const _PausedBadge();
 
@@ -149,7 +571,7 @@ class _PausedBadge extends StatelessWidget {
   }
 }
 
-/// Controles LIVE: host = Pausar/Mute/Regalos/Calidad/Options; audiencia = solo Calidad.
+/// Controles LIVE: host = Batalla/Pausar/Mute/Regalos/Calidad/Options; audiencia = solo Calidad.
 class _LiveControlsBar extends StatelessWidget {
   final LivestreamScreenController controller;
   final bool showHostControls;
@@ -167,6 +589,8 @@ class _LiveControlsBar extends StatelessWidget {
           ? !(controller.liveKit?.microphoneEnabled.value ?? true)
           : controller.isLiveAudioMuted.value;
       final gifts = controller.giftSenders.length;
+      final battleOn = controller.isBattleRunning.value ||
+          controller.isBattleWaiting.value;
       final quality = controller.liveKit?.qualityProfile.value ??
           LiveKitQualityProfile.low;
       final qualityText = switch (quality) {
@@ -201,6 +625,13 @@ class _LiveControlsBar extends StatelessWidget {
                 child: Row(
                   children: [
                     _ActionChip(
+                      icon: Icons.sports_kabaddi_rounded,
+                      label: battleOn ? 'Fin batalla' : 'Batalla',
+                      accent: true,
+                      onTap: controller.openBattle,
+                    ),
+                    const SizedBox(width: 6),
+                    _ActionChip(
                       icon: paused
                           ? Icons.play_arrow_rounded
                           : Icons.pause_rounded,
@@ -234,9 +665,11 @@ class _LiveControlsBar extends StatelessWidget {
             LiveHostActionBar(
               onBeauty: controller.openBeauty,
               onInvite: controller.openInvite,
+              onBattle: controller.openBattle,
               onQuality: controller.openQualitySheet,
               networkLabel: controller.networkLabel,
               qualityLabel: qualityText,
+              battleRunning: battleOn,
             ),
           ],
         ),
@@ -249,17 +682,21 @@ class _ActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool accent;
 
   const _ActionChip({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.accent = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withValues(alpha: 0.5),
+      color: accent
+          ? ColorRes.themeAccentSolid.withValues(alpha: 0.92)
+          : Colors.black.withValues(alpha: 0.5),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -381,21 +818,24 @@ class _TopBar extends StatelessWidget {
                         ),
                       );
                     }),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: ColorRes.themeAccentSolid,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'LIVE',
-                      style: TextStyleCustom.outFitMedium500(
-                        color: Colors.white,
-                        fontSize: 10,
+                  Obx(() {
+                    final battle = controller.isBattleRunning.value;
+                    return Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: ColorRes.themeAccentSolid,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    ),
-                  ),
+                      child: Text(
+                        battle ? 'BATALLA' : 'LIVE',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),

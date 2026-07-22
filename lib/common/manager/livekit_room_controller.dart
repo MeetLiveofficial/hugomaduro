@@ -61,6 +61,9 @@ class LiveKitRoomController extends GetxController {
     });
   }
 
+  /// Sala LiveKit actual (para detectar PK / rejoin a otra room).
+  String? connectedRoomName;
+
   Future<void> connect({
     required String roomName,
     required String identity,
@@ -69,6 +72,7 @@ class LiveKitRoomController extends GetxController {
     bool publishMicrophone = false,
     String? wsUrl,
     LiveKitQualityProfile? forceProfile,
+    bool forceReconnect = false,
   }) async {
     final publish = publishCamera || publishMicrophone;
     if (!canConnect(publish: publish)) {
@@ -76,7 +80,18 @@ class LiveKitRoomController extends GetxController {
           'Cámara LIVE en Web no disponible. Usa Android/iOS.';
       return;
     }
-    if (isConnecting.value || isConnected.value) return;
+    if (isConnecting.value) return;
+
+    // Si ya estamos en otra sala (o hay que forzar), cerrar antes.
+    // Evita el no-op que dejaba la cámara en la sala vieja del PK.
+    final sameRoom = isConnected.value && connectedRoomName == roomName;
+    if (isConnected.value && (!sameRoom || forceReconnect)) {
+      try {
+        await disconnect();
+      } catch (_) {}
+    } else if (sameRoom && !forceReconnect) {
+      return;
+    }
 
     isConnecting.value = true;
     statusMessage.value = 'Conectando…';
@@ -94,6 +109,7 @@ class LiveKitRoomController extends GetxController {
       );
       _syncFromService();
       isConnected.value = true;
+      connectedRoomName = roomName;
       qualityProfile.value = _service.qualityProfile;
       if (statusMessage.value.startsWith('Camera failed')) {
         // Mantener aviso de cámara.
@@ -106,6 +122,7 @@ class LiveKitRoomController extends GetxController {
       Loggers.error('LiveKit connect failed: $e\n$st');
       statusMessage.value = 'Sin video (red débil). Toca Reintentar.';
       isConnected.value = false;
+      connectedRoomName = null;
       rethrow;
     } finally {
       isConnecting.value = false;
@@ -194,6 +211,22 @@ class LiveKitRoomController extends GetxController {
     mediaRevision.value++;
   }
 
+  /// Silencia audio de un participante remoto por identity (p.ej. rival PK).
+  Future<void> muteRemoteParticipantAudio(String identity) async {
+    if (identity.isEmpty) return;
+    for (final p in List<RemoteParticipant>.from(remoteParticipants)) {
+      if (p.identity != identity) continue;
+      for (final pub in p.audioTrackPublications) {
+        try {
+          await pub.disable();
+        } catch (e) {
+          Loggers.error('muteRemoteParticipantAudio: $e');
+        }
+      }
+    }
+    mediaRevision.value++;
+  }
+
   Future<void> toggleRemoteAudio() =>
       setRemoteAudioMuted(!remoteAudioMuted.value);
 
@@ -256,6 +289,7 @@ class LiveKitRoomController extends GetxController {
       remoteAudioMuted.value = false;
       streamPaused.value = false;
       isConnected.value = false;
+      connectedRoomName = null;
       statusMessage.value = '';
       _syncFromService();
     }

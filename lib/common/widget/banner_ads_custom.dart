@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:krimson/common/manager/ads_manager.dart';
 import 'package:krimson/common/service/subscription/subscription_manager.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 
 class BannerAdsCustom extends StatefulWidget {
   final double? size;
@@ -34,7 +35,9 @@ class _BannerAdsCustomState extends State<BannerAdsCustom> {
       child: Obx(
         () {
           bool _isSubscribe = isSubscribe.value;
-          return !_isSubscribe && bannerAd != null
+          return !_isSubscribe &&
+                  bannerAd != null &&
+                  LivestreamScreenController.activeInstance == null
               ? SafeArea(
                   top: false,
                   child: SizedBox(

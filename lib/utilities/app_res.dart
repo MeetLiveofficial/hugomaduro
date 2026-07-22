@@ -24,6 +24,8 @@ class AppRes {
       10; // Time before the battle officially starts (in seconds)
   static const int battleDurationInMinutes =
       1; // Total duration of the battle (in minutes)
+  /// Puntos de batalla por cada like (los regalos suman sus coins completos).
+  static const int battleLikePoints = 1;
   static const int battleEndMainViewInSecond =
       10; // Duration to show the main view after battle ends (in seconds)
   static const int battleCooldownDurationInSecond =

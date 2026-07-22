@@ -63,6 +63,10 @@ class _Live {
   String fetchSession = "${apiURL}live/fetchSession";
   String invite = "${apiURL}live/invite";
   String pendingInvites = "${apiURL}live/pendingInvites";
+  String startBattle = "${apiURL}live/startBattle";
+  String respondBattle = "${apiURL}live/respondBattle";
+  String restartBattle = "${apiURL}live/restartBattle";
+  String endBattle = "${apiURL}live/endBattle";
 }
 
 class _LiveKit {

@@ -100,8 +100,10 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
       final sessionLang = SessionManager.instance.getLang();
       if (sessionLang.isNotEmpty && user.appLanguage != sessionLang) {
         user.appLanguage = sessionLang;
-        SessionManager.instance.setUser(user);
       }
+      // Estoy en la app: presencia ACTIVE en mi perfil.
+      user.isActive = 1;
+      SessionManager.instance.setUser(user);
     }
     profileController.updateUser(user);
     isLoading.value = false;

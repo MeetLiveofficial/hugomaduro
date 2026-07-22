@@ -13,13 +13,15 @@ import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// Un solo botón lateral que abre Beauty / Network / Calidad / Invite.
+/// Un solo botón lateral que abre Beauty / Network / Calidad / Invite / Batalla.
 class LiveHostActionBar extends StatelessWidget {
   final VoidCallback onBeauty;
   final VoidCallback onInvite;
+  final VoidCallback? onBattle;
   final VoidCallback? onQuality;
   final RxString networkLabel;
   final String? qualityLabel;
+  final bool battleRunning;
   final Color? foreground;
 
   const LiveHostActionBar({
@@ -27,8 +29,10 @@ class LiveHostActionBar extends StatelessWidget {
     required this.onBeauty,
     required this.onInvite,
     required this.networkLabel,
+    this.onBattle,
     this.onQuality,
     this.qualityLabel,
+    this.battleRunning = false,
     this.foreground,
   });
 
@@ -43,9 +47,11 @@ class LiveHostActionBar extends StatelessWidget {
         onTap: () => openLiveHostOptionsMenu(
           onBeauty: onBeauty,
           onInvite: onInvite,
+          onBattle: onBattle,
           onQuality: onQuality,
           networkLabel: networkLabel,
           qualityLabel: qualityLabel,
+          battleRunning: battleRunning,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -75,8 +81,10 @@ void openLiveHostOptionsMenu({
   required VoidCallback onBeauty,
   required VoidCallback onInvite,
   required RxString networkLabel,
+  VoidCallback? onBattle,
   VoidCallback? onQuality,
   String? qualityLabel,
+  bool battleRunning = false,
 }) {
   Get.bottomSheet(
     SafeArea(
@@ -98,6 +106,18 @@ void openLiveHostOptionsMenu({
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
+            if (onBattle != null)
+              _HostOptionTile(
+                icon: Icons.sports_kabaddi_rounded,
+                title: battleRunning ? 'Finalizar batalla' : LKey.startBattle.tr,
+                subtitle: battleRunning
+                    ? 'Terminar el enfrentamiento 1v1'
+                    : 'Batalla 1v1 con regalos de la audiencia',
+                onTap: () {
+                  Get.back();
+                  onBattle();
+                },
+              ),
             if (onQuality != null)
               _HostOptionTile(
                 icon: Icons.high_quality_rounded,

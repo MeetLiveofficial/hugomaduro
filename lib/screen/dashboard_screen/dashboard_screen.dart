@@ -26,15 +26,18 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(DashboardScreenController());
-    return Scaffold(
-      backgroundColor: scaffoldBackgroundColor(context),
-      resizeToAvoidBottomInset: true,
-      body: Obx(() {
-        final hideBanner = controller.selectedPageIndex.value ==
-                DashboardScreenController.tabHome &&
-            (controller.homeTabMode.value == HomeTabMode.reels ||
-                controller.homeTabMode.value == HomeTabMode.live);
-        return Column(
+    return Obx(() {
+      final onLiveTab = controller.selectedPageIndex.value ==
+          DashboardScreenController.tabLive;
+      final hideBanner = controller.selectedPageIndex.value ==
+              DashboardScreenController.tabHome &&
+          (controller.homeTabMode.value == HomeTabMode.reels ||
+              controller.homeTabMode.value == HomeTabMode.live);
+      return Scaffold(
+        backgroundColor: scaffoldBackgroundColor(context),
+        // En Go Live el teclado no debe empujar el layout (rompe el diseño).
+        resizeToAvoidBottomInset: !onLiveTab,
+        body: Column(
           children: [
             Expanded(
               child: ProsteIndexedStack(
@@ -59,10 +62,10 @@ class DashboardScreen extends StatelessWidget {
             ),
             if (!hideBanner) const BannerAdsCustom(),
           ],
-        );
-      }),
-      bottomNavigationBar: _buildBottomNavigationBar(context, controller),
-    );
+        ),
+        bottomNavigationBar: _buildBottomNavigationBar(context, controller),
+      );
+    });
   }
 
   Widget _buildBottomNavigationBar(

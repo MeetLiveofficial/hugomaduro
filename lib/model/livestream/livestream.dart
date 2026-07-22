@@ -24,6 +24,8 @@ class Livestream {
   int? battleCreatedAt;
   int? isDummyLive;
   String? dummyUserLink;
+  String? battleLinkedRoomId;
+  String? battlePrimaryRoomId;
 
   Livestream(
       {this.watchingCount,
@@ -41,6 +43,8 @@ class Livestream {
       this.battleCreatedAt,
       this.isDummyLive,
       this.dummyUserLink,
+      this.battleLinkedRoomId,
+      this.battlePrimaryRoomId,
       this.battleDuration = AppRes.battleDurationInMinutes});
 
   Livestream.fromJson(Map<String, dynamic> json) {
@@ -83,6 +87,8 @@ class Livestream {
     battleCreatedAt = json['battle_created_at'];
     isDummyLive = json['is_dummy_live'];
     dummyUserLink = json['dummy_user_link'];
+    battleLinkedRoomId = json['battle_linked_room_id']?.toString();
+    battlePrimaryRoomId = json['battle_primary_room_id']?.toString();
     battleDuration = json['battle_duration'] ?? AppRes.battleDurationInMinutes;
     final hostJson = json['host_user'];
     if (hostJson is Map) {
@@ -107,6 +113,8 @@ class Livestream {
     data['battle_created_at'] = battleCreatedAt;
     data['is_dummy_live'] = isDummyLive;
     data['dummy_user_link'] = dummyUserLink;
+    data['battle_linked_room_id'] = battleLinkedRoomId;
+    data['battle_primary_room_id'] = battlePrimaryRoomId;
     data['battle_duration'] = battleDuration;
     return data;
   }
@@ -169,7 +177,8 @@ enum BattleType {
   const BattleType(this.value);
 
   static BattleType fromString(String? value) {
-    return BattleType.values.firstWhereOrNull((e) => e.value == value) ??
+    final v = value?.toUpperCase();
+    return BattleType.values.firstWhereOrNull((e) => e.value == v) ??
         BattleType.initiate;
   }
 }

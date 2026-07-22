@@ -397,163 +397,177 @@ class _StartLiveSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final keyboard = media.viewInsets.bottom;
+    final maxHeight = media.size.height * 0.92 - keyboard;
+
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: whitePure(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: bgGrey(context),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                Text(
-                  LKey.goLive.tr,
-                  textAlign: TextAlign.center,
-                  style: TextStyleCustom.unboundedSemiBold600(
-                    color: textDarkGrey(context),
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller.titleController,
-                  autofocus: true,
-                  maxLength: 80,
-                  decoration: InputDecoration(
-                    hintText: LKey.enterLiveStreamTitle.tr,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    counterText: '',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controller.descriptionController,
-                  maxLength: 500,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: 'Describe your live...',
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Obx(() {
-                  final bytes = controller.coverImageBytes.value;
-                  final hasCover = bytes != null && bytes.isNotEmpty;
-                  return Material(
-                    color: bgGrey(context),
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: controller.pickLiveCover,
-                      borderRadius: BorderRadius.circular(12),
+      padding: EdgeInsets.only(bottom: keyboard),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: maxHeight.clamp(240.0, media.size.height),
+          ),
+          child: Material(
+            color: whitePure(context),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            child: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
                       child: Container(
-                        height: 140,
-                        width: double.infinity,
+                        width: 44,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.black12),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            if (hasCover)
-                              Image.memory(
-                                bytes,
-                                fit: BoxFit.cover,
-                                gaplessPlayback: true,
-                              )
-                            else
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_photo_alternate_outlined,
-                                      color: textLightGrey(context), size: 32),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Add cover image',
-                                    style: TextStyleCustom.outFitMedium500(
-                                      color: textLightGrey(context),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            if (hasCover)
-                              Positioned(
-                                top: 6,
-                                right: 6,
-                                child: Material(
-                                  color: Colors.black54,
-                                  shape: const CircleBorder(),
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: controller.clearLiveCover,
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(6),
-                                      child: Icon(Icons.close,
-                                          color: Colors.white, size: 16),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
+                          color: bgGrey(context),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                       ),
                     ),
-                  );
-                }),
-                Obx(() {
-                  if (controller.invitedIds.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(
-                      '${LKey.invited.tr}: ${controller.invitedIds.length}',
+                    Text(
+                      LKey.goLive.tr,
                       textAlign: TextAlign.center,
-                      style: TextStyleCustom.outFitMedium500(
-                        color: themeAccentSolid(context),
-                        fontSize: 13,
+                      style: TextStyleCustom.unboundedSemiBold600(
+                        color: textDarkGrey(context),
+                        fontSize: 16,
                       ),
                     ),
-                  );
-                }),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => Get.back(result: true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: themeColor(context),
-                    foregroundColor: whitePure(context),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: controller.titleController,
+                      autofocus: true,
+                      maxLength: 80,
+                      decoration: InputDecoration(
+                        hintText: LKey.enterLiveStreamTitle.tr,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        counterText: '',
+                      ),
                     ),
-                  ),
-                  child: Text(LKey.startLive.tr),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: controller.descriptionController,
+                      maxLength: 500,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'Describe your live...',
+                        alignLabelWithHint: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Obx(() {
+                      final bytes = controller.coverImageBytes.value;
+                      final hasCover = bytes != null && bytes.isNotEmpty;
+                      return Material(
+                        color: bgGrey(context),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: controller.pickLiveCover,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            height: 140,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.black12),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (hasCover)
+                                  Image.memory(
+                                    bytes,
+                                    fit: BoxFit.cover,
+                                    gaplessPlayback: true,
+                                  )
+                                else
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add_photo_alternate_outlined,
+                                          color: textLightGrey(context),
+                                          size: 32),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Add cover image',
+                                        style: TextStyleCustom.outFitMedium500(
+                                          color: textLightGrey(context),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                if (hasCover)
+                                  Positioned(
+                                    top: 6,
+                                    right: 6,
+                                    child: Material(
+                                      color: Colors.black54,
+                                      shape: const CircleBorder(),
+                                      child: InkWell(
+                                        customBorder: const CircleBorder(),
+                                        onTap: controller.clearLiveCover,
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(6),
+                                          child: Icon(Icons.close,
+                                              color: Colors.white, size: 16),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    Obx(() {
+                      if (controller.invitedIds.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          '${LKey.invited.tr}: ${controller.invitedIds.length}',
+                          textAlign: TextAlign.center,
+                          style: TextStyleCustom.outFitMedium500(
+                            color: themeAccentSolid(context),
+                            fontSize: 13,
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => Get.back(result: true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeColor(context),
+                        foregroundColor: whitePure(context),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(LKey.startLive.tr),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

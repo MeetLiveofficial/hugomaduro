@@ -58,6 +58,9 @@ class ProfileUserHeader extends StatelessWidget {
       }
 
       final isMe = user.id == SessionManager.instance.getUserID();
+      // Si estoy en la app mirando mi perfil, soy ACTIVE sí o sí.
+      final isPresent =
+          isMe || user.isActive == 1 || user.isLive == 1;
       final stories = user.stories ?? [];
       final hasStories = stories.isNotEmpty;
       final links = user.links ?? [];
@@ -150,7 +153,7 @@ class ProfileUserHeader extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: (user.isActive == 1 || user.isLive == 1)
+                    color: isPresent
                         ? const Color(0xFF22C55E).withValues(alpha: 0.15)
                         : const Color(0xFF9CA3AF).withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(10),
@@ -162,7 +165,7 @@ class ProfileUserHeader extends StatelessWidget {
                         width: 7,
                         height: 7,
                         decoration: BoxDecoration(
-                          color: (user.isActive == 1 || user.isLive == 1)
+                          color: isPresent
                               ? const Color(0xFF22C55E)
                               : const Color(0xFF9CA3AF),
                           shape: BoxShape.circle,
@@ -170,11 +173,9 @@ class ProfileUserHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        (user.isActive == 1 || user.isLive == 1)
-                            ? 'ACTIVE'
-                            : 'INACTIVE',
+                        isPresent ? 'ACTIVE' : 'INACTIVE',
                         style: TextStyleCustom.outFitMedium500(
-                          color: (user.isActive == 1 || user.isLive == 1)
+                          color: isPresent
                               ? const Color(0xFF15803D)
                               : const Color(0xFF6B7280),
                           fontSize: 11,
@@ -538,17 +539,24 @@ class _Avatar extends StatelessWidget {
           Positioned(
             right: 2,
             bottom: isLive ? 14 : 4,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: (user.isActive == 1 || user.isLive == 1)
-                    ? const Color(0xFF22C55E)
-                    : const Color(0xFF9CA3AF),
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: scaffoldBackgroundColor(context), width: 2),
-              ),
+            child: Builder(
+              builder: (context) {
+                final isMe = user.id == SessionManager.instance.getUserID();
+                final isPresent =
+                    isMe || user.isActive == 1 || user.isLive == 1;
+                return Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: isPresent
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFF9CA3AF),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: scaffoldBackgroundColor(context), width: 2),
+                  ),
+                );
+              },
             ),
           ),
         ],

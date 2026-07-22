@@ -10,6 +10,7 @@ import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/misc/activity_notification_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_invite_dialog.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_invite_dialog.dart';
 import 'package:krimson/screen/post_screen/single_post_screen.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -39,6 +40,8 @@ class ActivityNotifyType {
       ActivityNotifyType._('call_request', 9);
   static const ActivityNotifyType liveInvite =
       ActivityNotifyType._('live_invite', 10);
+  static const ActivityNotifyType battleInvite =
+      ActivityNotifyType._('battle_invite', 11);
 
   static const List<ActivityNotifyType> values = [
     none,
@@ -52,6 +55,7 @@ class ActivityNotifyType {
     mentionReply,
     callRequest,
     liveInvite,
+    battleInvite,
   ];
 
   static ActivityNotifyType fromString(dynamic value) {
@@ -88,6 +92,8 @@ class ActivityNotifyType {
         return 'Video call request';
       case 10:
         return 'te invita a su LIVE';
+      case 11:
+        return 'te invita a una batalla';
       default:
         return '';
     }
@@ -203,6 +209,13 @@ class ActivityNotificationPage extends StatelessWidget {
       final live = item.data?.livestream;
       if (live != null) {
         LiveInviteDialog.showIfNeeded(live);
+      }
+      return;
+    }
+    if (item.type == ActivityNotifyType.battleInvite) {
+      final live = item.data?.livestream;
+      if (live != null) {
+        LiveBattleInviteDialog.showIfNeeded(live);
       }
       return;
     }

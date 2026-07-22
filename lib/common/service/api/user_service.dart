@@ -92,8 +92,8 @@ class UserService {
       SessionManager.instance.setLogin(true);
       return model.data;
     }
-    BaseController.share.showSnackBar(
-        model.message ?? 'Invalid Credentials');
+    // El snackbar lo muestra el caller tras cerrar el loader (evita Get.back
+    // del dialog que oculta/cancela el mensaje).
     return null;
   }
 
@@ -387,6 +387,16 @@ class UserService {
   }
 
   Future<void> updateLastUsedAt() async {
-    await ApiService.instance.call(url: WebService.user.updateLastUsedAt);
+    try {
+      await ApiService.instance.call(url: WebService.user.updateLastUsedAt);
+      final user = SessionManager.instance.getUser();
+      if (user != null) {
+        user.isActive = 1;
+        user.appLastUsedAt = DateTime.now().toIso8601String();
+        SessionManager.instance.setUser(user);
+      }
+    } catch (_) {
+      // No bloquear la UI si falla el heartbeat.
+    }
   }
 }

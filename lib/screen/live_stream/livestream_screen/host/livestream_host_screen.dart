@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_split_view.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_stream_overlay.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -73,8 +74,9 @@ class LivestreamHostScreen extends StatelessWidget {
                 if (lk != null && lk.isConnected.value) {
                   return Obx(() {
                     lk.mediaRevision.value;
-                    // Solo el video del host. No PiP de espectadores (salen
-                    // como "cámara apagada" y tapan el chat).
+                    if (c.isBattleRunning.value) {
+                      return LiveBattleSplitView(controller: c);
+                    }
                     return LiveKitParticipantVideo(
                       participant: lk.localParticipant.value,
                       mirror: true,
