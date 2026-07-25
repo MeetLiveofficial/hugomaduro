@@ -23,7 +23,7 @@ class ChatMediaMessage extends StatelessWidget {
     final preview = isVideo
         ? (message.imageMessage ?? message.videoMessage)
         : message.imageMessage;
-    final caption = (message.textMessage ?? '').trim();
+    final caption = message.displayText.trim();
 
     return ChatBubble(
       isMe: isMe,

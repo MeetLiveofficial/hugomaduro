@@ -30,11 +30,13 @@ import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_invite_dialog.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_invite_dialog.dart';
 import 'package:krimson/screen/message_screen/message_screen_controller.dart';
 import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
 import 'package:krimson/screen/post_screen/single_post_screen.dart';
 import 'package:krimson/screen/reels_screen/reels_screen.dart';
 import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/app_platform.dart';
 import 'package:krimson/utilities/const_res.dart';
 
@@ -70,7 +72,7 @@ class FirebaseNotificationManager {
   RxString notificationPayload = ''.obs;
   AndroidNotificationChannel channel = const AndroidNotificationChannel(
       'krimson', // id
-      'Krimson', // title
+      'Meet&Live', // title
       playSound: true,
       enableLights: true,
       enableVibration: true,
@@ -79,7 +81,7 @@ class FirebaseNotificationManager {
 
   AndroidNotificationChannel callChannel = const AndroidNotificationChannel(
       'krimson_calls',
-      'Krimson Calls',
+      'Meet&Live Calls',
       playSound: true,
       enableLights: true,
       enableVibration: true,
@@ -265,6 +267,13 @@ class FirebaseNotificationManager {
       return;
     }
 
+    if (dataType == 'task') {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        Get.to(() => const TasksScreen());
+      });
+      return;
+    }
+
     if (dataString == null || dataString.isEmpty) return;
     final controller = Get.put(DashboardScreenController());
     switch (dataType) {
@@ -287,8 +296,32 @@ class FirebaseNotificationManager {
       case 'live_stream':
         await _showLiveInviteFromPayload(dataString);
         break;
+      case 'battle_invite':
+        await _showBattleInviteFromPayload(dataString);
+        break;
       default:
         Loggers.warning('Unknown notification type: $dataType');
+    }
+  }
+
+  Future<void> _showBattleInviteFromPayload(String dataString) async {
+    try {
+      final incomingStream = Livestream.fromJson(jsonDecode(dataString));
+      final roomId = incomingStream.roomID ?? '${incomingStream.hostId ?? ''}';
+      if (roomId.isEmpty) return;
+
+      Livestream stream = incomingStream;
+      try {
+        final payload =
+            await LiveSessionService.instance.fetchSession(roomId: roomId);
+        if (payload?.session != null) {
+          stream = payload!.session;
+        }
+      } catch (_) {}
+
+      await LiveBattleInviteDialog.showIfNeeded(stream);
+    } catch (e) {
+      Loggers.error('battle invite dialog: $e');
     }
   }
 
@@ -556,6 +589,8 @@ enum NotificationType {
   post('post'),
   user('user'),
   liveStream('live_stream'),
+  battleInvite('battle_invite'),
+  task('task'),
   other('other');
 
   final String type;

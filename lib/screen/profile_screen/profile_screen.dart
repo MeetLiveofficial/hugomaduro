@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/custom_back_button.dart';
 import 'package:krimson/common/widget/my_refresh_indicator.dart';
@@ -71,12 +72,19 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ];
                           },
-                          body: Column(
-                            children: [
-                              ProfileTabs(controller: controller),
-                              ProfilePageView(controller: controller)
-                            ],
-                          ),
+                          body: Obx(() {
+                            final profileUser = controller.userData.value;
+                            // Perfil visitado de un client: sin Posts/Reels de creador.
+                            if (AppRole.isClient(profileUser)) {
+                              return const _ClientProfileEmptyBody();
+                            }
+                            return Column(
+                              children: [
+                                ProfileTabs(controller: controller),
+                                ProfilePageView(controller: controller)
+                              ],
+                            );
+                          }),
                         ),
                       ),
                     ),
@@ -88,6 +96,10 @@ class ProfileScreen extends StatelessWidget {
                       final isMe =
                           user.id == SessionManager.instance.getUserID();
                       if (isMe) return const SizedBox.shrink();
+                      // Clientes no ofrecen videollamada de pago.
+                      if (!AppRole.canReceivePaidCalls(user)) {
+                        return const SizedBox.shrink();
+                      }
                       return Positioned(
                         right: 16,
                         bottom: MediaQuery.paddingOf(context).bottom + 20,
@@ -200,5 +212,43 @@ class _TopViewForOtherUser extends StatelessWidget {
             ],
           )
         : const SizedBox();
+  }
+}
+
+/// Cuerpo vacío al visitar un perfil client (sin grid Posts/Reels).
+class _ClientProfileEmptyBody extends StatelessWidget {
+  const _ClientProfileEmptyBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(32, 24, 32, 48),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person_outline,
+                size: 56, color: textLightGrey(context)),
+            const SizedBox(height: 14),
+            Text(
+              'Perfil de cliente',
+              style: TextStyleCustom.unboundedSemiBold600(
+                color: textDarkGrey(context),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Este usuario no publica Posts ni Reels.',
+              textAlign: TextAlign.center,
+              style: TextStyleCustom.outFitRegular400(
+                color: textLightGrey(context),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

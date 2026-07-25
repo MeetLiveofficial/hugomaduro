@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/restart_widget.dart';
 import 'package:krimson/common/widget/theme_blur_bg.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/auth_screen/login_screen.dart';
 import 'package:krimson/screen/on_boarding_screen/on_boarding_screen.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -18,9 +20,29 @@ class SelectLanguageScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final languages =
-        SessionManager.instance.getSettings()?.languages ?? [];
-    final active = languages.where((e) => e.status == 1).toList();
+    // Solo idiomas activos del panel admin (APP LANGUAGES → ES/EN/PT…).
+    final active = SessionManager.instance.getActiveLanguages();
+    final current = SessionManager.instance.getLang();
+
+    // Fallback alineado al seeder del backend si aún no hay settings.
+    final tiles = active.isNotEmpty
+        ? active
+            .map(
+              (lang) => (
+                label: lang.localizedTitle ?? lang.title ?? lang.code ?? 'Lang',
+                code: lang.code ?? 'en',
+              ),
+            )
+            .toList()
+        : const [
+            (label: 'English', code: 'en'),
+            (label: 'Español', code: 'es'),
+            (label: 'Português', code: 'pt'),
+            (label: 'العربية', code: 'ar'),
+            (label: 'Русский', code: 'ru'),
+            (label: 'Українська', code: 'uk'),
+            (label: '中文', code: 'zh'),
+          ];
 
     return Scaffold(
       body: Stack(
@@ -33,7 +55,7 @@ class SelectLanguageScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Idioma',
+                    LKey.language.tr,
                     style: TextStyle(
                       color: whitePure(context),
                       fontSize: 28,
@@ -42,37 +64,25 @@ class SelectLanguageScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Elige el idioma de la app',
-                    style: TextStyle(color: whitePure(context).withValues(alpha: 0.8)),
+                    LKey.languages.tr,
+                    style: TextStyle(
+                      color: whitePure(context).withValues(alpha: 0.8),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Expanded(
-                    child: active.isEmpty
-                        ? ListView(
-                            children: [
-                              _LangTile(
-                                label: 'English',
-                                code: 'en',
-                                onTap: () => _select('en'),
-                              ),
-                              _LangTile(
-                                label: 'Español',
-                                code: 'es',
-                                onTap: () => _select('es'),
-                              ),
-                            ],
-                          )
-                        : ListView.builder(
-                            itemCount: active.length,
-                            itemBuilder: (_, i) {
-                              final lang = active[i];
-                              return _LangTile(
-                                label: lang.title ?? lang.code ?? 'Lang',
-                                code: lang.code ?? 'en',
-                                onTap: () => _select(lang.code ?? 'en'),
-                              );
-                            },
-                          ),
+                    child: ListView.builder(
+                      itemCount: tiles.length,
+                      itemBuilder: (_, i) {
+                        final tile = tiles[i];
+                        return _LangTile(
+                          label: tile.label,
+                          code: tile.code,
+                          selected: tile.code == current,
+                          onTap: () => _select(context, tile.code),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -83,13 +93,15 @@ class SelectLanguageScreen extends StatelessWidget {
     );
   }
 
-  void _select(String code) {
-    SessionManager.instance.storage.write(SessionKeys.lang, code);
+  Future<void> _select(BuildContext context, String code) async {
     SessionManager.instance.setBool(SessionKeys.isLanguageScreenSelect, true);
+    // Esperar sync a app_language en el server antes de reiniciar;
+    // si no, el perfil vuelve a mostrar el idioma anterior.
+    await SessionManager.instance.setLang(code);
 
     if (languageNavigationType == LanguageNavigationType.fromSetting) {
-      SessionManager.instance.setLang(code);
-      Get.back();
+      final ctx = Get.context ?? context;
+      RestartWidget.restartApp(ctx);
       return;
     }
 
@@ -108,22 +120,30 @@ class SelectLanguageScreen extends StatelessWidget {
 class _LangTile extends StatelessWidget {
   final String label;
   final String code;
+  final bool selected;
   final VoidCallback onTap;
 
   const _LangTile({
     required this.label,
     required this.code,
+    required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white.withValues(alpha: 0.12),
+      color: Colors.white.withValues(alpha: selected ? 0.22 : 0.12),
       child: ListTile(
         title: Text(label, style: TextStyle(color: whitePure(context))),
-        subtitle: Text(code, style: TextStyle(color: whitePure(context).withValues(alpha: 0.7))),
-        trailing: Icon(Icons.chevron_right, color: whitePure(context)),
+        subtitle: Text(
+          code.toUpperCase(),
+          style: TextStyle(color: whitePure(context).withValues(alpha: 0.7)),
+        ),
+        trailing: Icon(
+          selected ? Icons.check_circle : Icons.chevron_right,
+          color: whitePure(context),
+        ),
         onTap: onTap,
       ),
     );

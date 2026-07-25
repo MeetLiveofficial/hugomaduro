@@ -1,6 +1,7 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/content_protection.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/custom_drop_down.dart';
@@ -17,7 +18,9 @@ import 'package:krimson/screen/settings_screen/settings_screen_controller.dart';
 import 'package:krimson/screen/settings_screen/widget/notifications_page.dart';
 import 'package:krimson/screen/settings_screen/widget/setting_icon_text_with_arrow.dart';
 import 'package:krimson/screen/subscription_screen/subscription_screen.dart';
+import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/screen/term_and_privacy_screen/term_and_privacy_screen.dart';
+import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -78,11 +81,28 @@ class SettingsScreen extends StatelessWidget {
                     Get.to(() => const QrCodeScreen());
                   },
                 ),
+              // Streamers no recargan: solo retiros. Clientes ven Coin Wallet.
+              if (AppRole.isStreamer())
+                SettingIconTextWithArrow(
+                  icon: AssetRes.icWallet,
+                  title: LKey.withdrawals,
+                  onTap: () {
+                    Get.to(() => const WithdrawalsScreen());
+                  },
+                )
+              else
+                SettingIconTextWithArrow(
+                  icon: AssetRes.icWallet,
+                  title: LKey.coinWallet,
+                  onTap: () {
+                    Get.to(() => const CoinWalletScreen());
+                  },
+                ),
               SettingIconTextWithArrow(
-                icon: AssetRes.icWallet,
-                title: LKey.coinWallet,
+                icon: AssetRes.icVideoRequest,
+                title: LKey.tasks,
                 onTap: () {
-                  Get.to(() => const CoinWalletScreen());
+                  Get.to(() => const TasksScreen());
                 },
               ),
               SettingIconTextWithArrow(

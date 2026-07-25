@@ -128,6 +128,9 @@ class ApiService {
         if (isSessionAuth) {
           SessionManager.instance.clearSomeKey();
           DebounceAction.shared.call(() {
+            // Evita bucle Get.offAll(Login) si polls/timers siguen vivos tras logout.
+            final route = Get.currentRoute.toLowerCase();
+            if (route == '/login' || route.endsWith('/login')) return;
             Get.offAll(() => const LoginScreen(), routeName: '/login');
           });
         }

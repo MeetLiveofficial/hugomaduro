@@ -18,22 +18,67 @@ class MessageData {
   List<int>? noDeleteIds;
   String? waveData;
 
-  MessageData({this.userId,
-      this.id,
-      this.messageType,
-      this.textMessage,
-      this.imageMessage,
-      this.videoMessage,
-      this.audioMessage,
-      this.postMessage,
-      this.storyReplyMessage,
-      this.conversationId,
-      this.iBlocked,
-      this.iAmBlocked,
-      this.noDeleteIds,
-      this.waveData});
+  /// Texto original antes de la traducción on-device (solo mensajes ajenos).
+  String? originalTextMessage;
 
-  MessageData.fromJson(Map<String, dynamic> json) {
+  /// Texto ya traducido al idioma del usuario.
+  String? translatedTextMessage;
+
+  bool isTranslated;
+
+  MessageData({
+    this.userId,
+    this.id,
+    this.messageType,
+    this.textMessage,
+    this.imageMessage,
+    this.videoMessage,
+    this.audioMessage,
+    this.postMessage,
+    this.storyReplyMessage,
+    this.conversationId,
+    this.iBlocked,
+    this.iAmBlocked,
+    this.noDeleteIds,
+    this.waveData,
+    this.originalTextMessage,
+    this.translatedTextMessage,
+    this.isTranslated = false,
+  });
+
+  /// Texto a mostrar en UI: preferir traducción si existe.
+  String get displayText =>
+      (translatedTextMessage?.isNotEmpty == true)
+          ? translatedTextMessage!
+          : (textMessage ?? '');
+
+  MessageData copyWithTranslation({
+    String? originalText,
+    required String translatedText,
+  }) {
+    return MessageData(
+      id: id,
+      userId: userId,
+      messageType: messageType,
+      textMessage: translatedText,
+      imageMessage: imageMessage,
+      videoMessage: videoMessage,
+      audioMessage: audioMessage,
+      postMessage: postMessage,
+      storyReplyMessage: storyReplyMessage,
+      conversationId: conversationId,
+      iBlocked: iBlocked,
+      iAmBlocked: iAmBlocked,
+      noDeleteIds: noDeleteIds,
+      waveData: waveData,
+      originalTextMessage: originalText ?? textMessage,
+      translatedTextMessage: translatedText,
+      isTranslated: true,
+    );
+  }
+
+  MessageData.fromJson(Map<String, dynamic> json)
+      : isTranslated = false {
     id = json['id'];
     userId = json['user_id'];
     messageType = MessageType.fromString(json['message_type']);

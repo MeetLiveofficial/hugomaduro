@@ -79,7 +79,7 @@ class SendGiftSheetController extends BaseController {
   Future<void> sendGift(Gift gift, BuildContext context) async {
     final giftId = gift.id?.toInt() ?? -1;
 
-    final coinPrice = gift.coinPrice ?? 0;
+    var coinPrice = gift.coinPrice ?? 0;
     userId ??= livestreamController?.selectedGiftUser.value?.userId ??
         (liveUsers.isNotEmpty ? liveUsers.first.userId : null);
 
@@ -88,14 +88,33 @@ class SendGiftSheetController extends BaseController {
     }
 
     if (coinPrice <= 0) {
+      // Último intento: catálogo local.
+      final catalog = SessionManager.instance.getSettings()?.gifts ?? [];
+      for (final g in catalog) {
+        if (g.id == gift.id && (g.coinPrice ?? 0) > 0) {
+          coinPrice = g.coinPrice!;
+          gift.coinPrice = coinPrice;
+          break;
+        }
+      }
+    }
+    if (coinPrice <= 0) {
       return Loggers.error(
           'Invalid coin price: $coinPrice, skipping gift sending.');
     }
     showLoader();
-    final response = await GiftWalletService.instance
-        .sendGift(giftId: giftId, userId: userId);
+    final detailed = await GiftWalletService.instance
+        .sendGiftDetailed(giftId: giftId, userId: userId);
     stopLoader();
-    if (response.status == true) {
+    if (detailed.ok) {
+      // Precio confirmado por API (fuente de verdad).
+      if (detailed.coinPrice > 0) {
+        coinPrice = detailed.coinPrice;
+        gift.coinPrice = coinPrice;
+      }
+      if ((detailed.image ?? '').isNotEmpty) {
+        gift.image = detailed.image;
+      }
       // Deduct gift coins from user wallet
       myUser.update((val) {
         val?.removeCoinFromWallet(coinPrice);
@@ -111,7 +130,7 @@ class SendGiftSheetController extends BaseController {
                     (liveUsers.isNotEmpty ? liveUsers.first : null)));
       }
     } else {
-      showSnackBar(response.message);
+      showSnackBar(detailed.message);
     }
   }
 }
@@ -144,9 +163,22 @@ class GiftManager {
     });
   }
 
+  static bool _giftDialogOpen = false;
+
   static void showAnimationDialog(Gift gift) {
     final ctx = Get.context;
     if (ctx == null) return;
+
+    // Si ya hay uno, cerrarlo para no apilar stickers.
+    if (_giftDialogOpen) {
+      try {
+        final nav = Navigator.of(ctx, rootNavigator: true);
+        if (nav.canPop()) nav.pop();
+      } catch (_) {}
+      _giftDialogOpen = false;
+    }
+
+    _giftDialogOpen = true;
     showGeneralDialog(
       context: ctx,
       barrierDismissible: true,
@@ -155,22 +187,20 @@ class GiftManager {
       pageBuilder: (context, animation, secondaryAnimation) {
         return SendGiftDialog(gift: gift);
       },
-      transitionDuration: const Duration(milliseconds: 350),
+      // La animación visual la hace SendGiftDialog (entrada + hold + salida).
+      transitionDuration: const Duration(milliseconds: 80),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         if (animation.status == AnimationStatus.forward) {
           HapticManager.shared.light();
         }
         return FadeTransition(
           opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.7, end: 1).animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-            ),
-            child: child,
-          ),
+          child: child,
         );
       },
-    );
+    ).whenComplete(() {
+      _giftDialogOpen = false;
+    });
   }
 
   static void sendNotification(Post? post) {

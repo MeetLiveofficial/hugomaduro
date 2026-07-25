@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:krimson/common/service/api/user_service.dart';
@@ -119,27 +120,95 @@ class SessionManager {
   void setSettings(Setting settings) {
     storage.write(SessionKeys.setting, settings.toJson());
     if (settings.appName != null && settings.appName!.trim().isNotEmpty) {
-      AppRes.appName = settings.appName!.trim();
+      final name = settings.appName!.trim();
+      // Rebrand: ignorar nombre legacy cacheado/API hasta que el panel se actualice.
+      AppRes.appName =
+          (name.toLowerCase() == 'krimson') ? 'Meet&Live' : name;
     }
   }
 
   Setting? getSettings() {
     var data = storage.read(SessionKeys.setting);
-    if (data is Map<String, dynamic>) {
-      return Setting.fromJson(data);
-    } else if (data is Setting) {
-      return data;
+    if (data is Setting) return data;
+    if (data is Map) {
+      try {
+        return Setting.fromJson(Map<String, dynamic>.from(data));
+      } catch (_) {
+        return null;
+      }
     }
     return null;
   }
 
-  void setLang(String langCode) {
+  /// Guarda el locale localmente y, si hay sesión, lo sincroniza al perfil
+  /// (`app_language`) en el backend. Hay que **await** antes de RestartWidget
+  /// para que el chip del perfil no vuelva a mostrar el idioma anterior.
+  Future<void> setLang(String langCode, {bool syncRemote = true}) async {
     storage.write(SessionKeys.lang, langCode);
-    UserService.instance.updateUserDetails(appLanguage: langCode);
+    // Sin esto GetX sigue mostrando el idioma anterior (claves en inglés).
+    Get.updateLocale(Locale(langCode));
+    final user = getUser();
+    if (user != null) {
+      user.appLanguage = langCode;
+      setUser(user);
+    }
+    if (syncRemote && user != null && hasAuthToken) {
+      try {
+        await UserService.instance.updateUserDetails(appLanguage: langCode);
+      } catch (e) {
+        // Locale local ya aplicado; el perfil se reintentará en el próximo sync.
+      }
+    }
   }
 
   String getLang() {
     return storage.read(SessionKeys.lang) ?? getFallbackLang();
+  }
+
+  /// Idiomas activos del panel admin (APP LANGUAGES con status = 1).
+  List<Language> getActiveLanguages() {
+    return (getSettings()?.languages ?? [])
+        .where((e) => e.status == 1 && (e.code?.isNotEmpty ?? false))
+        .toList();
+  }
+
+  /// Garantiza que el locale sea uno de los idiomas activos (p. ej. es/en/pt).
+  /// Si [preferred] no está activo, usa el default del admin o el primero disponible.
+  String ensureActiveLang([String? preferred]) {
+    final active = getActiveLanguages();
+    final codes = active.map((e) => e.code!).toList();
+    final candidate = (preferred ?? getLang()).trim().toLowerCase();
+
+    // Fallback local si el admin aún no envió idiomas (mismo set del seeder).
+    if (codes.isEmpty) {
+      const seeded = ['en', 'es', 'pt', 'ar', 'ru', 'uk', 'zh'];
+      final resolved = seeded.contains(candidate) ? candidate : 'en';
+      if (resolved != getLang()) {
+        storage.write(SessionKeys.lang, resolved);
+        Get.updateLocale(Locale(resolved));
+      }
+      return resolved;
+    }
+
+    if (codes.contains(candidate)) {
+      if (candidate != getLang()) {
+        setLang(candidate);
+      }
+      return candidate;
+    }
+
+    final defaultLang =
+        active.firstWhereOrNull((e) => e.isDefault == 1)?.code ?? codes.first;
+    if (defaultLang != getLang()) {
+      setLang(defaultLang);
+    }
+    return defaultLang;
+  }
+
+  /// Aplica el idioma del perfil (app_language) a la sesión / UI.
+  void applyUserAppLanguage(String? code) {
+    if (code == null || code.trim().isEmpty) return;
+    ensureActiveLang(code.trim().toLowerCase());
   }
 
   void setFallbackLang(String langCode) {
@@ -197,8 +266,8 @@ class SessionManager {
     storage.remove(SessionKeys.authToken);
     storage.remove(SessionKeys.password);
     storage.remove(SessionKeys.notifyCount);
-    storage.remove(SessionKeys.fallbackLang);
-    storage.remove(SessionKeys.lang);
+    // Conservar lang / fallbackLang: borrarlos provoca Get.updateLocale
+    // y reinicios que parecen “refresco infinito” tras logout.
   }
 }
 

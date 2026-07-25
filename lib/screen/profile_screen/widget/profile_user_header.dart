@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/content_protection.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/share_manager.dart';
@@ -17,6 +18,8 @@ import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/user_link_sheet.dart';
 import 'package:krimson/screen/settings_screen/settings_screen.dart';
+import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
+import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
@@ -57,6 +60,9 @@ class ProfileUserHeader extends StatelessWidget {
       }
 
       final isMe = user.id == SessionManager.instance.getUserID();
+      // Si estoy en la app mirando mi perfil, soy ACTIVE sí o sí.
+      final isPresent =
+          isMe || user.isActive == 1 || user.isLive == 1;
       final stories = user.stories ?? [];
       final hasStories = stories.isNotEmpty;
       final links = user.links ?? [];
@@ -85,10 +91,17 @@ class ProfileUserHeader extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _StatColumn(
-                        value: controller.posts.length,
-                        label: LKey.posts.tr,
-                      ),
+                      // Clientes no publican: no mostrar Posts/Likes de creador.
+                      if (AppRole.isStreamer(user)) ...[
+                        _StatColumn(
+                          value: controller.posts.length,
+                          label: LKey.posts.tr,
+                        ),
+                        _StatColumn(
+                          value: user.totalPostLikesCount ?? 0,
+                          label: LKey.likes.tr,
+                        ),
+                      ],
                       _StatColumn(
                         value: (user.followerCount ?? 0).toInt(),
                         label: LKey.followers.tr,
@@ -102,10 +115,6 @@ class ProfileUserHeader extends StatelessWidget {
                         onTap: () => controller.openFollowList(
                           FollowListType.following,
                         ),
-                      ),
-                      _StatColumn(
-                        value: user.totalPostLikesCount ?? 0,
-                        label: LKey.likes.tr,
                       ),
                     ],
                   ),
@@ -124,7 +133,7 @@ class ProfileUserHeader extends StatelessWidget {
               runSpacing: 4,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                if (user.isLive == 1)
+                if (user.isLive == 1 && AppRole.isStreamer(user))
                   InkWell(
                     onTap: () => controller.openUserLiveIfAny(),
                     child: Container(
@@ -149,7 +158,7 @@ class ProfileUserHeader extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: (user.isActive == 1 || user.isLive == 1)
+                    color: isPresent
                         ? const Color(0xFF22C55E).withValues(alpha: 0.15)
                         : const Color(0xFF9CA3AF).withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(10),
@@ -161,7 +170,7 @@ class ProfileUserHeader extends StatelessWidget {
                         width: 7,
                         height: 7,
                         decoration: BoxDecoration(
-                          color: (user.isActive == 1 || user.isLive == 1)
+                          color: isPresent
                               ? const Color(0xFF22C55E)
                               : const Color(0xFF9CA3AF),
                           shape: BoxShape.circle,
@@ -169,11 +178,9 @@ class ProfileUserHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        (user.isActive == 1 || user.isLive == 1)
-                            ? 'ACTIVE'
-                            : 'INACTIVE',
+                        isPresent ? 'ACTIVE' : 'INACTIVE',
                         style: TextStyleCustom.outFitMedium500(
-                          color: (user.isActive == 1 || user.isLive == 1)
+                          color: isPresent
                               ? const Color(0xFF15803D)
                               : const Color(0xFF6B7280),
                           fontSize: 11,
@@ -185,14 +192,14 @@ class ProfileUserHeader extends StatelessWidget {
               ],
             ),
             // Tags idioma / país (pills).
-            if (_profileTagLabels(user).isNotEmpty)
+            if (_profileTagLabels(user, isMe: isMe).isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final tag in _profileTagLabels(user))
+                    for (final tag in _profileTagLabels(user, isMe: isMe))
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
@@ -213,24 +220,56 @@ class ProfileUserHeader extends StatelessWidget {
               ),
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: InkWell(
-                onTap: () => Get.to(() => LevelScreen(userLevels: user.getLevel)),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: themeAccentSolid(context).withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}'
-                    '${(user.levelTitle ?? user.getLevel.title)?.isNotEmpty == true ? ' · ${user.levelTitle ?? user.getLevel.title}' : ''}',
-                    style: TextStyleCustom.outFitMedium500(
-                      color: themeAccentSolid(context),
-                      fontSize: 12,
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  InkWell(
+                    onTap: () =>
+                        Get.to(() => LevelScreen(userLevels: user.getLevel)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color:
+                            themeAccentSolid(context).withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}'
+                        '${(user.levelTitle ?? user.getLevel.title)?.isNotEmpty == true ? ' · ${user.levelTitle ?? user.getLevel.title}' : ''}',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: themeAccentSolid(context),
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (isMe)
+                    InkWell(
+                      onTap: () async {
+                        await Get.to(() => const TasksScreen());
+                        // Refresca saldo tras reclamaciones / auto-claim en Tasks.
+                        await controller.fetchUserDetail();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: ColorRes.brandMagenta.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${LKey.withdrawalPoints.tr}: ${user.withdrawalPoints ?? 0}',
+                          style: TextStyleCustom.outFitMedium500(
+                            color: ColorRes.brandMagenta,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             if ((user.username ?? '').isNotEmpty)
@@ -296,38 +335,46 @@ class ProfileUserHeader extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 14),
-            if (isMe) ...[
+            // SVIP / Dressing / Honor: solo streamers en su propio perfil.
+            if (isMe && AppRole.isStreamer(user)) ...[
               InkWell(
                 onTap: () => Get.to(() => const PrivilegeHubScreen()),
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   width: double.infinity,
-                  height: 40,
+                  height: 44,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     gradient: StyleRes.themeGradient,
                     borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ColorRes.brandMagenta.withValues(alpha: 0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
                       Text(
                         LKey.svip.tr,
                         style: TextStyleCustom.unboundedSemiBold600(
-                          color: whitePure(context),
-                          fontSize: 12,
+                          color: ColorRes.whitePure,
+                          fontSize: 13,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         LKey.learnMore.tr,
-                        style: TextStyleCustom.outFitRegular400(
-                          color: whitePure(context).withValues(alpha: 0.85),
-                          fontSize: 11,
+                        style: TextStyleCustom.outFitMedium500(
+                          color: ColorRes.whitePure,
+                          fontSize: 12,
                         ),
                       ),
                       const Spacer(),
                       Icon(Icons.workspace_premium,
-                          color: whitePure(context), size: 18),
+                          color: ColorRes.whitePure, size: 18),
                     ],
                   ),
                 ),
@@ -380,8 +427,7 @@ class ProfileVideoCallFab extends StatelessWidget {
     required this.onTap,
   });
 
-  bool get _canReceive =>
-      user.canReceiveCalls == 1 || user.getLevel.canReceiveCalls == 1;
+  bool get _canReceive => AppRole.canReceivePaidCalls(user);
 
   int get _cost {
     if (user.levelTitle != null || user.levelNumber != null) {
@@ -395,7 +441,7 @@ class ProfileVideoCallFab extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = _canReceive;
     final buttonColor =
-        enabled ? ColorRes.orange : textLightGrey(context).withValues(alpha: 0.55);
+        enabled ? ColorRes.brandMagenta : textLightGrey(context).withValues(alpha: 0.55);
 
     return Material(
       elevation: 8,
@@ -505,17 +551,24 @@ class _Avatar extends StatelessWidget {
           Positioned(
             right: 2,
             bottom: isLive ? 14 : 4,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: (user.isActive == 1 || user.isLive == 1)
-                    ? const Color(0xFF22C55E)
-                    : const Color(0xFF9CA3AF),
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: scaffoldBackgroundColor(context), width: 2),
-              ),
+            child: Builder(
+              builder: (context) {
+                final isMe = user.id == SessionManager.instance.getUserID();
+                final isPresent =
+                    isMe || user.isActive == 1 || user.isLive == 1;
+                return Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: isPresent
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFF9CA3AF),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: scaffoldBackgroundColor(context), width: 2),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -536,10 +589,11 @@ class _PrivilegeMini extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
         decoration: BoxDecoration(
-          color: bgLightGrey(context),
+          color: ColorRes.bgLightGrey,
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: ColorRes.bgGrey),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -547,8 +601,8 @@ class _PrivilegeMini extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: TextStyleCustom.outFitMedium500(
-            color: textDarkGrey(context),
+          style: TextStyleCustom.outFitSemiBold600(
+            color: ColorRes.textDarkGrey,
             fontSize: 11,
           ),
         ),
@@ -617,36 +671,72 @@ class _ActionButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isMe) {
-      return Row(
+      final canPublish = AppRole.canPublish(user);
+      return Column(
         children: [
-          Expanded(
-            child: TextButtonCustom(
-              onTap: () => controller.handlePublishOrMessageBtn(true),
-              title: LKey.publish.tr,
-              backgroundColor: themeAccentSolid(context),
-              titleColor: whitePure(context),
+          // Streamers ganan (retiros); no recargan. Clientes usan ClientProfileScreen.
+          if (canPublish) ...[
+            TextButtonCustom(
+              onTap: () => Get.to(() => const WithdrawalsScreen()),
+              title: LKey.withdrawals.tr,
+              backgroundColor: ColorRes.bgGrey,
+              titleColor: ColorRes.textDarkGrey,
               btnHeight: 42,
               fontSize: 15,
               horizontalMargin: 0,
               margin: EdgeInsets.zero,
             ),
-          ),
-          if (ContentProtection.canShare) ...[
-            const SizedBox(width: 8),
-            _IconAction(
-              icon: AssetRes.icShare2,
-              onTap: () => ShareManager.shared.showCustomShareSheet(
-                user: user,
-                keys: ShareKeys.user,
-              ),
-            ),
+            const SizedBox(height: 8),
           ],
-          const SizedBox(width: 8),
-          _IconAction(
-            icon: AssetRes.icEdit,
-            onTap: () => Get.to(
-              () => SettingsScreen(onUpdateUser: controller.onUpdateUser),
-            ),
+          Row(
+            children: [
+              if (canPublish)
+                Expanded(
+                  child: TextButtonCustom(
+                    onTap: () => controller.handlePublishOrMessageBtn(true),
+                    title: LKey.publish.tr,
+                    backgroundColor: themeAccentSolid(context),
+                    titleColor: whitePure(context),
+                    btnHeight: 42,
+                    fontSize: 15,
+                    horizontalMargin: 0,
+                    margin: EdgeInsets.zero,
+                  ),
+                )
+              else
+                Expanded(
+                  child: TextButtonCustom(
+                    onTap: () => Get.to(
+                      () =>
+                          SettingsScreen(onUpdateUser: controller.onUpdateUser),
+                    ),
+                    title: LKey.settings.tr,
+                    backgroundColor: themeAccentSolid(context),
+                    titleColor: whitePure(context),
+                    btnHeight: 42,
+                    fontSize: 15,
+                    horizontalMargin: 0,
+                    margin: EdgeInsets.zero,
+                  ),
+                ),
+              if (ContentProtection.canShare) ...[
+                const SizedBox(width: 8),
+                _IconAction(
+                  icon: AssetRes.icShare2,
+                  onTap: () => ShareManager.shared.showCustomShareSheet(
+                    user: user,
+                    keys: ShareKeys.user,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 8),
+              _IconAction(
+                icon: AssetRes.icEdit,
+                onTap: () => Get.to(
+                  () => SettingsScreen(onUpdateUser: controller.onUpdateUser),
+                ),
+              ),
+            ],
           ),
         ],
       );
@@ -661,11 +751,11 @@ class _ActionButtons extends StatelessWidget {
               onTap: controller.followUnFollowUser,
               title: following ? LKey.unFollow.tr : LKey.follow.tr,
               backgroundColor: following
-                  ? bgGrey(context)
-                  : ColorRes.blueFollow,
+                  ? ColorRes.bgGrey
+                  : ColorRes.brandMagenta,
               titleColor: following
-                  ? textDarkGrey(context)
-                  : whitePure(context),
+                  ? ColorRes.textDarkGrey
+                  : ColorRes.whitePure,
               btnHeight: 42,
               fontSize: 15,
               horizontalMargin: 0,
@@ -773,9 +863,11 @@ class _IconAction extends StatelessWidget {
 }
 
 /// Pills de idioma / país para el header de perfil.
-List<(String, Color)> _profileTagLabels(User user) {
+List<(String, Color)> _profileTagLabels(User user, {required bool isMe}) {
   final tags = <(String, Color)>[];
-  final lang = _languageDisplayName(user.appLanguage);
+  // En el propio perfil, el locale de sesión es la fuente de verdad (Settings).
+  final code = isMe ? SessionManager.instance.getLang() : user.appLanguage;
+  final lang = _languageDisplayName(code);
   if (lang != null) {
     tags.add((lang, const Color(0xFF60A5FA)));
   }
@@ -789,19 +881,30 @@ List<(String, Color)> _profileTagLabels(User user) {
 String? _languageDisplayName(String? code) {
   if (code == null || code.trim().isEmpty) return null;
   final c = code.trim().toLowerCase().split(RegExp(r'[_-]')).first;
+
+  final fromSettings = SessionManager.instance
+      .getActiveLanguages()
+      .firstWhereOrNull((l) => (l.code ?? '').toLowerCase() == c);
+  if (fromSettings != null) {
+    final title =
+        (fromSettings.localizedTitle ?? fromSettings.title ?? '').trim();
+    if (title.isNotEmpty) return title;
+  }
+
   const map = {
-    'es': 'Spanish',
+    'es': 'Español',
     'en': 'English',
-    'pt': 'Portuguese',
-    'fr': 'French',
-    'de': 'German',
-    'it': 'Italian',
-    'ar': 'Arabic',
-    'hi': 'Hindi',
-    'zh': 'Chinese',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'ru': 'Russian',
+    'pt': 'Português',
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'it': 'Italiano',
+    'ar': 'العربية',
+    'hi': 'हिन्दी',
+    'zh': '中文',
+    'ja': '日本語',
+    'ko': '한국어',
+    'ru': 'Русский',
+    'uk': 'Українська',
   };
   return map[c] ?? c.toUpperCase();
 }

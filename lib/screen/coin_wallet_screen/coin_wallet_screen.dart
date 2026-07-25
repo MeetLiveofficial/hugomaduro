@@ -31,6 +31,29 @@ class CoinWalletScreen extends StatelessWidget {
                     color: textLightGrey(context), fontSize: 13),
                 textAlign: TextAlign.center),
           ),
+          // CTA visible para streamers y clientes: la recarga es la tienda de abajo.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: themeAccentSolid(context).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: themeAccentSolid(context).withValues(alpha: 0.35),
+                ),
+              ),
+              child: Text(
+                LKey.rechargeWallet.tr,
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitSemiBold600(
+                  color: themeAccentSolid(context),
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
           CoinWalletList(controller: controller)
         ],
       ),

@@ -153,13 +153,64 @@ class _NewDirectChatSheetState extends State<_NewDirectChatSheet> {
                   itemBuilder: (context, index) {
                     final user = _users[index];
                     return ListTile(
-                      leading: CustomImage(
-                        size: const Size(44, 44),
-                        strokeWidth: 0,
-                        image: user.profilePhoto?.addBaseURL(),
-                        fullName: user.fullname,
+                      leading: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          CustomImage(
+                            size: const Size(44, 44),
+                            strokeWidth: 0,
+                            image: user.profilePhoto?.addBaseURL(),
+                            fullName: user.fullname,
+                          ),
+                          if (user.isActive == 1 || user.isLive == 1)
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF22C55E),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: whitePure(context),
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      title: Text(user.fullname ?? user.username ?? ''),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(user.fullname ?? user.username ?? ''),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (user.isActive == 1 || user.isLive == 1)
+                                  ? const Color(0xFF22C55E)
+                                      .withValues(alpha: 0.15)
+                                  : const Color(0xFF9CA3AF)
+                                      .withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              (user.isActive == 1 || user.isLive == 1)
+                                  ? 'ACTIVE'
+                                  : 'INACTIVE',
+                              style: TextStyleCustom.outFitMedium500(
+                                fontSize: 10,
+                                color: (user.isActive == 1 || user.isLive == 1)
+                                    ? const Color(0xFF15803D)
+                                    : const Color(0xFF6B7280),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                       subtitle: Text('@${user.username ?? ''}'),
                       onTap: () {
                         Get.back();

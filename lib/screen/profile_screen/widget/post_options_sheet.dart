@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/create_feed_screen/create_feed_screen.dart';
@@ -23,8 +24,37 @@ class PostOptionsSheet extends StatelessWidget {
     this.onChanged,
   });
 
+  bool get _canGoLive => AppRole.canStartLive();
+
   @override
   Widget build(BuildContext context) {
+    if (!AppRole.canPublish()) {
+      return Container(
+        decoration: ShapeDecoration(
+          color: whitePure(context),
+          shape: const SmoothRectangleBorder(
+            borderRadius: SmoothBorderRadius.vertical(
+              top: SmoothRadius(cornerRadius: 24, cornerSmoothing: 1),
+            ),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+            child: Text(
+              'Tu rol de cliente no permite publicar ni crear LIVE.',
+              textAlign: TextAlign.center,
+              style: TextStyleCustom.outFitMedium500(
+                color: textDarkGrey(context),
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     final options = [
       _PublishOption(
         type: PublishType.createStory,
@@ -41,11 +71,12 @@ class PostOptionsSheet extends StatelessWidget {
         title: LKey.createFeed.tr,
         icon: AssetRes.icPost,
       ),
-      _PublishOption(
-        type: PublishType.goLive,
-        title: LKey.goLive.tr,
-        icon: AssetRes.icLive,
-      ),
+      if (_canGoLive)
+        _PublishOption(
+          type: PublishType.goLive,
+          title: LKey.goLive.tr,
+          icon: AssetRes.icLive,
+        ),
     ];
 
     return Container(
@@ -93,6 +124,12 @@ class PostOptionsSheet extends StatelessWidget {
   }
 
   void _onSelect(PublishType type) {
+    if (type == PublishType.goLive && !_canGoLive) {
+      Get.back();
+      BaseController.share.showSnackBar(LKey.liveLockedUntilLevel.tr);
+      return;
+    }
+
     Get.back();
     onChanged?.call(type);
 

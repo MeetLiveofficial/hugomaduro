@@ -3,21 +3,33 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/task_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// Un solo botón lateral que abre Beauty / Network / Invite.
+/// Un solo botón lateral que abre Options (beauty, mic, pausa, calidad…).
 class LiveHostActionBar extends StatelessWidget {
   final VoidCallback onBeauty;
   final VoidCallback onInvite;
+  final VoidCallback? onBattle;
+  final VoidCallback? onQuality;
+  final VoidCallback? onPause;
+  final VoidCallback? onMic;
+  final VoidCallback? onCamera;
   final RxString networkLabel;
+  final String? qualityLabel;
+  final bool battleRunning;
+  final bool paused;
+  final bool muted;
+  final bool? cameraOn;
   final Color? foreground;
 
   const LiveHostActionBar({
@@ -25,42 +37,59 @@ class LiveHostActionBar extends StatelessWidget {
     required this.onBeauty,
     required this.onInvite,
     required this.networkLabel,
+    this.onBattle,
+    this.onQuality,
+    this.onPause,
+    this.onMic,
+    this.onCamera,
+    this.qualityLabel,
+    this.battleRunning = false,
+    this.paused = false,
+    this.muted = false,
+    this.cameraOn,
     this.foreground,
   });
 
   @override
   Widget build(BuildContext context) {
     final fg = foreground ?? whitePure(context);
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(28),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: () => openLiveHostOptionsMenu(
-            onBeauty: onBeauty,
-            onInvite: onInvite,
-            networkLabel: networkLabel,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.tune_rounded, color: fg, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Options',
-                  style: TextStyleCustom.outFitMedium500(
-                    color: fg,
-                    fontSize: 13,
-                  ),
+    return Material(
+      color: Colors.black.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => openLiveHostOptionsMenu(
+          onBeauty: onBeauty,
+          onInvite: onInvite,
+          onBattle: onBattle,
+          onQuality: onQuality,
+          onPause: onPause,
+          onMic: onMic,
+          onCamera: onCamera,
+          networkLabel: networkLabel,
+          qualityLabel: qualityLabel,
+          battleRunning: battleRunning,
+          paused: paused,
+          muted: muted,
+          cameraOn: cameraOn,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.tune_rounded, color: fg, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                'Options',
+                style: TextStyleCustom.outFitMedium500(
+                  color: fg,
+                  fontSize: 12,
                 ),
-                const SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_up_rounded, color: fg, size: 18),
-              ],
-            ),
+              ),
+              const SizedBox(width: 2),
+              Icon(Icons.keyboard_arrow_up_rounded, color: fg, size: 16),
+            ],
           ),
         ),
       ),
@@ -72,6 +101,16 @@ void openLiveHostOptionsMenu({
   required VoidCallback onBeauty,
   required VoidCallback onInvite,
   required RxString networkLabel,
+  VoidCallback? onBattle,
+  VoidCallback? onQuality,
+  VoidCallback? onPause,
+  VoidCallback? onMic,
+  VoidCallback? onCamera,
+  String? qualityLabel,
+  bool battleRunning = false,
+  bool paused = false,
+  bool muted = false,
+  bool? cameraOn,
 }) {
   Get.bottomSheet(
     SafeArea(
@@ -93,6 +132,66 @@ void openLiveHostOptionsMenu({
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
+            if (onPause != null)
+              _HostOptionTile(
+                icon: paused
+                    ? Icons.play_arrow_rounded
+                    : Icons.pause_rounded,
+                title: paused ? 'Reanudar' : 'Pausar',
+                subtitle: paused
+                    ? 'Continuar la transmisión'
+                    : 'Pausar video temporalmente',
+                onTap: () {
+                  Get.back();
+                  onPause();
+                },
+              ),
+            if (onMic != null)
+              _HostOptionTile(
+                icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                title: muted ? 'Activar micrófono' : 'Silenciar micrófono',
+                subtitle: muted ? 'El mic está muteado' : 'El mic está abierto',
+                onTap: () {
+                  Get.back();
+                  onMic();
+                },
+              ),
+            if (onCamera != null)
+              _HostOptionTile(
+                icon: (cameraOn ?? true)
+                    ? Icons.videocam_rounded
+                    : Icons.videocam_off_rounded,
+                title: (cameraOn ?? true) ? 'Apagar cámara' : 'Encender cámara',
+                subtitle: 'Control de video en vivo',
+                onTap: () {
+                  Get.back();
+                  onCamera();
+                },
+              ),
+            if (onBattle != null)
+              _HostOptionTile(
+                icon: Icons.sports_kabaddi_rounded,
+                title: battleRunning ? 'Finalizar batalla' : LKey.startBattle.tr,
+                subtitle: battleRunning
+                    ? 'Terminar el enfrentamiento 1v1'
+                    : 'Batalla 1v1 con regalos de la audiencia',
+                onTap: () {
+                  Get.back();
+                  onBattle();
+                },
+              ),
+            if (onQuality != null)
+              _HostOptionTile(
+                icon: Icons.high_quality_rounded,
+                title: 'Calidad de video',
+                subtitle: qualityLabel != null
+                    ? 'Actual: $qualityLabel'
+                    : 'Baja / Media / Alta',
+                onTap: () {
+                  Get.back();
+                  onQuality();
+                },
+              ),
             _HostOptionTile(
               icon: Icons.auto_awesome,
               title: LKey.beautySettings.tr,
@@ -428,6 +527,16 @@ Future<void> openLiveInviteSheet({
                     final id = user.id ?? -1;
                     final invited = selectedIds.contains(id);
                     return ListTile(
+                      onTap: () {
+                        if (Get.isRegistered<LivestreamScreenController>()) {
+                          Get.find<LivestreamScreenController>().openUserProfile(
+                            userId: user.id,
+                            fullname: user.fullname,
+                            username: user.username,
+                            profilePhoto: user.profilePhoto,
+                          );
+                        }
+                      },
                       leading: Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -619,4 +728,206 @@ void openNetworkInfoSheet(String networkLabel) {
       ),
     ),
   );
+}
+
+/// Desplegable de tareas durante el LIVE (estilo Options).
+void openLiveTasksMenu() {
+  Get.bottomSheet(
+    const _LiveTasksSheet(),
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+  );
+}
+
+class _LiveTasksSheet extends StatefulWidget {
+  const _LiveTasksSheet();
+
+  @override
+  State<_LiveTasksSheet> createState() => _LiveTasksSheetState();
+}
+
+class _LiveTasksSheetState extends State<_LiveTasksSheet> {
+  bool _loading = true;
+  String? _error;
+  List<_LiveTaskRow> _rows = const [];
+  int _points = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await TaskService.instance.list();
+      if (res.status == true && res.data != null) {
+        final rows = <_LiveTaskRow>[];
+        for (final cat in res.data!.categories) {
+          for (final t in cat.tasks) {
+            rows.add(_LiveTaskRow(
+              title: t.titleKey.tr,
+              status: t.status,
+              progress: '${t.progressValue}/${t.targetValue}',
+              points: t.withdrawalPointsReward,
+            ));
+          }
+        }
+        setState(() {
+          _rows = rows;
+          _points = res.data!.withdrawalPoints;
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _error = res.message ?? LKey.somethingWentWrong.tr;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.sizeOf(context).height * 0.55;
+    return SafeArea(
+      child: Container(
+        constraints: BoxConstraints(maxHeight: h),
+        decoration: BoxDecoration(
+          color: whitePure(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: bgGrey(context),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Text(
+              LKey.tasks.tr,
+              style: TextStyleCustom.unboundedSemiBold600(
+                color: textDarkGrey(context),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${LKey.withdrawalPoints.tr}: $_points',
+              style: TextStyleCustom.outFitRegular400(
+                color: textLightGrey(context),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: LoaderWidget(),
+              )
+            else if (_error != null)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(_error!, textAlign: TextAlign.center),
+              )
+            else if (_rows.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No hay tareas por ahora',
+                  style: TextStyleCustom.outFitRegular400(
+                    color: textLightGrey(context),
+                    fontSize: 13,
+                  ),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _rows.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, i) {
+                    final t = _rows[i];
+                    final done = t.status == 'completed' || t.status == 'claimed';
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(
+                        done
+                            ? Icons.check_circle_rounded
+                            : Icons.radio_button_unchecked,
+                        color: done
+                            ? const Color(0xFF22C55E)
+                            : textLightGrey(context),
+                        size: 22,
+                      ),
+                      title: Text(
+                        t.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyleCustom.outFitMedium500(
+                          color: textDarkGrey(context),
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${t.progress} · ${t.status}',
+                        style: TextStyleCustom.outFitRegular400(
+                          color: textLightGrey(context),
+                          fontSize: 11,
+                        ),
+                      ),
+                      trailing: Text(
+                        '+${t.points}',
+                        style: TextStyleCustom.outFitSemiBold600(
+                          color: themeAccentSolid(context),
+                          fontSize: 12,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
+                Get.back();
+                Get.to(() => const TasksScreen());
+              },
+              child: Text(LKey.tasks.tr),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveTaskRow {
+  final String title;
+  final String status;
+  final String progress;
+  final int points;
+
+  const _LiveTaskRow({
+    required this.title,
+    required this.status,
+    required this.progress,
+    required this.points,
+  });
 }

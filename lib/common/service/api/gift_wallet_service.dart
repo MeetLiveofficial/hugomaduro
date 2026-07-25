@@ -13,11 +13,41 @@ class GiftWalletService {
   static final GiftWalletService instance = GiftWalletService._();
 
   Future<StatusModel> sendGift({int? userId, int? giftId}) async {
-    StatusModel response = await ApiService.instance.call(
-        url: WebService.giftWallet.sendGift,
-        fromJson: StatusModel.fromJson,
-        param: {Params.userId: userId, Params.giftId: giftId});
-    return response;
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.sendGift,
+      fromJson: (j) => j,
+      param: {Params.userId: userId, Params.giftId: giftId},
+    );
+    return StatusModel.fromJson(json);
+  }
+
+  /// Envía regalo y devuelve el precio real confirmado por el backend.
+  Future<({bool ok, String? message, int coinPrice, String? image})>
+      sendGiftDetailed({int? userId, int? giftId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.sendGift,
+      fromJson: (j) => j,
+      param: {Params.userId: userId, Params.giftId: giftId},
+    );
+    final ok = json['status'] == true;
+    final data = json['data'];
+    var coinPrice = 0;
+    String? image;
+    if (data is Map) {
+      final raw = data['coin_price'] ?? data['coinPrice'];
+      if (raw is num) {
+        coinPrice = raw.toInt();
+      } else {
+        coinPrice = int.tryParse('$raw') ?? 0;
+      }
+      image = data['image']?.toString();
+    }
+    return (
+      ok: ok,
+      message: json['message']?.toString(),
+      coinPrice: coinPrice,
+      image: image,
+    );
   }
 
   Future<List<Withdraw>> fetchMyWithdrawalRequest({int? lastItemId}) async {
@@ -49,20 +79,18 @@ class GiftWalletService {
         .toList();
   }
 
-  Future<StatusModel> submitWithdrawalRequest(
+  Future<Map<String, dynamic>> submitWithdrawalRequest(
       {required String coins,
       required String gateway,
       required String account}) async {
-    StatusModel response = await ApiService.instance.call(
+    return ApiService.instance.call(
         url: WebService.giftWallet.submitWithdrawalRequest,
-        fromJson: StatusModel.fromJson,
+        fromJson: (j) => Map<String, dynamic>.from(j),
         param: {
           Params.coins: coins,
           Params.gateway: gateway,
           Params.account: account
         });
-
-    return response;
   }
 
   Future<User?> buyCoins({required int id, String? purchasedAt}) async {
@@ -77,5 +105,56 @@ class GiftWalletService {
       return response.data;
     }
     return null;
+  }
+
+  /// Crea factura NOWPayments.
+  /// Devuelve `{ok: true, data: {...}}` o `{ok: false, message: '...'}`.
+  Future<Map<String, dynamic>> createCryptoPayment(
+      {required int coinPackageId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.createCryptoPayment,
+      fromJson: (j) => j,
+      param: {Params.coinPackageId: coinPackageId},
+    );
+    if (json['status'] == true && json['data'] is Map) {
+      return {
+        'ok': true,
+        'data': Map<String, dynamic>.from(json['data'] as Map),
+      };
+    }
+    return {
+      'ok': false,
+      'message': (json['message'] ?? 'No se pudo iniciar el pago crypto')
+          .toString(),
+    };
+  }
+
+  /// Consulta estado del pago crypto. Si finished, puede incluir user.
+  Future<Map<String, dynamic>?> checkCryptoPayment(
+      {required String orderId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.checkCryptoPayment,
+      fromJson: (j) => j,
+      param: {Params.orderId: orderId},
+    );
+    if (json['status'] != true) return null;
+    final data = json['data'];
+    if (data is! Map) return null;
+    return Map<String, dynamic>.from(data);
+  }
+
+  /// Sincroniza pagos crypto pendientes con NOWPayments (recupera si falló el IPN).
+  Future<int> syncPendingCryptoPayments() async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.syncPendingCryptoPayments,
+      fromJson: (j) => j,
+      param: {},
+    );
+    if (json['status'] != true) return 0;
+    final data = json['data'];
+    if (data is Map && data['credited_count'] != null) {
+      return int.tryParse('${data['credited_count']}') ?? 0;
+    }
+    return 0;
   }
 }

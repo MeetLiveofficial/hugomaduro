@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/custom_border_round_icon.dart';
+import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
@@ -10,9 +11,9 @@ import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:retrytech_plugin/retrytech_plugin.dart';
 
-/// Estudio LIVE: preview estable (mismo patrón que CameraScreen) + Start Live.
+/// Estudio LIVE sin preview nativo Retrytech (evita pantalla negra en
+/// emuladores y libera la cámara para LiveKit al iniciar).
 class LiveStreamSearchScreen extends StatelessWidget {
   const LiveStreamSearchScreen({super.key});
 
@@ -27,29 +28,40 @@ class LiveStreamSearchScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Full-bleed: LayoutBuilder necesita bounds reales (Center+preload
-          // offstage dejaba size 0 → textura gris deformada).
-          Positioned.fill(
-            child: ColoredBox(
-              color: Colors.black,
-              child: _CameraPreview(controller: controller),
-            ),
-          ),
+          Positioned.fill(child: _StudioBackdrop(controller: controller)),
           const Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            height: 240,
+            height: 260,
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Color(0xE6000000)],
+                    colors: [Colors.transparent, Color(0xF2000000)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 140,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x99000000), Colors.transparent],
                   ),
                 ),
               ),
@@ -75,102 +87,79 @@ class LiveStreamSearchScreen extends StatelessWidget {
   }
 }
 
-class _CameraPreview extends StatelessWidget {
+class _StudioBackdrop extends StatelessWidget {
   final LiveStreamSearchScreenController controller;
 
-  const _CameraPreview({required this.controller});
+  const _StudioBackdrop({required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final ready = controller.cameraReady.value;
-      final starting = controller.cameraStarting.value;
-      final gen = controller.cameraGeneration.value;
+    final me = SessionManager.instance.getUser();
+    final profileUrl = (me?.profilePhoto ?? '').trim();
 
-      if (!kIsWeb && ready) {
-        // Mismo enfoque que CameraScreen: AspectRatio fijo + clip.
-        // FittedBox/cover sin tamaño nativo deforma el PlatformView.
-        return KeyedSubtree(
-          key: ValueKey('live_cam_$gen'),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final maxH = constraints.maxHeight.isFinite
-                  ? constraints.maxHeight
-                  : MediaQuery.sizeOf(context).height;
-              final maxW = constraints.maxWidth.isFinite
-                  ? constraints.maxWidth
-                  : MediaQuery.sizeOf(context).width;
-              // 9:16 aprox. (0.56) — cubre sin estirar.
-              const ar = 9 / 16;
-              double w = maxW;
-              double h = w / ar;
-              if (h < maxH) {
-                h = maxH;
-                w = h * ar;
-              }
-              return ClipRect(
-                child: OverflowBox(
-                  minWidth: w,
-                  maxWidth: w,
-                  minHeight: h,
-                  maxHeight: h,
-                  alignment: Alignment.center,
-                  child: SizedBox(
-                    width: w,
-                    height: h,
-                    child: RetrytechPlugin.shared.cameraView,
-                  ),
-                ),
-              );
-            },
-          ),
+    return Obx(() {
+      final bytes = controller.coverImageBytes.value;
+      Widget bg;
+      if (bytes != null && bytes.isNotEmpty) {
+        bg = Image.memory(bytes, fit: BoxFit.cover, width: double.infinity,
+            height: double.infinity);
+      } else if (profileUrl.isNotEmpty) {
+        bg = CustomImage(
+          size: MediaQuery.sizeOf(context),
+          image: profileUrl,
+          fullName: me?.fullname ?? me?.username,
+          radius: 0,
+          fit: BoxFit.cover,
+          strokeWidth: 0,
         );
+      } else {
+        bg = const ColoredBox(color: Color(0xFF1A1A1A));
       }
 
-      return SizedBox(
-        width: MediaQuery.sizeOf(context).width,
-        height: MediaQuery.sizeOf(context).height * 0.7,
-        child: ColoredBox(
-          color: const Color(0xFF121212),
-          child: Center(
-            child: starting
-                ? const CircularProgressIndicator(color: Colors.white54)
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        kIsWeb
-                            ? Icons.smartphone_outlined
-                            : Icons.videocam_outlined,
-                        color: Colors.white38,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        kIsWeb
-                            ? 'Cámara en la app Android'
-                            : 'Activando cámara…',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      ),
-                      if (!kIsWeb) ...[
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: controller.restartPreviewCamera,
-                          child: Text(
-                            LKey.refresh.tr,
-                            style: TextStyleCustom.outFitMedium500(
-                              color: ColorRes.themeAccentSolid,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          bg,
+          const ColoredBox(color: Color(0x66000000)),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.45),
+                    border: Border.all(color: Colors.white24),
                   ),
+                  child: const Icon(Icons.videocam_rounded,
+                      color: Colors.white70, size: 36),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  LKey.goLive.tr,
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    'La cámara se activa al pulsar Start Live',
+                    textAlign: TextAlign.center,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       );
     });
   }
@@ -190,7 +179,6 @@ class _TopBar extends StatelessWidget {
           CustomBorderRoundIcon(
             image: AssetRes.icClose,
             onTap: () {
-              controller.stopPreviewCamera();
               if (Get.isRegistered<DashboardScreenController>()) {
                 Get.find<DashboardScreenController>()
                     .onChanged(DashboardScreenController.tabHome);
@@ -234,9 +222,6 @@ class _RightControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) {
-      return const SizedBox.shrink();
-    }
     return Align(
       alignment: Alignment.centerRight,
       child: Padding(
@@ -245,25 +230,23 @@ class _RightControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             CustomBorderRoundIcon(
-              image: AssetRes.icCameraFlip,
-              onTap: controller.flipPreviewCamera,
-            ),
-            const SizedBox(height: 14),
-            CustomBorderRoundIcon(
-              widget: const Icon(Icons.auto_awesome,
+              widget: const Icon(Icons.image_outlined,
                   color: Colors.white, size: 22),
-              onTap: controller.openPreLiveBeauty,
+              onTap: controller.pickLiveCover,
             ),
             const SizedBox(height: 14),
+            if (!kIsWeb) ...[
+              CustomBorderRoundIcon(
+                widget: const Icon(Icons.auto_awesome,
+                    color: Colors.white, size: 22),
+                onTap: controller.openPreLiveBeauty,
+              ),
+              const SizedBox(height: 14),
+            ],
             CustomBorderRoundIcon(
               widget:
                   const Icon(Icons.group_add, color: Colors.white, size: 22),
               onTap: controller.openPreLiveInvite,
-            ),
-            const SizedBox(height: 14),
-            CustomBorderRoundIcon(
-              widget: const Icon(Icons.refresh, color: Colors.white, size: 22),
-              onTap: controller.restartPreviewCamera,
             ),
           ],
         ),
@@ -336,6 +319,8 @@ class _BottomBar extends StatelessWidget {
                 ),
               );
             }),
+            // Siempre visible en esta pantalla (solo streamers llegan aquí).
+            // El permiso canGoLive se valida en onTapGoLive con mensaje claro.
             Material(
               color: ColorRes.themeAccentSolid,
               borderRadius: BorderRadius.circular(28),

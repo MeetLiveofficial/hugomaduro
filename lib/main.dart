@@ -12,6 +12,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/screen_security.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/subscription/subscription_manager.dart';
 import 'package:krimson/common/widget/restart_widget.dart';
@@ -37,10 +38,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // En release también mostrar errores en pantalla (evita pantalla blanca sin log).
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
-    Loggers.error('FlutterError: ${details.exceptionAsString()}\n${details.stack}');
+    Loggers.error(
+        'FlutterError: ${details.exceptionAsString()}\n${details.stack}');
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     Loggers.error('PlatformError: $error\n$stack');
@@ -48,28 +49,51 @@ Future<void> main() async {
   };
   ErrorWidget.builder = (details) {
     final msg = details.exceptionAsString();
-    // No tumbar toda la UI por Firebase no-app (se reintenta en splash/auth).
     if (msg.contains('core/no-app') || msg.contains('FirebaseApp')) {
       Loggers.error('ErrorWidget Firebase suppressed: $msg');
       return const SizedBox.shrink();
     }
     return Material(
-      color: Colors.white,
+      color: const Color(0xFF1A0010),
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Text(
             'Error UI:\n$msg',
-            style: const TextStyle(color: Colors.red, fontSize: 12),
+            style: const TextStyle(color: Colors.white, fontSize: 12),
           ),
         ),
       ),
     );
   };
 
-  Future<T?> _withTimeout<T>(Future<T> future, String label) async {
+  // GetStorage antes del primer frame (locale/session). Timeout corto.
+  try {
+    await GetStorage.init('krimson').timeout(const Duration(seconds: 3));
+  } catch (e, st) {
+    _bootError = 'GetStorage.init: $e';
+    Loggers.error('GetStorage.init: $e\n$st');
+  }
+
+  if (!Get.isRegistered<DynamicTranslations>()) {
+    Get.put(DynamicTranslations());
+  }
+
+  // Pintar YA — no esperar Firebase/Ads (en BlueStacks Ads puede tumbar nativo).
+  runApp(const RestartWidget(child: MyApp()));
+
+  // Bloquear screenshots en cuanto arranca (nativo; no Web).
+  if (!kIsWeb) {
+    unawaited(ScreenSecurity.enable());
+  }
+
+  unawaited(_bootstrap());
+}
+
+Future<void> _bootstrap() async {
+  Future<T?> withTimeout<T>(Future<T> future, String label) async {
     try {
-      return await future.timeout(const Duration(seconds: 8));
+      return await future.timeout(const Duration(seconds: 5));
     } catch (e, st) {
       Loggers.error('$label timeout/error: $e\n$st');
       return null;
@@ -77,49 +101,28 @@ Future<void> main() async {
   }
 
   try {
-    // Firebase es importante (chat/auth), pero NO bloquea el arranque:
-    // el login Laravel debe funcionar aunque FCM falle.
-    final ok = await FirebaseAppHelper.ensureInitialized();
-    if (!ok) {
+    await withTimeout(
+      FirebaseAppHelper.ensureInitialized(),
+      'Firebase.ensureInitialized',
+    );
+    if (FirebaseAppHelper.isReady && !kIsWeb) {
+      FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler);
+    } else if (!FirebaseAppHelper.isReady) {
       Loggers.error(
           'Firebase no inicializado: ${FirebaseAppHelper.lastError}');
-    } else if (!kIsWeb) {
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     }
   } catch (e, st) {
     Loggers.error('Firebase.initializeApp: $e\n$st');
   }
 
   try {
-    await _withTimeout(GetStorage.init('krimson'), 'GetStorage.init');
-  } catch (e, st) {
-    _bootError ??= 'GetStorage.init: $e';
-    Loggers.error('GetStorage.init: $e\n$st');
-  }
-
-  try {
-    await _withTimeout(
+    await withTimeout(
       SubscriptionManager.shared.initPlatformState(),
       'SubscriptionManager',
     );
   } catch (e, st) {
     Loggers.error('SubscriptionManager init error: $e\n$st');
-  }
-
-  // AudioSession / Ads no aportan en Web y pueden colgar el arranque.
-  if (!kIsWeb) {
-    try {
-      final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.speech());
-    } catch (e, st) {
-      Loggers.error('AudioSession init error: $e\n$st');
-    }
-
-    try {
-      await MobileAds.instance.initialize();
-    } catch (e, st) {
-      Loggers.error('MobileAds init error: $e\n$st');
-    }
   }
 
   try {
@@ -128,18 +131,37 @@ Future<void> main() async {
     Loggers.error('NetworkHelper init error: $e\n$st');
   }
 
-  if (!Get.isRegistered<DynamicTranslations>()) {
-    Get.put(DynamicTranslations());
+  // Ads / AudioSession diferidos: en emulador x86 (BlueStacks) el init
+  // nativo temprano deja pantalla blanca.
+  if (!kIsWeb) {
+    // ignore: unawaited_futures
+    Future<void>.delayed(const Duration(seconds: 5), () async {
+      try {
+        final session = await AudioSession.instance
+            .timeout(const Duration(seconds: 3));
+        await session
+            .configure(const AudioSessionConfiguration.speech())
+            .timeout(const Duration(seconds: 3));
+      } catch (e) {
+        Loggers.error('AudioSession deferred skip: $e');
+      }
+      try {
+        await MobileAds.instance
+            .initialize()
+            .timeout(const Duration(seconds: 5));
+      } catch (e) {
+        Loggers.error('MobileAds deferred skip: $e');
+      }
+    });
   }
 
-  // NUNCA dejar de llamar runApp: si falla el init, antes se quedaba en blanco.
-  runApp(RestartWidget(child: MyApp(bootError: _bootError)));
+  if (_bootError != null) {
+    Loggers.error('Boot warning: $_bootError');
+  }
 }
 
 class MyApp extends StatelessWidget {
-  final String? bootError;
-
-  const MyApp({super.key, this.bootError});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -153,47 +175,7 @@ class MyApp extends StatelessWidget {
       darkTheme: ThemeRes.darkTheme(context),
       theme: ThemeRes.lightTheme(context),
       debugShowCheckedModeBanner: false,
-      home: bootError != null
-          ? _BootErrorScreen(message: bootError!)
-          : const SplashScreen(),
-    );
-  }
-}
-
-class _BootErrorScreen extends StatelessWidget {
-  final String message;
-
-  const _BootErrorScreen({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Error al iniciar Krimson',
-                style: TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
-              ),
-              const SizedBox(height: 12),
-              Text(message, style: const TextStyle(fontSize: 13)),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  await FirebaseAppHelper.ensureInitialized();
-                  Get.offAll(() => const SplashScreen());
-                },
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
-      ),
+      home: const SplashScreen(),
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-/// Mensaje de chat en vivo (texto / GIF / like / gift).
+/// Mensaje de chat en vivo (texto / GIF / like / gift / follow).
 class LiveChatMessage {
   LiveChatMessage({
     required this.id,
@@ -12,19 +12,28 @@ class LiveChatMessage {
     this.giftId,
     this.giftImage,
     this.giftCoins,
+    this.replyToId,
+    this.replyToUserName,
+    this.replyToText,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
   final String id;
   final int userId;
   final String userName;
-  final String type; // text | gif | like | gift
+  final String type; // text | gif | like | gift | follow
   final String? text;
   final String? gifUrl;
   final int? giftId;
   final String? giftImage;
   final int? giftCoins;
+  final String? replyToId;
+  final String? replyToUserName;
+  final String? replyToText;
   final DateTime createdAt;
+
+  bool get isReply =>
+      (replyToId ?? '').isNotEmpty || (replyToUserName ?? '').isNotEmpty;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -36,6 +45,9 @@ class LiveChatMessage {
         'gift_id': giftId,
         'gift_image': giftImage,
         'gift_coins': giftCoins,
+        'reply_to_id': replyToId,
+        'reply_to_user_name': replyToUserName,
+        'reply_to_text': replyToText,
         'ts': createdAt.millisecondsSinceEpoch,
       };
 
@@ -56,6 +68,9 @@ class LiveChatMessage {
       giftId: asInt(json['gift_id']),
       giftImage: json['gift_image']?.toString(),
       giftCoins: asInt(json['gift_coins']),
+      replyToId: json['reply_to_id']?.toString(),
+      replyToUserName: json['reply_to_user_name']?.toString(),
+      replyToText: json['reply_to_text']?.toString(),
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         json['ts'] is num
             ? (json['ts'] as num).toInt()
@@ -75,4 +90,21 @@ class LiveChatMessage {
   }
 
   List<int> toBytes() => utf8.encode(jsonEncode(toJson()));
+}
+
+/// Resumen de quien envió regalos en el LIVE.
+class LiveGiftSender {
+  LiveGiftSender({
+    required this.userId,
+    required this.userName,
+    required this.totalCoins,
+    required this.giftCount,
+    this.lastGiftImage,
+  });
+
+  final int userId;
+  final String userName;
+  int totalCoins;
+  int giftCount;
+  String? lastGiftImage;
 }

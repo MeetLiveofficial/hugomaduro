@@ -8,9 +8,11 @@ import 'package:krimson/common/widget/theme_blur_bg.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/auth_screen/auth_screen_controller.dart';
 import 'package:krimson/screen/auth_screen/forget_password_sheet.dart';
+import 'package:krimson/screen/auth_screen/login_language_dropdown.dart';
 import 'package:krimson/screen/auth_screen/registration_screen.dart';
 import 'package:krimson/utilities/app_platform.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -37,13 +39,15 @@ class LoginScreen extends StatelessWidget {
                 bottom: false,
                 child: Column(
                   children: [
+                    // Espacio para el select de idioma (Positioned arriba).
+                    const SizedBox(height: 56),
                     Padding(
                       padding:
-                          const EdgeInsets.only(left: 20, right: 20, top: 30),
+                          const EdgeInsets.only(left: 20, right: 20, top: 12),
                       child: Column(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(top: 30.0),
+                            padding: const EdgeInsets.only(top: 18.0),
                             child: RichText(
                                 textAlign: TextAlign.center,
                                 text: TextSpan(
@@ -59,9 +63,9 @@ class LoginScreen extends StatelessWidget {
                                         style:
                                             TextStyleCustom.unboundedBlack900(
                                                 fontSize: 25,
-                                                color: whitePure(context)
-                                                    .withValues(alpha: .5),
-                                                opacity: .5))
+                                                color: ColorRes.brandSoft
+                                                    .withValues(alpha: .75),
+                                                opacity: .75))
                                   ],
                                 )),
                           ),
@@ -91,9 +95,9 @@ class LoginScreen extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 14.0),
                                   child: Text(LKey.forgetPassword.tr,
-                                      style: TextStyleCustom.outFitRegular400(
-                                          fontSize: 16,
-                                          color: whitePure(context)))),
+                                      style: TextStyleCustom.outFitMedium500(
+                                          fontSize: 15,
+                                          color: ColorRes.brandSoft))),
                             ),
                           ),
                           TextButtonCustom(
@@ -101,8 +105,8 @@ class LoginScreen extends StatelessWidget {
                               title: LKey.logIn.tr,
                               btnHeight: 50,
                               horizontalMargin: 0,
-                              backgroundColor: themeAccentSolid(context),
-                              titleColor: whitePure(context),
+                              backgroundColor: ColorRes.mauve,
+                              titleColor: ColorRes.whitePure,
                               radius: 25)
                         ],
                       ),
@@ -119,11 +123,16 @@ class LoginScreen extends StatelessWidget {
                         height: 48,
                         margin: const EdgeInsets.symmetric(vertical: 25),
                         alignment: Alignment.center,
-                        color: whitePure(context).withValues(alpha: .2),
+                        decoration: BoxDecoration(
+                          color: ColorRes.menuSurface.withValues(alpha: 0.75),
+                          border: Border.symmetric(
+                            horizontal: BorderSide(color: ColorRes.menuBorder),
+                          ),
+                        ),
                         child: Text(
                           LKey.createAccountHere.tr,
-                          style: TextStyleCustom.outFitRegular400(
-                              color: whitePure(context), fontSize: 16),
+                          style: TextStyleCustom.outFitMedium500(
+                              color: ColorRes.whitePure, fontSize: 16),
                         ),
                       ),
                     ),
@@ -168,11 +177,21 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                     PrivacyPolicyText(
-                      boldTextColor: whitePure(context),
+                      boldTextColor: ColorRes.whitePure,
                       regularTextColor:
-                          whitePure(context).withValues(alpha: .8),
+                          ColorRes.brandSoft.withValues(alpha: .9),
                     )
                   ],
+                ),
+              ),
+            ),
+            // Select de idioma fijo en esquina superior derecha.
+            const SafeArea(
+              child: Align(
+                alignment: AlignmentDirectional.topEnd,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: LoginLanguageDropdown(),
                 ),
               ),
             ),
@@ -209,15 +228,22 @@ class _LoginSheetTextFieldState extends State<LoginSheetTextField> {
       decoration: ShapeDecoration(
           shape: SmoothRectangleBorder(
             borderRadius:
-                SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
-            side: BorderSide(color: whitePure(context).withValues(alpha: .4)),
+                SmoothBorderRadius(cornerRadius: 14, cornerSmoothing: 1),
+            side: BorderSide(color: ColorRes.menuBorder),
             borderAlign: BorderAlign.inside,
           ),
-          color: whitePure(context).withValues(alpha: .1)),
+          color: ColorRes.bgElevated.withValues(alpha: 0.95),
+          shadows: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ]),
       child: TextField(
         controller: widget.controller,
         style: TextStyleCustom.outFitRegular400(
-            color: whitePure(context), fontSize: 16),
+            color: ColorRes.whitePure, fontSize: 16),
         onTapOutside: (event) => FocusManager.instance.primaryFocus?.unfocus(),
         obscureText: widget.isPasswordField && isHide,
         keyboardType: widget.keyboardType ?? TextInputType.text,
@@ -225,9 +251,9 @@ class _LoginSheetTextFieldState extends State<LoginSheetTextField> {
           border: InputBorder.none,
           hintText: widget.hintText,
           hintStyle: TextStyleCustom.outFitRegular400(
-              color: whitePure(context), fontSize: 16),
+              color: ColorRes.whitePure.withValues(alpha: 0.45), fontSize: 16),
           contentPadding: EdgeInsets.only(
-              left: 10, right: 10, top: widget.isPasswordField ? 2 : 0),
+              left: 14, right: 10, top: widget.isPasswordField ? 2 : 0),
           suffixIconConstraints: const BoxConstraints(),
           suffixIcon: widget.isPasswordField
               ? InkWell(
@@ -241,13 +267,13 @@ class _LoginSheetTextFieldState extends State<LoginSheetTextField> {
                         isHide ? AssetRes.icEye : AssetRes.icHideEye,
                         height: 24,
                         width: 35,
-                        color: whitePure(context),
+                        color: ColorRes.whitePure.withValues(alpha: 0.7),
                         key: UniqueKey()),
                   ),
                 )
               : null,
         ),
-        cursorColor: whitePure(context),
+        cursorColor: ColorRes.mauve,
       ),
     );
   }

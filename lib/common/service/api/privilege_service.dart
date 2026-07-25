@@ -61,6 +61,27 @@ class PrivilegeService {
         .map((e) => HonorUserModel.fromJson(Map<String, dynamic>.from(e)))
         .toList();
   }
+
+  Future<LeaderboardResult> leaderboard({
+    required String type,
+    required String period,
+    int limit = 20,
+  }) async {
+    final json = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.privilege.leaderboard,
+      param: {
+        'type': type,
+        'period': period,
+        'limit': limit,
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'leaderboard failed');
+    }
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+    return LeaderboardResult.fromJson(data);
+  }
 }
 
 class DressingItemModel {
@@ -149,4 +170,102 @@ class HonorUserModel {
   final int isSvip;
   final int levelNumber;
   final int coinCollectedLifetime;
+}
+
+class LeaderboardEntry {
+  LeaderboardEntry({
+    this.id,
+    this.rank,
+    this.username,
+    this.fullname,
+    this.profilePhoto,
+    this.isVerify = 0,
+    this.isSvip = 0,
+    this.levelNumber = 1,
+    this.appRole,
+    this.country,
+    this.countryCode,
+    this.score = 0,
+  });
+
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
+    return LeaderboardEntry(
+      id: json['id'] is num
+          ? (json['id'] as num).toInt()
+          : int.tryParse('${json['id']}'),
+      rank: json['rank'] is num
+          ? (json['rank'] as num).toInt()
+          : int.tryParse('${json['rank']}'),
+      username: json['username']?.toString(),
+      fullname: json['fullname']?.toString(),
+      profilePhoto: json['profile_photo']?.toString(),
+      isVerify: json['is_verify'] is num
+          ? (json['is_verify'] as num).toInt()
+          : int.tryParse('${json['is_verify'] ?? 0}') ?? 0,
+      isSvip: json['is_svip'] is num
+          ? (json['is_svip'] as num).toInt()
+          : int.tryParse('${json['is_svip'] ?? 0}') ?? 0,
+      levelNumber: json['level_number'] is num
+          ? (json['level_number'] as num).toInt()
+          : int.tryParse('${json['level_number'] ?? 1}') ?? 1,
+      appRole: json['app_role']?.toString(),
+      country: json['country']?.toString(),
+      countryCode: (json['country_code'] ?? json['countryCode'])?.toString(),
+      score: json['score'] is num
+          ? (json['score'] as num).toInt()
+          : int.tryParse('${json['score'] ?? 0}') ?? 0,
+    );
+  }
+
+  final int? id;
+  final int? rank;
+  final String? username;
+  final String? fullname;
+  final String? profilePhoto;
+  final int isVerify;
+  final int isSvip;
+  final int levelNumber;
+  final String? appRole;
+  final String? country;
+  final String? countryCode;
+  final int score;
+
+  String get displayName {
+    final n = (fullname ?? '').trim();
+    if (n.isNotEmpty) return n;
+    return (username ?? 'User').trim();
+  }
+}
+
+class LeaderboardResult {
+  LeaderboardResult({
+    this.type = 'clients',
+    this.period = 'today',
+    this.endsAt,
+    this.serverNow,
+    this.users = const [],
+    this.me,
+  });
+
+  factory LeaderboardResult.fromJson(Map<String, dynamic> json) {
+    return LeaderboardResult(
+      type: json['type']?.toString() ?? 'clients',
+      period: json['period']?.toString() ?? 'today',
+      endsAt: json['ends_at']?.toString(),
+      serverNow: json['server_now']?.toString(),
+      users: ((json['users'] as List?) ?? [])
+          .map((e) => LeaderboardEntry.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      me: json['me'] is Map
+          ? LeaderboardEntry.fromJson(Map<String, dynamic>.from(json['me']))
+          : null,
+    );
+  }
+
+  final String type;
+  final String period;
+  final String? endsAt;
+  final String? serverNow;
+  final List<LeaderboardEntry> users;
+  final LeaderboardEntry? me;
 }

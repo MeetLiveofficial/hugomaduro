@@ -22,7 +22,7 @@ class ChatStoryReplyMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String preview = '';
-    String replyText = message.textMessage ?? '';
+    String replyText = message.displayText;
     try {
       final map = jsonDecode(message.storyReplyMessage ?? '{}');
       if (map is Map) {

@@ -16,6 +16,14 @@ class WebService {
   static var livekit = _LiveKit();
   static var call = _Call();
   static var privilege = _Privilege();
+  static var task = _Task();
+}
+
+class _Task {
+  String list = "${apiURL}task/list";
+  String claim = "${apiURL}task/claim";
+  String reportProgress = "${apiURL}task/reportProgress";
+  String withdrawalEligibility = "${apiURL}task/withdrawalEligibility";
 }
 
 class _Privilege {
@@ -23,6 +31,7 @@ class _Privilege {
   String dressingCatalog = "${apiURL}privilege/dressingCatalog";
   String equipDressing = "${apiURL}privilege/equipDressing";
   String honorWall = "${apiURL}privilege/honorWall";
+  String leaderboard = "${apiURL}privilege/leaderboard";
 }
 
 class _Call {
@@ -32,6 +41,7 @@ class _Call {
   String reject = "${apiURL}call/reject";
   String cancel = "${apiURL}call/cancel";
   String end = "${apiURL}call/end";
+  String workStats = "${apiURL}call/workStats";
 }
 
 class _Chat {
@@ -40,6 +50,7 @@ class _Chat {
   String sendMessage = "${apiURL}chat/sendMessage";
   String updateThread = "${apiURL}chat/updateThread";
   String markRead = "${apiURL}chat/markRead";
+  String translate = "${apiURL}chat/translate";
 }
 
 class _Live {
@@ -48,11 +59,16 @@ class _Live {
   String join = "${apiURL}live/join";
   String leave = "${apiURL}live/leave";
   String like = "${apiURL}live/like";
+  String recordGift = "${apiURL}live/recordGift";
   String sendComment = "${apiURL}live/sendComment";
   String fetchComments = "${apiURL}live/fetchComments";
   String fetchSession = "${apiURL}live/fetchSession";
   String invite = "${apiURL}live/invite";
   String pendingInvites = "${apiURL}live/pendingInvites";
+  String startBattle = "${apiURL}live/startBattle";
+  String respondBattle = "${apiURL}live/respondBattle";
+  String restartBattle = "${apiURL}live/restartBattle";
+  String endBattle = "${apiURL}live/endBattle";
 }
 
 class _LiveKit {
@@ -82,6 +98,9 @@ class _GiftWallet {
   String fetchMyRecharges = "${apiURL}misc/fetchMyRecharges";
   String submitWithdrawalRequest = "${apiURL}misc/submitWithdrawalRequest";
   String buyCoins = "${apiURL}misc/buyCoins";
+  String createCryptoPayment = "${apiURL}misc/createCryptoPayment";
+  String checkCryptoPayment = "${apiURL}misc/checkCryptoPayment";
+  String syncPendingCryptoPayments = "${apiURL}misc/syncPendingCryptoPayments";
 }
 
 class _User {

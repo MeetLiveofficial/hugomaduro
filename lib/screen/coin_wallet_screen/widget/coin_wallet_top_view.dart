@@ -9,7 +9,6 @@ import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.
 import 'package:krimson/screen/recharge_history_screen/recharge_history_screen.dart';
 import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
-import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -108,7 +107,7 @@ class CoinWalletTopView extends StatelessWidget {
               Expanded(
                 child: TextButtonCustom(
                   onTap: () => Get.to(() => const RechargeHistoryScreen()),
-                  title: 'Historial de Recargas',
+                  title: 'Historial',
                   backgroundColor: bgGrey(context),
                   titleColor: textDarkGrey(context),
                   btnHeight: 34,
@@ -123,8 +122,8 @@ class CoinWalletTopView extends StatelessWidget {
                   child: TextButtonCustom(
                     onTap: () => Get.to(() => const WithdrawalsScreen()),
                     title: LKey.withdrawals.tr,
-                    backgroundColor: ColorRes.themeAccentSolid,
-                    titleColor: Colors.white,
+                    backgroundColor: bgGrey(context),
+                    titleColor: textDarkGrey(context),
                     btnHeight: 34,
                     horizontalMargin: 0,
                     margin: EdgeInsets.zero,

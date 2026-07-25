@@ -44,28 +44,77 @@ class ChatConversationUserCard extends StatelessWidget {
           children: [
             Obx(() {
               final user = chatConversation.chatUserRx.value;
-              return CustomImage(
-                size: const Size(52, 52),
-                image: user?.profile?.addBaseURL(),
-                fullName: user?.fullname ?? user?.username,
-                strokeWidth: 0,
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CustomImage(
+                    size: const Size(52, 52),
+                    image: user?.profile?.addBaseURL(),
+                    fullName: user?.fullname ?? user?.username,
+                    strokeWidth: 0,
+                  ),
+                  if (user?.isPresent == true)
+                    Positioned(
+                      right: 1,
+                      bottom: 1,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: whitePure(context),
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               );
             }),
             const SizedBox(width: 12),
             Expanded(
               child: Obx(() {
                 final user = chatConversation.chatUserRx.value;
+                final active = user?.isPresent == true;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      user?.fullname ?? user?.username ?? LKey.user.tr,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyleCustom.outFitMedium500(
-                        fontSize: 15,
-                        color: textDarkGrey(context),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            user?.fullname ?? user?.username ?? LKey.user.tr,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyleCustom.outFitMedium500(
+                              fontSize: 15,
+                              color: textDarkGrey(context),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? const Color(0xFF22C55E).withValues(alpha: 0.15)
+                                : const Color(0xFF9CA3AF).withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            active ? 'ACTIVE' : 'INACTIVE',
+                            style: TextStyleCustom.outFitMedium500(
+                              fontSize: 10,
+                              color: active
+                                  ? const Color(0xFF15803D)
+                                  : const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 3),
                     Text(

@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
@@ -19,7 +20,6 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/livestream/livestream_user_state.dart';
 import 'package:krimson/model/user_model/user_model.dart';
-import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/utilities/const_res.dart';
@@ -29,12 +29,11 @@ import 'package:krimson/utilities/theme_res.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:retrytech_plugin/retrytech_plugin.dart';
 
-/// Pre-live: cámara + ajustes + Start Live.
+/// Pre-live: portada + ajustes + Start Live (cámara solo en LiveKit).
 class LiveStreamSearchScreenController extends BaseController {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   StreamSubscription<List<ConnectivityResult>>? _netSub;
-  Worker? _tabWorker;
 
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
@@ -53,14 +52,6 @@ class LiveStreamSearchScreenController extends BaseController {
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxBool inviteLoading = false.obs;
 
-  final RxBool cameraReady = false.obs;
-  final RxBool cameraStarting = false.obs;
-  final RxBool torchOn = false.obs;
-  /// Fuerza rebuild del PlatformView al reiniciar cámara.
-  final RxInt cameraGeneration = 0.obs;
-  bool _cameraActive = false;
-  int _startToken = 0;
-
   @override
   void onInit() {
     super.onInit();
@@ -68,13 +59,6 @@ class LiveStreamSearchScreenController extends BaseController {
       previewTitle.value = titleController.text;
     });
     _listenNetwork();
-    _watchLiveTab();
-  }
-
-  @override
-  void onReady() {
-    super.onReady();
-    _syncCameraWithTab();
   }
 
   void _listenNetwork() {
@@ -87,128 +71,12 @@ class LiveStreamSearchScreenController extends BaseController {
     });
   }
 
-  void _watchLiveTab() {
-    if (!Get.isRegistered<DashboardScreenController>()) return;
-    final dash = Get.find<DashboardScreenController>();
-    _tabWorker?.dispose();
-    _tabWorker = ever(dash.selectedPageIndex, (_) => _syncCameraWithTab());
-  }
-
-  void _syncCameraWithTab() {
-    if (!Get.isRegistered<DashboardScreenController>()) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        startPreviewCamera();
-      });
-      return;
-    }
-    final onLive = Get.find<DashboardScreenController>().selectedPageIndex.value ==
-        DashboardScreenController.tabLive;
-    if (onLive) {
-      // Esperar un frame: IndexedStack offstage da size 0 y deforma el preview.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (isClosed) return;
-        startPreviewCamera();
-      });
-    } else {
-      stopPreviewCamera();
-    }
-  }
-
-  Future<void> restartPreviewCamera() async {
-    stopPreviewCamera();
-    await Future.delayed(const Duration(milliseconds: 350));
-    if (isClosed) return;
-    await startPreviewCamera();
-  }
-
-  Future<void> startPreviewCamera() async {
-    if (kIsWeb) {
-      cameraReady.value = false;
-      cameraStarting.value = false;
-      return;
-    }
-    if (_cameraActive || cameraStarting.value) return;
-    final token = ++_startToken;
-    cameraStarting.value = true;
-    cameraReady.value = false;
-    try {
-      var cam = await Permission.camera.status;
-      if (!cam.isGranted) {
-        cam = await Permission.camera.request();
-      }
-      var mic = await Permission.microphone.status;
-      if (!mic.isGranted) {
-        mic = await Permission.microphone.request();
-      }
-      if (token != _startToken || isClosed) return;
-      if (!cam.isGranted) {
-        showSnackBar(LKey.cameraMicrophonePermissionTitle.tr);
-        return;
-      }
-
-      try {
-        RetrytechPlugin.shared.disposeCamera;
-      } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 250));
-      if (token != _startToken || isClosed) return;
-
-      RetrytechPlugin.shared.initCamera();
-      // Primer frame CameraX: dar margen antes de montar el PlatformView.
-      await Future.delayed(const Duration(milliseconds: 700));
-      if (token != _startToken || isClosed) {
-        try {
-          RetrytechPlugin.shared.disposeCamera;
-        } catch (_) {}
-        return;
-      }
-      _cameraActive = true;
-      cameraGeneration.value++;
-      cameraReady.value = true;
-    } catch (e) {
-      Loggers.error('Pre-live camera: $e');
-      cameraReady.value = false;
-      _cameraActive = false;
-    } finally {
-      if (token == _startToken) {
-        cameraStarting.value = false;
-      }
-    }
-  }
-
-  void stopPreviewCamera() {
-    _startToken++;
-    cameraStarting.value = false;
-    if (!_cameraActive && !cameraReady.value) {
-      cameraReady.value = false;
-      return;
-    }
+  /// Libera cámara nativa Retrytech si quedó abierta (p.ej. desde Create Reel).
+  void releaseNativeCameraIfNeeded() {
+    if (kIsWeb) return;
     try {
       RetrytechPlugin.shared.disposeCamera;
-    } catch (e) {
-      Loggers.error('Dispose pre-live camera: $e');
-    }
-    _cameraActive = false;
-    cameraReady.value = false;
-    torchOn.value = false;
-  }
-
-  void flipPreviewCamera() {
-    if (kIsWeb || !cameraReady.value) return;
-    try {
-      RetrytechPlugin.shared.toggleCamera;
-    } catch (e) {
-      Loggers.error('Flip camera: $e');
-    }
-  }
-
-  void toggleTorch() {
-    if (kIsWeb || !cameraReady.value) return;
-    try {
-      RetrytechPlugin.shared.flashOnOff;
-      torchOn.value = !torchOn.value;
-    } catch (e) {
-      Loggers.error('Torch: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> editPreLiveTitle() async {
@@ -246,6 +114,17 @@ class LiveStreamSearchScreenController extends BaseController {
       return;
     }
 
+    final canGoLive = AppRole.canStartLive(user);
+    if (!canGoLive) {
+      showSnackBar(
+        AppRole.isClient(user)
+            ? 'Los clientes no pueden iniciar LIVE.'
+            : LKey.liveLockedUntilLevel.tr,
+        second: 4,
+      );
+      return;
+    }
+
     final dummyConflict = (settings?.dummyLives ?? []).any(
       (d) => d.userId == user.id && (d.status ?? 0) == 1,
     );
@@ -267,11 +146,14 @@ class LiveStreamSearchScreenController extends BaseController {
       _StartLiveSheet(controller: this),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      enableDrag: true,
+      ignoreSafeArea: false,
     );
     if (ok == true) {
       // Liberar cámara nativa antes de LiveKit (evita conflicto de hardware).
-      stopPreviewCamera();
-      await Future.delayed(const Duration(milliseconds: 400));
+      releaseNativeCameraIfNeeded();
+      await Future.delayed(const Duration(milliseconds: 250));
       await _startLive(user);
     }
   }
@@ -394,8 +276,6 @@ class LiveStreamSearchScreenController extends BaseController {
     final details = descriptionController.text.trim();
     if (title.isEmpty) {
       showSnackBar(LKey.enterLiveStreamTitle.tr);
-      // Reabrir cámara si cancelamos por título vacío.
-      _syncCameraWithTab();
       return;
     }
 
@@ -435,7 +315,6 @@ class LiveStreamSearchScreenController extends BaseController {
         } catch (e) {
           stopLoader();
           showSnackBar('No se pudo subir la portada: $e');
-          _syncCameraWithTab();
           return;
         }
       }
@@ -503,20 +382,16 @@ class LiveStreamSearchScreenController extends BaseController {
             initialSmooth: smooth.value,
             initialSharpen: sharpen.value,
           ));
-      // Al volver del host, reactivar preview si seguimos en tab LIVE.
-      _syncCameraWithTab();
     } catch (e) {
       stopLoader();
       showSnackBar(e.toString());
-      _syncCameraWithTab();
     }
   }
 
   @override
   void onClose() {
-    _tabWorker?.dispose();
     _netSub?.cancel();
-    stopPreviewCamera();
+    releaseNativeCameraIfNeeded();
     titleController.dispose();
     descriptionController.dispose();
     super.onClose();
@@ -530,164 +405,246 @@ class _StartLiveSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: whitePure(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+    final media = MediaQuery.of(context);
+    final keyboard = media.viewInsets.bottom;
+    final keyboardOpen = keyboard > 0;
+    // Compacto al contenido; con teclado limita altura y hace scroll.
+    final available =
+        (media.size.height - keyboard).clamp(260.0, media.size.height);
+    final maxWithKeyboard = (available * 0.88).clamp(260.0, available);
+
+    final formBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          controller: controller.titleController,
+          autofocus: true,
+          maxLength: 80,
+          textInputAction: TextInputAction.next,
+          decoration: InputDecoration(
+            hintText: LKey.enterLiveStreamTitle.tr,
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            counterText: '',
+          ),
         ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: bgGrey(context),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                Text(
-                  LKey.goLive.tr,
-                  textAlign: TextAlign.center,
-                  style: TextStyleCustom.unboundedSemiBold600(
-                    color: textDarkGrey(context),
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller.titleController,
-                  autofocus: true,
-                  maxLength: 80,
-                  decoration: InputDecoration(
-                    hintText: LKey.enterLiveStreamTitle.tr,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    counterText: '',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controller.descriptionController,
-                  maxLength: 500,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: 'Describe your live...',
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Obx(() {
-                  final bytes = controller.coverImageBytes.value;
-                  final hasCover = bytes != null && bytes.isNotEmpty;
-                  return Material(
-                    color: bgGrey(context),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller.descriptionController,
+          maxLength: 500,
+          maxLines: keyboardOpen ? 2 : 2,
+          minLines: 1,
+          decoration: InputDecoration(
+            hintText: 'Describe your live...',
+            isDense: true,
+            alignLabelWithHint: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        if (!keyboardOpen) ...[
+          const SizedBox(height: 10),
+          Obx(() {
+            final bytes = controller.coverImageBytes.value;
+            final hasCover = bytes != null && bytes.isNotEmpty;
+            return Material(
+              color: bgGrey(context),
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: controller.pickLiveCover,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  height: 88,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: controller.pickLiveCover,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        height: 140,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.black12),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Stack(
-                          fit: StackFit.expand,
+                    border: Border.all(color: Colors.black12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (hasCover)
+                        Image.memory(
+                          bytes,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                        )
+                      else
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            if (hasCover)
-                              Image.memory(
-                                bytes,
-                                fit: BoxFit.cover,
-                                gaplessPlayback: true,
-                              )
-                            else
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_photo_alternate_outlined,
-                                      color: textLightGrey(context), size: 32),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Add cover image',
-                                    style: TextStyleCustom.outFitMedium500(
-                                      color: textLightGrey(context),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
+                            Icon(
+                              Icons.add_photo_alternate_outlined,
+                              color: textLightGrey(context),
+                              size: 24,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Add cover image',
+                              style: TextStyleCustom.outFitMedium500(
+                                color: textLightGrey(context),
+                                fontSize: 12,
                               ),
-                            if (hasCover)
-                              Positioned(
-                                top: 6,
-                                right: 6,
-                                child: Material(
-                                  color: Colors.black54,
-                                  shape: const CircleBorder(),
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: controller.clearLiveCover,
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(6),
-                                      child: Icon(Icons.close,
-                                          color: Colors.white, size: 16),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            ),
                           ],
                         ),
-                      ),
-                    ),
-                  );
-                }),
-                Obx(() {
-                  if (controller.invitedIds.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(
-                      '${LKey.invited.tr}: ${controller.invitedIds.length}',
-                      textAlign: TextAlign.center,
-                      style: TextStyleCustom.outFitMedium500(
-                        color: themeAccentSolid(context),
-                        fontSize: 13,
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => Get.back(result: true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: themeColor(context),
-                    foregroundColor: whitePure(context),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      if (hasCover)
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Material(
+                            color: Colors.black54,
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: controller.clearLiveCover,
+                              child: const Padding(
+                                padding: EdgeInsets.all(6),
+                                child: Icon(Icons.close,
+                                    color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ] else ...[
+          const SizedBox(height: 6),
+          Text(
+            'Cierra el teclado para elegir portada',
+            textAlign: TextAlign.center,
+            style: TextStyleCustom.outFitRegular400(
+              color: textLightGrey(context),
+              fontSize: 12,
+            ),
+          ),
+        ],
+        Obx(() {
+          if (controller.invitedIds.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              '${LKey.invited.tr}: ${controller.invitedIds.length}',
+              textAlign: TextAlign.center,
+              style: TextStyleCustom.outFitMedium500(
+                color: themeAccentSolid(context),
+                fontSize: 13,
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 4,
+            decoration: BoxDecoration(
+              color: bgGrey(context),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            LKey.goLive.tr,
+            textAlign: TextAlign.center,
+            style: TextStyleCustom.unboundedSemiBold600(
+              color: textDarkGrey(context),
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final startButton = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () {
+            FocusScope.of(context).unfocus();
+            Get.back(result: true);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: themeColor(context),
+            foregroundColor: whitePure(context),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Text(LKey.startLive.tr),
+        ),
+      ),
+    );
+
+    final sheetBody = SafeArea(
+      top: false,
+      child: keyboardOpen
+          ? SizedBox(
+              height: maxWithKeyboard,
+              child: Column(
+                children: [
+                  header,
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: formBody,
                     ),
                   ),
-                  child: Text(LKey.startLive.tr),
+                  startButton,
+                ],
+              ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                header,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: formBody,
                 ),
+                startButton,
               ],
             ),
+    );
+
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 100),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: keyboard),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Material(
+          color: whitePure(context),
+          elevation: 16,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: available * 0.92),
+            child: sheetBody,
           ),
         ),
       ),
