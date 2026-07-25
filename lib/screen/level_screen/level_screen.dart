@@ -114,6 +114,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
                     padding:
@@ -132,6 +133,38 @@ class _Header extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (benefits.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () => _showBenefitsSheet(
+                        context,
+                        benefits: benefits,
+                        accent: accent,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.55),
+                          ),
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                        child: const Text(
+                          '?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -146,68 +179,103 @@ class _Header extends StatelessWidget {
                   ),
                 ],
               ),
-              if (benefits.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBenefitsSheet(
+    BuildContext context, {
+    required List<String> benefits,
+    required Color accent,
+  }) {
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E24),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: accent.withValues(alpha: 0.45)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E24),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: accent.withValues(alpha: 0.45),
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Text(
+                    LKey.benefits.tr,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: accent,
+                      fontSize: 16,
                     ),
                   ),
-                  child: Column(
+                  const Spacer(),
+                  InkWell(
+                    onTap: Get.back,
+                    borderRadius: BorderRadius.circular(16),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.close_rounded,
+                          color: Colors.white70, size: 20),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...benefits.map(
+                (b) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        LKey.benefits.tr,
-                        style: TextStyleCustom.outFitSemiBold600(
-                          color: accent,
-                          fontSize: 14,
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: accent,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      ...benefits.map(
-                        (b) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Container(
-                                  width: 5,
-                                  height: 5,
-                                  decoration: BoxDecoration(
-                                    color: accent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  b,
-                                  style: TextStyleCustom.outFitRegular400(
-                                    color: Colors.white.withValues(alpha: 0.92),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          b,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontSize: 14,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ],
           ),
         ),
       ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
     );
   }
 }

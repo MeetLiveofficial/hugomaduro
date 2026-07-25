@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
@@ -94,6 +95,11 @@ class LivestreamScreenController extends BaseController {
   final RxBool isStreamPaused = false.obs;
   /// Mute del audio del LIVE (host: mic; audiencia: audio remoto).
   final RxBool isLiveAudioMuted = false.obs;
+
+  /// Segundos transcurridos del LIVE (badge de tiempo en LIVE normal).
+  final RxInt liveElapsedSeconds = 0.obs;
+  Timer? _liveElapsedTicker;
+  DateTime? _liveStartedAt;
 
   /// Estado de Batalla 1v1 (PK).
   final RxBool isBattleRunning = false.obs;
@@ -229,6 +235,7 @@ class LivestreamScreenController extends BaseController {
   void onInit() {
     super.onInit();
     activeInstance = this;
+    _enterImmersiveLive();
     selectedGiftUser.value = livestream.hostUser;
     invitedIds.addAll(livestream.coHostIds ?? []);
     watchingCount.value = livestream.watchingCount ?? 0;
@@ -241,7 +248,108 @@ class LivestreamScreenController extends BaseController {
       battleLikeForUserId.value ??= livestream.hostId;
     }
     _listenNetwork();
+    _startLiveElapsedTicker();
     _bootstrap();
+  }
+
+  void _startLiveElapsedTicker() {
+    final created = livestream.createdAt;
+    if (created != null && created > 0) {
+      // Backend envía created_ms (epoch ms).
+      _liveStartedAt = DateTime.fromMillisecondsSinceEpoch(created);
+    } else {
+      _liveStartedAt = DateTime.now();
+    }
+    _tickLiveElapsed();
+    _liveElapsedTicker?.cancel();
+    _liveElapsedTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      _tickLiveElapsed();
+    });
+  }
+
+  void _tickLiveElapsed() {
+    // Si el LIVE está pausado, congelar el badge de tiempo.
+    if (isStreamPaused.value) return;
+    final start = _liveStartedAt;
+    if (start == null) return;
+    final secs = DateTime.now().difference(start).inSeconds;
+    liveElapsedSeconds.value = secs < 0 ? 0 : secs;
+  }
+
+  /// Al pausar/reanudar: congelar o reanudar el contador del badge.
+  void _syncElapsedTimerWithPause() {
+    if (isStreamPaused.value) {
+      // Congelar el valor actual (el ticker no avanzará).
+      return;
+    }
+    // Reanudar: el "inicio" se recalcula para continuar desde el valor congelado.
+    final frozen = liveElapsedSeconds.value;
+    _liveStartedAt =
+        DateTime.now().subtract(Duration(seconds: frozen < 0 ? 0 : frozen));
+    _tickLiveElapsed();
+  }
+
+  String get liveElapsedLabel {
+    final total = liveElapsedSeconds.value;
+    final h = total ~/ 3600;
+    final m = (total % 3600) ~/ 60;
+    final s = total % 60;
+    if (h > 0) {
+      return '${h.toString().padLeft(2, '0')}:'
+          '${m.toString().padLeft(2, '0')}:'
+          '${s.toString().padLeft(2, '0')}';
+    }
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  void openLiveTasks() {
+    openLiveTasksSheet();
+  }
+
+  /// Desplegable de tareas (mismo estilo que Options).
+  void openLiveTasksSheet() {
+    openLiveTasksMenu();
+  }
+
+  Future<void> _broadcastJoin() async {
+    if (isHost) return;
+    final me = SessionManager.instance.getUser();
+    if (me?.id == null) return;
+    final clientId = '${me!.id}_join_${DateTime.now().millisecondsSinceEpoch}';
+    final name = _liveDisplayName(me);
+    final msg = LiveChatMessage(
+      id: clientId,
+      userId: me.id!,
+      userName: name,
+      type: 'join',
+      text: 'entró al LIVE',
+    );
+    _appendChatMessage(msg);
+    try {
+      await LiveSessionService.instance.sendComment(
+        roomId: roomId,
+        clientId: clientId,
+        type: 'text',
+        text: '👋 $name entró al LIVE',
+      );
+    } catch (_) {}
+    try {
+      await liveKit?.publishData(msg.toBytes());
+    } catch (_) {}
+  }
+
+  /// Oculta barra de navegación / status del sistema durante el LIVE.
+  void _enterImmersiveLive() {
+    if (kIsWeb) return;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  void _exitImmersiveLive() {
+    if (kIsWeb) return;
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
   }
 
   void _listenNetwork() {
@@ -275,6 +383,10 @@ class LivestreamScreenController extends BaseController {
       _startSessionPolling();
       _startCommentPolling();
       _startIncomingCallPolling();
+      // Avisar en el chat que este viewer entró.
+      if (!isHost) {
+        unawaited(_broadcastJoin());
+      }
       // Mantener presencia ACTIVE mientras el LIVE sigue abierto.
       unawaited(UserService.instance.updateLastUsedAt());
       mediaReady.value = true;
@@ -440,11 +552,13 @@ class LivestreamScreenController extends BaseController {
       } else {
         isStreamPaused.value = !isStreamPaused.value;
       }
+      _syncElapsedTimerWithPause();
       update();
       return;
     }
     await lk.toggleStreamPaused(asHost: isHost);
     isStreamPaused.value = lk.streamPaused.value;
+    _syncElapsedTimerWithPause();
     if (isHost) {
       isLiveAudioMuted.value = !lk.microphoneEnabled.value;
     }
@@ -649,8 +763,8 @@ class LivestreamScreenController extends BaseController {
   }
 
   void _applyGiftSendersFromServer(List<LiveGiftSender>? remote) {
-    if (remote == null || remote.isEmpty) return;
-    // El backend tiene el precio real (tbl_gifts); reemplazar el tab local.
+    if (remote == null) return;
+    // Reemplazar con el tab del servidor (también para audiencia).
     giftSenders.assignAll(remote
         .map((s) => LiveGiftSender(
               userId: s.userId,
@@ -1139,6 +1253,18 @@ class LivestreamScreenController extends BaseController {
         text: text.replaceFirst('ðŸ‘¤', '').trim().isEmpty
             ? '${msg.userName} te sigue'
             : text.replaceFirst('ðŸ‘¤', '').trim(),
+        createdAt: msg.createdAt,
+      );
+    }
+    if (lower.contains('entró al live') ||
+        lower.contains('entro al live') ||
+        text.contains('👋')) {
+      return LiveChatMessage(
+        id: msg.id,
+        userId: msg.userId,
+        userName: msg.userName,
+        type: 'join',
+        text: 'entró al LIVE',
         createdAt: msg.createdAt,
       );
     }
@@ -2562,6 +2688,7 @@ class LivestreamScreenController extends BaseController {
 
   @override
   void onClose() {
+    _exitImmersiveLive();
     if (identical(activeInstance, this)) {
       activeInstance = null;
     }
@@ -2570,6 +2697,7 @@ class LivestreamScreenController extends BaseController {
     _callPoll?.cancel();
     _followBannerTimer?.cancel();
     _battleTicker?.cancel();
+    _liveElapsedTicker?.cancel();
     _netSub?.cancel();
     _dataSub?.cancel();
     commentController.dispose();

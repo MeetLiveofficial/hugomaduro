@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
@@ -113,10 +114,14 @@ class LiveStreamSearchScreenController extends BaseController {
       return;
     }
 
-    final canGoLive =
-        user.canGoLive == 1 || user.getLevel.canGoLive == 1;
+    final canGoLive = AppRole.canStartLive(user);
     if (!canGoLive) {
-      showSnackBar(LKey.liveLockedUntilLevel.tr, second: 4);
+      showSnackBar(
+        AppRole.isClient(user)
+            ? 'Los clientes no pueden iniciar LIVE.'
+            : LKey.liveLockedUntilLevel.tr,
+        second: 4,
+      );
       return;
     }
 
@@ -141,6 +146,9 @@ class LiveStreamSearchScreenController extends BaseController {
       _StartLiveSheet(controller: this),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      enableDrag: true,
+      ignoreSafeArea: false,
     );
     if (ok == true) {
       // Liberar cámara nativa antes de LiveKit (evita conflicto de hardware).
@@ -399,176 +407,244 @@ class _StartLiveSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final keyboard = media.viewInsets.bottom;
-    final maxHeight = media.size.height * 0.92 - keyboard;
+    final keyboardOpen = keyboard > 0;
+    // Compacto al contenido; con teclado limita altura y hace scroll.
+    final available =
+        (media.size.height - keyboard).clamp(260.0, media.size.height);
+    final maxWithKeyboard = (available * 0.88).clamp(260.0, available);
 
-    return Padding(
+    final formBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          controller: controller.titleController,
+          autofocus: true,
+          maxLength: 80,
+          textInputAction: TextInputAction.next,
+          decoration: InputDecoration(
+            hintText: LKey.enterLiveStreamTitle.tr,
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            counterText: '',
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller.descriptionController,
+          maxLength: 500,
+          maxLines: keyboardOpen ? 2 : 2,
+          minLines: 1,
+          decoration: InputDecoration(
+            hintText: 'Describe your live...',
+            isDense: true,
+            alignLabelWithHint: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        if (!keyboardOpen) ...[
+          const SizedBox(height: 10),
+          Obx(() {
+            final bytes = controller.coverImageBytes.value;
+            final hasCover = bytes != null && bytes.isNotEmpty;
+            return Material(
+              color: bgGrey(context),
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: controller.pickLiveCover,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  height: 88,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.black12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (hasCover)
+                        Image.memory(
+                          bytes,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                        )
+                      else
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate_outlined,
+                              color: textLightGrey(context),
+                              size: 24,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Add cover image',
+                              style: TextStyleCustom.outFitMedium500(
+                                color: textLightGrey(context),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (hasCover)
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Material(
+                            color: Colors.black54,
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: controller.clearLiveCover,
+                              child: const Padding(
+                                padding: EdgeInsets.all(6),
+                                child: Icon(Icons.close,
+                                    color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ] else ...[
+          const SizedBox(height: 6),
+          Text(
+            'Cierra el teclado para elegir portada',
+            textAlign: TextAlign.center,
+            style: TextStyleCustom.outFitRegular400(
+              color: textLightGrey(context),
+              fontSize: 12,
+            ),
+          ),
+        ],
+        Obx(() {
+          if (controller.invitedIds.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              '${LKey.invited.tr}: ${controller.invitedIds.length}',
+              textAlign: TextAlign.center,
+              style: TextStyleCustom.outFitMedium500(
+                color: themeAccentSolid(context),
+                fontSize: 13,
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 4,
+            decoration: BoxDecoration(
+              color: bgGrey(context),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            LKey.goLive.tr,
+            textAlign: TextAlign.center,
+            style: TextStyleCustom.unboundedSemiBold600(
+              color: textDarkGrey(context),
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final startButton = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () {
+            FocusScope.of(context).unfocus();
+            Get.back(result: true);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: themeColor(context),
+            foregroundColor: whitePure(context),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Text(LKey.startLive.tr),
+        ),
+      ),
+    );
+
+    final sheetBody = SafeArea(
+      top: false,
+      child: keyboardOpen
+          ? SizedBox(
+              height: maxWithKeyboard,
+              child: Column(
+                children: [
+                  header,
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: formBody,
+                    ),
+                  ),
+                  startButton,
+                ],
+              ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                header,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: formBody,
+                ),
+                startButton,
+              ],
+            ),
+    );
+
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 100),
+      curve: Curves.easeOut,
       padding: EdgeInsets.only(bottom: keyboard),
       child: Align(
         alignment: Alignment.bottomCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: maxHeight.clamp(240.0, media.size.height),
-          ),
-          child: Material(
-            color: whitePure(context),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            clipBehavior: Clip.antiAlias,
-            child: SafeArea(
-              top: false,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: bgGrey(context),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                    Text(
-                      LKey.goLive.tr,
-                      textAlign: TextAlign.center,
-                      style: TextStyleCustom.unboundedSemiBold600(
-                        color: textDarkGrey(context),
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: controller.titleController,
-                      autofocus: true,
-                      maxLength: 80,
-                      decoration: InputDecoration(
-                        hintText: LKey.enterLiveStreamTitle.tr,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        counterText: '',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: controller.descriptionController,
-                      maxLength: 500,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: 'Describe your live...',
-                        alignLabelWithHint: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Obx(() {
-                      final bytes = controller.coverImageBytes.value;
-                      final hasCover = bytes != null && bytes.isNotEmpty;
-                      return Material(
-                        color: bgGrey(context),
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          onTap: controller.pickLiveCover,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            height: 140,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.black12),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                if (hasCover)
-                                  Image.memory(
-                                    bytes,
-                                    fit: BoxFit.cover,
-                                    gaplessPlayback: true,
-                                  )
-                                else
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.add_photo_alternate_outlined,
-                                          color: textLightGrey(context),
-                                          size: 32),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Add cover image',
-                                        style: TextStyleCustom.outFitMedium500(
-                                          color: textLightGrey(context),
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                if (hasCover)
-                                  Positioned(
-                                    top: 6,
-                                    right: 6,
-                                    child: Material(
-                                      color: Colors.black54,
-                                      shape: const CircleBorder(),
-                                      child: InkWell(
-                                        customBorder: const CircleBorder(),
-                                        onTap: controller.clearLiveCover,
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(6),
-                                          child: Icon(Icons.close,
-                                              color: Colors.white, size: 16),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                    Obx(() {
-                      if (controller.invitedIds.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Text(
-                          '${LKey.invited.tr}: ${controller.invitedIds.length}',
-                          textAlign: TextAlign.center,
-                          style: TextStyleCustom.outFitMedium500(
-                            color: themeAccentSolid(context),
-                            fontSize: 13,
-                          ),
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => Get.back(result: true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeColor(context),
-                        foregroundColor: whitePure(context),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(LKey.startLive.tr),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+        child: Material(
+          color: whitePure(context),
+          elevation: 16,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: available * 0.92),
+            child: sheetBody,
           ),
         ),
       ),

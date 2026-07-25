@@ -319,6 +319,8 @@ class _BottomBar extends StatelessWidget {
                 ),
               );
             }),
+            // Siempre visible en esta pantalla (solo streamers llegan aquí).
+            // El permiso canGoLive se valida en onTapGoLive con mensaje claro.
             Material(
               color: ColorRes.themeAccentSolid,
               borderRadius: BorderRadius.circular(28),
