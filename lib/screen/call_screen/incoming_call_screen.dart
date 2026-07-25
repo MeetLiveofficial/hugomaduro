@@ -323,9 +323,9 @@ class IncomingCallController extends GetxController {
 
   Future<void> _startRingtone() async {
     try {
-      await _ringtone.setAsset(AssetRes.battleStart);
+      await _ringtone.setAsset(AssetRes.callSoft);
       await _ringtone.setLoopMode(LoopMode.one);
-      await _ringtone.setVolume(1.0);
+      await _ringtone.setVolume(0.45);
       await _ringtone.play();
     } catch (e) {
       Loggers.error('incoming ringtone: $e');

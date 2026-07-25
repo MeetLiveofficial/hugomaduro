@@ -110,6 +110,14 @@ class LKey {
   static const String learnMore = "Learn more";
   static const String dressingCenter = "Dressing Center";
   static const String honorWall = "Wall of Honor";
+  static const String leaderboard = "Leaderboard";
+  static const String clientsRanking = "Clientes";
+  static const String streamersRanking = "Streamers";
+  static const String endsIn = "Ends In";
+  static const String today = "Today";
+  static const String thisMonth = "This Month";
+  static const String notRanked = "Not Ranked";
+  static const String top = "TOP";
   static const String equip = "Equip";
   static const String equipped = "Equipped";
   static const String locked = "Locked";
@@ -200,6 +208,8 @@ class LKey {
   static const String coinShop = "Coin Shop";
   static const String rechargeWallet =
       "Recharge your wallet. And\nsend gifts to your favorite creators.";
+  /// Etiqueta corta para botones (no usar [rechargeWallet] en CTAs).
+  static const String recharge = "Recharge";
   static const String purchase = "Purchase";
   static const String withdrawals = "Withdrawals";
   static const String requestWithdrawal = "Request Withdrawal";
@@ -673,4 +683,38 @@ class LKey {
   static const String dailyTasksPending =
       "You have daily tasks pending. Complete them to unlock withdrawals.";
   static const String goToTasks = "Go to Tasks";
+
+  // Streamer work dashboard
+  static const String work = "Work";
+  static const String weeklyLevel = "Weekly level";
+  static const String callGoalNotMet = "Call goal not met";
+  static const String callGoalMet = "Call goal met";
+  static const String detail = "Detail";
+  static const String todaysCalls = "Today's calls";
+  static const String diamonds = "Diamonds";
+  static const String gems = "Gems";
+  static const String onlineTime = "Online time";
+  static const String avgCallDuration = "Avg. call duration";
+  static const String positiveRating = "Positive rating";
+  static const String todaysEarnings = "Today's earnings";
+  static const String earningsFromCalls = "Call earnings";
+  static const String earningsFromGifts = "Gift earnings";
+  static const String earningsFromTasks = "Task earnings";
+  static const String earningsFromInvites = "Invite earnings";
+  static const String managedEarnings = "Managed earnings";
+  static const String rejections = "Rejections";
+  static const String rejectionRate = "Rejection rate";
+  static const String weeklyLevelPrivateLiveOnly =
+      "Weekly level (private & live only)";
+  static const String category = "Category";
+  static const String thisWeek = "This week";
+  static const String lastWeek = "Last week";
+  static const String levelResponseRate = "Level response rate";
+  static const String levelAvgDuration = "Level avg. duration";
+  static const String levelCalls = "Level calls";
+  static const String levelUpdateTime = "Level update time";
+  static const String currentLevelBenefits = "Current level benefits";
+  static const String connected = "Connected";
+  static const String disconnected = "Disconnected";
+  static const String withdraw = "Withdraw";
 }

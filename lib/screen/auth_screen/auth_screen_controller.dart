@@ -378,7 +378,7 @@ class AuthScreenController extends BaseController {
     // Reset de password depende de Firebase; si no hay, aviso claro.
     if (!_firebaseReady) {
       showSnackBar(
-          'Contacta al administrador para restablecer tu contraseña en Krimson.');
+          'Contacta al administrador para restablecer tu contraseña en Meet&Live.');
       Get.back();
       return;
     }

@@ -11,7 +11,9 @@ import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 class TasksScreen extends StatelessWidget {
-  const TasksScreen({super.key});
+  final bool isDashBoard;
+
+  const TasksScreen({super.key, this.isDashBoard = false});
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +24,7 @@ class TasksScreen extends StatelessWidget {
         children: [
           CustomAppBar(
             title: LKey.tasks.tr,
+            showBack: !isDashBoard,
             widget: _Tabs(controller: controller),
           ),
           Expanded(

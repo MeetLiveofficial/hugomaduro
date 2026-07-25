@@ -7,6 +7,7 @@ import 'package:krimson/common/enum/chat_enum.dart';
 import 'package:krimson/common/extensions/list_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/moderator_service.dart';
@@ -407,6 +408,10 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
 
   void handlePublishOrMessageBtn(bool isMe) {
     if (isMe) {
+      if (!AppRole.canPublish()) {
+        showSnackBar('Tu rol de cliente no permite publicar ni crear LIVE.');
+        return;
+      }
       Get.bottomSheet(PostOptionsSheet(controller: this), isScrollControlled: true);
     } else {
       ChatThread conversation = ChatThread(
@@ -431,8 +436,7 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
     final userId = user?.id;
     if (userId == null) return;
 
-    final canReceive =
-        user?.canReceiveCalls == 1 || user?.getLevel.canReceiveCalls == 1;
+    final canReceive = AppRole.canReceivePaidCalls(user);
     if (!canReceive) {
       showSnackBar(LKey.callCannotReceive.tr);
       return;

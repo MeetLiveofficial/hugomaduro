@@ -387,6 +387,10 @@ class UserService {
   }
 
   Future<void> updateLastUsedAt() async {
+    if (!SessionManager.instance.isLogin() ||
+        !SessionManager.instance.hasAuthToken) {
+      return;
+    }
     try {
       await ApiService.instance.call(url: WebService.user.updateLastUsedAt);
       final user = SessionManager.instance.getUser();

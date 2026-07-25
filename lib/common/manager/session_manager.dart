@@ -120,7 +120,10 @@ class SessionManager {
   void setSettings(Setting settings) {
     storage.write(SessionKeys.setting, settings.toJson());
     if (settings.appName != null && settings.appName!.trim().isNotEmpty) {
-      AppRes.appName = settings.appName!.trim();
+      final name = settings.appName!.trim();
+      // Rebrand: ignorar nombre legacy cacheado/API hasta que el panel se actualice.
+      AppRes.appName =
+          (name.toLowerCase() == 'krimson') ? 'Meet&Live' : name;
     }
   }
 
@@ -263,8 +266,8 @@ class SessionManager {
     storage.remove(SessionKeys.authToken);
     storage.remove(SessionKeys.password);
     storage.remove(SessionKeys.notifyCount);
-    storage.remove(SessionKeys.fallbackLang);
-    storage.remove(SessionKeys.lang);
+    // Conservar lang / fallbackLang: borrarlos provoca Get.updateLocale
+    // y reinicios que parecen “refresco infinito” tras logout.
   }
 }
 

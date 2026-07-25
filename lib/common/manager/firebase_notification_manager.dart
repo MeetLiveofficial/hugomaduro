@@ -72,7 +72,7 @@ class FirebaseNotificationManager {
   RxString notificationPayload = ''.obs;
   AndroidNotificationChannel channel = const AndroidNotificationChannel(
       'krimson', // id
-      'Krimson', // title
+      'Meet&Live', // title
       playSound: true,
       enableLights: true,
       enableVibration: true,
@@ -81,7 +81,7 @@ class FirebaseNotificationManager {
 
   AndroidNotificationChannel callChannel = const AndroidNotificationChannel(
       'krimson_calls',
-      'Krimson Calls',
+      'Meet&Live Calls',
       playSound: true,
       enableLights: true,
       enableVibration: true,

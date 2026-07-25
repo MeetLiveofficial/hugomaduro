@@ -113,6 +113,7 @@ class User {
       this.callRequestCoins = 0,
       this.canReceiveCalls = 0,
       this.canGoLive = 0,
+      this.appRole,
       this.levelBenefits = const []});
 
   User copyWith({
@@ -170,6 +171,13 @@ class User {
     List<Link>? links,
     List<Story>? stories,
     List<int>? followingIds,
+    int? levelNumber,
+    String? levelTitle,
+    int? callRequestCoins,
+    int? canReceiveCalls,
+    int? canGoLive,
+    String? appRole,
+    List<String>? levelBenefits,
   }) =>
       User(
         id: id ?? this.id,
@@ -225,6 +233,13 @@ class User {
         stories: stories ?? this.stories,
         newRegister: newRegister ?? this.newRegister,
         followingIds: followingIds ?? this.followingIds,
+        levelNumber: levelNumber ?? this.levelNumber,
+        levelTitle: levelTitle ?? this.levelTitle,
+        callRequestCoins: callRequestCoins ?? this.callRequestCoins,
+        canReceiveCalls: canReceiveCalls ?? this.canReceiveCalls,
+        canGoLive: canGoLive ?? this.canGoLive,
+        appRole: appRole ?? this.appRole,
+        levelBenefits: levelBenefits ?? this.levelBenefits,
       );
 
   static num? _asNum(dynamic v) {
@@ -303,6 +318,7 @@ class User {
     callRequestCoins = _asInt(json['call_request_coins']) ?? 0;
     canReceiveCalls = _asInt(json['can_receive_calls']) ?? 0;
     canGoLive = _asInt(json['can_go_live']) ?? 0;
+    appRole = json['app_role']?.toString();
     isLive = _asInt(json['is_live']) ?? 0;
     liveRoomId = json['live_room_id']?.toString();
     isActive = _asInt(json['is_active']) ?? 0;
@@ -392,6 +408,8 @@ class User {
   int callRequestCoins = 0;
   int canReceiveCalls = 0;
   int canGoLive = 0;
+  /// `streamer` | `client` (default client en app si viene vacío).
+  String? appRole;
   List<String> levelBenefits = const [];
   int isLive = 0;
   String? liveRoomId;
@@ -455,6 +473,7 @@ class User {
     map['call_request_coins'] = callRequestCoins;
     map['can_receive_calls'] = canReceiveCalls;
     map['can_go_live'] = canGoLive;
+    map['app_role'] = appRole;
     map['level_benefits'] = levelBenefits;
     map['is_live'] = isLive;
     map['live_room_id'] = liveRoomId;

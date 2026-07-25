@@ -20,8 +20,6 @@ import 'package:krimson/languages/dynamic_translations.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/screen/auth_screen/login_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen.dart';
-import 'package:krimson/screen/on_boarding_screen/on_boarding_screen.dart';
-import 'package:krimson/screen/select_language_screen/select_language_screen.dart';
 import 'package:krimson/utilities/app_res.dart';
 
 class SplashScreenController extends BaseController {
@@ -77,7 +75,7 @@ class SplashScreenController extends BaseController {
         // Si hay settings en caché, seguir (p. ej. para descargar idiomas).
         if (SessionManager.instance.getSettings() == null) {
           showSnackBar('Sin conexión al servidor. Revisa tu red.', second: 5);
-          Get.off(() => const LoginScreen(), routeName: '/login');
+          Get.offAll(() => const LoginScreen(), routeName: '/login');
           return;
         }
         showNavigate = true;
@@ -86,7 +84,7 @@ class SplashScreenController extends BaseController {
         if (SessionManager.instance.getSettings() == null) {
           showSnackBar('No se pudo cargar la configuración del servidor.',
               second: 5);
-          Get.off(() => const LoginScreen(), routeName: '/login');
+          Get.offAll(() => const LoginScreen(), routeName: '/login');
           return;
         }
       }
@@ -101,7 +99,7 @@ class SplashScreenController extends BaseController {
       if (downloadLanguages.isEmpty) {
         showSnackBar(AppRes.languageAdd, second: 5);
         // Sin idiomas del server, igual permitir continuar.
-        Get.off(() => const LoginScreen(), routeName: '/login');
+        Get.offAll(() => const LoginScreen(), routeName: '/login');
         return;
       }
 
@@ -112,6 +110,14 @@ class SplashScreenController extends BaseController {
           languages.firstWhereOrNull((element) => element.isDefault == 1);
       if (defaultLang != null) {
         SessionManager.instance.setFallbackLang(defaultLang.code ?? 'en');
+      }
+
+      // NUNCA abrir SelectLanguage al arrancar: Login primero.
+      // El idioma se cambia desde el desplegable del Login.
+      SessionManager.instance
+          .setBool(SessionKeys.isLanguageScreenSelect, true);
+      if (SessionManager.instance.getLang().trim().isEmpty) {
+        await SessionManager.instance.setLang('en', syncRemote: false);
       }
 
       // Solo idiomas activos del panel (ES/EN/PT, etc.) impulsan la UI.
@@ -136,7 +142,7 @@ class SplashScreenController extends BaseController {
           final value = await UserService.instance
               .fetchUserDetails(userId: SessionManager.instance.getUserID());
           if (value != null) {
-            Get.off(() => DashboardScreen(myUser: value),
+            Get.offAll(() => DashboardScreen(myUser: value),
                 routeName: '/dashboard');
             return;
           }
@@ -144,36 +150,26 @@ class SplashScreenController extends BaseController {
           Loggers.error('Splash session restore failed: $e');
         }
         SessionManager.instance.clearSomeKey();
-        Get.off(() => const LoginScreen(), routeName: '/login');
+        Get.offAll(() => const LoginScreen(), routeName: '/login');
       } else {
         if (SessionManager.instance.isLogin() &&
             !SessionManager.instance.hasAuthToken) {
           SessionManager.instance.clearSomeKey();
         }
-        bool isLanguageSelect =
-            SessionManager.instance.getBool(SessionKeys.isLanguageScreenSelect);
-        bool onBoardingShow = SessionManager.instance
-            .getBool(SessionKeys.isOnBoardingScreenSelect);
-        if (isLanguageSelect == false) {
-          Get.off(() => const SelectLanguageScreen(
-              languageNavigationType: LanguageNavigationType.fromStart));
-        } else if (onBoardingShow == false &&
-            (setting?.onBoarding ?? []).isNotEmpty) {
-          Get.off(() => const OnBoardingScreen());
-        } else {
-          Get.off(() => const LoginScreen(), routeName: '/login');
-        }
+        // Login directo (idioma en el select del Login; onboarding solo si ya
+        // se marcó como pendiente explícitamente en flujos futuros).
+        Get.offAll(() => const LoginScreen(), routeName: '/login');
       }
     } catch (e, st) {
       Loggers.error('Splash fetchSettings error: $e\n$st');
       final msg = '$e'.toLowerCase();
       if (msg.contains('401') || msg.contains('unauthorized')) {
         SessionManager.instance.clearSomeKey();
-        Get.off(() => const LoginScreen(), routeName: '/login');
+        Get.offAll(() => const LoginScreen(), routeName: '/login');
         return;
       }
       showSnackBar('Error de inicio: $e', second: 8);
-      Get.off(() => const LoginScreen(), routeName: '/login');
+      Get.offAll(() => const LoginScreen(), routeName: '/login');
     }
   }
 

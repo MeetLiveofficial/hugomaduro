@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:proste_indexed_stack/proste_indexed_stack.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/banner_ads_custom.dart';
 import 'package:krimson/common/widget/gradient_border.dart';
 import 'package:krimson/common/widget/gradient_icon.dart';
@@ -11,8 +13,11 @@ import 'package:krimson/screen/explore_screen/explore_screen.dart';
 import 'package:krimson/screen/home_screen/unified_home_screen.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen.dart';
 import 'package:krimson/screen/message_screen/message_screen.dart';
+import 'package:krimson/screen/profile_screen/client_profile_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen.dart';
+import 'package:krimson/screen/work_screen/work_screen.dart';
 import 'package:krimson/utilities/app_platform.dart';
+import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -34,7 +39,7 @@ class DashboardScreen extends StatelessWidget {
           (controller.homeTabMode.value == HomeTabMode.reels ||
               controller.homeTabMode.value == HomeTabMode.live);
       return Scaffold(
-        backgroundColor: scaffoldBackgroundColor(context),
+        backgroundColor: ColorRes.bgVoid,
         // En Go Live el teclado no debe empujar el layout (rompe el diseño).
         resizeToAvoidBottomInset: !onLiveTab,
         body: Column(
@@ -52,10 +57,12 @@ class DashboardScreen extends StatelessWidget {
                   IndexedStackChild(
                       child: const MessageScreen(), preload: true),
                   IndexedStackChild(
-                      child: ProfileScreen(
-                          isDashBoard: true,
-                          user: myUser,
-                          isTopBarVisible: false),
+                      child: AppRole.isClient(myUser)
+                          ? ClientProfileScreen(user: myUser)
+                          : ProfileScreen(
+                              isDashBoard: true,
+                              user: myUser,
+                              isTopBarVisible: false),
                       preload: true)
                 ],
               ),
@@ -76,20 +83,45 @@ class DashboardScreen extends StatelessWidget {
           postUpload.uploadType == UploadType.none ? false : true;
       return AnimatedContainer(
         duration: const Duration(milliseconds: 100),
-        color: blackPure(context),
+        color: ColorRes.bgVoid,
         padding: const EdgeInsets.only(top: 5),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(
-                controller.bottomIconList.length,
-                (index) {
-                  return _buildBottomNavItem(
-                      context, controller, index, isPostUploading);
-                },
-              ),
+              children: [
+                // Streamer: Home (LIVE|REELS|POST) + Trabajo (con tareas).
+                if (AppRole.isStreamer(
+                    SessionManager.instance.getUser() ?? controller.user)) ...[
+                  if (AppRole.canAccessHomeFeed(
+                      SessionManager.instance.getUser() ?? controller.user))
+                    _buildHomeFeedNavItem(context, controller, isPostUploading),
+                  _buildWorkNavItem(context, isPostUploading),
+                ],
+                ...() {
+                  final roleUser =
+                      SessionManager.instance.getUser() ?? controller.user;
+                  final indices = <int>[];
+                  for (var i = 0; i < controller.bottomIconList.length; i++) {
+                    if (AppRole.isClient(roleUser) &&
+                        i == DashboardScreenController.tabLive) {
+                      continue;
+                    }
+                    if (AppRole.isStreamer(roleUser) &&
+                        (i == DashboardScreenController.tabHome ||
+                            i == DashboardScreenController.tabExplore)) {
+                      continue;
+                    }
+                    indices.add(i);
+                  }
+                  return [
+                    for (final index in indices)
+                      _buildBottomNavItem(
+                          context, controller, index, isPostUploading),
+                  ];
+                }(),
+              ],
             ),
             SafeArea(
               top: false,
@@ -151,6 +183,65 @@ class DashboardScreen extends StatelessWidget {
     });
   }
 
+  /// Streamer: acceso a LIVE | REELS | POSTS (tab Home). Reemplaza el acceso directo a Tareas.
+  Widget _buildHomeFeedNavItem(BuildContext context,
+      DashboardScreenController controller, bool isPostUploading) {
+    return Obx(() {
+      final selected =
+          controller.selectedPageIndex.value == DashboardScreenController.tabHome;
+      return SafeArea(
+        bottom: isPostUploading ? false : true,
+        child: GradientBorder(
+          onPressed: () {
+            controller.setHomeTabMode(HomeTabMode.live);
+            controller.onChanged(DashboardScreenController.tabHome);
+          },
+          strokeWidth: selected ? 2 : 0,
+          radius: 30,
+          gradient: selected ? StyleRes.themeGradient : null,
+          child: Padding(
+            padding: const EdgeInsets.all(3),
+            child: GradientIcon(
+              gradient: selected
+                  ? const LinearGradient(
+                      colors: [ColorRes.whitePure, ColorRes.whitePure],
+                    )
+                  : const LinearGradient(
+                      colors: [ColorRes.accentPeach, ColorRes.accentPeach],
+                    ),
+              child: Image.asset(
+                AssetRes.icReel,
+                height: 38,
+                width: 38,
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  /// Trabajo (stats streamer) — incluye tareas dentro de la pantalla.
+  Widget _buildWorkNavItem(BuildContext context, bool isPostUploading) {
+    return SafeArea(
+      bottom: isPostUploading ? false : true,
+      child: GradientBorder(
+        onPressed: () => Get.to(() => const WorkScreen()),
+        strokeWidth: 0,
+        radius: 30,
+        gradient: null,
+        child: const Padding(
+          padding: EdgeInsets.all(3),
+          child: Icon(
+            Icons.work_outline_rounded,
+            size: 34,
+            color: ColorRes.accentPeach,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBottomNavItem(BuildContext context,
       DashboardScreenController controller, int index, bool isPostUploading) {
     return Obx(() {
@@ -177,7 +268,7 @@ class DashboardScreen extends StatelessWidget {
                       size: 36,
                       color: isSelected
                           ? ColorRes.whitePure
-                          : ColorRes.textDarkGrey,
+                          : ColorRes.accentPeach.withValues(alpha: 0.65),
                     )
                   else
                     GradientIcon(
@@ -188,7 +279,12 @@ class DashboardScreen extends StatelessWidget {
                                 ColorRes.whitePure,
                               ],
                             )
-                          : StyleRes.textDarkGreyGradient(),
+                          : LinearGradient(
+                              colors: [
+                                ColorRes.accentPeach.withValues(alpha: 0.65),
+                                ColorRes.accentPeach.withValues(alpha: 0.65),
+                              ],
+                            ),
                       child: Image.asset(controller.bottomIconList[index],
                           height: 38, width: 38),
                     ),

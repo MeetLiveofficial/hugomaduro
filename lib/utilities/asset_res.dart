@@ -10,6 +10,8 @@ class AssetRes {
   static const String battleStart = '${audio}battle_start.mp3';
   static const String endCountdown = '${audio}end_countdown.mp3';
   static const String winSound = '${audio}win_sound.mp3';
+  /// Tono suave para videollamada (no battle_start).
+  static const String callSoft = '${audio}call_soft.wav';
 
   // CSV
   static const String countriesCSV = '${csv}countries.csv';
@@ -122,6 +124,12 @@ class AssetRes {
   static const String icVideoOff = '${icons}ic_video_off.png';
   static const String icCheck = '${icons}ic_check.png';
   static const String icCrown = '${icons}ic_crown.png';
+  static const String icShield = '${icons}ic_shield.png';
+  /// Botón rankings (trofeo / leaderboard — no logo de marca).
+  static const String icRanking = '${icons}ic_ranking.png';
+  static const String icRankFrame1 = '${icons}ic_rank_frame_1.png';
+  static const String icRankFrame2 = '${icons}ic_rank_frame_2.png';
+  static const String icRankFrame3 = '${icons}ic_rank_frame_3.png';
   static const String icVideoRequest = '${icons}ic_video_request.png';
   static const String icPinned = '${icons}ic_pinned.png';
   static const String icPause = '${icons}ic_pause.png';

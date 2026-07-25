@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/controller/ads_controller.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
@@ -72,6 +73,11 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   @override
   void onInit() {
     super.onInit();
+    user = SessionManager.instance.getUser() ?? user;
+    // Streamer no usa el feed Home: arrancar en Perfil (seguro, sin cámara).
+    if (AppRole.isStreamer(user)) {
+      selectedPageIndex.value = tabProfile;
+    }
     SystemChrome.setSystemUIOverlayStyle(
         const SystemUiOverlayStyle(statusBarBrightness: Brightness.light));
     Get.put(GifSheetController());
@@ -121,6 +127,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   Timer? _liveInvitePollTimer;
+  Timer? _heartbeatTimer;
 
   /// Poll de invitaciones LIVE (cubre Web/sin FCM real).
   void _startLiveInvitePoll() {
@@ -131,6 +138,10 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   Future<void> _pollLiveInvites() async {
+    if (!SessionManager.instance.isLogin() ||
+        !SessionManager.instance.hasAuthToken) {
+      return;
+    }
     try {
       final invites = await LiveSessionService.instance.pendingInvites();
       for (final stream in invites) {
@@ -147,22 +158,45 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   void startCacheCleanupScheduler() {
+    _heartbeatTimer?.cancel();
+    if (!SessionManager.instance.isLogin()) return;
     UserService.instance.updateLastUsedAt();
     // Heartbeat frecuente para que ACTIVE/INACTIVE no parpadee.
-    Timer.periodic(const Duration(minutes: 2), (_) {
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      if (!SessionManager.instance.isLogin() ||
+          !SessionManager.instance.hasAuthToken) {
+        return;
+      }
       UserService.instance.updateLastUsedAt();
     });
   }
 
+  /// Detiene polls/timers (llamar en logout aunque GetX tarde en onClose).
+  void stopBackgroundWork() {
+    _liveInvitePollTimer?.cancel();
+    _liveInvitePollTimer = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _unReadCountSubscription?.cancel();
+    _unReadCountSubscription = null;
+  }
+
   @override
   void onClose() {
-    _liveInvitePollTimer?.cancel();
+    stopBackgroundWork();
     animationController.dispose();
-    _unReadCountSubscription?.cancel();
     super.onClose();
   }
 
   onChanged(int index) {
+    // Client: no estudio LIVE (el icono tampoco se muestra).
+    if (index == tabLive && AppRole.isClient(user)) {
+      return;
+    }
+    // Streamer: no Search/Explore.
+    if (index == tabExplore && AppRole.isStreamer(user)) {
+      return;
+    }
     final isDarkChrome = index == tabHome &&
         (homeTabMode.value == HomeTabMode.reels ||
             homeTabMode.value == HomeTabMode.live);

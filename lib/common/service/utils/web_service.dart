@@ -31,6 +31,7 @@ class _Privilege {
   String dressingCatalog = "${apiURL}privilege/dressingCatalog";
   String equipDressing = "${apiURL}privilege/equipDressing";
   String honorWall = "${apiURL}privilege/honorWall";
+  String leaderboard = "${apiURL}privilege/leaderboard";
 }
 
 class _Call {
@@ -40,6 +41,7 @@ class _Call {
   String reject = "${apiURL}call/reject";
   String cancel = "${apiURL}call/cancel";
   String end = "${apiURL}call/end";
+  String workStats = "${apiURL}call/workStats";
 }
 
 class _Chat {
