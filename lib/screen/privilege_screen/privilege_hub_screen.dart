@@ -11,12 +11,15 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/level_screen/level_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
+import 'package:krimson/common/widget/podium_icon.dart';
 
 class PrivilegeHubScreen extends StatefulWidget {
   const PrivilegeHubScreen({super.key});
@@ -150,13 +153,16 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                                     Get.to(() => const TasksScreen()),
                               ),
                             _HubTile(
-                              icon: AssetRes.icWallet,
+                              iconWidget: const PodiumIcon(
+                                size: 28,
+                                color: ColorRes.textDarkGrey,
+                              ),
                               title: LKey.honorWall.tr,
                               subtitle: user?['honor_rank'] != null
                                   ? '#${user?['honor_rank']}'
-                                  : LKey.learnMore.tr,
+                                  : LKey.leaderboard.tr,
                               onTap: () =>
-                                  Get.to(() => const HonorWallScreen()),
+                                  Get.to(() => const LeaderboardScreen()),
                             ),
                           ],
                         ),
@@ -169,13 +175,15 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
 }
 
 class _HubTile extends StatelessWidget {
-  final String icon;
+  final String? icon;
+  final Widget? iconWidget;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
   const _HubTile({
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -195,12 +203,13 @@ class _HubTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Image.asset(
-              icon,
-              width: 28,
-              height: 28,
-              color: textDarkGrey(context),
-            ),
+            iconWidget ??
+                Image.asset(
+                  icon!,
+                  width: 28,
+                  height: 28,
+                  color: textDarkGrey(context),
+                ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

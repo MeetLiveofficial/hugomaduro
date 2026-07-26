@@ -15,6 +15,7 @@ import 'package:krimson/screen/recharge_history_screen/recharge_history_screen.d
 import 'package:krimson/screen/settings_screen/settings_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/level_avatar_style.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -78,11 +79,17 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        CustomImage(
-                          size: const Size(72, 72),
-                          image: user.profilePhoto?.addBaseURL(),
-                          fullName: user.fullname ?? user.username,
-                          radius: 36,
+                        LevelAvatarRing(
+                          user: user,
+                          padding: 3.5,
+                          child: CustomImage(
+                            size: const Size(72, 72),
+                            image: user.profilePhoto?.addBaseURL(),
+                            fullName: user.fullname ?? user.username,
+                            radius: 36,
+                            strokeWidth: 2,
+                            strokeColor: scaffoldBackgroundColor(context),
+                          ),
                         ),
                         Positioned(
                           right: 2,

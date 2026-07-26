@@ -12,6 +12,7 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/level_screen/level_screen.dart';
 import 'package:krimson/screen/privilege_screen/privilege_hub_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
@@ -22,6 +23,7 @@ import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/level_avatar_style.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -401,7 +403,7 @@ class ProfileUserHeader extends StatelessWidget {
                   Expanded(
                     child: _PrivilegeMini(
                       title: LKey.honorWall.tr,
-                      onTap: () => Get.to(() => const HonorWallScreen()),
+                      onTap: () => Get.to(() => const LeaderboardScreen()),
                     ),
                   ),
                 ],
@@ -498,6 +500,9 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLive = user.isLive == 1;
+    final isClient = AppRole.isClient(user);
+    final useLevelRing = isClient && !isLive && !hasStories;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(50),
@@ -512,16 +517,29 @@ class _Avatar extends StatelessWidget {
                   ? const LinearGradient(
                       colors: [Color(0xFFFF003F), Color(0xFFFF6B8A)],
                     )
-                  : (hasStories ? StyleRes.themeGradient : null),
-              border: (!isLive && !hasStories)
+                  : useLevelRing
+                      ? LevelAvatarStyle.forUser(user)
+                      : (hasStories ? StyleRes.themeGradient : null),
+              border: (!isLive && !hasStories && !useLevelRing)
                   ? Border.all(color: bgGrey(context), width: 1.5)
+                  : null,
+              boxShadow: useLevelRing
+                  ? [
+                      BoxShadow(
+                        color: LevelAvatarStyle.forUser(user)
+                            .colors
+                            .last
+                            .withValues(alpha: 0.35),
+                        blurRadius: 10,
+                      ),
+                    ]
                   : null,
             ),
             child: CustomImage(
               size: const Size(82, 82),
               image: user.profilePhoto?.addBaseURL(),
               fullName: user.fullname,
-              strokeWidth: (isLive || hasStories) ? 2 : 0,
+              strokeWidth: (isLive || hasStories || useLevelRing) ? 2 : 0,
               strokeColor: scaffoldBackgroundColor(context),
             ),
           ),
