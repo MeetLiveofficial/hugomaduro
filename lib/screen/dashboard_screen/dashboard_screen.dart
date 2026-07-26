@@ -39,7 +39,7 @@ class DashboardScreen extends StatelessWidget {
           (controller.homeTabMode.value == HomeTabMode.reels ||
               controller.homeTabMode.value == HomeTabMode.live);
       return Scaffold(
-        backgroundColor: ColorRes.bgVoid,
+        backgroundColor: ColorRes.bgLightGrey,
         // En Go Live el teclado no debe empujar el layout (rompe el diseño).
         resizeToAvoidBottomInset: !onLiveTab,
         body: Column(
@@ -83,7 +83,12 @@ class DashboardScreen extends StatelessWidget {
           postUpload.uploadType == UploadType.none ? false : true;
       return AnimatedContainer(
         duration: const Duration(milliseconds: 100),
-        color: ColorRes.bgVoid,
+        decoration: const BoxDecoration(
+          color: ColorRes.whitePure,
+          border: Border(
+            top: BorderSide(color: ColorRes.bgGrey, width: 1),
+          ),
+        ),
         padding: const EdgeInsets.only(top: 5),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -207,7 +212,7 @@ class DashboardScreen extends StatelessWidget {
                       colors: [ColorRes.whitePure, ColorRes.whitePure],
                     )
                   : const LinearGradient(
-                      colors: [ColorRes.accentPeach, ColorRes.accentPeach],
+                      colors: [ColorRes.softSalmon, ColorRes.softSalmon],
                     ),
               child: Image.asset(
                 AssetRes.icReel,
@@ -230,12 +235,12 @@ class DashboardScreen extends StatelessWidget {
         strokeWidth: 0,
         radius: 30,
         gradient: null,
-        child: const Padding(
+          child: const Padding(
           padding: EdgeInsets.all(3),
           child: Icon(
             Icons.work_outline_rounded,
             size: 34,
-            color: ColorRes.accentPeach,
+            color: ColorRes.coralRed,
           ),
         ),
       ),
@@ -268,7 +273,7 @@ class DashboardScreen extends StatelessWidget {
                       size: 36,
                       color: isSelected
                           ? ColorRes.whitePure
-                          : ColorRes.accentPeach.withValues(alpha: 0.65),
+                          : ColorRes.softSalmon.withValues(alpha: 0.85),
                     )
                   else
                     GradientIcon(
@@ -281,8 +286,8 @@ class DashboardScreen extends StatelessWidget {
                             )
                           : LinearGradient(
                               colors: [
-                                ColorRes.accentPeach.withValues(alpha: 0.65),
-                                ColorRes.accentPeach.withValues(alpha: 0.65),
+                                ColorRes.softSalmon.withValues(alpha: 0.85),
+                                ColorRes.softSalmon.withValues(alpha: 0.85),
                               ],
                             ),
                       child: Image.asset(controller.bottomIconList[index],

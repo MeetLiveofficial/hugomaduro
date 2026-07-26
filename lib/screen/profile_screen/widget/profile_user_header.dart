@@ -246,7 +246,7 @@ class ProfileUserHeader extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (isMe)
+                  if (isMe && AppRole.canAccessTasks())
                     InkWell(
                       onTap: () async {
                         await Get.to(() => const TasksScreen());

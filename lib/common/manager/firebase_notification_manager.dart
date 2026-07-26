@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart' show SessionManager;
 import 'package:krimson/common/service/api/call_service.dart';
@@ -268,6 +269,7 @@ class FirebaseNotificationManager {
     }
 
     if (dataType == 'task') {
+      if (!AppRole.canAccessTasks()) return;
       Future.delayed(const Duration(milliseconds: 300), () {
         Get.to(() => const TasksScreen());
       });

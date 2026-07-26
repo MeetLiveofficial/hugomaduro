@@ -25,16 +25,17 @@ class ColorRes {
   static const Color brandDeep = darkPurple;
   static const Color brandSoft = accentPeach;
 
-  /// Fondos dark con tinte dusk (NO navy azul).
-  static const Color bgVoid = Color(0xFF0C0A0E);
-  static const Color bgElevated = Color(0xFF161218);
-  static const Color bgCard = Color(0xFF1E1822);
-  static const Color bgSoft = Color(0xFF28202E);
+  /// Fondos dusk (sin negro puro).
+  static const Color bgVoid = Color(0xFF2A1F32);
+  static const Color bgElevated = Color(0xFF342838);
+  static const Color bgCard = Color(0xFF3E3246);
+  static const Color bgSoft = Color(0xFF4A3C52);
 
-  static const Color menuSurface = Color(0xFF221828);
-  static const Color menuSurfaceElevated = Color(0xFF322438);
-  static const Color menuBorder = Color(0x66BA55D3);
-  static const Color menuSelected = Color(0xFF3E2A48);
+  /// Menús / selects: superficie clara (texto oscuro).
+  static const Color menuSurface = Color(0xFFFFFFFF);
+  static const Color menuSurfaceElevated = Color(0xFFFFFFFF);
+  static const Color menuBorder = Color(0x33BA55D3);
+  static const Color menuSelected = Color(0xFFFFF0EA);
 
   static const Color streamerSalmon = softSalmon;
   static const Color streamerCoral = coralRed;

@@ -63,9 +63,7 @@ class LoginScreen extends StatelessWidget {
                                         style:
                                             TextStyleCustom.unboundedBlack900(
                                                 fontSize: 25,
-                                                color: ColorRes.brandSoft
-                                                    .withValues(alpha: .75),
-                                                opacity: .75))
+                                                color: ColorRes.softSalmon))
                                   ],
                                 )),
                           ),

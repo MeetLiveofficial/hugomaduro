@@ -98,13 +98,14 @@ class SettingsScreen extends StatelessWidget {
                     Get.to(() => const CoinWalletScreen());
                   },
                 ),
-              SettingIconTextWithArrow(
-                icon: AssetRes.icVideoRequest,
-                title: LKey.tasks,
-                onTap: () {
-                  Get.to(() => const TasksScreen());
-                },
-              ),
+              if (AppRole.canAccessTasks())
+                SettingIconTextWithArrow(
+                  icon: AssetRes.icVideoRequest,
+                  title: LKey.tasks,
+                  onTap: () {
+                    Get.to(() => const TasksScreen());
+                  },
+                ),
               SettingIconTextWithArrow(
                 icon: AssetRes.icVideoRequest,
                 title: LKey.privilegeHub,

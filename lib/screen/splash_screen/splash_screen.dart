@@ -22,7 +22,6 @@ class _SplashScreenState extends State<SplashScreen>
   late final Animation<double> _fade;
   late final Animation<double> _scale;
   late final Animation<double> _titleSlide;
-  late final Animation<double> _ring;
 
   @override
   void initState() {
@@ -50,9 +49,6 @@ class _SplashScreenState extends State<SplashScreen>
         parent: _enter,
         curve: const Interval(0.35, 1.0, curve: Curves.easeOutCubic),
       ),
-    );
-    _ring = Tween<double>(begin: 0.88, end: 1.08).animate(
-      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
     );
 
     _enter.forward();
@@ -102,72 +98,11 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   ScaleTransition(
                     scale: _scale,
-                    child: AnimatedBuilder(
-                      animation: _ring,
-                      builder: (context, child) {
-                        return Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Transform.scale(
-                              scale: _ring.value,
-                              child: Container(
-                                width: 168,
-                                height: 168,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: ColorRes.brandMagenta
-                                        .withValues(alpha: 0.28),
-                                    width: 1.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Transform.scale(
-                              scale: _ring.value * 0.92,
-                              child: Container(
-                                width: 148,
-                                height: 148,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: ColorRes.brandCoral
-                                        .withValues(alpha: 0.18),
-                                    width: 1,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Container(
-                              width: 132,
-                              height: 132,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(36),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: ColorRes.brandMagenta
-                                        .withValues(alpha: 0.45),
-                                    blurRadius: 36,
-                                    spreadRadius: 2,
-                                  ),
-                                  BoxShadow(
-                                    color: ColorRes.brandCoral
-                                        .withValues(alpha: 0.25),
-                                    blurRadius: 20,
-                                  ),
-                                ],
-                              ),
-                              child: child,
-                            ),
-                          ],
-                        );
-                      },
-                      child: Image.asset(
-                        'assets/images/meetlive-logo-icon.png',
-                        width: 128,
-                        height: 128,
-                        fit: BoxFit.contain,
-                      ),
+                    child: Image.asset(
+                      'assets/images/meetlive-logo-icon.png',
+                      width: 128,
+                      height: 128,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(height: 22),

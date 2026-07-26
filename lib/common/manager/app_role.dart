@@ -41,4 +41,7 @@ class AppRole {
 
   /// Streamer puede abrir el feed Home (LIVE | REELS | POSTS).
   static bool canAccessHomeFeed([User? user]) => isStreamer(user);
+
+  /// Solo streamers ven y completan tareas (retiros).
+  static bool canAccessTasks([User? user]) => isStreamer(user);
 }

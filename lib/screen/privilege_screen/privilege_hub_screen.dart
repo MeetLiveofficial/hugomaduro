@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/privilege_service.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
@@ -139,12 +140,15 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                               onTap: () =>
                                   Get.to(() => const DressingCenterScreen()),
                             ),
-                            _HubTile(
-                              icon: AssetRes.icWallet,
-                              title: LKey.tasks.tr,
-                              subtitle: LKey.keepCompletingTasksToWithdraw.tr,
-                              onTap: () => Get.to(() => const TasksScreen()),
-                            ),
+                            if (AppRole.canAccessTasks())
+                              _HubTile(
+                                icon: AssetRes.icWallet,
+                                title: LKey.tasks.tr,
+                                subtitle:
+                                    LKey.keepCompletingTasksToWithdraw.tr,
+                                onTap: () =>
+                                    Get.to(() => const TasksScreen()),
+                              ),
                             _HubTile(
                               icon: AssetRes.icWallet,
                               title: LKey.honorWall.tr,
@@ -191,7 +195,12 @@ class _HubTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Image.asset(icon, width: 28, height: 28),
+            Image.asset(
+              icon,
+              width: 28,
+              height: 28,
+              color: textDarkGrey(context),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

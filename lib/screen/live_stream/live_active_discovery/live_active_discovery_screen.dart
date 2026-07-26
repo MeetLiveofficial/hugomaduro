@@ -52,7 +52,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                   const Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: HomeModeSwitcher(lightOnDark: true),
+                      child: HomeModeSwitcher(),
                     ),
                   ),
                   IconButton(
