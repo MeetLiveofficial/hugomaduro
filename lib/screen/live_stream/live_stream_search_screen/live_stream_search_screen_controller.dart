@@ -133,13 +133,6 @@ class LiveStreamSearchScreenController extends BaseController {
       return;
     }
 
-    if (kIsWeb) {
-      showSnackBar(
-        'Live publishing on Web is limited. Prefer Android/iOS for full camera.',
-        second: 3,
-      );
-    }
-
     invitedIds.clear();
     inviteCandidates.clear();
     final ok = await Get.bottomSheet<bool>(

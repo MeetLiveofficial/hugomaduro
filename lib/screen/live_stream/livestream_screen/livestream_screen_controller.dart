@@ -239,8 +239,7 @@ class LivestreamScreenController extends BaseController {
     return 0;
   }
 
-  bool get shouldPublishAv =>
-      !kIsWeb && (isHost || isBattleOpponentPublisher);
+  bool get shouldPublishAv => isHost || isBattleOpponentPublisher;
 
   Participant? participantForUserId(int userId) {
     if (userId <= 0) return null;
@@ -419,9 +418,6 @@ class LivestreamScreenController extends BaseController {
         if (statusMessage.value.isEmpty) {
           statusMessage.value = 'Sin video. Toca Reintentar.';
         }
-      } else if (kIsWeb && isHost) {
-        statusMessage.value =
-            'Live camera on Web is limited. Chat works; prefer Android/iOS for full camera.';
       } else {
         statusMessage.value = '';
       }

@@ -119,111 +119,137 @@ void openLiveHostOptionsMenu({
           color: whitePure(Get.context!),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: bgGrey(Get.context!),
-                borderRadius: BorderRadius.circular(4),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: (Get.mediaQuery.size.height * 0.72).clamp(320.0, 640.0),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: bgGrey(Get.context!),
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
-            ),
-            if (onPause != null)
-              _HostOptionTile(
-                icon: paused
-                    ? Icons.play_arrow_rounded
-                    : Icons.pause_rounded,
-                title: paused ? 'Reanudar' : 'Pausar',
-                subtitle: paused
-                    ? 'Continuar la transmisión'
-                    : 'Pausar video temporalmente',
-                onTap: () {
-                  Get.back();
-                  onPause();
-                },
+              Flexible(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (onPause != null)
+                        _HostOptionTile(
+                          icon: paused
+                              ? Icons.play_arrow_rounded
+                              : Icons.pause_rounded,
+                          title: paused ? 'Reanudar' : 'Pausar',
+                          subtitle: paused
+                              ? 'Continuar la transmisión'
+                              : 'Pausar video temporalmente',
+                          onTap: () {
+                            Get.back();
+                            onPause();
+                          },
+                        ),
+                      if (onMic != null)
+                        _HostOptionTile(
+                          icon: muted
+                              ? Icons.mic_off_rounded
+                              : Icons.mic_rounded,
+                          title: muted
+                              ? 'Activar micrófono'
+                              : 'Silenciar micrófono',
+                          subtitle: muted
+                              ? 'El mic está muteado'
+                              : 'El mic está abierto',
+                          onTap: () {
+                            Get.back();
+                            onMic();
+                          },
+                        ),
+                      if (onCamera != null)
+                        _HostOptionTile(
+                          icon: (cameraOn ?? true)
+                              ? Icons.videocam_rounded
+                              : Icons.videocam_off_rounded,
+                          title: (cameraOn ?? true)
+                              ? 'Apagar cámara'
+                              : 'Encender cámara',
+                          subtitle: 'Control de video en vivo',
+                          onTap: () {
+                            Get.back();
+                            onCamera();
+                          },
+                        ),
+                      if (onBattle != null)
+                        _HostOptionTile(
+                          icon: Icons.sports_kabaddi_rounded,
+                          title: battleRunning
+                              ? 'Finalizar batalla'
+                              : LKey.startBattle.tr,
+                          subtitle: battleRunning
+                              ? 'Terminar el enfrentamiento 1v1'
+                              : 'Batalla 1v1 con regalos de la audiencia',
+                          onTap: () {
+                            Get.back();
+                            onBattle();
+                          },
+                        ),
+                      if (onQuality != null)
+                        _HostOptionTile(
+                          icon: Icons.high_quality_rounded,
+                          title: 'Calidad de video',
+                          subtitle: qualityLabel != null
+                              ? 'Actual: $qualityLabel'
+                              : 'Baja / Media / Alta',
+                          onTap: () {
+                            Get.back();
+                            onQuality();
+                          },
+                        ),
+                      _HostOptionTile(
+                        icon: Icons.auto_awesome,
+                        title: LKey.beautySettings.tr,
+                        subtitle: LKey.gettingPrettier.tr,
+                        onTap: () {
+                          Get.back();
+                          onBeauty();
+                        },
+                      ),
+                      Obx(() => _HostOptionTile(
+                            icon: networkIconForLabel(networkLabel.value),
+                            title: LKey.networkConnection.tr,
+                            subtitle: networkLabel.value,
+                            onTap: () {
+                              Get.back();
+                              openNetworkInfoSheet(networkLabel.value);
+                            },
+                          )),
+                      _HostOptionTile(
+                        icon: Icons.group_add,
+                        title: LKey.inviteFriends.tr,
+                        subtitle: LKey.inviteToLiveBonus.tr,
+                        onTap: () {
+                          Get.back();
+                          onInvite();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            if (onMic != null)
-              _HostOptionTile(
-                icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                title: muted ? 'Activar micrófono' : 'Silenciar micrófono',
-                subtitle: muted ? 'El mic está muteado' : 'El mic está abierto',
-                onTap: () {
-                  Get.back();
-                  onMic();
-                },
-              ),
-            if (onCamera != null)
-              _HostOptionTile(
-                icon: (cameraOn ?? true)
-                    ? Icons.videocam_rounded
-                    : Icons.videocam_off_rounded,
-                title: (cameraOn ?? true) ? 'Apagar cámara' : 'Encender cámara',
-                subtitle: 'Control de video en vivo',
-                onTap: () {
-                  Get.back();
-                  onCamera();
-                },
-              ),
-            if (onBattle != null)
-              _HostOptionTile(
-                icon: Icons.sports_kabaddi_rounded,
-                title: battleRunning ? 'Finalizar batalla' : LKey.startBattle.tr,
-                subtitle: battleRunning
-                    ? 'Terminar el enfrentamiento 1v1'
-                    : 'Batalla 1v1 con regalos de la audiencia',
-                onTap: () {
-                  Get.back();
-                  onBattle();
-                },
-              ),
-            if (onQuality != null)
-              _HostOptionTile(
-                icon: Icons.high_quality_rounded,
-                title: 'Calidad de video',
-                subtitle: qualityLabel != null
-                    ? 'Actual: $qualityLabel'
-                    : 'Baja / Media / Alta',
-                onTap: () {
-                  Get.back();
-                  onQuality();
-                },
-              ),
-            _HostOptionTile(
-              icon: Icons.auto_awesome,
-              title: LKey.beautySettings.tr,
-              subtitle: LKey.gettingPrettier.tr,
-              onTap: () {
-                Get.back();
-                onBeauty();
-              },
-            ),
-            Obx(() => _HostOptionTile(
-                  icon: networkIconForLabel(networkLabel.value),
-                  title: LKey.networkConnection.tr,
-                  subtitle: networkLabel.value,
-                  onTap: () {
-                    Get.back();
-                    openNetworkInfoSheet(networkLabel.value);
-                  },
-                )),
-            _HostOptionTile(
-              icon: Icons.group_add,
-              title: LKey.inviteFriends.tr,
-              subtitle: LKey.inviteToLiveBonus.tr,
-              onTap: () {
-                Get.back();
-                onInvite();
-              },
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ),
     backgroundColor: Colors.transparent,
+    isScrollControlled: true,
   );
 }
 

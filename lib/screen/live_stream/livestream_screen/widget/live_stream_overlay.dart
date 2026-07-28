@@ -155,7 +155,6 @@ class LiveStreamOverlay extends StatelessWidget {
             _ComposerRow(
               controller: controller,
               showHostControls: showHostControls,
-              onClose: onClose,
             ),
           ],
         ),
@@ -1197,12 +1196,10 @@ class _TitleDescription extends StatelessWidget {
 class _ComposerRow extends StatelessWidget {
   final LivestreamScreenController controller;
   final bool showHostControls;
-  final VoidCallback onClose;
 
   const _ComposerRow({
     required this.controller,
     required this.showHostControls,
-    required this.onClose,
   });
 
   @override
@@ -1368,13 +1365,7 @@ class _ComposerRow extends StatelessWidget {
                   ),
                 );
               }),
-              const SizedBox(width: 6),
-              _LiveIconBtn(
-                icon: Icons.close_rounded,
-                tooltip: LKey.exitLiveStream.tr,
-                danger: true,
-                onTap: onClose,
-              ),
+              // Sin X abajo: el host ya tiene el de la barra superior.
             ],
             if (!controller.isHost) ...[
               const SizedBox(width: 6),
