@@ -12,6 +12,7 @@ class WebService {
   static var moderation = _Moderation();
   static var common = _Common();
   static var chat = _Chat();
+  static var support = _Support();
   static var live = _Live();
   static var livekit = _LiveKit();
   static var call = _Call();
@@ -51,6 +52,14 @@ class _Chat {
   String updateThread = "${apiURL}chat/updateThread";
   String markRead = "${apiURL}chat/markRead";
   String translate = "${apiURL}chat/translate";
+}
+
+class _Support {
+  String summary = "${apiURL}support/summary";
+  String openOrGet = "${apiURL}support/openOrGet";
+  String fetchMessages = "${apiURL}support/fetchMessages";
+  String sendMessage = "${apiURL}support/sendMessage";
+  String markRead = "${apiURL}support/markRead";
 }
 
 class _Live {

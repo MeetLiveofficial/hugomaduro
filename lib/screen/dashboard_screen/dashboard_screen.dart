@@ -159,25 +159,26 @@ class DashboardScreen extends StatelessWidget {
             top: false,
             minimum: const EdgeInsets.only(bottom: 10),
             child: Padding(
-              // Más margen = barra menos ancha (estilo cápsula).
-              padding: const EdgeInsets.fromLTRB(40, 0, 40, 8),
-              child: Container(
-                height: 56,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: _navBarBg,
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: items,
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Center(
+                child: Container(
+                  height: 56,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: _navBarBg,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: items,
+                  ),
                 ),
               ),
             ),
@@ -192,16 +193,18 @@ class DashboardScreen extends StatelessWidget {
     required VoidCallback onTap,
     required Widget child,
   }) {
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 48,
+        height: 56,
         child: Center(
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
-            width: selected ? 48 : 40,
-            height: selected ? 36 : 40,
+            width: selected ? 44 : 36,
+            height: selected ? 34 : 36,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: selected ? _navActivePill : Colors.transparent,

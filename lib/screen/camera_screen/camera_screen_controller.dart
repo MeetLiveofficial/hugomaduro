@@ -1,93 +1,88 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:audio_waveforms/audio_waveforms.dart';
-import 'package:deepar_flutter_plus/deepar_flutter_plus.dart';
+import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:retrytech_plugin/retrytech_plugin.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/functions/media_picker_helper.dart';
 import 'package:krimson/common/manager/logger.dart';
-import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/confirmation_dialog.dart';
 import 'package:krimson/languages/languages_keys.dart';
-import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/screen/camera_edit_screen/camera_edit_screen.dart';
 import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/color_filter_screen/widget/color_filtered.dart';
+import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
+import 'package:krimson/screen/face_filters/services/baked_preview_capture.dart';
+import 'package:krimson/screen/face_filters/services/face_camera_service.dart';
+import 'package:krimson/screen/face_filters/services/face_mesh_engine.dart';
 import 'package:krimson/screen/music_sheet/music_sheet.dart';
 import 'package:krimson/screen/selected_music_sheet/selected_music_sheet.dart';
 import 'package:krimson/screen/selected_music_sheet/selected_music_sheet_controller.dart';
 import 'package:krimson/utilities/app_res.dart';
-import 'package:krimson/utilities/asset_res.dart';
 
 class CameraScreenController extends BaseController
     with GetSingleTickerProviderStateMixin {
-  // Constants
-  static const _progressUpdateInterval = 10; // milliseconds
+  static const _progressUpdateInterval = 10;
+
   RxList<int> secondsList = AppRes.secondList.obs;
 
-  // Dependencies
   final CameraScreenType cameraType;
   final PlayerController audioPlayer = PlayerController();
-  final Rx<DeepArControllerPlus> deepArControllerPlus =
-      DeepArControllerPlus().obs;
   RxBool isSecondListShow = true.obs;
-
-  // State variables
 
   RxInt selectedSecond = AppRes.secondList.first.obs;
   RxBool isTorchOn = false.obs;
   RxBool isRecording = false.obs;
   RxBool isStartingRecording = false.obs;
-  RxBool isEffectShow = false.obs;
+  RxBool isEffectShow = true.obs;
   Rx<SelectedMusic?> selectedMusic = Rx(null);
   RxDouble progress = 0.0.obs;
-  RxBool isDeepARInitialized = false.obs;
-  RxBool isNativeCameraReady = false.obs;
-  bool _forceNativeCamera = false;
+  RxBool isCameraReady = false.obs;
+  final Rx<FaceFilterId> selectedFilterId = FaceFilterId.none.obs;
 
-  Setting? get appSetting => SessionManager.instance.getSettings();
-  late Rx<DeepARFilters> selectedEffect;
+  final GlobalKey previewBoundaryKey = GlobalKey();
+  final FaceCameraService cameraService = FaceCameraService();
+  final FaceMeshEngine meshEngine = FaceMeshEngine();
 
-  bool get isDeepAr => !_forceNativeCamera && (appSetting?.isDeepAr == 1);
+  bool get isCaptureReady => isCameraReady.value;
+  CameraController? get cameraController => cameraService.controller;
+  double get nativeAspectRatio => cameraService.nativeAspectRatio;
 
-  /// Shutter usable: DeepAR listo o cámara nativa lista.
-  bool get isCaptureReady =>
-      isDeepAr ? isDeepARInitialized.value : isNativeCameraReady.value;
-
-  // Private variables
   Timer? _progressTimer;
-  Completer<void>? _cameraOperationCompleter;
 
   CameraScreenController(this.cameraType, this.selectedMusic);
 
   @override
   void onInit() {
     super.onInit();
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+    ]);
     _initialize();
-    selectedEffect =
-        Rx(DeepARFilters(id: -1, title: 'None', image: AssetRes.icNoFilter));
   }
 
   @override
   void onClose() {
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     _cleanUpResources();
     super.onClose();
   }
 
-  // Initialization methods
   Future<void> _initialize() async {
     if (kIsWeb) return;
-    _initCamera();
-    _initData();
+    await _initCameraPipeline();
+    await _initData();
   }
 
   Future<void> _initData() async {
@@ -99,20 +94,15 @@ class CameraScreenController extends BaseController
 
   Future<void> _initializeAudioIfNeeded() async {
     if (selectedMusic.value == null) return;
-
     try {
       await audioPlayer.preparePlayer(
           path: selectedMusic.value?.downloadedURL ?? '');
       final audioTotalDurationInMs = await audioPlayer.getDuration();
-      Loggers.info('Audio Total Duration $audioTotalDurationInMs');
-      List<int> newSecondList = [];
-      int audioSecond = (audioTotalDurationInMs / 1000).toInt();
-      for (var element in secondsList) {
-        if (element <= audioSecond) {
-          newSecondList.add(element);
-        }
+      final newSecondList = <int>[];
+      final audioSecond = (audioTotalDurationInMs / 1000).toInt();
+      for (final element in secondsList) {
+        if (element <= audioSecond) newSecondList.add(element);
       }
-
       if (newSecondList.isNotEmpty) {
         secondsList.value = newSecondList;
         selectedSecond.value = secondsList.first;
@@ -122,83 +112,72 @@ class CameraScreenController extends BaseController
         selectedSecond.value = audioSecond;
         isSecondListShow.value = false;
       }
-      Loggers.info('Recording Second ${selectedSecond.value}');
-      int startAudioMs = selectedMusic.value?.audioStartMS ?? 0;
+      final startAudioMs = selectedMusic.value?.audioStartMS ?? 0;
       if (isStartingRecording.value) {
         await audioPlayer
             .seekTo(startAudioMs + (progress.value * 1000).toInt());
       } else {
         await audioPlayer.seekTo(startAudioMs);
       }
-      Loggers.success('Audio Duration: $startAudioMs');
     } catch (e) {
       Loggers.error('Audio initialization error: $e');
     }
   }
 
-  Future<void> _initCamera() async {
-    Loggers.info('Initialize camera');
-    isNativeCameraReady.value = false;
-    if (isDeepAr) {
-      deepArControllerPlus.value.fireTrigger(trigger: 's');
-      await _initDeepArCamera();
-    } else {
-      await _initNativeCamera();
+  Future<void> _initCameraPipeline() async {
+    isCameraReady.value = false;
+    final granted = await cameraService.requestPermissions();
+    if (!granted) {
+      showPermissionDeniedSheet();
+      return;
     }
-  }
-
-  Future<void> _initNativeCamera() async {
     try {
-      RetrytechPlugin.shared.initCamera();
-      // CameraX suele estar listo en ~300–500ms; marcamos ready con margen.
-      await Future.delayed(const Duration(milliseconds: 450));
-      isNativeCameraReady.value = true;
-      _forceNativeCamera = true;
-      isDeepARInitialized.value = false;
-    } catch (e) {
-      Loggers.error('Native camera init error: $e');
-      isNativeCameraReady.value = false;
+      await meshEngine.initialize();
+      cameraService.onFrame = ({
+        nv21,
+        bgra,
+        required rotationDegrees,
+        required mirrorHorizontal,
+      }) {
+        if (nv21 != null) {
+          meshEngine.pushNv21(
+            nv21,
+            rotationDegrees: rotationDegrees,
+            mirrorHorizontal: mirrorHorizontal,
+          );
+        } else if (bgra != null) {
+          meshEngine.pushBgra(
+            bgra,
+            rotationDegrees: rotationDegrees,
+            mirrorHorizontal: mirrorHorizontal,
+          );
+        }
+      };
+      final ok = await cameraService.initialize(
+        preferred: CameraLensDirection.front,
+      );
+      isCameraReady.value = ok;
+      if (!ok) showSnackBar('No se pudo iniciar la cámara');
+    } catch (e, st) {
+      Loggers.error('Camera pipeline error: $e\n$st');
+      isCameraReady.value = false;
+      showSnackBar('Error al iniciar filtros faciales: $e');
     }
   }
 
-  Future<void> _initDeepArCamera() async {
-    try {
-      await deepArControllerPlus.value.initialize(
-          androidLicenseKey: appSetting?.deeparAndroidKey,
-          iosLicenseKey: appSetting?.deeparIOSKey,
-          resolution: Resolution.high);
-      deepArControllerPlus.value.switchEffect('');
-      isDeepARInitialized.value = true;
-      isNativeCameraReady.value = false;
-    } catch (e) {
-      Loggers.error('Error initializing AR: $e — fallback a cámara nativa');
-      _forceNativeCamera = true;
-      isDeepARInitialized.value = false;
-      await _initNativeCamera();
-    }
-  }
-
-  // Cleanup methods
   void _cleanUpResources() {
     _progressTimer?.cancel();
-    _cameraOperationCompleter?.complete();
     disposeCamera();
-
     audioPlayer.release();
     audioPlayer.dispose();
   }
 
-  void disposeCamera() {
-    Loggers.info('Dispose camera');
-    if (isDeepAr) {
-      isDeepARInitialized.value = false;
-      deepArControllerPlus.value.destroy();
-    } else {
-      RetrytechPlugin.shared.disposeCamera;
-    }
+  Future<void> disposeCamera() async {
+    isCameraReady.value = false;
+    await cameraService.dispose();
+    await meshEngine.dispose();
   }
 
-  // Permission handling
   void showPermissionDeniedSheet() {
     Get.bottomSheet(
       ConfirmationSheet(
@@ -215,7 +194,6 @@ class CameraScreenController extends BaseController
     );
   }
 
-  // Media handling methods
   Future<void> onMediaTap() async {
     try {
       switch (cameraType) {
@@ -224,7 +202,6 @@ class CameraScreenController extends BaseController
               .pickVideo(source: ImageSource.gallery);
           if (mediaFile != null) await _handleReel(mediaFile);
           break;
-
         case CameraScreenType.story:
           final mediaFile = await MediaPickerHelper.shared.pickMedia();
           if (mediaFile != null) {
@@ -240,10 +217,9 @@ class CameraScreenController extends BaseController
   }
 
   Future<void> handleImageStory(MediaFile file) async {
-    String imagePath = file.file.path;
+    final imagePath = file.file.path;
     try {
       final bgColor = await imagePath.getGradientFromImage;
-
       await _navigateToEditScreen(
           PostStoryContentType.storyImage, imagePath, imagePath, bgColor);
     } catch (e) {
@@ -252,8 +228,8 @@ class CameraScreenController extends BaseController
   }
 
   Future<void> handleVideoStory(MediaFile file) async {
-    String thumbnailPath = file.thumbNail.path;
-    String videoPath = file.file.path;
+    final thumbnailPath = file.thumbNail.path;
+    final videoPath = file.file.path;
     final bgColor = await thumbnailPath.getGradientFromImage;
     await _navigateToEditScreen(
         PostStoryContentType.storyVideo, videoPath, thumbnailPath, bgColor);
@@ -273,60 +249,41 @@ class CameraScreenController extends BaseController
       bgGradient: bgColor,
       sound: selectedMusic.value,
     );
-
     navigateCameraEditScreen(content);
   }
 
-  // Camera control methods
-  void onToggleFlash() {
-    if (isDeepAr) {
-      deepArControllerPlus.value.toggleFlash();
-    } else {
-      RetrytechPlugin.shared.flashOnOff;
-      isTorchOn.toggle();
-    }
+  Future<void> onToggleFlash() async {
+    isTorchOn.toggle();
+    await cameraService.setFlash(isTorchOn.value);
   }
 
   Future<void> onToggleCamera() async {
-    if (isDeepAr) {
-      deepArControllerPlus.value.flipCamera();
-    } else {
-      if (isTorchOn.value) {
-        isTorchOn.value = false;
-        RetrytechPlugin.shared.flashOnOff;
-      }
-      RetrytechPlugin.shared.toggleCamera;
+    if (isTorchOn.value) {
+      isTorchOn.value = false;
+      await cameraService.setFlash(false);
     }
+    isCameraReady.value = false;
+    await cameraService.switchCamera();
+    isCameraReady.value = cameraService.isReady;
   }
 
-  // Video recording methods
   Future<void> onVideoRecordingStart() async {
-    if (isDeepAr) {
-      if (isDeepARInitialized.value == false) {
-        return;
-      }
-    }
-    if (isRecording.value) return;
-
+    if (!isCaptureReady || isRecording.value) return;
     try {
-      if (isDeepAr) {
-        await deepArControllerPlus.value.startVideoRecording();
-      } else {
-        RetrytechPlugin.shared.startRecording;
-      }
+      await cameraService.startVideoRecording();
       _startAudioPlayback();
       isRecording.value = true;
       isStartingRecording.value = true;
       _startProgressTimer();
     } catch (e) {
-      Loggers.error("Video recording start error: $e");
+      Loggers.error('Video recording start error: $e');
+      showSnackBar('No se pudo iniciar la grabación');
     }
   }
 
   Future<void> onVideoRecordingPause() async {
     if (!isRecording.value) return;
-
-    RetrytechPlugin.shared.pauseRecording;
+    await cameraService.pauseVideoRecording();
     _pauseAudioPlayback();
     isRecording.value = false;
     _progressTimer?.cancel();
@@ -334,50 +291,32 @@ class CameraScreenController extends BaseController
 
   Future<void> onVideoRecordingResume() async {
     if (isRecording.value) return;
-
-    RetrytechPlugin.shared.resumeRecording;
+    await cameraService.resumeVideoRecording();
     _resumeAudioPlayback();
     isRecording.value = true;
     _startProgressTimer();
   }
 
   Future<void> onVideoRecordingStop() async {
-    if (isDeepAr) {
-      if (isDeepARInitialized.value == false) {
-        return;
-      }
-    }
-
     if (!isStartingRecording.value) return;
-
     try {
-      XFile file;
-
       _stopAudioPlayback();
       _progressTimer?.cancel();
       isRecording.value = false;
       isStartingRecording.value = false;
       progress.value = 0;
-
       showLoader();
-      if (isDeepAr) {
-        final File _file =
-            await deepArControllerPlus.value.stopVideoRecording();
-        file = XFile(_file.path);
-      } else {
-        final String? videoPath = await RetrytechPlugin.shared.stopRecording;
-        if (videoPath == null) {
-          return showSnackBar('Capture File not found');
-        }
-        file = XFile(videoPath);
+      final file = await cameraService.stopVideoRecording();
+      if (file == null) {
+        stopLoader();
+        showSnackBar('Capture File not found');
+        return;
       }
-      final XFile thumbnailPath =
+      final thumbnailPath =
           await MediaPickerHelper.shared.extractThumbnail(videoPath: file.path);
-      MediaFile mediaFile = MediaFile(
+      final mediaFile = MediaFile(
           file: file, type: MediaType.video, thumbNail: thumbnailPath);
-
       stopLoader();
-
       switch (cameraType) {
         case CameraScreenType.post:
           await _handleReel(mediaFile, isCameraFile: true);
@@ -386,24 +325,21 @@ class CameraScreenController extends BaseController
           await handleVideoStory(mediaFile);
           break;
       }
-
       selectedMusic.value = null;
     } catch (e) {
-      Loggers.error("Video recording stop error: $e");
+      stopLoader();
+      Loggers.error('Video recording stop error: $e');
     }
   }
 
   void _startProgressTimer() {
     _progressTimer?.cancel();
-
     final totalSteps = selectedSecond.value * (1000 ~/ _progressUpdateInterval);
     final increment = selectedSecond.value / totalSteps;
-
     _progressTimer = Timer.periodic(
       const Duration(milliseconds: _progressUpdateInterval),
       (timer) {
         if (progress.value < selectedSecond.value) {
-          Loggers.info('Video Recording Second ${progress.value}');
           progress.value = (progress.value + increment)
               .clamp(0.0, selectedSecond.value.toDouble());
         } else {
@@ -414,7 +350,6 @@ class CameraScreenController extends BaseController
     );
   }
 
-  // Audio control methods
   void _startAudioPlayback() {
     if (selectedMusic.value == null) return;
     audioPlayer.seekTo(selectedMusic.value?.audioStartMS ?? 0);
@@ -422,41 +357,30 @@ class CameraScreenController extends BaseController
   }
 
   void _pauseAudioPlayback() => audioPlayer.pausePlayer();
-
   void _resumeAudioPlayback() => audioPlayer.startPlayer();
-
   void _stopAudioPlayback() => audioPlayer.stopPlayer();
 
-  // UI interaction methods
   void onPlayPauseToggle({int? type}) {
     if (cameraType == CameraScreenType.post) {
       _toggleReelRecording();
-    } else {
-      if (type != null) {
-        if (type == 1) {
-          onVideoRecordingStart();
-        } else {
-          onVideoRecordingStop();
-        }
+    } else if (type != null) {
+      if (type == 1) {
+        onVideoRecordingStart();
       } else {
-        capturePhoto();
+        onVideoRecordingStop();
       }
+    } else {
+      capturePhoto();
     }
   }
 
   void _toggleReelRecording() {
     if (!isStartingRecording.value) {
       onVideoRecordingStart();
+    } else if (isRecording.value) {
+      onVideoRecordingPause();
     } else {
-      if (isDeepAr) {
-        onVideoRecordingStop();
-      } else {
-        if (isRecording.value) {
-          onVideoRecordingPause();
-        } else {
-          onVideoRecordingResume();
-        }
-      }
+      onVideoRecordingResume();
     }
   }
 
@@ -466,22 +390,19 @@ class CameraScreenController extends BaseController
       return;
     }
     if (isRecording.value) return;
-
     showLoader();
     try {
       XFile file;
-      if (isDeepAr) {
-        File photo = await deepArControllerPlus.value.takeScreenshot();
-        file = XFile(photo.path);
+      final baked = await captureRepaintBoundaryToFile(previewBoundaryKey);
+      if (baked != null) {
+        file = baked;
       } else {
-        final path = await RetrytechPlugin.shared
-            .captureImage()
-            .timeout(const Duration(seconds: 8));
-        if (path == null || path.isEmpty) {
+        final raw = await cameraService.takePicture();
+        if (raw == null) {
           showSnackBar('No se pudo capturar la foto');
           return;
         }
-        file = XFile(path);
+        file = raw;
       }
       stopLoader();
       await handleImageStory(
@@ -516,7 +437,6 @@ class CameraScreenController extends BaseController
         isScrollControlled: true,
         enableDrag: false,
         isDismissible: false);
-
     if (music != null) {
       selectedMusic.value = music;
       await _initializeAudioIfNeeded();
@@ -542,9 +462,9 @@ class CameraScreenController extends BaseController
     audioPlayer.stopPlayer();
   }
 
-  void onEffectToggle() {
-    isEffectShow.toggle();
-  }
+  void onEffectToggle() => isEffectShow.toggle();
+
+  void onFilterSelected(FaceFilterId id) => selectedFilterId.value = id;
 
   Future<void> onNavigateTextStory() async {
     final content = PostStoryContent(
@@ -558,13 +478,9 @@ class CameraScreenController extends BaseController
   }
 
   Future<void> navigateCameraEditScreen(PostStoryContent content) async {
-    disposeCamera();
-    if (isDeepAr) {
-      await Get.off(() => CameraEditScreen(content: content));
-    } else {
-      await Get.to(() => CameraEditScreen(content: content));
-    }
-    _resetAll();
+    await disposeCamera();
+    await Get.to(() => CameraEditScreen(content: content));
+    await _resetAll();
   }
 
   void onBackFromScreen() {
@@ -577,13 +493,13 @@ class CameraScreenController extends BaseController
             positiveText: LKey.startAgain.tr),
       );
     } else {
-      Get.back();
+      disposeCamera().whenComplete(Get.back);
     }
   }
 
-  void _resetAll() {
-    isEffectShow.value = false;
-    _initCamera();
+  Future<void> _resetAll() async {
+    isEffectShow.value = true;
+    selectedFilterId.value = FaceFilterId.none;
     progress.value = 0.0;
     selectedMusic.value = null;
     secondsList.value = AppRes.secondList;
@@ -592,30 +508,7 @@ class CameraScreenController extends BaseController
     _progressTimer?.cancel();
     audioPlayer.release();
     isStartingRecording.value = false;
-  }
-
-  Future<void> applyARFilterEffect(DeepARFilters effect) async {
-    selectedEffect.value = effect;
-
-    try {
-      if (effect.id != -1) {
-        showLoader();
-
-        // Download the AR effect file
-        final fileInfo = await DefaultCacheManager()
-            .getSingleFile(effect.filterFile?.addBaseURL() ?? '');
-
-        // Stop loading indicator and apply the effect
-        stopLoader();
-        deepArControllerPlus.value.switchEffect(fileInfo.path);
-      } else {
-        // Clear the effect if ID is -1
-        deepArControllerPlus.value.switchEffect('');
-      }
-    } catch (e, stackTrace) {
-      stopLoader();
-      Loggers.error('Failed to apply AR filter: $e\n$stackTrace');
-    }
+    await _initCameraPipeline();
   }
 }
 

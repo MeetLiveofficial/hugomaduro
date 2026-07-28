@@ -1,16 +1,14 @@
-import 'package:deepar_flutter_plus/deepar_flutter_plus.dart';
-import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:retrytech_plugin/retrytech_plugin.dart';
 import 'package:krimson/common/widget/black_gradient_shadow.dart';
 import 'package:krimson/common/widget/custom_back_button.dart';
 import 'package:krimson/common/widget/custom_border_round_icon.dart';
-import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/screen/camera_screen/camera_screen_controller.dart';
 import 'package:krimson/screen/camera_screen/widget/camera_bottom_view.dart';
 import 'package:krimson/screen/camera_screen/widget/camera_top_view.dart';
+import 'package:krimson/screen/face_filters/widgets/face_camera_preview_stack.dart';
+import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
 import 'package:krimson/screen/selected_music_sheet/selected_music_sheet_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -45,11 +43,8 @@ class CameraScreen extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.videocam_off_outlined,
-                        size: 72,
-                        color: textLightGrey(context),
-                      ),
+                      Icon(Icons.videocam_off_outlined,
+                          size: 72, color: textLightGrey(context)),
                       const SizedBox(height: 20),
                       Text(
                         'Camera Unavailable',
@@ -87,16 +82,14 @@ class CameraScreen extends StatelessWidget {
         backgroundColor: blackPure(context),
         resizeToAvoidBottomInset: false,
         body: Stack(
-          alignment: Alignment.center,
+          fit: StackFit.expand,
           children: [
-            _buildCameraPreview(controller),
+            Positioned.fill(child: _buildCameraPreview(controller)),
             const Align(
               alignment: Alignment.bottomCenter,
-              child: BlackGradientShadow(
-                height: 150,
-              ),
+              child: BlackGradientShadow(height: 180),
             ),
-            _buildCameraUI(context, controller),
+            _buildCameraUI(controller),
           ],
         ),
       ),
@@ -104,53 +97,49 @@ class CameraScreen extends StatelessWidget {
   }
 
   Widget _buildCameraPreview(CameraScreenController controller) {
-    return AspectRatio(
-      aspectRatio: 0.52,
-      child: ClipSmoothRect(
-        radius: SmoothBorderRadius(cornerRadius: 20, cornerSmoothing: 1),
-        child: controller.isDeepAr
-            ? Obx(
-                () {
-                  DeepArControllerPlus deepArControllerPlus =
-                      controller.deepArControllerPlus.value;
-                  return controller.isDeepARInitialized.value
-                      ? Transform.scale(
-                          scale: deepArControllerPlus.aspectRatio *
-                              0.62, //change value as needed
-                          child: DeepArPreviewPlus(deepArControllerPlus),
-                        )
-                      : const LoaderWidget();
-                },
-              )
-            : RetrytechPlugin.shared.cameraView,
-      ),
-    );
+    return Obx(() {
+      return FaceCameraPreviewStack(
+        boundaryKey: controller.previewBoundaryKey,
+        controller: controller.cameraController,
+        isReady: controller.isCameraReady.value,
+        nativeAspectRatio: controller.nativeAspectRatio,
+        frameListenable: controller.meshEngine.frameNotifier,
+        effectId: controller.selectedFilterId.value,
+      );
+    });
   }
 
-  Widget _buildCameraUI(
-      BuildContext context, CameraScreenController controller) {
+  Widget _buildCameraUI(CameraScreenController controller) {
     return SafeArea(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           CameraTopView(cameraType: cameraType),
+          const Spacer(),
           if (cameraType == CameraScreenType.story)
-            _buildTextStoryButton(controller),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 17, bottom: 12),
+                child: CustomBorderRoundIcon(
+                  image: AssetRes.icText,
+                  onTap: controller.onNavigateTextStory,
+                ),
+              ),
+            ),
+          Obx(() {
+            if (!controller.isEffectShow.value) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: FaceFilterCarousel(
+                selectedId: controller.selectedFilterId.value,
+                onSelected: controller.onFilterSelected,
+              ),
+            );
+          }),
           CameraBottomView(cameraType: cameraType),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTextStoryButton(CameraScreenController controller) {
-    return Align(
-      alignment: AlignmentDirectional.centerEnd,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 17),
-        child: CustomBorderRoundIcon(
-          image: AssetRes.icText,
-          onTap: controller.onNavigateTextStory,
-        ),
       ),
     );
   }

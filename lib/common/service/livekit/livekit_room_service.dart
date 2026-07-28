@@ -155,8 +155,7 @@ class LiveKitRoomService {
 
   /// Conecta a una sala LiveKit (con timeout y reintentos).
   ///
-  /// En Web solo se permite suscripción (audiencia). Publicar cámara/mic
-  /// sigue siendo nativo.
+  /// En Web usa getUserMedia del navegador (requiere HTTPS o localhost).
   Future<Room> connect({
     required String roomName,
     required String identity,
@@ -167,11 +166,6 @@ class LiveKitRoomService {
     LiveKitQualityProfile? forceProfile,
     int maxAttempts = 3,
   }) async {
-    if (kIsWeb && (publishCamera || publishMicrophone)) {
-      throw UnsupportedError(
-        'Publicar cámara/mic en Web no está soportado. Usa Android/iOS.',
-      );
-    }
     if (_room != null) {
       await disconnect();
     }
@@ -238,43 +232,43 @@ class LiveKitRoomService {
     LocalVideoTrack? warmVideo;
     LocalAudioTrack? warmAudio;
 
-    final tokenFuture = LiveKitTokenService.instance.createToken(
-      roomName: roomName,
-      identity: identity,
-      name: name,
-      // Solo host publica A/V; audiencia solo escucha/ve + data (chat).
-      canPublish: publishCamera || publishMicrophone,
-      canPublishData: true,
-      roomAdmin: publishCamera || publishMicrophone,
-    );
+    // Token first — never block room join on camera warm-up failures.
+    final tokenResult = await LiveKitTokenService.instance
+        .createToken(
+          roomName: roomName,
+          identity: identity,
+          name: name,
+          canPublish: publishCamera || publishMicrophone,
+          canPublishData: true,
+          roomAdmin: publishCamera || publishMicrophone,
+        )
+        .timeout(const Duration(seconds: 12));
 
-    final warmFuture = () async {
-      if (!publishCamera && !publishMicrophone) return;
-      await _ensureMediaPermissions(
-        camera: publishCamera,
-        microphone: publishMicrophone,
-      );
-      if (publishCamera) {
-        warmVideo = await _createCameraTrackSafe(profile);
+    if (publishCamera || publishMicrophone) {
+      try {
+        await _ensureMediaPermissions(
+          camera: publishCamera,
+          microphone: publishMicrophone,
+        );
+        if (publishCamera) {
+          warmVideo = await _createCameraTrackSafe(profile);
+        }
+        if (publishMicrophone) {
+          warmAudio = await _createMicTrackSafe();
+        }
+      } catch (e) {
+        Loggers.error('LiveKit media warm-up skipped: $e');
+        try {
+          await warmVideo?.stop();
+          await warmVideo?.dispose();
+        } catch (_) {}
+        try {
+          await warmAudio?.stop();
+          await warmAudio?.dispose();
+        } catch (_) {}
+        warmVideo = null;
+        warmAudio = null;
       }
-      if (publishMicrophone) {
-        warmAudio = await _createMicTrackSafe();
-      }
-    }();
-
-    late final LiveKitTokenResult tokenResult;
-    try {
-      final results = await Future.wait([
-        tokenFuture.timeout(const Duration(seconds: 12)),
-        warmFuture.timeout(const Duration(seconds: 15)),
-      ]);
-      tokenResult = results[0] as LiveKitTokenResult;
-    } catch (e) {
-      await warmVideo?.stop();
-      await warmVideo?.dispose();
-      await warmAudio?.stop();
-      await warmAudio?.dispose();
-      rethrow;
     }
 
     final capture = _captureParams(profile);
@@ -310,13 +304,25 @@ class LiveKitRoomService {
       'url=$url profile=$profile',
     );
 
-    await room
-        .connect(
-          url,
-          tokenResult.token,
-          connectOptions: const ConnectOptions(autoSubscribe: true),
-        )
-        .timeout(const Duration(seconds: 18));
+    try {
+      await room
+          .connect(
+            url,
+            tokenResult.token,
+            connectOptions: const ConnectOptions(autoSubscribe: true),
+          )
+          .timeout(const Duration(seconds: 18));
+    } catch (e) {
+      await warmVideo?.stop();
+      await warmVideo?.dispose();
+      await warmAudio?.stop();
+      await warmAudio?.dispose();
+      try {
+        await room.disconnect();
+        await room.dispose();
+      } catch (_) {}
+      rethrow;
+    }
 
     _room = room;
     _listener = listener;
