@@ -1,0 +1,121 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/message_screen/message_screen_controller.dart';
+import 'package:krimson/screen/support_chat/support_chat_screen.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
+
+/// Fila fija al inicio de Chats: abre el chat de tickets de soporte.
+class SupportChatCard extends StatelessWidget {
+  const SupportChatCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.find<MessageScreenController>();
+
+    return InkWell(
+      onTap: () async {
+        await Get.to(() => const SupportChatScreen());
+        controller.refreshSupportSummary();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: StyleRes.themeGradient,
+              ),
+              child: const Icon(
+                Icons.support_agent_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Obx(() {
+                final summary = controller.supportSummary.value;
+                final last = (summary?.lastMsg ?? '').trim().isEmpty
+                    ? LKey.supportChatSubtitle.tr
+                    : summary!.lastMsg;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            LKey.supportChat.tr,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyleCustom.outFitMedium500(
+                              fontSize: 15,
+                              color: textDarkGrey(context),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: ColorRes.coralRed.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            LKey.supportBadge.tr,
+                            style: TextStyleCustom.outFitMedium500(
+                              fontSize: 10,
+                              color: ColorRes.coralRed,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      last,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyleCustom.outFitRegular400(
+                        fontSize: 13,
+                        color: textLightGrey(context),
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ),
+            Obx(() {
+              final unread = controller.supportSummary.value?.userUnread ?? 0;
+              if (unread <= 0) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.only(left: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: const BoxDecoration(
+                  color: ColorRes.likeRed,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  unread > 99 ? '99+' : '$unread',
+                  style: TextStyleCustom.outFitMedium500(
+                    fontSize: 11,
+                    color: whitePure(context),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
