@@ -83,7 +83,7 @@ class ColorRes {
   static const Color orange = softSalmon;
   static const Color green = Color(0xFF34D399);
   static const Color green1 = Color(0xFF34D948);
-  static const Color likeRed = coralRed;
+  static const Color likeRed = Color(0xFFE11D48);
   static const Color textStoryBgGradient2 = accentRose;
   static const Color blueFollow = mauve;
   static const Color battleProgressColor = mauve;

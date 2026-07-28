@@ -4,8 +4,6 @@ import 'package:proste_indexed_stack/proste_indexed_stack.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/banner_ads_custom.dart';
-import 'package:krimson/common/widget/gradient_border.dart';
-import 'package:krimson/common/widget/gradient_icon.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
@@ -16,7 +14,6 @@ import 'package:krimson/screen/message_screen/message_screen.dart';
 import 'package:krimson/screen/profile_screen/client_profile_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen.dart';
 import 'package:krimson/screen/work_screen/work_screen.dart';
-import 'package:krimson/utilities/app_platform.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
@@ -40,6 +37,7 @@ class DashboardScreen extends StatelessWidget {
               controller.homeTabMode.value == HomeTabMode.live);
       return Scaffold(
         backgroundColor: ColorRes.bgLightGrey,
+        extendBody: true,
         // En Go Live el teclado no debe empujar el layout (rompe el diseño).
         resizeToAvoidBottomInset: !onLiveTab,
         body: Column(
@@ -75,244 +73,232 @@ class DashboardScreen extends StatelessWidget {
     });
   }
 
+  static const Color _navBarBg = Color(0xFF1C1C1E);
+  static const Color _navActivePill = ColorRes.themeAccentSolid;
+
   Widget _buildBottomNavigationBar(
       BuildContext context, DashboardScreenController controller) {
     return Obx(() {
       PostUploadingProgress postUpload = controller.postProgress.value;
       bool isPostUploading =
           postUpload.uploadType == UploadType.none ? false : true;
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        decoration: const BoxDecoration(
-          color: ColorRes.whitePure,
-          border: Border(
-            top: BorderSide(color: ColorRes.bgGrey, width: 1),
-          ),
-        ),
-        padding: const EdgeInsets.only(top: 5),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Streamer: Home (LIVE|REELS|POST) + Trabajo (con tareas).
-                if (AppRole.isStreamer(
-                    SessionManager.instance.getUser() ?? controller.user)) ...[
-                  if (AppRole.canAccessHomeFeed(
-                      SessionManager.instance.getUser() ?? controller.user))
-                    _buildHomeFeedNavItem(context, controller, isPostUploading),
-                  _buildWorkNavItem(context, isPostUploading),
-                ],
-                ...() {
-                  final roleUser =
-                      SessionManager.instance.getUser() ?? controller.user;
-                  final indices = <int>[];
-                  for (var i = 0; i < controller.bottomIconList.length; i++) {
-                    if (AppRole.isClient(roleUser) &&
-                        i == DashboardScreenController.tabLive) {
-                      continue;
-                    }
-                    if (AppRole.isStreamer(roleUser) &&
-                        (i == DashboardScreenController.tabHome ||
-                            i == DashboardScreenController.tabExplore)) {
-                      continue;
-                    }
-                    indices.add(i);
-                  }
-                  return [
-                    for (final index in indices)
-                      _buildBottomNavItem(
-                          context, controller, index, isPostUploading),
-                  ];
-                }(),
-              ],
-            ),
-            SafeArea(
-              top: false,
-              bottom: isPostUploading ? true : false,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 100),
-                height: isPostUploading ? 30 : 0,
-                margin: AppPlatform.isAndroid || !isPostUploading
-                    ? EdgeInsets.zero
-                    : const EdgeInsets.only(bottom: 20, top: 5),
-                color: Colors.white,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                        height: 30,
-                        decoration:
-                            BoxDecoration(gradient: StyleRes.themeGradient)),
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: LayoutBuilder(builder: (context, constraints) {
-                        double progress =
-                            (constraints.maxWidth * postUpload.progress) / 100;
-                        return AnimatedContainer(
-                          height: 30,
-                          width: constraints.maxWidth - progress,
-                          duration: const Duration(milliseconds: 250),
-                          decoration:
-                              BoxDecoration(color: textDarkGrey(context)),
-                        );
-                      }),
+      final roleUser = SessionManager.instance.getUser() ?? controller.user;
+
+      final items = <Widget>[];
+      if (AppRole.isStreamer(roleUser)) {
+        if (AppRole.canAccessHomeFeed(roleUser)) {
+          items.add(_buildHomeFeedNavItem(controller));
+        }
+        items.add(_buildWorkNavItem());
+      }
+      for (var i = 0; i < controller.bottomIconList.length; i++) {
+        if (AppRole.isClient(roleUser) &&
+            i == DashboardScreenController.tabLive) {
+          continue;
+        }
+        if (AppRole.isStreamer(roleUser) &&
+            (i == DashboardScreenController.tabHome ||
+                i == DashboardScreenController.tabExplore)) {
+          continue;
+        }
+        items.add(_buildBottomNavItem(controller, i));
+      }
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isPostUploading)
+            Container(
+              height: 28,
+              margin: const EdgeInsets.fromLTRB(36, 0, 36, 8),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    height: 28,
+                    decoration: BoxDecoration(
+                      gradient: StyleRes.themeGradient,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    Align(
-                      alignment: Alignment.center,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          if (postUpload.uploadType != UploadType.error)
-                            Text('${postUpload.progress.toInt()}%',
-                                style: TextStyleCustom.outFitMedium500(
-                                  color: whitePure(context),
-                                  fontSize: 16,
-                                )),
-                          Text(
-                              ' ${postUpload.uploadType.title(postUpload.type)}',
-                              style: TextStyleCustom.outFitLight300(
-                                  color: whitePure(context), fontSize: 14)),
-                        ],
-                      ),
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: LayoutBuilder(builder: (context, constraints) {
+                      double progress =
+                          (constraints.maxWidth * postUpload.progress) / 100;
+                      return AnimatedContainer(
+                        height: 28,
+                        width: constraints.maxWidth - progress,
+                        duration: const Duration(milliseconds: 250),
+                        decoration: BoxDecoration(
+                          color: textDarkGrey(context),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      );
+                    }),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (postUpload.uploadType != UploadType.error)
+                        Text('${postUpload.progress.toInt()}%',
+                            style: TextStyleCustom.outFitMedium500(
+                              color: whitePure(context),
+                              fontSize: 14,
+                            )),
+                      Text(
+                          ' ${postUpload.uploadType.title(postUpload.type)}',
+                          style: TextStyleCustom.outFitLight300(
+                              color: whitePure(context), fontSize: 13)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          SafeArea(
+            top: false,
+            minimum: const EdgeInsets.only(bottom: 10),
+            child: Padding(
+              // Más margen = barra menos ancha (estilo cápsula).
+              padding: const EdgeInsets.fromLTRB(40, 0, 40, 8),
+              child: Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: _navBarBg,
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
-              ),
-            )
-          ],
-        ),
-      );
-    });
-  }
-
-  /// Streamer: acceso a LIVE | REELS | POSTS (tab Home). Reemplaza el acceso directo a Tareas.
-  Widget _buildHomeFeedNavItem(BuildContext context,
-      DashboardScreenController controller, bool isPostUploading) {
-    return Obx(() {
-      final selected =
-          controller.selectedPageIndex.value == DashboardScreenController.tabHome;
-      return SafeArea(
-        bottom: isPostUploading ? false : true,
-        child: GradientBorder(
-          onPressed: () {
-            controller.setHomeTabMode(HomeTabMode.live);
-            controller.onChanged(DashboardScreenController.tabHome);
-          },
-          strokeWidth: selected ? 2 : 0,
-          radius: 30,
-          gradient: selected ? StyleRes.themeGradient : null,
-          child: Padding(
-            padding: const EdgeInsets.all(3),
-            child: GradientIcon(
-              gradient: selected
-                  ? const LinearGradient(
-                      colors: [ColorRes.whitePure, ColorRes.whitePure],
-                    )
-                  : const LinearGradient(
-                      colors: [ColorRes.softSalmon, ColorRes.softSalmon],
-                    ),
-              child: Image.asset(
-                AssetRes.icReel,
-                height: 38,
-                width: 38,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: items,
+                ),
               ),
             ),
           ),
-        ),
+        ],
       );
     });
   }
 
-  /// Trabajo (stats streamer) — incluye tareas dentro de la pantalla.
-  Widget _buildWorkNavItem(BuildContext context, bool isPostUploading) {
-    return SafeArea(
-      bottom: isPostUploading ? false : true,
-      child: GradientBorder(
-        onPressed: () => Get.to(() => const WorkScreen()),
-        strokeWidth: 0,
-        radius: 30,
-        gradient: null,
-          child: const Padding(
-          padding: EdgeInsets.all(3),
-          child: Icon(
-            Icons.work_outline_rounded,
-            size: 34,
-            color: ColorRes.coralRed,
+  Widget _navHitTarget({
+    required bool selected,
+    required VoidCallback onTap,
+    required Widget child,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            width: selected ? 48 : 40,
+            height: selected ? 36 : 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected ? _navActivePill : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              border: selected
+                  ? Border.all(color: Colors.white.withValues(alpha: 0.35))
+                  : null,
+            ),
+            child: child,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBottomNavItem(BuildContext context,
-      DashboardScreenController controller, int index, bool isPostUploading) {
+  Widget _navAssetIcon(String asset, {double size = 26}) {
+    return ColorFiltered(
+      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+      child: Image.asset(asset, height: size, width: size),
+    );
+  }
+
+  /// Streamer: acceso a LIVE | REELS | POSTS (tab Home).
+  Widget _buildHomeFeedNavItem(DashboardScreenController controller) {
+    return Obx(() {
+      final selected =
+          controller.selectedPageIndex.value == DashboardScreenController.tabHome;
+      return _navHitTarget(
+        selected: selected,
+        onTap: () {
+          controller.setHomeTabMode(HomeTabMode.live);
+          controller.onChanged(DashboardScreenController.tabHome);
+        },
+        child: _navAssetIcon(AssetRes.icReel),
+      );
+    });
+  }
+
+  /// Trabajo (stats streamer).
+  Widget _buildWorkNavItem() {
+    return _navHitTarget(
+      selected: false,
+      onTap: () => Get.to(() => const WorkScreen()),
+      child: const Icon(
+        Icons.work_outline_rounded,
+        size: 26,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildBottomNavItem(
+      DashboardScreenController controller, int index) {
     return Obx(() {
       final isSelected = controller.selectedPageIndex.value == index;
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
 
-      return SafeArea(
-        bottom: isPostUploading ? false : true,
-        child: GradientBorder(
-          onPressed: () => controller.onChanged(index),
-          strokeWidth: isSelected ? 2 : 0,
-          radius: 30,
-          gradient: isSelected ? StyleRes.themeGradient : null,
-          child: Padding(
-            padding: const EdgeInsets.all(3),
-            child: AnimatedScale(
-              scale: scaleValue,
-              duration: const Duration(milliseconds: 300),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (index == DashboardScreenController.tabLive)
-                    LiveTvIcon(
-                      size: 36,
-                      color: isSelected
-                          ? ColorRes.whitePure
-                          : ColorRes.softSalmon.withValues(alpha: 0.85),
-                    )
-                  else
-                    GradientIcon(
-                      gradient: isSelected
-                          ? const LinearGradient(
-                              colors: [
-                                ColorRes.whitePure,
-                                ColorRes.whitePure,
-                              ],
-                            )
-                          : LinearGradient(
-                              colors: [
-                                ColorRes.softSalmon.withValues(alpha: 0.85),
-                                ColorRes.softSalmon.withValues(alpha: 0.85),
-                              ],
-                            ),
-                      child: Image.asset(controller.bottomIconList[index],
-                          height: 38, width: 38),
-                    ),
-                  if (index == DashboardScreenController.tabChat)
-                    _buildUnreadCount(controller, context),
-                ],
-              ),
-            ),
+      return _navHitTarget(
+        selected: isSelected,
+        onTap: () => controller.onChanged(index),
+        child: AnimatedScale(
+          scale: scaleValue,
+          duration: const Duration(milliseconds: 250),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              if (index == DashboardScreenController.tabLive)
+                const LiveTvIcon(size: 26, color: Colors.white)
+              else
+                _navAssetIcon(controller.bottomIconList[index]),
+              if (index == DashboardScreenController.tabChat)
+                _buildUnreadDot(controller),
+            ],
           ),
         ),
       );
     });
   }
 
-  Widget _buildUnreadCount(
-      DashboardScreenController controller, BuildContext context) {
+  Widget _buildUnreadDot(DashboardScreenController controller) {
     return Obx(() {
       final count = controller.unReadCount.value;
-      return count > 0
-          ? Text(count > 9 ? '9+' : '$count',
-              style: TextStyleCustom.outFitRegular400(
-                  color: whitePure(context), fontSize: 12))
-          : const SizedBox();
+      if (count <= 0) return const SizedBox.shrink();
+      return Positioned(
+        right: -2,
+        bottom: -2,
+        child: Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(
+            color: ColorRes.likeRed,
+            shape: BoxShape.circle,
+            border: Border.all(color: _navBarBg, width: 1.5),
+          ),
+        ),
+      );
     });
   }
 }

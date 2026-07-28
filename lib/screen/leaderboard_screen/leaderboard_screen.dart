@@ -9,6 +9,7 @@ import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/leaderboard_screen/leaderboard_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Ranking Clientes (givers) | Streamers (receivers) con podio TOP 3.
@@ -39,7 +40,7 @@ class LeaderboardScreen extends StatelessWidget {
               children: [
                 _Header(theme: theme),
                 const SizedBox(height: 10),
-                _TypeTabs(controller: controller, theme: theme),
+                _TypeTabs(controller: controller),
                 const SizedBox(height: 10),
                 Obx(() => Text(
                       '${LKey.endsIn.tr} ${controller.countdown.value}',
@@ -77,13 +78,10 @@ class LeaderboardScreen extends StatelessWidget {
                                   ? controller.users.length - 3
                                   : 0,
                               separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 4),
                               itemBuilder: (context, index) {
                                 final entry = controller.users[index + 3];
-                                return _RankRow(
-                                  entry: entry,
-                                  theme: theme,
-                                );
+                                return _RankRow(entry: entry);
                               },
                             ),
                           ),
@@ -230,50 +228,108 @@ class _Header extends StatelessWidget {
 }
 
 class _TypeTabs extends StatelessWidget {
-  const _TypeTabs({required this.controller, required this.theme});
+  const _TypeTabs({required this.controller});
 
   final LeaderboardController controller;
-  final _LbTheme theme;
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final tab = controller.tab.value;
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: theme.tabInactive.withValues(alpha: 0.55),
-          borderRadius: BorderRadius.circular(28),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _Pill(
-                label: LKey.clientsRanking.tr,
-                selected: tab == LeaderboardTab.clients,
-                active: theme.tabActive,
-                activeGradient: tab == LeaderboardTab.clients
-                    ? theme.tabActiveGradient
-                    : null,
-                onTap: () => controller.setTab(LeaderboardTab.clients),
+      final activeColor = ColorRes.themeAccentSolid;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 48),
+        child: Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A0A0C),
+            borderRadius: BorderRadius.circular(26),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _TypeTabChip(
+                  label: LKey.clientsRanking.tr,
+                  selected: tab == LeaderboardTab.clients,
+                  activeColor: activeColor,
+                  onTap: () => controller.setTab(LeaderboardTab.clients),
+                ),
               ),
-            ),
-            Expanded(
-              child: _Pill(
-                label: LKey.streamersRanking.tr,
-                selected: tab == LeaderboardTab.streamers,
-                active: theme.tabActive,
-                activeGradient: tab == LeaderboardTab.streamers
-                    ? theme.tabActiveGradient
-                    : null,
-                onTap: () => controller.setTab(LeaderboardTab.streamers),
+              Expanded(
+                child: _TypeTabChip(
+                  label: LKey.streamersRanking.tr,
+                  selected: tab == LeaderboardTab.streamers,
+                  activeColor: activeColor,
+                  onTap: () => controller.setTab(LeaderboardTab.streamers),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     });
+  }
+}
+
+class _TypeTabChip extends StatelessWidget {
+  const _TypeTabChip({
+    required this.label,
+    required this.selected,
+    required this.activeColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final Color activeColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: selected ? Colors.white : Colors.transparent,
+            width: selected ? 1.5 : 0,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: 0.55),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: selected
+                  ? TextStyleCustom.outFitBold700(
+                      color: Colors.white,
+                      fontSize: 13,
+                    )
+                  : TextStyleCustom.outFitMedium500(
+                      color: Colors.white54,
+                      fontSize: 13,
+                    ),
+            ),
+            if (selected)
+              const Icon(Icons.arrow_drop_down, color: Colors.white, size: 16),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -311,10 +367,10 @@ class _Pill extends StatelessWidget {
           textAlign: TextAlign.center,
           style: selected
               ? TextStyleCustom.outFitBold700(
-                  color: useGradient ? Colors.white : const Color(0xFF2A160E),
+                  color: Colors.white,
                   fontSize: 13)
               : TextStyleCustom.outFitMedium500(
-                  color: Colors.white70, fontSize: 13),
+                  color: Colors.white60, fontSize: 13),
         ),
       ),
     );
@@ -628,12 +684,15 @@ class _RankFigure extends StatelessWidget {
     required this.place,
     required this.size,
     this.showTopBadge = false,
+    this.showFrame = true,
   });
 
   final LeaderboardEntry entry;
   final int place;
   final double size;
   final bool showTopBadge;
+  /// Marcos ornamentados solo para TOP 1–3.
+  final bool showFrame;
 
   static String frameFor(int place) {
     switch (place) {
@@ -694,6 +753,26 @@ class _RankFigure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Lista (4º+): solo avatar circular, sin marco.
+    if (!showFrame || place > 3) {
+      final avatarSize = size * 0.72;
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Center(
+          child: ClipOval(
+            child: CustomImage(
+              size: Size(avatarSize, avatarSize),
+              image: entry.profilePhoto?.addBaseURL(),
+              fullName: entry.displayName,
+              strokeWidth: 0,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      );
+    }
+
     final ratio = _avatarRatio(place);
     final avatarSize = size * ratio;
     final offset = _avatarOffset(place, size);
@@ -708,7 +787,6 @@ class _RankFigure extends StatelessWidget {
             alignment: Alignment.center,
             clipBehavior: Clip.none,
             children: [
-              // 1) Foto DETRÁS del marco (hueco transparente del PNG)
               Transform.translate(
                 offset: offset,
                 child: Container(
@@ -740,7 +818,6 @@ class _RankFigure extends StatelessWidget {
                   ),
                 ),
               ),
-              // 2) Figura ornamentada encima
               IgnorePointer(
                 child: Image.asset(
                   frameFor(place),
@@ -779,26 +856,16 @@ class _RankFigure extends StatelessWidget {
 }
 
 class _RankRow extends StatelessWidget {
-  const _RankRow({required this.entry, required this.theme});
+  const _RankRow({required this.entry});
 
   final LeaderboardEntry entry;
-  final _LbTheme theme;
 
   @override
   Widget build(BuildContext context) {
     final place = entry.rank ?? 4;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.rowBg,
-            theme.rowBg.withValues(alpha: 0.55),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.accent.withValues(alpha: 0.25)),
-      ),
+    // Del 4º en adelante: sin caja/borde, solo fila sobre el fondo.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       child: Row(
         children: [
           SizedBox(
@@ -813,8 +880,9 @@ class _RankRow extends StatelessWidget {
           ),
           _RankFigure(
             entry: entry,
-            place: place > 3 ? 2 : place,
-            size: 58,
+            place: place,
+            size: 48,
+            showFrame: false,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -895,8 +963,9 @@ class _MyRankBar extends StatelessWidget {
         children: [
           _RankFigure(
             entry: me,
-            place: (me.rank != null && me.rank! <= 3) ? me.rank! : 2,
-            size: 52,
+            place: me.rank ?? 4,
+            size: 48,
+            showFrame: (me.rank ?? 99) <= 3,
           ),
           const SizedBox(width: 10),
           Expanded(

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -41,6 +42,23 @@ import 'package:krimson/utilities/firebase_const.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:video_player/video_player.dart';
+
+/// Resultado visible al terminar una PK.
+class BattleResultBanner {
+  final bool isDraw;
+  final String winnerName;
+  final String loserName;
+  final int winnerCoins;
+  final int loserCoins;
+
+  const BattleResultBanner({
+    required this.isDraw,
+    required this.winnerName,
+    required this.loserName,
+    required this.winnerCoins,
+    required this.loserCoins,
+  });
+}
 
 class LivestreamScreenController extends BaseController {
   /// Instancia activa (para IncomingCall → cerrar LIVE al aceptar).
@@ -113,10 +131,14 @@ class LivestreamScreenController extends BaseController {
   final RxnInt battleSelectedOpponentId = RxnInt();
   /// Equipo al que van los likes durante la batalla (recordado tras elegir).
   final RxnInt battleLikeForUserId = RxnInt();
+  /// Banner ganador/perdedor / empate al cerrar la PK.
+  final Rxn<BattleResultBanner> battleResultBanner = Rxn();
   Timer? _battleTicker;
+  Timer? _battleResultClearTimer;
   bool _endingBattle = false;
   bool _battlePublishEnsured = false;
   bool _rematchPromptOpen = false;
+  bool _battleResultShown = false;
   /// Última sala LiveKit a la que nos conectamos (para detectar cambio post-PK).
   String? _connectedLiveKitRoom;
 
@@ -376,6 +398,9 @@ class LivestreamScreenController extends BaseController {
         await _loadHostFollowStatus();
       } else {
         await _refreshSessionStats(silent: true);
+        // Publicar/actualizar doc en Firestore para que el listado muestre
+        // también la sala del rival en PK (no solo la del invitador).
+        unawaited(_publishLiveDocToFirestore());
       }
       // Web también entra a LiveKit (chat data + video). Host en web puede
       // fallar cámara; el chat API sigue funcionando.
@@ -1271,7 +1296,7 @@ class LivestreamScreenController extends BaseController {
     return msg;
   }
 
-  String? _resolveGiftImage(int? giftId) {
+  String? resolveGiftImage(int? giftId) {
     if (giftId == null) return null;
     final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
     for (final g in gifts) {
@@ -1279,6 +1304,8 @@ class LivestreamScreenController extends BaseController {
     }
     return null;
   }
+
+  String? _resolveGiftImage(int? giftId) => resolveGiftImage(giftId);
 
   void _appendChatMessage(LiveChatMessage raw, {bool animateGift = false}) {
     final msg = _normalizeIncomingChat(raw);
@@ -2036,8 +2063,7 @@ class LivestreamScreenController extends BaseController {
   }
 
   Future<void> confirmEndBattle() async {
-    // Al terminar: primero preguntar rematch; rechazar = salir del PK.
-    await _promptBattleRematch(fromManualStop: true);
+    await _finishBattleWithResult(fromManualStop: true);
   }
 
   Future<void> endBattle() async {
@@ -2054,15 +2080,129 @@ class LivestreamScreenController extends BaseController {
       final session =
           await LiveSessionService.instance.endBattle(roomId: roomId);
       _applyBattleSession(session);
+      // Asegurar estado local aunque el poll tarde.
+      isBattleRunning.value = false;
+      isBattleWaiting.value = false;
+      livestream.type = LivestreamType.livestream;
+      livestream.battleType = BattleType.end;
+      livestream.battleLinkedRoomId = null;
+      livestream.battlePrimaryRoomId = null;
       await _rejoinOwnLiveRoomAfterBattle(muteRivalId: rivalId);
-      showSnackBar('Batalla finalizada');
+      update();
+      showSnackBar('Batalla finalizada · volviste a tu LIVE');
     } catch (e) {
       Loggers.error('endBattle: $e');
+      // Aun si falla API, salir del modo PK en UI.
+      isBattleRunning.value = false;
+      isBattleWaiting.value = false;
+      livestream.battleLinkedRoomId = null;
+      livestream.battlePrimaryRoomId = null;
+      await _rejoinOwnLiveRoomAfterBattle(muteRivalId: rivalId);
+      update();
       showSnackBar(e.toString());
     } finally {
       _endingBattle = false;
       _rematchPromptOpen = false;
     }
+  }
+
+  /// Timer o stop manual: mostrar ganador y luego preguntar rematch.
+  Future<void> _finishBattleWithResult({bool fromManualStop = false}) async {
+    if (!isHost || _endingBattle || _rematchPromptOpen) return;
+    if (!isBattleRunning.value && !fromManualStop) return;
+    await _revealBattleResult();
+    await _promptBattleRematch(fromManualStop: fromManualStop);
+  }
+
+  BattleResultBanner _buildBattleResult() {
+    final redCoins = battleHostCoins.value;
+    final blueCoins = battleOpponentCoins.value;
+    final redName = _battleRedDisplayName();
+    final blueName = _battleBlueDisplayName();
+    if (redCoins == blueCoins) {
+      return BattleResultBanner(
+        isDraw: true,
+        winnerName: redName,
+        loserName: blueName,
+        winnerCoins: redCoins,
+        loserCoins: blueCoins,
+      );
+    }
+    final redWins = redCoins > blueCoins;
+    return BattleResultBanner(
+      isDraw: false,
+      winnerName: redWins ? redName : blueName,
+      loserName: redWins ? blueName : redName,
+      winnerCoins: redWins ? redCoins : blueCoins,
+      loserCoins: redWins ? blueCoins : redCoins,
+    );
+  }
+
+  String _battleRedDisplayName() {
+    if (isBattlePrimaryHost) {
+      return livestream.hostUser?.fullname ??
+          livestream.hostUser?.username ??
+          SessionManager.instance.getUser()?.fullname ??
+          'Team A';
+    }
+    // Sala del rival: el rojo es el invitador.
+    final opp = battleOpponentName.value.trim();
+    if (opp.isNotEmpty) return opp;
+    return 'Invitador';
+  }
+
+  String _battleBlueDisplayName() {
+    if (isBattlePrimaryHost) {
+      final opp = battleOpponentName.value.trim();
+      if (opp.isNotEmpty) return opp;
+      return 'Rival';
+    }
+    // En mi sala linkeada yo soy el azul.
+    return livestream.hostUser?.fullname ??
+        livestream.hostUser?.username ??
+        SessionManager.instance.getUser()?.fullname ??
+        'Team B';
+  }
+
+  Future<void> _revealBattleResult() async {
+    if (_battleResultShown) return;
+    _battleResultShown = true;
+    final result = _buildBattleResult();
+    battleResultBanner.value = result;
+    _battleResultClearTimer?.cancel();
+
+    final text = result.isDraw
+        ? 'PK: Empate (${result.winnerCoins} - ${result.loserCoins})'
+        : 'PK: Gana ${result.winnerName} (${result.winnerCoins}) · '
+            'Pierde ${result.loserName} (${result.loserCoins})';
+    final me = SessionManager.instance.getUser();
+    _appendChatMessage(LiveChatMessage(
+      id: 'pk_result_${DateTime.now().millisecondsSinceEpoch}',
+      userId: me?.id ?? 0,
+      userName: 'Sistema',
+      type: 'text',
+      text: text,
+    ));
+    try {
+      if (me?.id != null) {
+        await LiveSessionService.instance.sendComment(
+          roomId: roomId,
+          clientId: 'pk_result_${me!.id}_${DateTime.now().millisecondsSinceEpoch}',
+          type: 'text',
+          text: text,
+        );
+      }
+    } catch (_) {}
+
+    await Future.delayed(const Duration(seconds: 3));
+  }
+
+  void _scheduleClearBattleResult({int seconds = 5}) {
+    _battleResultClearTimer?.cancel();
+    _battleResultClearTimer = Timer(Duration(seconds: seconds), () {
+      battleResultBanner.value = null;
+      _battleResultShown = false;
+    });
   }
 
   /// Diálogo post-PK: otra batalla o salir del modo PK.
@@ -2093,21 +2233,43 @@ class LivestreamScreenController extends BaseController {
         barrierDismissible: false,
       );
 
+      // El rival rechazó / end remoto cerró el diálogo con false/null.
       if (rematch == true) {
+        if (!isBattleRunning.value) {
+          showSnackBar('El rival ya salió del PK');
+          await _rejoinOwnLiveRoomAfterBattle();
+          _scheduleClearBattleResult();
+          return;
+        }
         try {
           final session = await LiveSessionService.instance.restartBattle(
             roomId: roomId,
             durationMinutes: battleDurationMinutes.value,
           );
+          _battleResultShown = false;
+          battleResultBanner.value = null;
           _applyBattleSession(session);
           showSnackBar('Nueva PK iniciada');
         } catch (e) {
           Loggers.error('restartBattle: $e');
           showSnackBar(e.toString());
-          await endBattle();
+          if (isBattleRunning.value) {
+            await endBattle();
+          } else {
+            await _rejoinOwnLiveRoomAfterBattle();
+          }
+          _scheduleClearBattleResult();
         }
       } else {
-        await endBattle();
+        // "No" o cerrado porque el otro terminó la PK.
+        if (isBattleRunning.value) {
+          await endBattle();
+        } else {
+          // Ya terminó en servidor: asegurar volver a sala propia.
+          await _rejoinOwnLiveRoomAfterBattle();
+          update();
+        }
+        _scheduleClearBattleResult();
       }
     } finally {
       _rematchPromptOpen = false;
@@ -2184,21 +2346,25 @@ class LivestreamScreenController extends BaseController {
     if (!running && !waiting) {
       battleLikeForUserId.value = null;
       _battlePublishEnsured = false;
+    } else if (isHost) {
+      unawaited(_publishLiveDocToFirestore());
     }
 
     final redId = battleRedUserId;
     final blueId = battleBlueUserId;
-    battleOpponentId.value = blueId > 0 ? blueId : null;
+    // Siempre el rival (no uno mismo): primario → azul; linkeado → rojo.
+    final rivalId = isBattlePrimaryHost ? blueId : redId;
+    battleOpponentId.value = rivalId > 0 ? rivalId : null;
 
-    if (blueId > 0) {
+    if (rivalId > 0) {
       final fromParticipants =
-          participants.firstWhereOrNull((p) => p.userId == blueId);
+          participants.firstWhereOrNull((p) => p.userId == rivalId);
       final name = fromParticipants?.user?.fullname ??
           fromParticipants?.user?.username ??
           inviteCandidates
-              .firstWhereOrNull((u) => u.id == blueId)
+              .firstWhereOrNull((u) => u.id == rivalId)
               ?.fullname ??
-          'Rival';
+          (isBattlePrimaryHost ? 'Rival' : 'Invitador');
       battleOpponentName.value = name;
     } else {
       battleOpponentName.value = '';
@@ -2226,16 +2392,39 @@ class LivestreamScreenController extends BaseController {
 
     // Batalla terminó en servidor (otro host rechazó rematch / end): limpiar A/V.
     if (wasRunning && !running && !waiting) {
-      if (Get.isDialogOpen == true && _rematchPromptOpen) {
-        Get.back();
+      livestream.battleLinkedRoomId = null;
+      livestream.battlePrimaryRoomId = null;
+      if (!_battleResultShown) {
+        battleResultBanner.value = _buildBattleResult();
+        _battleResultShown = true;
+        _scheduleClearBattleResult(seconds: 6);
+      }
+      if (_rematchPromptOpen) {
+        try {
+          if (Get.isDialogOpen == true) {
+            Get.back(result: false);
+          }
+        } catch (_) {}
       }
       _rematchPromptOpen = false;
       // Si este host está en endBattle(), él ya hace el rejoin.
       if (!_endingBattle) {
-        unawaited(_rejoinOwnLiveRoomAfterBattle(
-          muteRivalId: prevRivalId > 0 ? prevRivalId : null,
-        ));
+        unawaited(() async {
+          await _rejoinOwnLiveRoomAfterBattle(
+            muteRivalId: prevRivalId > 0 ? prevRivalId : null,
+          );
+          update();
+          if (isHost) {
+            showSnackBar('El rival salió del PK · volviste a tu LIVE');
+          }
+        }());
       }
+    }
+
+    if (running) {
+      _battleResultShown = false;
+      battleResultBanner.value = null;
+      _battleResultClearTimer?.cancel();
     }
 
     // Si me invitaron a batalla y estoy en este LIVE (u otro), mostrar fullscreen.
@@ -2332,7 +2521,7 @@ class LivestreamScreenController extends BaseController {
     final left = ((totalMs - elapsed) / 1000).ceil();
     battleRemainingSeconds.value = left.clamp(0, 99999);
     if (left <= 0 && isHost && !_endingBattle && !_rematchPromptOpen) {
-      Future.microtask(() => _promptBattleRematch());
+      Future.microtask(() => _finishBattleWithResult());
     }
   }
 
@@ -2470,6 +2659,46 @@ class LivestreamScreenController extends BaseController {
       invitedIds.remove(id);
       inviteCandidates.refresh();
       showSnackBar(e.toString());
+    }
+  }
+
+  Future<void> _publishLiveDocToFirestore() async {
+    if (!isHost || isDummy || !useFirebase) return;
+    final id = roomId.trim();
+    if (id.isEmpty) return;
+    try {
+      final ok = await FirebaseAppHelper.ensureInitialized();
+      if (!ok || !FirebaseAppHelper.isReady) return;
+      final payload = livestream.toJson();
+      final host = livestream.hostUser;
+      if (host != null) {
+        payload['host_user'] = {
+          'user_id': host.userId,
+          'username': host.username,
+          'fullname': host.fullname,
+          'profile': host.profile,
+          'is_verify': host.isVerify,
+          'identity': host.identity,
+        };
+      } else {
+        final me = SessionManager.instance.getUser();
+        if (me != null) {
+          payload['host_user'] = {
+            'user_id': me.id,
+            'username': me.username,
+            'fullname': me.fullname,
+            'profile': me.profilePhoto,
+            'is_verify': me.isVerify,
+            'identity': me.identity,
+          };
+        }
+      }
+      await FirebaseFirestore.instance
+          .collection(FirebaseConst.liveStreams)
+          .doc(id)
+          .set(payload, SetOptions(merge: true));
+    } catch (e) {
+      Loggers.error('_publishLiveDocToFirestore: $e');
     }
   }
 
@@ -2616,6 +2845,46 @@ class LivestreamScreenController extends BaseController {
       await _cleanupMedia().timeout(const Duration(seconds: 8));
 
       if (isHost && !isDummy && useFirebase) {
+        try {
+          await FirebaseFirestore.instance
+              .collection(FirebaseConst.liveStreams)
+              .doc(roomId)
+              .delete();
+        } catch (_) {}
+      }
+    } catch (e) {
+      statusMessage.value = e.toString();
+    } finally {
+      isEnding.value = false;
+    }
+  }
+
+  /// Limpieza al aceptar PK: suelta cámara/UI sin tumbar la batalla ni la sala
+  /// Laravel/Firebase que se va a reutilizar como host del rival.
+  Future<void> handoffCleanup({required bool preserveLaravelSession}) async {
+    if (isEnding.value) {
+      await _popLiveUi();
+      return;
+    }
+    isEnding.value = true;
+    _sessionPoll?.cancel();
+    _commentPoll?.cancel();
+    _callPoll?.cancel();
+    _battleTicker?.cancel();
+    isBattleRunning.value = false;
+    isBattleWaiting.value = false;
+    _battlePublishEnsured = false;
+    await _popLiveUi();
+    try {
+      if (!preserveLaravelSession && !isDummy) {
+        try {
+          await LiveSessionService.instance
+              .leave(roomId: roomId)
+              .timeout(const Duration(seconds: 8));
+        } catch (_) {}
+      }
+      await _cleanupMedia().timeout(const Duration(seconds: 8));
+      if (!preserveLaravelSession && isHost && !isDummy && useFirebase) {
         try {
           await FirebaseFirestore.instance
               .collection(FirebaseConst.liveStreams)

@@ -103,6 +103,10 @@ class UserService {
     required String fullName,
     String? deviceToken,
     required LoginMethod loginMethod,
+    String? dob,
+    String? country,
+    String? countryCode,
+    String? appLanguage,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.registerUser,
@@ -113,7 +117,13 @@ class UserService {
           Params.fullname: fullName,
           Params.deviceToken: deviceToken,
           Params.device: AppPlatform.isAndroid ? 0 : 1,
-          Params.loginMethod: loginMethod.title()
+          Params.loginMethod: loginMethod.title(),
+          if (dob != null && dob.isNotEmpty) Params.dob: dob,
+          if (country != null && country.isNotEmpty) Params.country: country,
+          if (countryCode != null && countryCode.isNotEmpty)
+            Params.countryCode: countryCode,
+          if (appLanguage != null && appLanguage.isNotEmpty)
+            Params.appLanguage: appLanguage,
         },
         fromJson: UserModel.fromJson);
 

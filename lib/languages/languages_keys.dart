@@ -45,6 +45,16 @@ class LKey {
   static const String reportPost = "Report @reportType";
   static const String report = "Report";
   static const String country = "Country";
+  static const String dateOfBirth = "Date of birth";
+  static const String selectCountry = "Select country";
+  static const String selectLanguage = "Select language";
+  static const String selectDateOfBirth = "Select date of birth";
+  static const String mustBe18 =
+      "You must be at least 18 years old to register.";
+  static const String countryRequired = "Please select your country";
+  static const String languageRequired = "Please select a language";
+  static const String dobRequired = "Please select your date of birth";
+  static const String searchCountry = "Search country";
   static const String description = "Description";
   static const String submit = "Submit";
   static const String agreeToPolicy =
