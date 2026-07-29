@@ -59,3 +59,5 @@ android/app/src/main/res/values/strings.xml
 .exports/
 *.apk
 release/
+*.hprof
+*.lock

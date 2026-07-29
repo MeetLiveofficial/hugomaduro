@@ -2,7 +2,7 @@ import 'package:get/get.dart';
 import 'package:krimson/languages/languages_keys.dart';
 
 class AppRes {
-  static String appName = 'Krimson';
+  static String appName = 'Meet&Live';
 
   static String gifBrandName = 'GIPHY';
 
@@ -24,6 +24,8 @@ class AppRes {
       10; // Time before the battle officially starts (in seconds)
   static const int battleDurationInMinutes =
       1; // Total duration of the battle (in minutes)
+  /// Puntos de batalla por cada like (los regalos suman sus coins completos).
+  static const int battleLikePoints = 1;
   static const int battleEndMainViewInSecond =
       10; // Duration to show the main view after battle ends (in seconds)
   static const int battleCooldownDurationInSecond =
@@ -94,7 +96,8 @@ class AppRes {
   );
 
   // Send Gift — overlay en pantalla (LIVE / posts / call)
-  static const int giftDialogDismissTime = 20; // segundos
+  /// Legacy: el diálogo ya cierra al terminar su animación (~1.5–2.5s).
+  static const int giftDialogDismissTime = 2; // segundos (fallback)
 
   // Chat
   static const int shareChatLimit = 5;

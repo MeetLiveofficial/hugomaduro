@@ -13,6 +13,8 @@ import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/general/status_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/auth_screen/login_screen.dart';
+import 'package:krimson/screen/auth_screen/auth_screen_controller.dart';
+import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 
 class SettingsScreenController extends BaseController {
   Rx<User?> myUser = Rx<User?>(null);
@@ -76,11 +78,13 @@ class SettingsScreenController extends BaseController {
     Get.bottomSheet(ConfirmationSheet(
         onTap: () async {
           showLoader(barrierDismissible: true);
+          _stopSessionBackgroundWork();
           StatusModel model = await UserService.instance.deleteMyAccount();
           stopLoader();
           if (model.status == true) {
             FirebaseFirestoreController.instance.deleteUser(myUser.value?.id);
             SessionManager.instance.clear();
+            _deleteSessionControllers();
             deleteCurrentUser();
             Get.offAll(() => const LoginScreen(), routeName: '/login');
           } else {
@@ -143,6 +147,9 @@ class SettingsScreenController extends BaseController {
         }
         showLoader(barrierDismissible: true);
         try {
+          // Cortar polls del dashboard ANTES de limpiar token (evita 401 en loop).
+          _stopSessionBackgroundWork();
+
           try {
             await UserService.instance
                 .logoutUser()
@@ -164,6 +171,7 @@ class SettingsScreenController extends BaseController {
           } catch (_) {}
 
           SessionManager.instance.clearSomeKey();
+          _deleteSessionControllers();
         } catch (e) {
           showSnackBar('$e');
         } finally {
@@ -176,6 +184,32 @@ class SettingsScreenController extends BaseController {
       description2: LKey.proceedConfirmation.tr,
       title: LKey.logoutTitle.tr,
     ));
+  }
+
+  void _stopSessionBackgroundWork() {
+    if (Get.isRegistered<DashboardScreenController>()) {
+      try {
+        Get.find<DashboardScreenController>().stopBackgroundWork();
+      } catch (_) {}
+    }
+  }
+
+  void _deleteSessionControllers() {
+    try {
+      if (Get.isRegistered<DashboardScreenController>()) {
+        Get.delete<DashboardScreenController>(force: true);
+      }
+    } catch (_) {}
+    try {
+      if (Get.isRegistered<FirebaseFirestoreController>()) {
+        Get.delete<FirebaseFirestoreController>(force: true);
+      }
+    } catch (_) {}
+    try {
+      if (Get.isRegistered<AuthScreenController>()) {
+        Get.delete<AuthScreenController>(force: true);
+      }
+    } catch (_) {}
   }
 }
 

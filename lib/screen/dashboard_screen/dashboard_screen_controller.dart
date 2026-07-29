@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/controller/ads_controller.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
@@ -26,6 +27,8 @@ import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/feed_screen/feed_screen_controller.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_invite_dialog.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_invite_dialog.dart';
+import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
@@ -70,6 +73,11 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   @override
   void onInit() {
     super.onInit();
+    user = SessionManager.instance.getUser() ?? user;
+    // Streamer no usa el feed Home: arrancar en Perfil (seguro, sin cámara).
+    if (AppRole.isStreamer(user)) {
+      selectedPageIndex.value = tabProfile;
+    }
     SystemChrome.setSystemUIOverlayStyle(
         const SystemUiOverlayStyle(statusBarBrightness: Brightness.light));
     Get.put(GifSheetController());
@@ -119,6 +127,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   Timer? _liveInvitePollTimer;
+  Timer? _heartbeatTimer;
 
   /// Poll de invitaciones LIVE (cubre Web/sin FCM real).
   void _startLiveInvitePoll() {
@@ -129,10 +138,19 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   Future<void> _pollLiveInvites() async {
+    if (!SessionManager.instance.isLogin() ||
+        !SessionManager.instance.hasAuthToken) {
+      return;
+    }
     try {
       final invites = await LiveSessionService.instance.pendingInvites();
       for (final stream in invites) {
-        await LiveInviteDialog.showIfNeeded(stream);
+        if (stream.type == LivestreamType.battle &&
+            stream.battleType == BattleType.waiting) {
+          await LiveBattleInviteDialog.showIfNeeded(stream);
+        } else {
+          await LiveInviteDialog.showIfNeeded(stream);
+        }
       }
     } catch (e) {
       Loggers.error('pending live invites poll: $e');
@@ -140,22 +158,45 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   void startCacheCleanupScheduler() {
+    _heartbeatTimer?.cancel();
+    if (!SessionManager.instance.isLogin()) return;
     UserService.instance.updateLastUsedAt();
     // Heartbeat frecuente para que ACTIVE/INACTIVE no parpadee.
-    Timer.periodic(const Duration(minutes: 2), (_) {
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      if (!SessionManager.instance.isLogin() ||
+          !SessionManager.instance.hasAuthToken) {
+        return;
+      }
       UserService.instance.updateLastUsedAt();
     });
   }
 
+  /// Detiene polls/timers (llamar en logout aunque GetX tarde en onClose).
+  void stopBackgroundWork() {
+    _liveInvitePollTimer?.cancel();
+    _liveInvitePollTimer = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _unReadCountSubscription?.cancel();
+    _unReadCountSubscription = null;
+  }
+
   @override
   void onClose() {
-    _liveInvitePollTimer?.cancel();
+    stopBackgroundWork();
     animationController.dispose();
-    _unReadCountSubscription?.cancel();
     super.onClose();
   }
 
   onChanged(int index) {
+    // Client: no estudio LIVE (el icono tampoco se muestra).
+    if (index == tabLive && AppRole.isClient(user)) {
+      return;
+    }
+    // Streamer: no Search/Explore.
+    if (index == tabExplore && AppRole.isStreamer(user)) {
+      return;
+    }
     final isDarkChrome = index == tabHome &&
         (homeTabMode.value == HomeTabMode.reels ||
             homeTabMode.value == HomeTabMode.live);
@@ -227,12 +268,27 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   Future<void> _fetchLanguageFromUser() async {
-    String savedLanguage = SessionManager.instance.getLang();
-    String userLanguage = user?.appLanguage ?? 'en';
-    if (userLanguage != savedLanguage) {
-      SessionManager.instance.setLang(userLanguage);
+    final savedLanguage = SessionManager.instance.getLang();
+    // Perfil fresco de sesión (tras login ya sincronizado con el idioma elegido).
+    final profileLang =
+        SessionManager.instance.getUser()?.appLanguage ?? user?.appLanguage;
+
+    // Si el perfil no trae idioma, conservar el de sesión (p. ej. elegido pre-login).
+    if (profileLang == null || profileLang.trim().isEmpty) {
+      final resolved = SessionManager.instance.ensureActiveLang(savedLanguage);
+      if (resolved != savedLanguage) {
+        SessionManager.instance.setLang(resolved);
+      }
+      return;
+    }
+
+    // Solo aplica app_language si está entre los idiomas activos del panel.
+    final resolved = SessionManager.instance.ensureActiveLang(profileLang);
+    if (resolved != savedLanguage) {
+      SessionManager.instance.setLang(resolved);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        RestartWidget.restartApp(Get.context!);
+        final ctx = Get.context;
+        if (ctx != null) RestartWidget.restartApp(ctx);
       });
     }
   }

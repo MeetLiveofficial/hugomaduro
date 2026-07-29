@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
+import 'package:krimson/common/widget/podium_icon.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/app_user.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/home_screen/widget/home_mode_switcher.dart';
+import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/live_stream/live_active_discovery/live_active_discovery_controller.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -19,7 +23,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(LiveActiveDiscoveryController());
-    const bg = Color(0xFF0B0F14);
+    const bg = ColorRes.bgVoid;
 
     return Scaffold(
       backgroundColor: bg,
@@ -29,19 +33,28 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
           children: [
             // Header estilo referencia Live
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 6),
               child: Row(
                 children: [
-                  Text(
-                    'Live',
-                    style: TextStyleCustom.unboundedBold700(
-                      color: ColorRes.themeAccentSolid,
-                      fontSize: 24,
+                  // Ranking — podio flat (sin círculo / trofeo)
+                  Tooltip(
+                    message: LKey.leaderboard.tr,
+                    child: InkWell(
+                      onTap: () => Get.to(() => const LeaderboardScreen()),
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        child: PodiumIcon(size: 28),
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  // Acceso rápido a Reels / Posts (sin mezclar en el grid)
-                  const HomeModeSwitcher(lightOnDark: true),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: HomeModeSwitcher(),
+                    ),
+                  ),
                   IconButton(
                     onPressed: controller.toggleSearch,
                     icon: Obx(() => Icon(
@@ -52,17 +65,18 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                           size: 24,
                         )),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      if (Get.isRegistered<DashboardScreenController>()) {
-                        Get.find<DashboardScreenController>()
-                            .onChanged(DashboardScreenController.tabLive);
-                      }
-                    },
-                    icon: const Icon(Icons.add_box_outlined,
-                        color: Colors.white, size: 24),
-                    tooltip: LKey.startLive.tr,
-                  ),
+                  if (AppRole.canStartLive())
+                    IconButton(
+                      onPressed: () {
+                        if (Get.isRegistered<DashboardScreenController>()) {
+                          Get.find<DashboardScreenController>()
+                              .onChanged(DashboardScreenController.tabLive);
+                        }
+                      },
+                      icon: const Icon(Icons.add_box_outlined,
+                          color: Colors.white, size: 24),
+                      tooltip: LKey.startLive.tr,
+                    ),
                 ],
               ),
             ),
@@ -87,7 +101,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                       fontSize: 15,
                     ),
                     filled: true,
-                    fillColor: const Color(0xFF1A1F27),
+                    fillColor: ColorRes.surfaceDeep,
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
                     prefixIcon: const Icon(Icons.search,
@@ -159,7 +173,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
 
                 return RefreshIndicator(
                   color: ColorRes.themeAccentSolid,
-                  backgroundColor: const Color(0xFF1A1F27),
+                  backgroundColor: ColorRes.surfaceDeep,
                   onRefresh: controller.refreshList,
                   child: GridView.builder(
                     padding: const EdgeInsets.fromLTRB(10, 4, 10, 20),
@@ -210,9 +224,15 @@ class _LiveGridCard extends StatelessWidget {
     final title = (stream.description ?? '').trim().isEmpty
         ? 'Live'
         : stream.description!.split('\n').first.trim();
-    final cover = (stream.coverImage ?? '').trim();
-    final profile = host?.profile;
+    final cover = (stream.coverImage ?? '').trim().addBaseURL();
+    final profileRaw = (host?.profile ?? '').trim();
+    final profile =
+        profileRaw.isEmpty ? '' : profileRaw.addBaseURL();
     final name = host?.fullname ?? host?.username ?? 'Host';
+    // Portada del LIVE; si no hay, foto de perfil del host (p.ej. invitado PK).
+    final cardImage = cover.isNotEmpty
+        ? cover
+        : (profile.isNotEmpty ? profile : '');
 
     return GestureDetector(
       onTap: onTap,
@@ -221,29 +241,21 @@ class _LiveGridCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (cover.isNotEmpty)
+            if (cardImage.isNotEmpty)
               CustomImage(
                 size: const Size(400, 600),
-                image: cover,
-                fit: BoxFit.cover,
-                radius: 0,
-                isShowPlaceHolder: true,
-              )
-            else if ((profile ?? '').isNotEmpty)
-              CustomImage(
-                size: const Size(400, 600),
-                image: profile,
+                image: cardImage,
                 fit: BoxFit.cover,
                 radius: 0,
                 isShowPlaceHolder: true,
               )
             else
               ColoredBox(
-                color: const Color(0xFF1A1F27),
+                color: ColorRes.surfaceDeep,
                 child: Center(
                   child: CustomImage(
                     size: const Size(72, 72),
-                    image: profile,
+                    image: profile.isEmpty ? null : profile,
                     fullName: name,
                     radius: 40,
                   ),
@@ -291,7 +303,7 @@ class _LiveGridCard extends StatelessWidget {
                 ),
               ),
             ),
-            // LIVE badge
+            // LIVE / PK badge
             Positioned(
               top: 8,
               right: 8,
@@ -299,16 +311,24 @@ class _LiveGridCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: ColorRes.themeAccentSolid,
+                  color: stream.type == LivestreamType.battle
+                      ? ColorRes.baseRaspberry
+                      : ColorRes.themeAccentSolid,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.videocam, color: Colors.white, size: 11),
+                    Icon(
+                      stream.type == LivestreamType.battle
+                          ? Icons.sports_kabaddi_rounded
+                          : Icons.videocam,
+                      color: Colors.white,
+                      size: 11,
+                    ),
                     const SizedBox(width: 3),
                     Text(
-                      'Live',
+                      stream.type == LivestreamType.battle ? 'PK' : 'Live',
                       style: TextStyleCustom.outFitMedium500(
                         color: Colors.white,
                         fontSize: 10,

@@ -43,6 +43,7 @@ class Setting {
   int? minRedeemCoins;
   double? minWithdrawUsd;
   double? withdrawalCommissionPercent;
+  String? withdrawalInfoText;
   double? plusMembershipPrice;
   int? plusMembershipEnabled;
   int? registrationBonusStatus;
@@ -108,6 +109,7 @@ class Setting {
     this.minRedeemCoins,
     this.minWithdrawUsd,
     this.withdrawalCommissionPercent,
+    this.withdrawalInfoText,
     this.plusMembershipPrice,
     this.plusMembershipEnabled,
     this.minFollowersForLive,
@@ -177,6 +179,7 @@ class Setting {
         minWithdrawUsd: _asDouble(json["min_withdraw_usd"]) ?? 20.0,
         withdrawalCommissionPercent:
             _asDouble(json["withdrawal_commission_percent"]) ?? 0.0,
+        withdrawalInfoText: json["withdrawal_info_text"]?.toString(),
         plusMembershipPrice: _asDouble(json["plus_membership_price"]),
         plusMembershipEnabled: _asInt(json["plus_membership_enabled"]) ?? 1,
         minFollowersForLive: _asInt(json["min_followers_for_live"]),
@@ -245,7 +248,14 @@ class Setting {
                 json["redeemGateways"]?.map((x) => RedeemGateway.fromJson(x))),
         gifts: json["gifts"] == null
             ? []
-            : List<Gift>.from(json["gifts"]?.map((x) => Gift.fromJson(x))),
+            : List<Gift>.from(((json["gifts"] is List) ? json["gifts"] as List : const [])
+                .map((x) {
+                if (x is Gift) return x;
+                if (x is Map) {
+                  return Gift.fromJson(Map<String, dynamic>.from(x));
+                }
+                return Gift();
+              })),
         musicCategories: json["musicCategories"] == null
             ? []
             : List<MusicCategory>.from(
@@ -278,6 +288,7 @@ class Setting {
         "min_redeem_coins": minRedeemCoins,
         "min_withdraw_usd": minWithdrawUsd,
         "withdrawal_commission_percent": withdrawalCommissionPercent,
+        "withdrawal_info_text": withdrawalInfoText,
         "plus_membership_price": plusMembershipPrice,
         "plus_membership_enabled": plusMembershipEnabled,
         "min_followers_for_live": minFollowersForLive,
@@ -473,6 +484,8 @@ class Gift {
   int? id;
   int? coinPrice;
   String? image;
+  /// 1 = ocupa toda la pantalla; 0 = tamaño original (180).
+  int isFullscreen;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -480,14 +493,19 @@ class Gift {
     this.id,
     this.coinPrice,
     this.image,
+    this.isFullscreen = 0,
     this.createdAt,
     this.updatedAt,
   });
 
   factory Gift.fromJson(Map<String, dynamic> json) => Gift(
         id: Setting._asInt(json["id"]),
-        coinPrice: Setting._asInt(json["coin_price"]),
+        coinPrice: Setting._asInt(json["coin_price"]) ??
+            Setting._asInt(json["coinPrice"]),
         image: json["image"]?.toString(),
+        isFullscreen: Setting._asInt(json["is_fullscreen"]) ??
+            Setting._asInt(json["isFullscreen"]) ??
+            0,
         createdAt: json["created_at"] == null
             ? null
             : DateTime.tryParse(json["created_at"].toString()),
@@ -500,9 +518,12 @@ class Gift {
         "id": id,
         "coin_price": coinPrice,
         "image": image,
+        "is_fullscreen": isFullscreen,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };
+
+  bool get fullscreen => isFullscreen == 1;
 }
 
 class Language {
@@ -648,30 +669,77 @@ class OnBoarding {
 class RedeemGateway {
   int? id;
   String? title;
+  int isEnabled;
+  double? commissionPercent;
+  double? effectiveCommissionPercent;
+  String? accountHint;
+  String? payoutType;
+  int sortOrder;
   DateTime? createdAt;
   DateTime? updatedAt;
 
   RedeemGateway({
     this.id,
     this.title,
+    this.isEnabled = 1,
+    this.commissionPercent,
+    this.effectiveCommissionPercent,
+    this.accountHint,
+    this.payoutType,
+    this.sortOrder = 0,
     this.createdAt,
     this.updatedAt,
   });
 
+  /// Comisión a mostrar/aplicar: override del método o la efectiva/global.
+  double resolveCommission(double globalPercent) {
+    if (effectiveCommissionPercent != null) {
+      return effectiveCommissionPercent!;
+    }
+    if (commissionPercent != null) return commissionPercent!;
+    return globalPercent;
+  }
+
   factory RedeemGateway.fromJson(Map<String, dynamic> json) => RedeemGateway(
-        id: json["id"],
-        title: json["title"],
+        id: json["id"] is num
+            ? (json["id"] as num).toInt()
+            : int.tryParse('${json["id"]}'),
+        title: json["title"]?.toString(),
+        isEnabled: json["is_enabled"] is num
+            ? (json["is_enabled"] as num).toInt()
+            : int.tryParse('${json["is_enabled"] ?? 1}') ?? 1,
+        commissionPercent: json["commission_percent"] == null
+            ? null
+            : (json["commission_percent"] is num
+                ? (json["commission_percent"] as num).toDouble()
+                : double.tryParse('${json["commission_percent"]}')),
+        effectiveCommissionPercent: json["effective_commission_percent"] == null
+            ? null
+            : (json["effective_commission_percent"] is num
+                ? (json["effective_commission_percent"] as num).toDouble()
+                : double.tryParse('${json["effective_commission_percent"]}')),
+        accountHint: json["account_hint"]?.toString(),
+        payoutType: json["payout_type"]?.toString() ?? 'exchange',
+        sortOrder: json["sort_order"] is num
+            ? (json["sort_order"] as num).toInt()
+            : int.tryParse('${json["sort_order"] ?? 0}') ?? 0,
         createdAt: json["created_at"] == null
             ? null
-            : DateTime.parse(json["created_at"]),
+            : DateTime.tryParse(json["created_at"].toString()),
         updatedAt: json["updated_at"] == null
             ? null
-            : DateTime.parse(json["updated_at"]),
+            : DateTime.tryParse(json["updated_at"].toString()),
       );
 
   Map<String, dynamic> toJson() => {
         "id": id,
         "title": title,
+        "is_enabled": isEnabled,
+        "commission_percent": commissionPercent,
+        "effective_commission_percent": effectiveCommissionPercent,
+        "account_hint": accountHint,
+        "payout_type": payoutType,
+        "sort_order": sortOrder,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };
@@ -683,6 +751,7 @@ class UserLevel {
   int coinsCollection;
   int callRequestCoins;
   int canReceiveCalls;
+  int canGoLive;
   String? title;
   List<String> benefits;
   int isSvipLevel;
@@ -697,6 +766,7 @@ class UserLevel {
     this.coinsCollection = 0,
     this.callRequestCoins = 0,
     this.canReceiveCalls = 0,
+    this.canGoLive = 0,
     this.title,
     this.benefits = const [],
     this.isSvipLevel = 0,
@@ -718,6 +788,9 @@ class UserLevel {
         canReceiveCalls: json["can_receive_calls"] is num
             ? (json["can_receive_calls"] as num).toInt()
             : int.tryParse('${json["can_receive_calls"] ?? 0}') ?? 0,
+        canGoLive: json["can_go_live"] is num
+            ? (json["can_go_live"] as num).toInt()
+            : int.tryParse('${json["can_go_live"] ?? 0}') ?? 0,
         title: json["title"]?.toString(),
         benefits: _parseBenefits(json["benefits_json"]),
         isSvipLevel: json["is_svip_level"] is num
@@ -768,8 +841,12 @@ class UserLevel {
         "coins_collection": coinsCollection,
         "call_request_coins": callRequestCoins,
         "can_receive_calls": canReceiveCalls,
+        "can_go_live": canGoLive,
         "title": title,
         "benefits_json": benefits,
+        "is_svip_level": isSvipLevel,
+        "unlock_dressing": unlockDressing,
+        "show_on_honor_wall": showOnHonorWall,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };

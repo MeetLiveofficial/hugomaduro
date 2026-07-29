@@ -89,12 +89,11 @@ class CameraTopView extends StatelessWidget {
               image: AssetRes.icMusic,
             ),
 
-          if (controller.isDeepAr)
-            // Filter toggle
-            CustomBorderRoundIcon(
-              image: AssetRes.icStar,
-              onTap: controller.onEffectToggle,
-            ),
+          // Face filters / styles (MediaPipe)
+          CustomBorderRoundIcon(
+            image: AssetRes.icStar,
+            onTap: controller.onEffectToggle,
+          ),
         ],
       );
     });

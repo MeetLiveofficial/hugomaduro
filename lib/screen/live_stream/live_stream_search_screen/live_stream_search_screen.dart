@@ -7,13 +7,13 @@ import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/screen/face_filters/widgets/face_camera_preview_stack.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
-/// Estudio LIVE sin preview nativo Retrytech (evita pantalla negra en
-/// emuladores y libera la cámara para LiveKit al iniciar).
+/// Estudio LIVE: portada = imagen elegida; preview beauty = cámara (temporal).
 class LiveStreamSearchScreen extends StatelessWidget {
   const LiveStreamSearchScreen({super.key});
 
@@ -28,6 +28,7 @@ class LiveStreamSearchScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -97,10 +98,39 @@ class _StudioBackdrop extends StatelessWidget {
     final profileUrl = (me?.profilePhoto ?? '').trim();
 
     return Obx(() {
+      final previewCam = controller.cameraPreviewActive.value &&
+          controller.beautyPipeline.isReady &&
+          !kIsWeb;
+
+      if (previewCam) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            FaceCameraPreviewStack(
+              boundaryKey: controller.beautyPreviewKey,
+              controller: controller.beautyPipeline.camera.controller,
+              isReady: controller.beautyPipeline.isReady,
+              nativeAspectRatio: controller.beautyPipeline.camera.nativeAspectRatio,
+              frameListenable: controller.beautyPipeline.frameListenable,
+              effectId: controller.selectedFilterId.value,
+              beauty: controller.beautyPipeline.beauty,
+            ),
+            // Miniatura de portada: no se mezcla con el preview de cámara.
+            Positioned(
+              left: 16,
+              bottom: 120,
+              child: _CoverBadge(controller: controller),
+            ),
+          ],
+        );
+      }
+
       final bytes = controller.coverImageBytes.value;
       Widget bg;
       if (bytes != null && bytes.isNotEmpty) {
-        bg = Image.memory(bytes, fit: BoxFit.cover, width: double.infinity,
+        bg = Image.memory(bytes,
+            fit: BoxFit.cover,
+            width: double.infinity,
             height: double.infinity);
       } else if (profileUrl.isNotEmpty) {
         bg = CustomImage(
@@ -147,7 +177,7 @@ class _StudioBackdrop extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 40),
                   child: Text(
-                    'La cámara se activa al pulsar Start Live',
+                    'Elige portada · abre Beauty para ver tu cámara',
                     textAlign: TextAlign.center,
                     style: TextStyleCustom.outFitRegular400(
                       color: Colors.white70,
@@ -159,6 +189,67 @@ class _StudioBackdrop extends StatelessWidget {
             ),
           ),
         ],
+      );
+    });
+  }
+}
+
+/// Chip con la portada elegida (siempre la imagen, nunca el frame de cámara).
+class _CoverBadge extends StatelessWidget {
+  final LiveStreamSearchScreenController controller;
+
+  const _CoverBadge({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final bytes = controller.coverImageBytes.value;
+      return Material(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: bytes != null && bytes.isNotEmpty
+                      ? Image.memory(bytes, fit: BoxFit.cover)
+                      : const ColoredBox(
+                          color: Color(0xFF333333),
+                          child: Icon(Icons.image_outlined,
+                              color: Colors.white54, size: 22),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Portada',
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    bytes != null ? 'Lista' : 'Sin imagen',
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white70,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       );
     });
   }
@@ -318,6 +409,8 @@ class _BottomBar extends StatelessWidget {
                 ),
               );
             }),
+            // Siempre visible en esta pantalla (solo streamers llegan aquí).
+            // El permiso canGoLive se valida en onTapGoLive con mensaje claro.
             Material(
               color: ColorRes.themeAccentSolid,
               borderRadius: BorderRadius.circular(28),

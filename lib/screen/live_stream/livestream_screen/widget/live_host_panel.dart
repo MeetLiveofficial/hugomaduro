@@ -2,22 +2,34 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
-import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/task_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
-import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
+import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// Un solo botón lateral que abre Beauty / Network / Invite.
+/// Un solo botón lateral que abre Options (beauty, mic, pausa, calidad…).
 class LiveHostActionBar extends StatelessWidget {
   final VoidCallback onBeauty;
   final VoidCallback onInvite;
+  final VoidCallback? onBattle;
+  final VoidCallback? onQuality;
+  final VoidCallback? onPause;
+  final VoidCallback? onMic;
+  final VoidCallback? onCamera;
   final RxString networkLabel;
+  final String? qualityLabel;
+  final bool battleRunning;
+  final bool paused;
+  final bool muted;
+  final bool? cameraOn;
   final Color? foreground;
 
   const LiveHostActionBar({
@@ -25,42 +37,59 @@ class LiveHostActionBar extends StatelessWidget {
     required this.onBeauty,
     required this.onInvite,
     required this.networkLabel,
+    this.onBattle,
+    this.onQuality,
+    this.onPause,
+    this.onMic,
+    this.onCamera,
+    this.qualityLabel,
+    this.battleRunning = false,
+    this.paused = false,
+    this.muted = false,
+    this.cameraOn,
     this.foreground,
   });
 
   @override
   Widget build(BuildContext context) {
     final fg = foreground ?? whitePure(context);
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(28),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: () => openLiveHostOptionsMenu(
-            onBeauty: onBeauty,
-            onInvite: onInvite,
-            networkLabel: networkLabel,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.tune_rounded, color: fg, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Options',
-                  style: TextStyleCustom.outFitMedium500(
-                    color: fg,
-                    fontSize: 13,
-                  ),
+    return Material(
+      color: Colors.black.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => openLiveHostOptionsMenu(
+          onBeauty: onBeauty,
+          onInvite: onInvite,
+          onBattle: onBattle,
+          onQuality: onQuality,
+          onPause: onPause,
+          onMic: onMic,
+          onCamera: onCamera,
+          networkLabel: networkLabel,
+          qualityLabel: qualityLabel,
+          battleRunning: battleRunning,
+          paused: paused,
+          muted: muted,
+          cameraOn: cameraOn,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.tune_rounded, color: fg, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                'Options',
+                style: TextStyleCustom.outFitMedium500(
+                  color: fg,
+                  fontSize: 12,
                 ),
-                const SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_up_rounded, color: fg, size: 18),
-              ],
-            ),
+              ),
+              const SizedBox(width: 2),
+              Icon(Icons.keyboard_arrow_up_rounded, color: fg, size: 16),
+            ],
           ),
         ),
       ),
@@ -72,6 +101,16 @@ void openLiveHostOptionsMenu({
   required VoidCallback onBeauty,
   required VoidCallback onInvite,
   required RxString networkLabel,
+  VoidCallback? onBattle,
+  VoidCallback? onQuality,
+  VoidCallback? onPause,
+  VoidCallback? onMic,
+  VoidCallback? onCamera,
+  String? qualityLabel,
+  bool battleRunning = false,
+  bool paused = false,
+  bool muted = false,
+  bool? cameraOn,
 }) {
   Get.bottomSheet(
     SafeArea(
@@ -80,51 +119,137 @@ void openLiveHostOptionsMenu({
           color: whitePure(Get.context!),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: bgGrey(Get.context!),
-                borderRadius: BorderRadius.circular(4),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: (Get.mediaQuery.size.height * 0.72).clamp(320.0, 640.0),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: bgGrey(Get.context!),
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
-            ),
-            _HostOptionTile(
-              icon: Icons.auto_awesome,
-              title: LKey.beautySettings.tr,
-              subtitle: LKey.gettingPrettier.tr,
-              onTap: () {
-                Get.back();
-                onBeauty();
-              },
-            ),
-            Obx(() => _HostOptionTile(
-                  icon: networkIconForLabel(networkLabel.value),
-                  title: LKey.networkConnection.tr,
-                  subtitle: networkLabel.value,
-                  onTap: () {
-                    Get.back();
-                    openNetworkInfoSheet(networkLabel.value);
-                  },
-                )),
-            _HostOptionTile(
-              icon: Icons.group_add,
-              title: LKey.inviteFriends.tr,
-              subtitle: LKey.inviteToLiveBonus.tr,
-              onTap: () {
-                Get.back();
-                onInvite();
-              },
-            ),
-          ],
+              Flexible(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (onPause != null)
+                        _HostOptionTile(
+                          icon: paused
+                              ? Icons.play_arrow_rounded
+                              : Icons.pause_rounded,
+                          title: paused ? 'Reanudar' : 'Pausar',
+                          subtitle: paused
+                              ? 'Continuar la transmisión'
+                              : 'Pausar video temporalmente',
+                          onTap: () {
+                            Get.back();
+                            onPause();
+                          },
+                        ),
+                      if (onMic != null)
+                        _HostOptionTile(
+                          icon: muted
+                              ? Icons.mic_off_rounded
+                              : Icons.mic_rounded,
+                          title: muted
+                              ? 'Activar micrófono'
+                              : 'Silenciar micrófono',
+                          subtitle: muted
+                              ? 'El mic está muteado'
+                              : 'El mic está abierto',
+                          onTap: () {
+                            Get.back();
+                            onMic();
+                          },
+                        ),
+                      if (onCamera != null)
+                        _HostOptionTile(
+                          icon: (cameraOn ?? true)
+                              ? Icons.videocam_rounded
+                              : Icons.videocam_off_rounded,
+                          title: (cameraOn ?? true)
+                              ? 'Apagar cámara'
+                              : 'Encender cámara',
+                          subtitle: 'Control de video en vivo',
+                          onTap: () {
+                            Get.back();
+                            onCamera();
+                          },
+                        ),
+                      if (onBattle != null)
+                        _HostOptionTile(
+                          icon: Icons.sports_kabaddi_rounded,
+                          title: battleRunning
+                              ? 'Finalizar batalla'
+                              : LKey.startBattle.tr,
+                          subtitle: battleRunning
+                              ? 'Terminar el enfrentamiento 1v1'
+                              : 'Batalla 1v1 con regalos de la audiencia',
+                          onTap: () {
+                            Get.back();
+                            onBattle();
+                          },
+                        ),
+                      if (onQuality != null)
+                        _HostOptionTile(
+                          icon: Icons.high_quality_rounded,
+                          title: 'Calidad de video',
+                          subtitle: qualityLabel != null
+                              ? 'Actual: $qualityLabel'
+                              : 'Baja / Media / Alta',
+                          onTap: () {
+                            Get.back();
+                            onQuality();
+                          },
+                        ),
+                      _HostOptionTile(
+                        icon: Icons.auto_awesome,
+                        title: LKey.beautySettings.tr,
+                        subtitle: LKey.gettingPrettier.tr,
+                        onTap: () {
+                          Get.back();
+                          onBeauty();
+                        },
+                      ),
+                      Obx(() => _HostOptionTile(
+                            icon: networkIconForLabel(networkLabel.value),
+                            title: LKey.networkConnection.tr,
+                            subtitle: networkLabel.value,
+                            onTap: () {
+                              Get.back();
+                              openNetworkInfoSheet(networkLabel.value);
+                            },
+                          )),
+                      _HostOptionTile(
+                        icon: Icons.group_add,
+                        title: LKey.inviteFriends.tr,
+                        subtitle: LKey.inviteToLiveBonus.tr,
+                        onTap: () {
+                          Get.back();
+                          onInvite();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
     backgroundColor: Colors.transparent,
+    isScrollControlled: true,
   );
 }
 
@@ -168,7 +293,7 @@ class _HostOptionTile extends StatelessWidget {
   }
 }
 
-Future<void> openLiveBeautySheet({
+Future<bool?> openLiveBeautySheet({
   required LivestreamScreenController? liveController,
   required RxDouble whiten,
   required RxDouble rosy,
@@ -176,125 +301,182 @@ Future<void> openLiveBeautySheet({
   required RxDouble sharpen,
   required RxBool beautyOn,
   required Future<void> Function() onApply,
+  Rx<FaceFilterId>? selectedFilterId,
+  List<FaceFilterEffect>? styleEffects,
+  ValueChanged<FaceFilterId>? onStyleSelected,
+  bool showAcceptButton = false,
 }) {
-  final filters =
-      SessionManager.instance.getSettings()?.deepARFilters ?? <DeepARFilters>[];
+  final effects = styleEffects ?? FaceFilterEffect.catalog;
+  final ctx = Get.context!;
+  final maxH = MediaQuery.sizeOf(ctx).height * (showAcceptButton ? 0.46 : 0.40);
 
-  return Get.bottomSheet(
+  return Get.bottomSheet<bool>(
     SafeArea(
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-        decoration: BoxDecoration(
-          color: whitePure(Get.context!),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Obx(() {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: bgGrey(Get.context!),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              Text(
-                LKey.beautySettings.tr,
-                textAlign: TextAlign.center,
-                style: TextStyleCustom.unboundedSemiBold600(
-                  color: textDarkGrey(Get.context!),
-                  fontSize: 16,
-                ),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(LKey.beautySettings.tr),
-                value: beautyOn.value,
-                activeThumbColor: themeAccentSolid(Get.context!),
-                activeTrackColor:
-                    themeAccentSolid(Get.context!).withValues(alpha: 0.4),
-                onChanged: (v) {
-                  beautyOn.value = v;
-                  onApply();
-                },
-              ),
-              _BeautySlider(
-                label: 'Whiten',
-                value: whiten,
-                enabled: beautyOn.value,
-                onChanged: (_) => onApply(),
-              ),
-              _BeautySlider(
-                label: 'Rosy',
-                value: rosy,
-                enabled: beautyOn.value,
-                onChanged: (_) => onApply(),
-              ),
-              _BeautySlider(
-                label: 'Smooth',
-                value: smooth,
-                enabled: beautyOn.value,
-                onChanged: (_) => onApply(),
-              ),
-              _BeautySlider(
-                label: 'Sharpen',
-                value: sharpen,
-                enabled: beautyOn.value,
-                onChanged: (_) => onApply(),
-              ),
-              if (filters.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Styles',
-                  style: TextStyleCustom.outFitMedium500(
-                    color: textDarkGrey(Get.context!),
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 72,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: filters.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final f = filters[index];
-                      return Column(
-                        children: [
-                          CustomImage(
-                            size: const Size(48, 48),
-                            strokeWidth: 0,
-                            radius: 24,
-                            image: f.image?.addBaseURL(),
-                            fullName: f.title,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            f.title ?? '',
-                            style: TextStyleCustom.outFitLight300(
-                              color: textLightGrey(context),
-                              fontSize: 10,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxH),
+          child: Material(
+            color: whitePure(ctx),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            clipBehavior: Clip.antiAlias,
+            child: Obx(() {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 3,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: bgGrey(ctx),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            LKey.beautySettings.tr,
+                            style: TextStyleCustom.unboundedSemiBold600(
+                              color: textDarkGrey(ctx),
+                              fontSize: 14,
                             ),
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                        Text(
+                          beautyOn.value ? 'On' : 'Off',
+                          style: TextStyleCustom.outFitMedium500(
+                            color: textLightGrey(ctx),
+                            fontSize: 12,
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: beautyOn.value,
+                          activeThumbColor: themeAccentSolid(ctx),
+                          activeTrackColor:
+                              themeAccentSolid(ctx).withValues(alpha: 0.45),
+                          onChanged: (v) {
+                            beautyOn.value = v;
+                            onApply();
+                          },
+                        ),
+                      ],
+                    ),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _BeautySlider(
+                              label: 'Whiten',
+                              value: whiten,
+                              enabled: beautyOn.value,
+                              onChanged: (_) => onApply(),
+                            ),
+                            _BeautySlider(
+                              label: 'Rosy',
+                              value: rosy,
+                              enabled: beautyOn.value,
+                              onChanged: (_) => onApply(),
+                            ),
+                            _BeautySlider(
+                              label: 'Smooth',
+                              value: smooth,
+                              enabled: beautyOn.value,
+                              onChanged: (_) => onApply(),
+                            ),
+                            _BeautySlider(
+                              label: 'Sharpen',
+                              value: sharpen,
+                              enabled: beautyOn.value,
+                              onChanged: (_) => onApply(),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Styles',
+                              style: TextStyleCustom.outFitMedium500(
+                                color: textDarkGrey(ctx),
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (onStyleSelected != null &&
+                                selectedFilterId != null)
+                              FaceFilterCarousel(
+                                selectedId: selectedFilterId.value,
+                                effects: effects,
+                                onSelected: (id) {
+                                  if (id.isBeautyGpu && !beautyOn.value) {
+                                    beautyOn.value = true;
+                                  }
+                                  if (id == FaceFilterId.none) {
+                                    // none: no forzar off; el switch decide
+                                  }
+                                  onStyleSelected(id);
+                                  onApply();
+                                },
+                              )
+                            else
+                              FaceFilterCarousel(
+                                selectedId: FaceFilterId.none,
+                                effects: effects,
+                                onSelected: (_) {},
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (showAcceptButton) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 44,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeAccentSolid(ctx),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                          ),
+                          onPressed: () async {
+                            beautyOn.value = true;
+                            // Si no hay estilo beauty, Soft por defecto.
+                            if (selectedFilterId != null &&
+                                !selectedFilterId.value.isBeautyGpu &&
+                                selectedFilterId.value == FaceFilterId.none) {
+                              selectedFilterId.value = FaceFilterId.beautySoft;
+                              onStyleSelected?.call(FaceFilterId.beautySoft);
+                            }
+                            await onApply();
+                            Get.back(result: true);
+                          },
+                          child: Text(
+                            'Aceptar filtro',
+                            style: TextStyleCustom.outFitSemiBold600(
+                              color: Colors.white,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ],
-          );
-        }),
+              );
+            }),
+          ),
+        ),
       ),
     ),
     isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black26,
   );
 }
 
@@ -320,21 +502,28 @@ class _BeautySlider extends StatelessWidget {
               '$label ${value.value.round()}',
               style: TextStyleCustom.outFitRegular400(
                 color: textLightGrey(context),
-                fontSize: 12,
+                fontSize: 11,
               ),
             ),
-            Slider(
-              value: value.value,
-              min: 0,
-              max: 100,
-              divisions: 20,
-              activeColor: themeAccentSolid(context),
-              onChanged: enabled
-                  ? (v) {
-                      value.value = v;
-                      onChanged(v);
-                    }
-                  : null,
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 2,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+              ),
+              child: Slider(
+                value: value.value,
+                min: 0,
+                max: 100,
+                divisions: 20,
+                activeColor: themeAccentSolid(context),
+                onChanged: enabled
+                    ? (v) {
+                        value.value = v;
+                        onChanged(v);
+                      }
+                    : null,
+              ),
             ),
           ],
         ));
@@ -629,4 +818,206 @@ void openNetworkInfoSheet(String networkLabel) {
       ),
     ),
   );
+}
+
+/// Desplegable de tareas durante el LIVE (estilo Options).
+void openLiveTasksMenu() {
+  Get.bottomSheet(
+    const _LiveTasksSheet(),
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+  );
+}
+
+class _LiveTasksSheet extends StatefulWidget {
+  const _LiveTasksSheet();
+
+  @override
+  State<_LiveTasksSheet> createState() => _LiveTasksSheetState();
+}
+
+class _LiveTasksSheetState extends State<_LiveTasksSheet> {
+  bool _loading = true;
+  String? _error;
+  List<_LiveTaskRow> _rows = const [];
+  int _points = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await TaskService.instance.list();
+      if (res.status == true && res.data != null) {
+        final rows = <_LiveTaskRow>[];
+        for (final cat in res.data!.categories) {
+          for (final t in cat.tasks) {
+            rows.add(_LiveTaskRow(
+              title: t.titleKey.tr,
+              status: t.status,
+              progress: '${t.progressValue}/${t.targetValue}',
+              points: t.withdrawalPointsReward,
+            ));
+          }
+        }
+        setState(() {
+          _rows = rows;
+          _points = res.data!.withdrawalPoints;
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _error = res.message ?? LKey.somethingWentWrong.tr;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.sizeOf(context).height * 0.55;
+    return SafeArea(
+      child: Container(
+        constraints: BoxConstraints(maxHeight: h),
+        decoration: BoxDecoration(
+          color: whitePure(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: bgGrey(context),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Text(
+              LKey.tasks.tr,
+              style: TextStyleCustom.unboundedSemiBold600(
+                color: textDarkGrey(context),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${LKey.withdrawalPoints.tr}: $_points',
+              style: TextStyleCustom.outFitRegular400(
+                color: textLightGrey(context),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: LoaderWidget(),
+              )
+            else if (_error != null)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(_error!, textAlign: TextAlign.center),
+              )
+            else if (_rows.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No hay tareas por ahora',
+                  style: TextStyleCustom.outFitRegular400(
+                    color: textLightGrey(context),
+                    fontSize: 13,
+                  ),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _rows.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, i) {
+                    final t = _rows[i];
+                    final done = t.status == 'completed' || t.status == 'claimed';
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(
+                        done
+                            ? Icons.check_circle_rounded
+                            : Icons.radio_button_unchecked,
+                        color: done
+                            ? const Color(0xFF22C55E)
+                            : textLightGrey(context),
+                        size: 22,
+                      ),
+                      title: Text(
+                        t.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyleCustom.outFitMedium500(
+                          color: textDarkGrey(context),
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${t.progress} · ${t.status}',
+                        style: TextStyleCustom.outFitRegular400(
+                          color: textLightGrey(context),
+                          fontSize: 11,
+                        ),
+                      ),
+                      trailing: Text(
+                        '+${t.points}',
+                        style: TextStyleCustom.outFitSemiBold600(
+                          color: themeAccentSolid(context),
+                          fontSize: 12,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
+                Get.back();
+                Get.to(() => const TasksScreen());
+              },
+              child: Text(LKey.tasks.tr),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveTaskRow {
+  final String title;
+  final String status;
+  final String progress;
+  final int points;
+
+  const _LiveTaskRow({
+    required this.title,
+    required this.status,
+    required this.progress,
+    required this.points,
+  });
 }

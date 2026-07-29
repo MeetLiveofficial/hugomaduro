@@ -88,22 +88,94 @@ class LiveSessionService {
     );
   }
 
-  Future<int> like({required String roomId}) async {
+  Future<LiveLikeResult> like({
+    required String roomId,
+    int? battleForUserId,
+  }) async {
     final json = await ApiService.instance.call(
       url: WebService.live.like,
-      param: {'room_id': roomId},
+      param: {
+        'room_id': roomId,
+        if (battleForUserId != null && battleForUserId > 0)
+          'battle_for_user_id': battleForUserId,
+      },
       fromJson: (j) => j,
     );
     if (json['status'] != true) {
       throw Exception(json['message'] ?? 'like failed');
     }
     final data = json['data'];
-    if (data is Map && data['like_count'] != null) {
-      return data['like_count'] is num
-          ? (data['like_count'] as num).toInt()
-          : int.tryParse('${data['like_count']}') ?? 0;
+    int likeCount = 0;
+    int? hostCoin;
+    int? oppCoin;
+    if (data is Map) {
+      if (data['like_count'] != null) {
+        likeCount = data['like_count'] is num
+            ? (data['like_count'] as num).toInt()
+            : int.tryParse('${data['like_count']}') ?? 0;
+      }
+      if (data['battle_host_coin'] != null) {
+        hostCoin = data['battle_host_coin'] is num
+            ? (data['battle_host_coin'] as num).toInt()
+            : int.tryParse('${data['battle_host_coin']}');
+      }
+      if (data['battle_opponent_coin'] != null) {
+        oppCoin = data['battle_opponent_coin'] is num
+            ? (data['battle_opponent_coin'] as num).toInt()
+            : int.tryParse('${data['battle_opponent_coin']}');
+      }
     }
-    return 0;
+    return LiveLikeResult(
+      likeCount: likeCount,
+      battleHostCoin: hostCoin,
+      battleOpponentCoin: oppCoin,
+    );
+  }
+
+  /// Registra regalo en la sesión (coins desde DB). Devuelve lista actualizada.
+  Future<List<LiveGiftSender>> recordGift({
+    required String roomId,
+    required int giftId,
+    int coins = 0,
+    String? image,
+    String? clientId,
+    int? battleForUserId,
+  }) async {
+    final json = await ApiService.instance.call(
+      url: WebService.live.recordGift,
+      param: {
+        'room_id': roomId,
+        'gift_id': giftId,
+        'coins': coins,
+        if (image != null && image.isNotEmpty) 'image': image,
+        if (clientId != null && clientId.isNotEmpty) 'client_id': clientId,
+        if (battleForUserId != null && battleForUserId > 0)
+          'battle_for_user_id': battleForUserId,
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'recordGift failed');
+    }
+    final data = json['data'];
+    final list = (data is Map ? data['gift_senders'] : null);
+    if (list is! List) return const [];
+    return list.map((e) {
+      final m = Map<String, dynamic>.from(e as Map);
+      return LiveGiftSender(
+        userId: m['user_id'] is num
+            ? (m['user_id'] as num).toInt()
+            : int.tryParse('${m['user_id']}') ?? 0,
+        userName: '${m['user_name'] ?? 'User'}',
+        totalCoins: m['total_coins'] is num
+            ? (m['total_coins'] as num).toInt()
+            : int.tryParse('${m['total_coins']}') ?? 0,
+        giftCount: m['gift_count'] is num
+            ? (m['gift_count'] as num).toInt()
+            : int.tryParse('${m['gift_count']}') ?? 0,
+        lastGiftImage: m['last_gift_image']?.toString(),
+      );
+    }).toList();
   }
 
   Future<LiveChatMessage?> sendComment({
@@ -202,6 +274,92 @@ class LiveSessionService {
     }
   }
 
+  Future<Livestream> startBattle({
+    required String roomId,
+    required int opponentId,
+    int durationMinutes = 5,
+  }) async {
+    final json = await ApiService.instance.call(
+      url: WebService.live.startBattle,
+      param: {
+        'room_id': roomId,
+        'opponent_id': opponentId,
+        'duration_minutes': durationMinutes,
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'start battle failed');
+    }
+    final data = json['data'] as Map<String, dynamic>;
+    return Livestream.fromJson(
+        Map<String, dynamic>.from(data['session'] as Map));
+  }
+
+  Future<({Livestream session, Livestream? opponentSession, bool accepted})>
+      respondBattle({
+    required String roomId,
+    required bool accept,
+  }) async {
+    final json = await ApiService.instance.call(
+      url: WebService.live.respondBattle,
+      param: {
+        'room_id': roomId,
+        'accept': accept ? '1' : '0',
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'respond battle failed');
+    }
+    final data = json['data'] as Map<String, dynamic>;
+    final session = Livestream.fromJson(
+        Map<String, dynamic>.from(data['session'] as Map));
+    Livestream? opp;
+    if (data['opponent_session'] is Map) {
+      opp = Livestream.fromJson(
+          Map<String, dynamic>.from(data['opponent_session'] as Map));
+    }
+    final accepted = data['accepted'] == true ||
+        data['accepted'] == 1 ||
+        '${data['accepted']}' == 'true';
+    return (session: session, opponentSession: opp, accepted: accepted);
+  }
+
+  Future<Livestream> endBattle({required String roomId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.live.endBattle,
+      param: {'room_id': roomId},
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'end battle failed');
+    }
+    final data = json['data'] as Map<String, dynamic>;
+    return Livestream.fromJson(
+        Map<String, dynamic>.from(data['session'] as Map));
+  }
+
+  Future<Livestream> restartBattle({
+    required String roomId,
+    int? durationMinutes,
+  }) async {
+    final json = await ApiService.instance.call(
+      url: WebService.live.restartBattle,
+      param: {
+        'room_id': roomId,
+        if (durationMinutes != null) 'duration_minutes': durationMinutes,
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'restart battle failed');
+    }
+    final data = json['data'] as Map<String, dynamic>;
+    return Livestream.fromJson(
+        Map<String, dynamic>.from(data['session'] as Map));
+  }
+
   Future<List<Livestream>> pendingInvites() async {
     final json = await ApiService.instance.call(
       url: WebService.live.pendingInvites,
@@ -214,4 +372,16 @@ class LiveSessionService {
         .map((e) => Livestream.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
+}
+
+class LiveLikeResult {
+  final int likeCount;
+  final int? battleHostCoin;
+  final int? battleOpponentCoin;
+
+  const LiveLikeResult({
+    required this.likeCount,
+    this.battleHostCoin,
+    this.battleOpponentCoin,
+  });
 }

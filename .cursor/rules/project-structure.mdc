@@ -14,8 +14,9 @@ alwaysApply: true
 
 ## Dominio del backend
 
-- **URL base del backend:** `https://social.nexusdevtech.com/`
-- **URL de la API:** `https://social.nexusdevtech.com/api/`
+- **URL base del backend:** `https://meetlive.online/`
+- **URL de la API:** `https://meetlive.online/api/`
+- **LiveKit:** `live.meetlive.online` (`wss://live.meetlive.online`)
 - **Firebase:** desactivado (`useFirebase = false` en `const_res.dart`). Auth, settings y datos vía API Laravel.
 
 ## Configuración en la APP
@@ -23,7 +24,7 @@ alwaysApply: true
 La URL del backend se define en `lib/utilities/const_res.dart`:
 
 ```dart
-const String baseURL = 'https://social.nexusdevtech.com/';
+const String baseURL = 'https://meetlive.online/';
 const String apiURL = '${baseURL}api/';
 ```
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:krimson/common/service/api/api_service.dart';
 import 'package:krimson/common/service/utils/web_service.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
@@ -115,5 +117,27 @@ class ChatService {
       },
       fromJson: (j) => j,
     );
+  }
+
+  /// Fallback de traducción (Web / sin ML Kit) vía backend.
+  Future<List<String>> translateTexts({
+    required String targetLang,
+    required List<String> texts,
+  }) async {
+    if (texts.isEmpty) return const [];
+    final json = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.chat.translate,
+      param: {
+        'target': targetLang,
+        'texts_json': jsonEncode(texts),
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'translate failed');
+    }
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+    final list = (data['translations'] as List?) ?? [];
+    return list.map((e) => '$e').toList();
   }
 }

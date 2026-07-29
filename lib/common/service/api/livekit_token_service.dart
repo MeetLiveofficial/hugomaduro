@@ -23,10 +23,10 @@ class LiveKitTokenResult {
 /// Arquitectura:
 /// ```
 /// App (autenticada) ──POST /api/livekit/token──► Laravel (authorizeUser)
-///                                              └──► live.nexusdevtech.com/token
+///                                              └──► live.meetlive.online/token
 ///                                                   (firma con API Secret)
 /// App ◄── JWT + wssUrl ────────────────────────────────────────┘
-/// App ──wss──► wss://live.nexusdevtech.com
+/// App ──wss──► wss://live.meetlive.online
 /// ```
 class LiveKitTokenService {
   LiveKitTokenService._();
@@ -36,6 +36,9 @@ class LiveKitTokenService {
     required String roomName,
     required String identity,
     String? name,
+    bool canPublish = false,
+    bool canPublishData = true,
+    bool roomAdmin = false,
   }) async {
     final json = await ApiService.instance.call(
       url: WebService.livekit.token,
@@ -43,6 +46,9 @@ class LiveKitTokenService {
         'roomName': roomName,
         'identity': identity,
         if (name != null && name.isNotEmpty) 'name': name,
+        'canPublish': canPublish ? 1 : 0,
+        'canPublishData': canPublishData ? 1 : 0,
+        'roomAdmin': roomAdmin ? 1 : 0,
       },
       fromJson: (j) => j,
     );

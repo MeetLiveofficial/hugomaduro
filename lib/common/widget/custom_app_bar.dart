@@ -12,6 +12,7 @@ class CustomAppBar extends StatelessWidget {
   final Color? bgColor;
   final Color? iconColor;
   final bool isLoading;
+  final bool showBack;
 
   const CustomAppBar(
       {super.key,
@@ -22,7 +23,8 @@ class CustomAppBar extends StatelessWidget {
       this.bgColor,
       this.iconColor,
       this.rowWidget,
-      this.isLoading = false});
+      this.isLoading = false,
+      this.showBack = true});
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +40,15 @@ class CustomAppBar extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                CustomBackButton(
-                  color: iconColor,
-                  width: 18,
-                  height: 18,
-                  padding: const EdgeInsets.all(15),
-                ),
+                if (showBack)
+                  CustomBackButton(
+                    color: iconColor,
+                    width: 18,
+                    height: 18,
+                    padding: const EdgeInsets.all(15),
+                  )
+                else
+                  const SizedBox(width: 48),
                 Expanded(
                   child: Column(
                     children: [

@@ -21,6 +21,7 @@ import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/notification_service.dart';
 import 'package:krimson/common/service/api/post_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/translation/chat_translator_service.dart';
 import 'package:krimson/common/widget/confirmation_dialog.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
@@ -498,6 +499,8 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   }
 
   Future<void> _getChatLaravel() async {
+    // Precarga modelos on-device antes del primer paint traducido.
+    unawaited(ChatTranslatorService.instance.ensureReady());
     await _refreshLaravelMessages();
     _laravelPoll?.cancel();
     _laravelPoll = Timer.periodic(const Duration(seconds: 3), (_) {
@@ -518,7 +521,13 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
         conversationUser.value.conversationId =
             messages.first.conversationId ?? conversationUser.value.conversationId;
       }
-      chatList.assignAll(messages);
+      // Traducir ANTES de assignAll → el usuario ve el texto ya en su idioma.
+      final translated = await ChatTranslatorService.instance.translateIncoming(
+        messages,
+        myUserId: myUser?.id,
+        targetLangCode: SessionManager.instance.getLang(),
+      );
+      chatList.assignAll(translated);
       chatList.sort((a, b) => b.id?.compareTo(a.id ?? 0) ?? 0);
     } catch (e) {
       if (!silent) {
@@ -546,11 +555,11 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
         if (message == null) continue;
         switch (change.type) {
           case DocumentChangeType.added:
-            chatList.add(message);
+            unawaited(_addTranslatedMessage(message));
             break;
           case DocumentChangeType.modified:
             chatList.removeWhere((element) => element.id == message.id);
-            chatList.add(message);
+            unawaited(_addTranslatedMessage(message));
             break;
           case DocumentChangeType.removed:
             chatList.removeWhere((element) => element.id == message.id);
@@ -565,6 +574,19 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
       }
     });
     chatListeners.add(subscription);
+  }
+
+  /// Traduce un mensaje entrante y lo inserta ya listo para UI (Firebase).
+  Future<void> _addTranslatedMessage(MessageData message) async {
+    final list = await ChatTranslatorService.instance.translateIncoming(
+      [message],
+      myUserId: myUser?.id,
+      targetLangCode: SessionManager.instance.getLang(),
+    );
+    final out = list.isNotEmpty ? list.first : message;
+    chatList.removeWhere((e) => e.id == out.id);
+    chatList.add(out);
+    chatList.sort((a, b) => b.id?.compareTo(a.id ?? 0) ?? 0);
   }
 
   Future<void> fetchMoreChatList() async {
@@ -604,12 +626,12 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
           switch (change.type) {
             case DocumentChangeType.added:
               if (!chatList.any((m) => m.id == message.id)) {
-                chatList.add(message);
+                unawaited(_addTranslatedMessage(message));
               }
               break;
             case DocumentChangeType.modified:
               chatList.removeWhere((m) => m.id == message.id);
-              chatList.add(message);
+              unawaited(_addTranslatedMessage(message));
               break;
             case DocumentChangeType.removed:
               chatList.removeWhere((m) => m.id == message.id);

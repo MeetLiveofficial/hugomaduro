@@ -60,6 +60,7 @@ class User {
       this.fullname,
       this.username,
       this.userEmail,
+      this.dob,
       this.mobileCountryCode,
       this.userMobileNo,
       this.profilePhoto,
@@ -77,6 +78,7 @@ class User {
       this.showMyFollowing,
       this.receiveMessage,
       this.coinWallet,
+      this.withdrawalPoints,
       this.withdrawWalletAccount,
       this.coinCollectedLifetime,
       this.coinGiftedLifetime,
@@ -111,6 +113,8 @@ class User {
       this.levelTitle,
       this.callRequestCoins = 0,
       this.canReceiveCalls = 0,
+      this.canGoLive = 0,
+      this.appRole,
       this.levelBenefits = const []});
 
   User copyWith({
@@ -120,6 +124,7 @@ class User {
     String? fullname,
     String? username,
     String? userEmail,
+    String? dob,
     int? mobileCountryCode,
     String? userMobileNo,
     String? profilePhoto,
@@ -137,6 +142,7 @@ class User {
     int? showMyFollowing,
     int? receiveMessage,
     int? coinWallet,
+    int? withdrawalPoints,
     int? coinCollectedLifetime,
     int? coinGiftedLifetime,
     int? coinPurchasedLifetime,
@@ -167,6 +173,13 @@ class User {
     List<Link>? links,
     List<Story>? stories,
     List<int>? followingIds,
+    int? levelNumber,
+    String? levelTitle,
+    int? callRequestCoins,
+    int? canReceiveCalls,
+    int? canGoLive,
+    String? appRole,
+    List<String>? levelBenefits,
   }) =>
       User(
         id: id ?? this.id,
@@ -175,6 +188,7 @@ class User {
         fullname: fullname ?? this.fullname,
         username: username ?? this.username,
         userEmail: userEmail ?? this.userEmail,
+        dob: dob ?? this.dob,
         mobileCountryCode: mobileCountryCode ?? this.mobileCountryCode,
         userMobileNo: userMobileNo ?? this.userMobileNo,
         profilePhoto: profilePhoto ?? this.profilePhoto,
@@ -192,6 +206,7 @@ class User {
         showMyFollowing: showMyFollowing ?? this.showMyFollowing,
         receiveMessage: receiveMessage ?? this.receiveMessage,
         coinWallet: coinWallet ?? this.coinWallet,
+        withdrawalPoints: withdrawalPoints ?? this.withdrawalPoints,
         coinCollectedLifetime:
             coinCollectedLifetime ?? this.coinCollectedLifetime,
         coinGiftedLifetime: coinGiftedLifetime ?? this.coinGiftedLifetime,
@@ -221,6 +236,13 @@ class User {
         stories: stories ?? this.stories,
         newRegister: newRegister ?? this.newRegister,
         followingIds: followingIds ?? this.followingIds,
+        levelNumber: levelNumber ?? this.levelNumber,
+        levelTitle: levelTitle ?? this.levelTitle,
+        callRequestCoins: callRequestCoins ?? this.callRequestCoins,
+        canReceiveCalls: canReceiveCalls ?? this.canReceiveCalls,
+        canGoLive: canGoLive ?? this.canGoLive,
+        appRole: appRole ?? this.appRole,
+        levelBenefits: levelBenefits ?? this.levelBenefits,
       );
 
   static num? _asNum(dynamic v) {
@@ -243,6 +265,7 @@ class User {
     fullname = json['fullname']?.toString();
     username = json['username']?.toString();
     userEmail = json['user_email']?.toString();
+    dob = json['dob']?.toString();
     mobileCountryCode = _asInt(json['mobile_country_code']);
     userMobileNo = json['user_mobile_no']?.toString();
     profilePhoto = json['profile_photo']?.toString();
@@ -260,6 +283,7 @@ class User {
     showMyFollowing = _asNum(json['show_my_following']);
     receiveMessage = _asNum(json['receive_message']);
     coinWallet = _asNum(json['coin_wallet']);
+    withdrawalPoints = _asInt(json['withdrawal_points']);
     withdrawWalletAccount = json['withdraw_wallet_account']?.toString();
     coinCollectedLifetime = _asNum(json['coin_collected_lifetime']);
     coinGiftedLifetime = _asNum(json['coin_gifted_lifetime']);
@@ -297,6 +321,8 @@ class User {
     levelTitle = json['level_title']?.toString();
     callRequestCoins = _asInt(json['call_request_coins']) ?? 0;
     canReceiveCalls = _asInt(json['can_receive_calls']) ?? 0;
+    canGoLive = _asInt(json['can_go_live']) ?? 0;
+    appRole = json['app_role']?.toString();
     isLive = _asInt(json['is_live']) ?? 0;
     liveRoomId = json['live_room_id']?.toString();
     isActive = _asInt(json['is_active']) ?? 0;
@@ -332,6 +358,7 @@ class User {
   String? fullname;
   String? username;
   String? userEmail;
+  String? dob;
   int? mobileCountryCode;
   String? userMobileNo;
   String? profilePhoto;
@@ -349,6 +376,7 @@ class User {
   num? showMyFollowing;
   num? receiveMessage;
   num? coinWallet;
+  int? withdrawalPoints;
   String? withdrawWalletAccount;
   num? coinCollectedLifetime;
   num? coinGiftedLifetime;
@@ -384,6 +412,9 @@ class User {
   String? levelTitle;
   int callRequestCoins = 0;
   int canReceiveCalls = 0;
+  int canGoLive = 0;
+  /// `streamer` | `client` (default client en app si viene vacío).
+  String? appRole;
   List<String> levelBenefits = const [];
   int isLive = 0;
   String? liveRoomId;
@@ -397,6 +428,7 @@ class User {
     map['fullname'] = fullname;
     map['username'] = username;
     map['user_email'] = userEmail;
+    map['dob'] = dob;
     map['mobile_country_code'] = mobileCountryCode;
     map['user_mobile_no'] = userMobileNo;
     map['profile_photo'] = profilePhoto;
@@ -414,6 +446,7 @@ class User {
     map['show_my_following'] = showMyFollowing;
     map['receive_message'] = receiveMessage;
     map['coin_wallet'] = coinWallet;
+    map['withdrawal_points'] = withdrawalPoints;
     map['withdraw_wallet_account'] = withdrawWalletAccount;
     map['coin_collected_lifetime'] = coinCollectedLifetime;
     map['coin_gifted_lifetime'] = coinGiftedLifetime;
@@ -445,6 +478,8 @@ class User {
     map['level_title'] = levelTitle;
     map['call_request_coins'] = callRequestCoins;
     map['can_receive_calls'] = canReceiveCalls;
+    map['can_go_live'] = canGoLive;
+    map['app_role'] = appRole;
     map['level_benefits'] = levelBenefits;
     map['is_live'] = isLive;
     map['live_room_id'] = liveRoomId;

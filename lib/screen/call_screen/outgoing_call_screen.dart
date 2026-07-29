@@ -314,9 +314,9 @@ class OutgoingCallController extends BaseController {
 
   Future<void> _startRingback() async {
     try {
-      await _ringback.setAsset(AssetRes.battleStart);
+      await _ringback.setAsset(AssetRes.callSoft);
       await _ringback.setLoopMode(LoopMode.one);
-      await _ringback.setVolume(0.85);
+      await _ringback.setVolume(0.4);
       await _ringback.play();
     } catch (e) {
       Loggers.error('outgoing ringback: $e');

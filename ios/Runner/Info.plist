@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Krimson</string>
+	<string>Meet&amp;Live</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Krimson</string>
+	<string>Meet&amp;Live</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -84,6 +84,13 @@
 	<string>This app requires access to your photo library to allow you to select a profile photo.</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This identifier will be used to deliver personalized ads to you.</string>
+	<!--
+	  Google ML Kit On-Device Translation / Language ID (iOS):
+	  - No requiere permisos de privacidad adicionales (todo es on-device).
+	  - La red solo se usa una vez para descargar modelos de idioma.
+	  Apple Translation.framework (iOS 18+) tampoco exige claves extra;
+	  este proyecto usa el wrapper multiplataforma google_mlkit_translation.
+	-->
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

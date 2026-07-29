@@ -1,6 +1,7 @@
 import 'package:krimson/common/service/api/api_service.dart';
 import 'package:krimson/common/service/utils/web_service.dart';
 import 'package:krimson/model/call/call_request_model.dart';
+import 'package:krimson/model/work/streamer_work_stats_model.dart';
 
 class CallService {
   CallService._();
@@ -28,14 +29,13 @@ class CallService {
       throw Exception(json['message'] ?? 'call inbox failed');
     }
     final data = json['data'] as Map<String, dynamic>? ?? {};
-    return CallInboxResult(
-      received: ((data['received'] as List?) ?? [])
-          .map((e) => CallRequestModel.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
-      sent: ((data['sent'] as List?) ?? [])
-          .map((e) => CallRequestModel.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
-    );
+    final received = (data['received'] as List? ?? [])
+        .map((e) => CallRequestModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    final sent = (data['sent'] as List? ?? [])
+        .map((e) => CallRequestModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    return CallInboxResult(received: received, sent: sent);
   }
 
   Future<CallRequestModel> accept(int callRequestId) async {
@@ -52,6 +52,18 @@ class CallService {
 
   Future<CallRequestModel> end(int callRequestId) async {
     return _mutate(WebService.call.end, callRequestId);
+  }
+
+  Future<StreamerWorkStats> workStats() async {
+    final json = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.call.workStats,
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'work stats failed');
+    }
+    return StreamerWorkStats.fromJson(
+        Map<String, dynamic>.from(json['data'] as Map? ?? {}));
   }
 
   Future<CallRequestModel> _mutate(String url, int callRequestId) async {

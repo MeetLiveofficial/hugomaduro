@@ -8,6 +8,7 @@ class Params {
   static const String bio = 'bio';
   static const String country = 'country';
   static const String countryCode = 'countryCode';
+  static const String dob = 'dob';
   static const String whoCanViewPost = 'who_can_view_post';
   static const String mobileCountryCode = 'mobile_country_code';
   static const String showMyFollowing = 'show_my_following';

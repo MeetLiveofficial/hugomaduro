@@ -92,8 +92,8 @@ class UserService {
       SessionManager.instance.setLogin(true);
       return model.data;
     }
-    BaseController.share.showSnackBar(
-        model.message ?? 'Invalid Credentials');
+    // El snackbar lo muestra el caller tras cerrar el loader (evita Get.back
+    // del dialog que oculta/cancela el mensaje).
     return null;
   }
 
@@ -103,6 +103,10 @@ class UserService {
     required String fullName,
     String? deviceToken,
     required LoginMethod loginMethod,
+    String? dob,
+    String? country,
+    String? countryCode,
+    String? appLanguage,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.registerUser,
@@ -113,7 +117,13 @@ class UserService {
           Params.fullname: fullName,
           Params.deviceToken: deviceToken,
           Params.device: AppPlatform.isAndroid ? 0 : 1,
-          Params.loginMethod: loginMethod.title()
+          Params.loginMethod: loginMethod.title(),
+          if (dob != null && dob.isNotEmpty) Params.dob: dob,
+          if (country != null && country.isNotEmpty) Params.country: country,
+          if (countryCode != null && countryCode.isNotEmpty)
+            Params.countryCode: countryCode,
+          if (appLanguage != null && appLanguage.isNotEmpty)
+            Params.appLanguage: appLanguage,
         },
         fromJson: UserModel.fromJson);
 
@@ -387,6 +397,20 @@ class UserService {
   }
 
   Future<void> updateLastUsedAt() async {
-    await ApiService.instance.call(url: WebService.user.updateLastUsedAt);
+    if (!SessionManager.instance.isLogin() ||
+        !SessionManager.instance.hasAuthToken) {
+      return;
+    }
+    try {
+      await ApiService.instance.call(url: WebService.user.updateLastUsedAt);
+      final user = SessionManager.instance.getUser();
+      if (user != null) {
+        user.isActive = 1;
+        user.appLastUsedAt = DateTime.now().toIso8601String();
+        SessionManager.instance.setUser(user);
+      }
+    } catch (_) {
+      // No bloquear la UI si falla el heartbeat.
+    }
   }
 }

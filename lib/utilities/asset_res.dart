@@ -10,6 +10,8 @@ class AssetRes {
   static const String battleStart = '${audio}battle_start.mp3';
   static const String endCountdown = '${audio}end_countdown.mp3';
   static const String winSound = '${audio}win_sound.mp3';
+  /// Tono suave para videollamada (no battle_start).
+  static const String callSoft = '${audio}call_soft.wav';
 
   // CSV
   static const String countriesCSV = '${csv}countries.csv';

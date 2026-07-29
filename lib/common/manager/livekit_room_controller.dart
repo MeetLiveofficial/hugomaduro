@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
@@ -24,17 +23,23 @@ class LiveKitRoomController extends GetxController {
   final RxBool isConnected = false.obs;
   final RxBool cameraEnabled = false.obs;
   final RxBool microphoneEnabled = false.obs;
+  /// Mute local del audio remoto (audiencia silencia el mic del host).
+  final RxBool remoteAudioMuted = false.obs;
+  /// Pausa local: host corta cam/mic; audiencia congela video + audio.
+  final RxBool streamPaused = false.obs;
   final RxString statusMessage = ''.obs;
   final Rxn<LocalParticipant> localParticipant = Rxn<LocalParticipant>();
   final RxList<RemoteParticipant> remoteParticipants = <RemoteParticipant>[].obs;
   final RxInt mediaRevision = 0.obs;
   final RxInt pingMs = 0.obs;
   final RxInt fps = 0.obs;
+  final Rx<LiveKitQualityProfile> qualityProfile =
+      LiveKitQualityProfile.low.obs;
 
   Room? get room => _service.room;
   Stream<DataReceivedEvent> get onDataReceived => _service.onDataReceived;
 
-  bool get isSupported => !kIsWeb;
+  StreamSubscription? _qualitySub;
 
   @override
   void onInit() {
@@ -47,7 +52,13 @@ class LiveKitRoomController extends GetxController {
       pingMs.value = pair.$1;
       fps.value = pair.$2;
     });
+    _qualitySub = _service.onQualityChanged.listen((profile) {
+      qualityProfile.value = profile;
+    });
   }
+
+  /// Sala LiveKit actual (para detectar PK / rejoin a otra room).
+  String? connectedRoomName;
 
   Future<void> connect({
     required String roomName,
@@ -56,16 +67,24 @@ class LiveKitRoomController extends GetxController {
     bool publishCamera = false,
     bool publishMicrophone = false,
     String? wsUrl,
+    LiveKitQualityProfile? forceProfile,
+    bool forceReconnect = false,
   }) async {
-    if (!isSupported) {
-      statusMessage.value =
-          'LiveKit A/V is limited on Web. Use Android/iOS for full experience.';
+    if (isConnecting.value) return;
+
+    // Si ya estamos en otra sala (o hay que forzar), cerrar antes.
+    // Evita el no-op que dejaba la cámara en la sala vieja del PK.
+    final sameRoom = isConnected.value && connectedRoomName == roomName;
+    if (isConnected.value && (!sameRoom || forceReconnect)) {
+      try {
+        await disconnect();
+      } catch (_) {}
+    } else if (sameRoom && !forceReconnect) {
       return;
     }
-    if (isConnecting.value || isConnected.value) return;
 
     isConnecting.value = true;
-    statusMessage.value = 'Preparing camera…';
+    statusMessage.value = 'Conectando…';
 
     try {
       await _service.connect(
@@ -75,11 +94,15 @@ class LiveKitRoomController extends GetxController {
         publishCamera: publishCamera,
         publishMicrophone: publishMicrophone,
         wsUrl: wsUrl,
+        // Entrada silenciosa siempre en baja calidad.
+        forceProfile: forceProfile ?? LiveKitQualityProfile.low,
       );
       _syncFromService();
       isConnected.value = true;
+      connectedRoomName = roomName;
+      qualityProfile.value = _service.qualityProfile;
       if (statusMessage.value.startsWith('Camera failed')) {
-        // Mantener aviso; el usuario puede reintentar con el botón de cámara.
+        // Mantener aviso de cámara.
       } else {
         statusMessage.value = '';
       }
@@ -87,12 +110,47 @@ class LiveKitRoomController extends GetxController {
           'LiveKit connected room=$roomName identity=$identity');
     } catch (e, st) {
       Loggers.error('LiveKit connect failed: $e\n$st');
-      statusMessage.value = e.toString();
+      statusMessage.value = 'Sin video (red débil). Toca Reintentar.';
       isConnected.value = false;
+      connectedRoomName = null;
       rethrow;
     } finally {
       isConnecting.value = false;
     }
+  }
+
+  /// Cambia resolución/calidad desde el LIVE (Baja / Media / Alta).
+  Future<void> setQualityProfile(
+    LiveKitQualityProfile profile, {
+    required bool asHost,
+  }) async {
+    await _service.setQualityProfile(profile, asHost: asHost);
+    qualityProfile.value = profile;
+    mediaRevision.value++;
+  }
+
+  /// Reconecta forzando calidad baja (útil tras fallo o red mala).
+  Future<void> reconnectLowQuality({
+    required String roomName,
+    required String identity,
+    String? name,
+    bool publishCamera = false,
+    bool publishMicrophone = false,
+    String? wsUrl,
+  }) async {
+    if (isConnecting.value) return;
+    try {
+      await disconnect();
+    } catch (_) {}
+    await connect(
+      roomName: roomName,
+      identity: identity,
+      name: name,
+      publishCamera: publishCamera,
+      publishMicrophone: publishMicrophone,
+      wsUrl: wsUrl,
+      forceProfile: LiveKitQualityProfile.low,
+    );
   }
 
   void _syncFromService() {
@@ -124,6 +182,90 @@ class LiveKitRoomController extends GetxController {
   Future<void> toggleMicrophone() =>
       setMicrophoneEnabled(!microphoneEnabled.value);
 
+  /// Silencia/reactiva el audio del host en el dispositivo local.
+  Future<void> setRemoteAudioMuted(bool muted) async {
+    remoteAudioMuted.value = muted;
+    for (final p in remoteParticipants) {
+      for (final pub in p.audioTrackPublications) {
+        try {
+          if (muted) {
+            await pub.disable();
+          } else {
+            await pub.enable();
+          }
+        } catch (e) {
+          Loggers.error('setRemoteAudioMuted: $e');
+        }
+      }
+    }
+    mediaRevision.value++;
+  }
+
+  /// Silencia audio de un participante remoto por identity (p.ej. rival PK).
+  Future<void> muteRemoteParticipantAudio(String identity) async {
+    if (identity.isEmpty) return;
+    for (final p in List<RemoteParticipant>.from(remoteParticipants)) {
+      if (p.identity != identity) continue;
+      for (final pub in p.audioTrackPublications) {
+        try {
+          await pub.disable();
+        } catch (e) {
+          Loggers.error('muteRemoteParticipantAudio: $e');
+        }
+      }
+    }
+    mediaRevision.value++;
+  }
+
+  Future<void> toggleRemoteAudio() =>
+      setRemoteAudioMuted(!remoteAudioMuted.value);
+
+  /// Host: pausa publicación cam/mic. Audiencia: deshabilita video/audio remoto.
+  Future<void> setStreamPaused({
+    required bool paused,
+    required bool asHost,
+  }) async {
+    streamPaused.value = paused;
+    if (asHost) {
+      if (paused) {
+        await setCameraEnabled(false);
+        await setMicrophoneEnabled(false);
+      } else {
+        await setCameraEnabled(true);
+        await setMicrophoneEnabled(true);
+      }
+    } else {
+      for (final p in remoteParticipants) {
+        for (final pub in p.videoTrackPublications) {
+          try {
+            if (paused) {
+              await pub.disable();
+            } else {
+              await pub.enable();
+            }
+          } catch (e) {
+            Loggers.error('setStreamPaused video: $e');
+          }
+        }
+        for (final pub in p.audioTrackPublications) {
+          try {
+            if (paused || remoteAudioMuted.value) {
+              await pub.disable();
+            } else {
+              await pub.enable();
+            }
+          } catch (e) {
+            Loggers.error('setStreamPaused audio: $e');
+          }
+        }
+      }
+    }
+    mediaRevision.value++;
+  }
+
+  Future<void> toggleStreamPaused({required bool asHost}) =>
+      setStreamPaused(paused: !streamPaused.value, asHost: asHost);
+
   Future<void> publishData(List<int> bytes, {String topic = 'live_chat'}) =>
       _service.publishDataBytes(bytes, topic: topic);
 
@@ -134,7 +276,10 @@ class LiveKitRoomController extends GetxController {
     } finally {
       cameraEnabled.value = false;
       microphoneEnabled.value = false;
+      remoteAudioMuted.value = false;
+      streamPaused.value = false;
       isConnected.value = false;
+      connectedRoomName = null;
       statusMessage.value = '';
       _syncFromService();
     }
@@ -145,6 +290,7 @@ class LiveKitRoomController extends GetxController {
     unawaited(_mediaSub?.cancel());
     unawaited(_statusSub?.cancel());
     unawaited(_statsSub?.cancel());
+    unawaited(_qualitySub?.cancel());
     unawaited(_service.dispose());
     super.onClose();
   }

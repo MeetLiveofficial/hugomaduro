@@ -14,13 +14,12 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/network_helper/network_helper.dart';
+import 'package:krimson/common/service/translation/chat_translator_service.dart';
 import 'package:krimson/common/widget/no_internet_sheet.dart';
 import 'package:krimson/languages/dynamic_translations.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/screen/auth_screen/login_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen.dart';
-import 'package:krimson/screen/on_boarding_screen/on_boarding_screen.dart';
-import 'package:krimson/screen/select_language_screen/select_language_screen.dart';
 import 'package:krimson/utilities/app_res.dart';
 
 class SplashScreenController extends BaseController {
@@ -45,7 +44,10 @@ class SplashScreenController extends BaseController {
         // Get.back() sacaba el Splash dejando pantalla blanca).
         if (_noInternetSheetOpen) {
           _noInternetSheetOpen = false;
-          Get.back();
+          if (Get.isDialogOpen == true ||
+              (Get.key.currentState?.canPop() ?? false)) {
+            Get.back();
+          }
         }
       } else if (!_noInternetSheetOpen) {
         _noInternetSheetOpen = true;
@@ -63,11 +65,28 @@ class SplashScreenController extends BaseController {
   Future<void> fetchSettings() async {
     try {
       await Future.delayed(const Duration(milliseconds: 800));
-      bool showNavigate = await CommonService.instance.fetchGlobalSettings();
+      bool showNavigate = false;
+      try {
+        showNavigate = await CommonService.instance
+            .fetchGlobalSettings()
+            .timeout(const Duration(seconds: 15));
+      } catch (e) {
+        Loggers.error('fetchGlobalSettings timeout/error: $e');
+        // Si hay settings en caché, seguir (p. ej. para descargar idiomas).
+        if (SessionManager.instance.getSettings() == null) {
+          showSnackBar('Sin conexión al servidor. Revisa tu red.', second: 5);
+          Get.offAll(() => const LoginScreen(), routeName: '/login');
+          return;
+        }
+        showNavigate = true;
+      }
       if (!showNavigate) {
-        showSnackBar('No se pudo cargar la configuración del servidor.', second: 5);
-        Get.off(() => const LoginScreen(), routeName: '/login');
-        return;
+        if (SessionManager.instance.getSettings() == null) {
+          showSnackBar('No se pudo cargar la configuración del servidor.',
+              second: 5);
+          Get.offAll(() => const LoginScreen(), routeName: '/login');
+          return;
+        }
       }
 
       final translations = Get.find<DynamicTranslations>();
@@ -80,7 +99,7 @@ class SplashScreenController extends BaseController {
       if (downloadLanguages.isEmpty) {
         showSnackBar(AppRes.languageAdd, second: 5);
         // Sin idiomas del server, igual permitir continuar.
-        Get.off(() => const LoginScreen(), routeName: '/login');
+        Get.offAll(() => const LoginScreen(), routeName: '/login');
         return;
       }
 
@@ -93,8 +112,26 @@ class SplashScreenController extends BaseController {
         SessionManager.instance.setFallbackLang(defaultLang.code ?? 'en');
       }
 
-      // Alinear locale GetX con el idioma guardado (tras cargar CSV).
-      Get.updateLocale(Locale(SessionManager.instance.getLang()));
+      // NUNCA abrir SelectLanguage al arrancar: Login primero.
+      // El idioma se cambia desde el desplegable del Login.
+      SessionManager.instance
+          .setBool(SessionKeys.isLanguageScreenSelect, true);
+      if (SessionManager.instance.getLang().trim().isEmpty) {
+        await SessionManager.instance.setLang('en', syncRemote: false);
+      }
+
+      // Solo idiomas activos del panel (ES/EN/PT, etc.) impulsan la UI.
+      final activeLang = SessionManager.instance.ensureActiveLang();
+      // Forzar locale tras registrar CSV en Get.translations (ver DynamicTranslations).
+      Get.updateLocale(Locale(activeLang));
+
+      // Precarga silenciosa de modelos ML Kit (EN + idioma del usuario).
+      // No bloquea la navegación; la primera traducción en chat será instantánea.
+      unawaited(
+        ChatTranslatorService.instance.preloadForUserLanguage(
+          langCode: activeLang,
+        ),
+      );
 
       // No reiniciar toda la app aquí: RestartWidget + Get.off dejaba
       // navigator vacío (pantalla blanca) en emuladores.
@@ -105,7 +142,7 @@ class SplashScreenController extends BaseController {
           final value = await UserService.instance
               .fetchUserDetails(userId: SessionManager.instance.getUserID());
           if (value != null) {
-            Get.off(() => DashboardScreen(myUser: value),
+            Get.offAll(() => DashboardScreen(myUser: value),
                 routeName: '/dashboard');
             return;
           }
@@ -113,92 +150,87 @@ class SplashScreenController extends BaseController {
           Loggers.error('Splash session restore failed: $e');
         }
         SessionManager.instance.clearSomeKey();
-        Get.off(() => const LoginScreen(), routeName: '/login');
+        Get.offAll(() => const LoginScreen(), routeName: '/login');
       } else {
         if (SessionManager.instance.isLogin() &&
             !SessionManager.instance.hasAuthToken) {
           SessionManager.instance.clearSomeKey();
         }
-        bool isLanguageSelect =
-            SessionManager.instance.getBool(SessionKeys.isLanguageScreenSelect);
-        bool onBoardingShow = SessionManager.instance
-            .getBool(SessionKeys.isOnBoardingScreenSelect);
-        if (isLanguageSelect == false) {
-          Get.off(() => const SelectLanguageScreen(
-              languageNavigationType: LanguageNavigationType.fromStart));
-        } else if (onBoardingShow == false &&
-            (setting?.onBoarding ?? []).isNotEmpty) {
-          Get.off(() => const OnBoardingScreen());
-        } else {
-          Get.off(() => const LoginScreen(), routeName: '/login');
-        }
+        // Login directo (idioma en el select del Login; onboarding solo si ya
+        // se marcó como pendiente explícitamente en flujos futuros).
+        Get.offAll(() => const LoginScreen(), routeName: '/login');
       }
     } catch (e, st) {
       Loggers.error('Splash fetchSettings error: $e\n$st');
       final msg = '$e'.toLowerCase();
       if (msg.contains('401') || msg.contains('unauthorized')) {
         SessionManager.instance.clearSomeKey();
-        Get.off(() => const LoginScreen(), routeName: '/login');
+        Get.offAll(() => const LoginScreen(), routeName: '/login');
         return;
       }
       showSnackBar('Error de inicio: $e', second: 8);
-      Get.off(() => const LoginScreen(), routeName: '/login');
+      Get.offAll(() => const LoginScreen(), routeName: '/login');
     }
   }
 
   Future<Map<String, Map<String, String>>> downloadAndParseLanguages(List<Language> languages) async {
-    const int maxConcurrentDownloads = 3; // Limit concurrent downloads
-    final Set<Future<void>> activeDownloads = {}; // Track active downloads
     final languageData = <String, Map<String, String>>{};
+    final pending = <Future<void>>[];
 
     for (var language in languages) {
       if (language.code != null && language.csvFile != null) {
-        // Start the download and add it to the active set
-        final downloadTask = downloadAndProcessLanguage(language, languageData);
-        activeDownloads.add(downloadTask);
-
-        // Limit concurrency
-        if (activeDownloads.length >= maxConcurrentDownloads) {
-          // Wait for any download to complete
-          await Future.any(activeDownloads);
-
-          // Remove completed tasks from the set
-          activeDownloads.removeWhere((task) => task == Future.any(activeDownloads));
+        pending.add(downloadAndProcessLanguage(language, languageData));
+        // Máx. 3 descargas en paralelo.
+        if (pending.length >= 3) {
+          await Future.wait(pending);
+          pending.clear();
         }
       }
     }
-
-    // Wait for all remaining downloads to complete
-    await Future.wait(activeDownloads);
+    if (pending.isNotEmpty) {
+      await Future.wait(pending);
+    }
 
     return languageData;
   }
 
   Future<void> downloadAndProcessLanguage(Language language, Map<String, Map<String, String>> languageData) async {
+    final url = language.csvFile?.addBaseURL() ?? '';
     try {
-      final response = await http.get(Uri.parse(language.csvFile?.addBaseURL() ?? ''));
+      final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final csvContent = utf8.decode(response.bodyBytes);
-        // Parse the CSV into a map
         final parsedMap = _parseCsvToMap(csvContent);
         languageData[language.code!] = parsedMap;
-
-        Loggers.info('Downloaded and parsed: ${language.code}');
+        Loggers.info(
+            'Downloaded and parsed: ${language.code} (${parsedMap.length} keys)');
       } else {
-        Loggers.error('Failed to download ${language.code}: ${response.statusCode}');
+        Loggers.error(
+            'Failed to download ${language.code}: ${response.statusCode} url=$url');
       }
     } catch (e) {
-      Loggers.error('Error downloading ${language.code}: $e');
+      Loggers.error('Error downloading ${language.code}: $e url=$url');
     }
   }
 
   Map<String, String> _parseCsvToMap(String csvContent) {
-    final rows = const CsvToListConverter().convert(csvContent);
+    // Los CSV del server usan LF (\n). El default del paquete `csv` es CRLF,
+    // y entonces todo el archivo queda como 1 sola fila → 1 sola clave → UI en inglés.
+    final normalized =
+        csvContent.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final rows = const CsvToListConverter(
+      eol: '\n',
+      shouldParseNumbers: false,
+    ).convert(normalized);
     final map = <String, String>{};
 
     for (var row in rows) {
       if (row.length >= 2) {
-        map[row[0].toString()] = row[1].toString();
+        final key = row[0].toString();
+        final value = row[1].toString();
+        if (key.isNotEmpty) {
+          map[key] = value;
+        }
       }
     }
     return map;

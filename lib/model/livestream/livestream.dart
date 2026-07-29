@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
 import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/utilities/app_res.dart';
 
 class Livestream {
@@ -14,6 +15,7 @@ class Livestream {
   int? hostViewID;
   String? roomID;
   int? likeCount;
+  List<LiveGiftSender>? giftSenders;
   int? hostId;
   List<int>? coHostIds;
   AppUser? hostUser;
@@ -22,6 +24,8 @@ class Livestream {
   int? battleCreatedAt;
   int? isDummyLive;
   String? dummyUserLink;
+  String? battleLinkedRoomId;
+  String? battlePrimaryRoomId;
 
   Livestream(
       {this.watchingCount,
@@ -39,6 +43,8 @@ class Livestream {
       this.battleCreatedAt,
       this.isDummyLive,
       this.dummyUserLink,
+      this.battleLinkedRoomId,
+      this.battlePrimaryRoomId,
       this.battleDuration = AppRes.battleDurationInMinutes});
 
   Livestream.fromJson(Map<String, dynamic> json) {
@@ -50,7 +56,28 @@ class Livestream {
     isRestrictToJoin = json['is_restrict_to_join'];
     hostViewID = json['host_view_id'];
     roomID = json['room_id']?.toString();
-    likeCount = json['like_count'];
+    likeCount = json['like_count'] is num
+        ? (json['like_count'] as num).toInt()
+        : int.tryParse('${json['like_count'] ?? ''}');
+    final rawSenders = json['gift_senders'];
+    if (rawSenders is List) {
+      giftSenders = rawSenders.map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+        return LiveGiftSender(
+          userId: m['user_id'] is num
+              ? (m['user_id'] as num).toInt()
+              : int.tryParse('${m['user_id']}') ?? 0,
+          userName: '${m['user_name'] ?? 'User'}',
+          totalCoins: m['total_coins'] is num
+              ? (m['total_coins'] as num).toInt()
+              : int.tryParse('${m['total_coins']}') ?? 0,
+          giftCount: m['gift_count'] is num
+              ? (m['gift_count'] as num).toInt()
+              : int.tryParse('${m['gift_count']}') ?? 0,
+          lastGiftImage: m['last_gift_image']?.toString(),
+        );
+      }).toList();
+    }
     hostId = json['host_id'];
     final coHosts = json['co-host_ids'];
     coHostIds = coHosts is List
@@ -60,6 +87,8 @@ class Livestream {
     battleCreatedAt = json['battle_created_at'];
     isDummyLive = json['is_dummy_live'];
     dummyUserLink = json['dummy_user_link'];
+    battleLinkedRoomId = json['battle_linked_room_id']?.toString();
+    battlePrimaryRoomId = json['battle_primary_room_id']?.toString();
     battleDuration = json['battle_duration'] ?? AppRes.battleDurationInMinutes;
     final hostJson = json['host_user'];
     if (hostJson is Map) {
@@ -84,6 +113,8 @@ class Livestream {
     data['battle_created_at'] = battleCreatedAt;
     data['is_dummy_live'] = isDummyLive;
     data['dummy_user_link'] = dummyUserLink;
+    data['battle_linked_room_id'] = battleLinkedRoomId;
+    data['battle_primary_room_id'] = battlePrimaryRoomId;
     data['battle_duration'] = battleDuration;
     return data;
   }
@@ -146,7 +177,8 @@ enum BattleType {
   const BattleType(this.value);
 
   static BattleType fromString(String? value) {
-    return BattleType.values.firstWhereOrNull((e) => e.value == value) ??
+    final v = value?.toUpperCase();
+    return BattleType.values.firstWhereOrNull((e) => e.value == v) ??
         BattleType.initiate;
   }
 }

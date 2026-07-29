@@ -19,7 +19,7 @@ class ChatTextMessage extends StatelessWidget {
     return ChatBubble(
       isMe: isMe,
       child: Text(
-        message.textMessage ?? '',
+        message.displayText,
         style: TextStyleCustom.outFitRegular400(
           color: textDarkGrey(context),
           fontSize: 15,

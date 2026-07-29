@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/livestream/livestream.dart';
+import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_split_view.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_stream_overlay.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:video_player/video_player.dart';
 
@@ -69,29 +73,115 @@ class LivestreamHostScreen extends StatelessWidget {
                   );
                 }
                 final lk = c.liveKit;
-                if (lk != null && lk.isConnected.value) {
-                  return Obx(() {
-                    lk.mediaRevision.value;
-                    // Solo el video del host. No PiP de espectadores (salen
-                    // como "cámara apagada" y tapan el chat).
-                    return LiveKitParticipantVideo(
-                      participant: lk.localParticipant.value,
-                      mirror: true,
-                    );
-                  });
-                }
-                return Center(
-                  child: Obx(() => Text(
-                        c.statusMessage.value.isEmpty
-                            ? 'You are live'
-                            : c.statusMessage.value,
-                        textAlign: TextAlign.center,
-                        style: TextStyleCustom.outFitRegular400(
-                          color: Colors.white70,
-                          fontSize: 14,
+                return Obx(() {
+                  final connected = lk?.isConnected.value == true;
+                  final connecting = lk?.isConnecting.value == true;
+                  lk?.mediaRevision.value;
+                  if (connected && lk != null) {
+                    if (c.isBattleRunning.value) {
+                      return LiveBattleSplitView(controller: c);
+                    }
+                    final local = lk.localParticipant.value;
+                    final hasVideo = firstVideoTrackOf(local) != null;
+                    if (hasVideo) {
+                      return BeautyFiltered(
+                        controller: c.beautyShader,
+                        child: LiveKitParticipantVideo(
+                          participant: local,
+                          mirror: true,
                         ),
-                      )),
-                );
+                      );
+                    }
+                    // Conectado pero sin track: permiso denegado o cámara ocupada.
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              c.statusMessage.value.isEmpty
+                                  ? 'Permite la cámara en el navegador y reintenta.'
+                                  : c.statusMessage.value,
+                              textAlign: TextAlign.center,
+                              style: TextStyleCustom.outFitRegular400(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextButton.icon(
+                              onPressed: () async {
+                                await c.liveKit?.setCameraEnabled(true);
+                                c.update();
+                              },
+                              style: TextButton.styleFrom(
+                                backgroundColor: ColorRes.themeAccentSolid,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                              ),
+                              icon: const Icon(Icons.videocam_rounded, size: 18),
+                              label: const Text('Activar cámara'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (connecting)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 16),
+                              child: CircularProgressIndicator(
+                                color: Colors.white70,
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                          Text(
+                            c.statusMessage.value.isEmpty
+                                ? 'You are live'
+                                : c.statusMessage.value,
+                            textAlign: TextAlign.center,
+                            style: TextStyleCustom.outFitRegular400(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (!connecting) ...[
+                            const SizedBox(height: 16),
+                            TextButton.icon(
+                              onPressed: c.retryLiveConnection,
+                              style: TextButton.styleFrom(
+                                backgroundColor: ColorRes.themeAccentSolid,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                              ),
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text('Reintentar'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                });
               },
             ),
             LiveStreamOverlay(

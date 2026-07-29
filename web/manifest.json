@@ -1,11 +1,11 @@
 {
-    "name": "Krimson",
-    "short_name": "Krimson",
+    "name": "Meet&Live",
+    "short_name": "Meet&Live",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#000000",
-    "theme_color": "#FF003F",
-    "description": "Krimson social app.",
+    "background_color": "#243E5A",
+    "theme_color": "#E67D8F",
+    "description": "Meet&Live social app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

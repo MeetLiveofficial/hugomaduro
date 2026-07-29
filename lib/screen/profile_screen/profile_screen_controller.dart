@@ -7,6 +7,7 @@ import 'package:krimson/common/enum/chat_enum.dart';
 import 'package:krimson/common/extensions/list_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/moderator_service.dart';
@@ -95,6 +96,16 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
   Future<void> fetchUserDetail() async {
     isLoading.value = true;
     User? user = await UserService.instance.fetchUserDetails(userId: userData.value?.id?.toInt());
+    // Si es mi perfil, alinear app_language con el idioma elegido en Settings.
+    if (user != null && user.id == SessionManager.instance.getUserID()) {
+      final sessionLang = SessionManager.instance.getLang();
+      if (sessionLang.isNotEmpty && user.appLanguage != sessionLang) {
+        user.appLanguage = sessionLang;
+      }
+      // Estoy en la app: presencia ACTIVE en mi perfil.
+      user.isActive = 1;
+      SessionManager.instance.setUser(user);
+    }
     profileController.updateUser(user);
     isLoading.value = false;
     if (user != null) {
@@ -160,27 +171,34 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
   Future<void> fetchPost({bool isEmpty = false}) async {
     if (isPostLoading.value) return;
     isPostLoading.value = true;
-    // Fetch user posts
-    UserPostData? items = await PostService.instance.fetchUserPosts(
-      type: PostType.posts,
-      userId: userData.value?.id?.toInt() ?? SessionManager.instance.getUserID(),
-      lastItemId: isEmpty ? null : posts.lastOrNull?.id?.toInt(),
-    );
+    try {
+      // Fetch user posts (async; never leave spinner stuck on API errors)
+      UserPostData? items = await PostService.instance.fetchUserPosts(
+        type: PostType.posts,
+        userId:
+            userData.value?.id?.toInt() ?? SessionManager.instance.getUserID(),
+        lastItemId: isEmpty ? null : posts.lastOrNull?.id?.toInt(),
+      );
 
-    if (isEmpty) {
-      posts.clear();
-    }
-    if (posts.isEmpty) {
-      posts.addAll(items?.pinnedPostList ?? []);
-    }
-
-    for (var post in (items?.posts ?? [])) {
-      if (posts.firstWhereOrNull((element) => element.id == post.id) == null) {
-        posts.add(post);
+      if (isEmpty) {
+        posts.clear();
       }
+      if (posts.isEmpty) {
+        posts.addAll(items?.pinnedPostList ?? []);
+      }
+
+      for (var post in (items?.posts ?? [])) {
+        if (posts.firstWhereOrNull((element) => element.id == post.id) ==
+            null) {
+          posts.add(post);
+        }
+      }
+      posts.refresh();
+    } catch (e) {
+      Loggers.error('Fetch Post Error : $e');
+    } finally {
+      isPostLoading.value = false;
     }
-    isPostLoading.value = false;
-    posts.refresh();
   }
 
   Future<void> onRefresh() async {
@@ -390,6 +408,10 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
 
   void handlePublishOrMessageBtn(bool isMe) {
     if (isMe) {
+      if (!AppRole.canPublish()) {
+        showSnackBar('Tu rol de cliente no permite publicar ni crear LIVE.');
+        return;
+      }
       Get.bottomSheet(PostOptionsSheet(controller: this), isScrollControlled: true);
     } else {
       ChatThread conversation = ChatThread(
@@ -414,8 +436,7 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
     final userId = user?.id;
     if (userId == null) return;
 
-    final canReceive =
-        user?.canReceiveCalls == 1 || user?.getLevel.canReceiveCalls == 1;
+    final canReceive = AppRole.canReceivePaidCalls(user);
     if (!canReceive) {
       showSnackBar(LKey.callCannotReceive.tr);
       return;
