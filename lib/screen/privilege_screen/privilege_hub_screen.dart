@@ -11,6 +11,7 @@ import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/level_screen/level_screen.dart';
+import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -146,6 +147,13 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                                   : LKey.learnMore.tr,
                               onTap: () =>
                                   Get.to(() => const HonorWallScreen()),
+                            ),
+                            _HubTile(
+                              icon: AssetRes.icRanking,
+                              title: LKey.leaderboard.tr,
+                              subtitle: LKey.learnMore.tr,
+                              onTap: () =>
+                                  Get.to(() => const LeaderboardScreen()),
                             ),
                           ],
                         ),
