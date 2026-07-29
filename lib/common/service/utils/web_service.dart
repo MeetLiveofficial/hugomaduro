@@ -18,6 +18,12 @@ class WebService {
   static var call = _Call();
   static var privilege = _Privilege();
   static var task = _Task();
+  static var filter = _Filter();
+}
+
+class _Filter {
+  String list = "${apiURL}filter/list";
+  String sync = "${apiURL}filter/sync";
 }
 
 class _Task {

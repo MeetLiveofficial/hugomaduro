@@ -44,23 +44,35 @@ class FaceCameraService {
   /// Matches mediapipe_face_mesh example: mirror front cam on Android only.
   bool get mirrorHorizontal => !Platform.isIOS && isFrontCamera;
 
-  /// Rotation compensation for landmark overlay (same formula as package example).
+  /// Rotation compensation for MediaPipe inference (package example formula).
+  ///
+  /// Prefer locked/preview orientation over raw [deviceOrientation] — emulators
+  /// (BlueStacks) often report landscape while the UI is portrait-locked, which
+  /// zeroes out front-camera rotation and leaves the mesh on its side.
   int get rotationDegrees {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return 0;
     final camera = _cameras[_cameraIndex];
     if (Platform.isAndroid) {
-      final deviceRotation =
-          _deviceOrientationDegrees[controller.value.deviceOrientation] ?? 0;
+      final deviceRotation = _deviceOrientationDegrees[_previewOrientation()] ??
+          0;
       if (camera.lensDirection == CameraLensDirection.front) {
         return (camera.sensorOrientation + deviceRotation) % 360;
       }
       return (camera.sensorOrientation - deviceRotation + 360) % 360;
     }
     if (Platform.isIOS) {
-      return _deviceOrientationDegrees[controller.value.deviceOrientation] ?? 0;
+      return _deviceOrientationDegrees[_previewOrientation()] ?? 0;
     }
     return 0;
+  }
+
+  DeviceOrientation _previewOrientation() {
+    final controller = _controller;
+    if (controller == null) return DeviceOrientation.portraitUp;
+    return controller.value.lockedCaptureOrientation ??
+        controller.value.previewPauseOrientation ??
+        controller.value.deviceOrientation;
   }
 
   /// Native sensor aspect (height/width of previewSize) for upright layout.
@@ -122,7 +134,8 @@ class FaceCameraService {
 
     try {
       await controller.initialize();
-      // Do NOT lockCaptureOrientation — it desyncs mesh rotation vs preview.
+      // Portrait-lock keeps sensor rotation stable (critical on BlueStacks).
+      await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
       await startImageStream();
       return true;
     } catch (e, st) {

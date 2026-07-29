@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/livestream/livestream.dart';
+import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_split_view.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_stream_overlay.dart';
@@ -83,9 +84,12 @@ class LivestreamHostScreen extends StatelessWidget {
                     final local = lk.localParticipant.value;
                     final hasVideo = firstVideoTrackOf(local) != null;
                     if (hasVideo) {
-                      return LiveKitParticipantVideo(
-                        participant: local,
-                        mirror: true,
+                      return BeautyFiltered(
+                        controller: c.beautyShader,
+                        child: LiveKitParticipantVideo(
+                          participant: local,
+                          mirror: true,
+                        ),
                       );
                     }
                     // Conectado pero sin track: permiso denegado o cámara ocupada.

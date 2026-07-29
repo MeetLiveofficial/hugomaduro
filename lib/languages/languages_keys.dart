@@ -126,8 +126,8 @@ class LKey {
   static const String dressingCenter = "Dressing Center";
   static const String honorWall = "Wall of Honor";
   static const String leaderboard = "Leaderboard";
-  static const String clientsRanking = "Clientes";
-  static const String streamersRanking = "Streamers";
+  static const String clientsRanking = "Giver Ranking";
+  static const String streamersRanking = "Receiver Ranking";
   static const String endsIn = "Ends In";
   static const String today = "Today";
   static const String thisMonth = "This Month";

@@ -96,16 +96,36 @@ class LiveKitRoomService {
     }
   }
 
+  /// Portrait (9:16) capture — mobile LIVE must not use landscape 16:9 presets.
   VideoParameters _captureParams(LiveKitQualityProfile profile) {
     switch (profile) {
       case LiveKitQualityProfile.high:
-        return VideoParametersPresets.h720_169;
+        return const VideoParameters(
+          dimensions: VideoDimensions(720, 1280),
+          encoding: VideoEncoding(maxBitrate: 1500 * 1000, maxFramerate: 24),
+        );
       case LiveKitQualityProfile.medium:
-        return VideoParametersPresets.h360_169;
+        return const VideoParameters(
+          dimensions: VideoDimensions(540, 960),
+          encoding: VideoEncoding(maxBitrate: 800 * 1000, maxFramerate: 20),
+        );
       case LiveKitQualityProfile.low:
-        return VideoParametersPresets.h180_169;
+        return const VideoParameters(
+          dimensions: VideoDimensions(360, 640),
+          encoding: VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15),
+        );
     }
   }
+
+  static const VideoParameters _portraitFallbackLow = VideoParameters(
+    dimensions: VideoDimensions(360, 640),
+    encoding: VideoEncoding(maxBitrate: 250 * 1000, maxFramerate: 15),
+  );
+
+  static const VideoParameters _portraitFallbackMid = VideoParameters(
+    dimensions: VideoDimensions(540, 960),
+    encoding: VideoEncoding(maxBitrate: 600 * 1000, maxFramerate: 20),
+  );
 
   VideoPublishOptions _publishOptions(LiveKitQualityProfile profile) {
     switch (profile) {
@@ -512,7 +532,7 @@ class LiveKitRoomService {
   ) async {
     final presets = <VideoParameters>[
       _captureParams(profile),
-      VideoParametersPresets.h180_169,
+      _portraitFallbackLow,
     ];
     // Evitar duplicados.
     final tried = <String>{};
@@ -571,8 +591,8 @@ class LiveKitRoomService {
 
     final presets = <VideoParameters>[
       _captureParams(profile),
-      VideoParametersPresets.h360_169,
-      VideoParametersPresets.h180_169,
+      _portraitFallbackMid,
+      _portraitFallbackLow,
     ];
     final tried = <String>{};
     for (var i = 0; i < presets.length; i++) {

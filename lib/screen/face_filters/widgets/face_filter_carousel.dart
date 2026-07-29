@@ -9,10 +9,13 @@ class FaceFilterCarousel extends StatefulWidget {
     super.key,
     required this.selectedId,
     required this.onSelected,
+    this.effects,
   });
 
   final FaceFilterId selectedId;
   final ValueChanged<FaceFilterId> onSelected;
+  /// Si es null, usa [FaceFilterEffect.catalog] (offline / builtin).
+  final List<FaceFilterEffect>? effects;
 
   @override
   State<FaceFilterCarousel> createState() => _FaceFilterCarouselState();
@@ -20,6 +23,9 @@ class FaceFilterCarousel extends StatefulWidget {
 
 class _FaceFilterCarouselState extends State<FaceFilterCarousel> {
   late final ScrollController _scrollController;
+
+  List<FaceFilterEffect> get _effects =>
+      widget.effects ?? FaceFilterEffect.catalog;
 
   @override
   void initState() {
@@ -31,7 +37,10 @@ class _FaceFilterCarouselState extends State<FaceFilterCarousel> {
   @override
   void didUpdateWidget(covariant FaceFilterCarousel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedId != widget.selectedId) _scrollToSelected();
+    if (oldWidget.selectedId != widget.selectedId ||
+        oldWidget.effects != widget.effects) {
+      _scrollToSelected();
+    }
   }
 
   @override
@@ -41,9 +50,26 @@ class _FaceFilterCarouselState extends State<FaceFilterCarousel> {
   }
 
   int get _selectedIndex {
-    final i = FaceFilterEffect.catalog
-        .indexWhere((e) => e.id == widget.selectedId);
+    final i = _effects.indexWhere((e) => e.id == widget.selectedId);
     return i < 0 ? 0 : i;
+  }
+
+  DecorationImage? _thumbImage(FaceFilterEffect effect) {
+    final url = effect.iconUrl;
+    if (url != null && url.isNotEmpty) {
+      return DecorationImage(
+        image: NetworkImage(url),
+        fit: BoxFit.cover,
+      );
+    }
+    final asset = effect.assetIcon;
+    if (asset != null && asset.isNotEmpty) {
+      return DecorationImage(
+        image: AssetImage(asset),
+        fit: BoxFit.cover,
+      );
+    }
+    return null;
   }
 
   void _scrollToSelected() {
@@ -62,16 +88,17 @@ class _FaceFilterCarouselState extends State<FaceFilterCarousel> {
 
   @override
   Widget build(BuildContext context) {
+    final items = _effects;
     return SizedBox(
       height: 86,
       child: ListView.separated(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: FaceFilterEffect.catalog.length,
+        itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
-          final effect = FaceFilterEffect.catalog[index];
+          final effect = items[index];
           final selected = effect.id == widget.selectedId;
           return GestureDetector(
             onTap: () {
@@ -81,28 +108,56 @@ class _FaceFilterCarouselState extends State<FaceFilterCarousel> {
             child: AnimatedScale(
               scale: selected ? 1.08 : 1.0,
               duration: const Duration(milliseconds: 160),
-              child: Container(
-                width: selected ? 64 : 58,
-                height: selected ? 64 : 58,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      effect.accent,
-                      effect.accent.withValues(alpha: 0.55),
-                      Colors.black.withValues(alpha: 0.35),
-                    ],
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: selected ? 64 : 58,
+                    height: selected ? 64 : 58,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: effect.hasPhotoThumb
+                          ? Colors.black26
+                          : null,
+                      gradient: effect.hasPhotoThumb
+                          ? null
+                          : LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                effect.accent,
+                                effect.accent.withValues(alpha: 0.55),
+                                Colors.black.withValues(alpha: 0.35),
+                              ],
+                            ),
+                      border: Border.all(
+                        color: selected
+                            ? whitePure(context)
+                            : whitePure(context).withValues(alpha: 0.45),
+                        width: selected ? 3 : 1.5,
+                      ),
+                      image: _thumbImage(effect),
+                    ),
+                    child: effect.hasPhotoThumb
+                        ? null
+                        : Icon(effect.icon,
+                            color: whitePure(context), size: 24),
                   ),
-                  border: Border.all(
-                    color: selected
-                        ? whitePure(context)
-                        : whitePure(context).withValues(alpha: 0.45),
-                    width: selected ? 3 : 1.5,
-                  ),
-                ),
-                child: Icon(effect.icon, color: whitePure(context), size: 24),
+                  if (effect.isPremium)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFD740),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.lock,
+                            size: 10, color: Colors.black87),
+                      ),
+                    ),
+                ],
               ),
             ),
           );

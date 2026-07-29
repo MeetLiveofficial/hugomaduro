@@ -21,6 +21,12 @@ class FaceFilterPainter extends CustomPainter {
 
     switch (effectId) {
       case FaceFilterId.none:
+      case FaceFilterId.beautySoft:
+      case FaceFilterId.beautyNatural:
+      case FaceFilterId.beautyPorcelain:
+      case FaceFilterId.beautyFresh:
+      case FaceFilterId.beautyWarm:
+      case FaceFilterId.beautyRose:
         break;
       case FaceFilterId.meshDebug:
         _paintMesh(canvas, size, data);

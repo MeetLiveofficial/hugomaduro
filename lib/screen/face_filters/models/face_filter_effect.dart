@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:krimson/model/filter/face_filter_models.dart';
+import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 
 /// Built-in interactive face effects / styles (TikTok-style carousel).
 enum FaceFilterId {
   none,
+  /// GPU beauty looks (fragment shader) — visibles en el carrusel.
+  beautySoft,
+  beautyNatural,
+  beautyPorcelain,
+  beautyFresh,
+  beautyWarm,
+  beautyRose,
   meshDebug,
   glasses,
   dogEars,
@@ -16,18 +25,106 @@ enum FaceFilterId {
   softGlow,
 }
 
+extension FaceFilterIdX on FaceFilterId {
+  String get code => name;
+
+  /// Filtros de belleza facial vía shader GPU (sin overlay MediaPipe).
+  bool get isBeautyGpu =>
+      this == FaceFilterId.beautySoft ||
+      this == FaceFilterId.beautyNatural ||
+      this == FaceFilterId.beautyPorcelain ||
+      this == FaceFilterId.beautyFresh ||
+      this == FaceFilterId.beautyWarm ||
+      this == FaceFilterId.beautyRose;
+
+  /// Necesita Face Mesh / CustomPainter AR.
+  bool get needsFaceMesh =>
+      this != FaceFilterId.none && !isBeautyGpu;
+
+  /// Preset GPU asociado (null = apagar beauty o dejar base suave).
+  BeautyLook? get beautyLook {
+    switch (this) {
+      case FaceFilterId.beautySoft:
+        return const BeautyLook(intensity: 0.72, mode: 0);
+      case FaceFilterId.beautyNatural:
+        return const BeautyLook(intensity: 0.52, mode: 0);
+      case FaceFilterId.beautyPorcelain:
+        return const BeautyLook(intensity: 0.88, mode: 1);
+      case FaceFilterId.beautyFresh:
+        return const BeautyLook(intensity: 0.75, mode: 2);
+      case FaceFilterId.beautyWarm:
+        return const BeautyLook(intensity: 0.80, mode: 3);
+      case FaceFilterId.beautyRose:
+        return const BeautyLook(intensity: 0.78, mode: 4);
+      case FaceFilterId.none:
+        return const BeautyLook(intensity: 0, mode: 0);
+      default:
+        // Filtros AR: base beauty ligera debajo del overlay.
+        return const BeautyLook(intensity: 0.35, mode: 0);
+    }
+  }
+
+  static FaceFilterId? tryParse(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    for (final v in FaceFilterId.values) {
+      if (v.name == raw) return v;
+    }
+    return null;
+  }
+}
+
+extension RemoteFaceFilterMapping on RemoteFaceFilter {
+  FaceFilterId? get localEffectId => FaceFilterIdX.tryParse(code);
+
+  FaceFilterEffect toEffect() {
+    final id = localEffectId ?? FaceFilterId.none;
+    FaceFilterEffect? builtin;
+    for (final e in FaceFilterEffect.catalog) {
+      if (e.id == id) {
+        builtin = e;
+        break;
+      }
+    }
+    return FaceFilterEffect(
+      id: id,
+      title: title.isNotEmpty ? title : (builtin?.title ?? code),
+      icon: builtin?.icon ?? Icons.auto_fix_high,
+      accent: accentColor != null
+          ? parseAccent(fallback: builtin?.accent ?? const Color(0xFF9E9E9E))
+          : (builtin?.accent ?? parseAccent()),
+      assetIcon: builtin?.assetIcon,
+      remote: this,
+    );
+  }
+}
+
 class FaceFilterEffect {
   const FaceFilterEffect({
     required this.id,
     required this.title,
     required this.icon,
     required this.accent,
+    this.assetIcon,
+    this.remote,
   });
 
   final FaceFilterId id;
   final String title;
   final IconData icon;
   final Color accent;
+  /// Thumbnail local (p. ej. foto preview de belleza).
+  final String? assetIcon;
+  /// Datos remotos (premium, URLs, versión) cuando vienen del sync API.
+  final RemoteFaceFilter? remote;
+
+  bool get isPremium => remote?.isPremium ?? false;
+  int get coinPrice => remote?.coinPrice ?? 0;
+  String? get iconUrl => remote?.iconUrl;
+
+  /// Preferir red si hay URL; si no, asset embebido.
+  bool get hasPhotoThumb =>
+      (iconUrl != null && iconUrl!.isNotEmpty) ||
+      (assetIcon != null && assetIcon!.isNotEmpty);
 
   static const List<FaceFilterEffect> catalog = [
     FaceFilterEffect(
@@ -36,6 +133,50 @@ class FaceFilterEffect {
       icon: Icons.block,
       accent: Color(0xFF9E9E9E),
     ),
+    // —— Belleza facial (GPU) ——
+    FaceFilterEffect(
+      id: FaceFilterId.beautySoft,
+      title: 'Soft',
+      icon: Icons.face_retouching_natural,
+      accent: Color(0xFFFFCCBC),
+      assetIcon: 'assets/filters/beauty/beauty_soft.jpg',
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyNatural,
+      title: 'Natural',
+      icon: Icons.spa_outlined,
+      accent: Color(0xFFA5D6A7),
+      assetIcon: 'assets/filters/beauty/beauty_natural.jpg',
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyPorcelain,
+      title: 'Porcelain',
+      icon: Icons.brightness_5,
+      accent: Color(0xFFF8BBD0),
+      assetIcon: 'assets/filters/beauty/beauty_porcelain.jpg',
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyFresh,
+      title: 'Fresh',
+      icon: Icons.water_drop_outlined,
+      accent: Color(0xFF81D4FA),
+      assetIcon: 'assets/filters/beauty/beauty_fresh.jpg',
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyWarm,
+      title: 'Warm',
+      icon: Icons.wb_sunny,
+      accent: Color(0xFFFFB74D),
+      assetIcon: 'assets/filters/beauty/beauty_warm.jpg',
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyRose,
+      title: 'Rose',
+      icon: Icons.favorite_border,
+      accent: Color(0xFFF48FB1),
+      assetIcon: 'assets/filters/beauty/beauty_rose.jpg',
+    ),
+    // —— AR / fun ——
     FaceFilterEffect(
       id: FaceFilterId.meshDebug,
       title: 'Mesh',

@@ -21,6 +21,7 @@ class FaceMeshEngine {
   StreamSubscription? _subscription;
   int? _streamRotation;
   bool _pendingMirror = true;
+  int _pendingRotation = 0;
   bool _isBusy = false;
   bool _initialized = false;
 
@@ -76,6 +77,7 @@ class FaceMeshEngine {
     _ensureStream(rotationDegrees: rotationDegrees, nv21: true);
     _isBusy = true;
     _pendingMirror = mirrorHorizontal;
+    _pendingRotation = rotationDegrees;
     _nv21Controller?.add(frame);
   }
 
@@ -88,6 +90,7 @@ class FaceMeshEngine {
     _ensureStream(rotationDegrees: rotationDegrees, nv21: false);
     _isBusy = true;
     _pendingMirror = mirrorHorizontal;
+    _pendingRotation = rotationDegrees;
     _bgraController?.add(frame);
   }
 
@@ -123,7 +126,6 @@ class FaceMeshEngine {
   void _onResult(FaceMeshInferenceResult result) {
     _isBusy = false;
     final mesh = result.meshResult;
-    final rotation = _streamRotation ?? 0;
     if (mesh == null || mesh.landmarks.isEmpty) {
       frameNotifier.value = null;
       return;
@@ -139,13 +141,11 @@ class FaceMeshEngine {
       }
     } catch (_) {}
 
-    // Map into unit square with rotation/mirror — painter scales to canvas.
-    final normalized = mesh.landmarksAsOffsets(
-      targetSize: const Size(1, 1),
-      rotationDegrees: rotation,
-      mirrorHorizontal: _pendingMirror,
-      clampToBounds: true,
-    );
+    // Inference rotates the *input* into logical space when metadata is
+    // correct. On emulators (BlueStacks) sensor/device orientation is often
+    // wrong, so landmarks can still arrive sideways. Pick the overlay
+    // rotation that keeps the eyes horizontal and the nose below them.
+    final normalized = _orientedLandmarks(mesh);
     final triangles = mesh.triangles
         .map((t) => List<int>.from(t.indices))
         .toList(growable: false);
@@ -155,6 +155,59 @@ class FaceMeshEngine {
       triangles: triangles,
       blendshapes: blends,
     );
+  }
+
+  /// Maps landmarks into upright 0..1 preview space.
+  List<Offset> _orientedLandmarks(FaceMeshResult mesh) {
+    const candidates = <int>[0, 90, 180, 270];
+    // Prefer identity first when inference rotation already looks upright.
+    final ordered = <int>[
+      0,
+      _pendingRotation,
+      ...candidates.where((r) => r != 0 && r != _pendingRotation),
+    ];
+
+    List<Offset>? best;
+    var bestScore = double.negativeInfinity;
+    for (final rot in ordered) {
+      final points = mesh.landmarksAsOffsets(
+        targetSize: const Size(1, 1),
+        rotationDegrees: rot,
+        mirrorHorizontal: _pendingMirror,
+        clampToBounds: true,
+      );
+      if (points.length <= 263) continue;
+      final score = _uprightScore(points);
+      if (score > bestScore) {
+        bestScore = score;
+        best = points;
+        // Good enough: eyes clearly horizontal and nose below.
+        if (score >= 0.55) break;
+      }
+    }
+    return best ??
+        mesh.landmarksAsOffsets(
+          targetSize: const Size(1, 1),
+          rotationDegrees: 0,
+          mirrorHorizontal: _pendingMirror,
+          clampToBounds: true,
+        );
+  }
+
+  /// Higher = more upright face layout (horizontal eyes, nose under eyes).
+  double _uprightScore(List<Offset> points) {
+    // MediaPipe: 33 / 263 = outer eye corners, 1 = nose tip.
+    final eyeA = points[33];
+    final eyeB = points[263];
+    final nose = points[1];
+    final eyeDx = (eyeA.dx - eyeB.dx).abs();
+    final eyeDy = (eyeA.dy - eyeB.dy).abs();
+    final span = eyeDx + eyeDy;
+    if (span <= 1e-6) return double.negativeInfinity;
+    final horizontal = eyeDx / span; // 1 = eyes side-by-side
+    final eyeMidY = (eyeA.dy + eyeB.dy) / 2;
+    final noseBelow = nose.dy > eyeMidY ? 1.0 : 0.0;
+    return horizontal * 0.75 + noseBelow * 0.25;
   }
 
   void _onError(Object error, StackTrace st) {

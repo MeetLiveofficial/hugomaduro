@@ -34,6 +34,8 @@ import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_pa
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_sheet.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_invite_dialog.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_private_call_sheet.dart';
+import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
+import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -83,6 +85,8 @@ class LivestreamScreenController extends BaseController {
   final RxDouble rosy = 40.0.obs;
   final RxDouble smooth = 55.0.obs;
   final RxDouble sharpen = 35.0.obs;
+  final Rx<FaceFilterId> selectedBeautyFilterId = FaceFilterId.none.obs;
+  final BeautyShaderController beautyShader = BeautyShaderController();
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxList<User> inviteCandidates = <User>[].obs;
   final RxBool inviteLoading = false.obs;
@@ -270,6 +274,9 @@ class LivestreamScreenController extends BaseController {
     }
     _listenNetwork();
     _startLiveElapsedTicker();
+    if (isHost) {
+      beautyShader.load().then((_) => applyBeauty());
+    }
     _bootstrap();
   }
 
@@ -1981,11 +1988,35 @@ class LivestreamScreenController extends BaseController {
     }
   }
 
-  /// Beauty effects eran nativos de Zego; LiveKit no los incluye.
-  /// Se mantienen prefs de UI por compatibilidad (hooks futuros / DeepAR).
+  /// Beauty sobre el preview local (ColorFilter + blur; shader si Impeller).
   Future<void> applyBeauty() async {
     if (kIsWeb || isDummy) return;
-    // No-op: integrar procesador de video externo si se requiere.
+    await beautyShader.load();
+    if (!beautyOn.value) {
+      beautyShader.setLook(const BeautyLook(intensity: 0, mode: 0));
+      return;
+    }
+    final style = selectedBeautyFilterId.value;
+    if (style.isBeautyGpu) {
+      final look = style.beautyLook;
+      if (look != null) {
+        // Smooth del sheet escala la intensidad del preset.
+        final scaled = look.intensity * (smooth.value / 100.0).clamp(0.35, 1.0);
+        beautyShader.setLook(BeautyLook(intensity: scaled, mode: look.mode));
+      }
+      return;
+    }
+    // Sliders → look genérico.
+    final intensity = (smooth.value / 100.0).clamp(0.0, 1.0);
+    double mode = 0;
+    if (rosy.value >= whiten.value && rosy.value >= 45) {
+      mode = 4; // Rose
+    } else if (whiten.value >= 60) {
+      mode = 1; // Porcelain
+    } else if (whiten.value >= 45) {
+      mode = 2; // Fresh
+    }
+    beautyShader.setLook(BeautyLook(intensity: intensity, mode: mode));
   }
 
   void openBeauty() {
@@ -1997,6 +2028,13 @@ class LivestreamScreenController extends BaseController {
       sharpen: sharpen,
       beautyOn: beautyOn,
       onApply: applyBeauty,
+      selectedFilterId: selectedBeautyFilterId,
+      styleEffects: FaceFilterEffect.catalog,
+      showAcceptButton: true,
+      onStyleSelected: (id) {
+        selectedBeautyFilterId.value = id;
+        if (id.isBeautyGpu) beautyOn.value = true;
+      },
     );
   }
 
@@ -2967,6 +3005,7 @@ class LivestreamScreenController extends BaseController {
     _dataSub?.cancel();
     commentController.dispose();
     dummyPlayer?.dispose();
+    beautyShader.dispose();
     final tag = 'lk_live_$roomId';
     if (Get.isRegistered<LiveKitRoomController>(tag: tag)) {
       Get.delete<LiveKitRoomController>(tag: tag);

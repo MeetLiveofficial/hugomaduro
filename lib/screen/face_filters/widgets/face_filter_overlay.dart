@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/screen/face_filters/models/face_mesh_frame.dart';
@@ -10,7 +11,7 @@ class FaceFilterOverlay extends StatelessWidget {
     required this.effectId,
   });
 
-  final ValueNotifier<FaceMeshFrame?> frameListenable;
+  final ValueListenable<FaceMeshFrame?> frameListenable;
   final FaceFilterId effectId;
 
   @override
