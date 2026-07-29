@@ -45,24 +45,12 @@ class LeaderboardScreen extends StatelessWidget {
                     )),
                 const SizedBox(height: 8),
                 _PeriodFilters(controller: controller),
-                const SizedBox(height: 10),
-                // Podio fijo: no scrollea con la lista
-                Obx(() {
-                  if (controller.isLoading.value && controller.users.isEmpty) {
-                    return const SizedBox(height: 280, child: LoaderWidget());
-                  }
-                  if (controller.users.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return _PodiumStage(users: controller.users);
-                }),
-                const SizedBox(height: 16),
-                // Solo scrollea el ranking 4+
+                const SizedBox(height: 8),
                 Expanded(
                   child: Obx(() {
                     if (controller.isLoading.value &&
                         controller.users.isEmpty) {
-                      return const SizedBox.shrink();
+                      return const LoaderWidget();
                     }
                     if (controller.users.isEmpty) {
                       return NoDataView(
@@ -71,17 +59,38 @@ class LeaderboardScreen extends StatelessWidget {
                         description: LKey.noData.tr,
                       );
                     }
-                    final rest = controller.users.length > 3
+                    final restCount = controller.users.length > 3
                         ? controller.users.length - 3
                         : 0;
-                    return ListView.separated(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
-                      itemCount: rest,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        return _RankRow(entry: controller.users[index + 3]);
-                      },
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Podio fijo, altura natural, sin overflow
+                        Material(
+                          type: MaterialType.transparency,
+                          child: _PodiumStage(users: controller.users),
+                        ),
+                        const SizedBox(height: 10),
+                        // Lista opaca: nada del podio se ve a través
+                        Expanded(
+                          child: ColoredBox(
+                            color: const Color(0xFF0A040C),
+                            child: ListView.separated(
+                              physics: const BouncingScrollPhysics(),
+                              padding:
+                                  const EdgeInsets.fromLTRB(14, 4, 14, 16),
+                              itemCount: restCount,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                return _RankRow(
+                                  entry: controller.users[index + 3],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
                     );
                   }),
                 ),
@@ -651,7 +660,7 @@ class _ArenaPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ───────────────────────────────────────────── Podium (rejilla rígida)
+// ───────────────────────────────────────────── Podium (compacto, sin overflow)
 
 class _PodiumStage extends StatelessWidget {
   const _PodiumStage({required this.users});
@@ -672,49 +681,47 @@ class _PodiumStage extends StatelessWidget {
     final second = _at(2);
     final third = _at(3);
     if (first == null && second == null && third == null) {
-      return const SizedBox(height: 12);
+      return const SizedBox.shrink();
     }
 
-    // Misma altura de columna; #1 más alto solo por el tamaño del frame
+    // Altura NATURAL — sin SizedBox fijo ni CrossAxisAlignment.end
+    // (eso causaba el hueco vacío + solape con la lista).
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 0, 10, 4),
-      child: SizedBox(
-        height: 300,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: _ChampionCard(
-                entry: second,
-                place: 2,
-                colors: _Epic.place2,
-                accent: const Color(0xFFFF8A5C),
-                figureSize: 88,
-              ),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: _ChampionCard(
+              entry: second,
+              place: 2,
+              colors: _Epic.place2,
+              accent: const Color(0xFFFF8A5C),
+              figureSize: 78,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ChampionCard(
-                entry: first,
-                place: 1,
-                colors: _Epic.place1,
-                accent: _Epic.gold,
-                figureSize: 108,
-                elevated: true,
-              ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ChampionCard(
+              entry: first,
+              place: 1,
+              colors: _Epic.place1,
+              accent: _Epic.gold,
+              figureSize: 96,
+              elevated: true,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ChampionCard(
-                entry: third,
-                place: 3,
-                colors: _Epic.place3,
-                accent: const Color(0xFF7EB6FF),
-                figureSize: 88,
-              ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ChampionCard(
+              entry: third,
+              place: 3,
+              colors: _Epic.place3,
+              accent: const Color(0xFF7EB6FF),
+              figureSize: 78,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -737,118 +744,77 @@ class _ChampionCard extends StatelessWidget {
   final double figureSize;
   final bool elevated;
 
-  /// Alturas idénticas en las 3 columnas (salvo el bloque de figura).
-  static const double bannerH = 80;
-  static const double badgeH = 24;
-  static const double gap = 6;
-
   @override
   Widget build(BuildContext context) {
-    // Altura de figura fija: #2/#3 iguales; #1 más alto → queda elevado
-    final figureH = elevated ? 130.0 : 102.0;
-
-    if (entry == null) {
-      return SizedBox(height: figureH + badgeH + bannerH + gap * 2);
-    }
+    if (entry == null) return const SizedBox.shrink();
 
     return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          height: figureH,
-          width: double.infinity,
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              // Glow suave centrado
-              Container(
-                width: figureSize * 0.9,
-                height: figureSize * 0.9,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.45),
-                      blurRadius: 22,
-                      spreadRadius: 2,
+        // Extra top only for #1 crown spacing
+        if (elevated) const SizedBox(height: 14),
+        Center(
+          child: SizedBox(
+            width: figureSize,
+            height: figureSize,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.hardEdge,
+              children: [
+                _RankFigure(
+                  entry: entry!,
+                  place: place,
+                  size: figureSize,
+                ),
+                if (place == 1)
+                  const Positioned(
+                    top: 0,
+                    child: Icon(
+                      Icons.workspace_premium,
+                      color: _Epic.gold,
+                      size: 18,
                     ),
-                  ],
-                ),
-              ),
-              // Avatar + marco PERFECTAMENTE centrados
-              _RankFigure(
-                entry: entry!,
-                place: place,
-                size: figureSize,
-              ),
-              if (place == 1)
-                Positioned(
-                  top: 0,
-                  child: Icon(
-                    Icons.workspace_premium,
-                    color: _Epic.gold,
-                    size: 22,
-                    shadows: [
-                      Shadow(
-                        color: _Epic.gold.withValues(alpha: 0.8),
-                        blurRadius: 8,
-                      ),
-                    ],
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: gap),
-        SizedBox(
-          height: badgeH,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: accent, width: 1.1),
-              ),
-              child: Text(
-                '${LKey.top.tr} $place',
-                style: TextStyleCustom.outFitBold700(
-                  color: Colors.white,
-                  fontSize: 10,
-                ),
+        const SizedBox(height: 4),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: accent, width: 1),
+            ),
+            child: Text(
+              '${LKey.top.tr} $place',
+              style: TextStyleCustom.outFitBold700(
+                color: Colors.white,
+                fontSize: 9,
               ),
             ),
           ),
         ),
-        const SizedBox(height: gap),
+        const SizedBox(height: 6),
         Container(
           width: double.infinity,
-          height: bannerH,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [colors.first, colors.last],
             ),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: place == 1 ? _Epic.gold : accent.withValues(alpha: 0.8),
-              width: place == 1 ? 1.8 : 1.3,
+              color: place == 1 ? _Epic.gold : accent.withValues(alpha: 0.85),
+              width: place == 1 ? 1.6 : 1.2,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: colors.first.withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 entry!.displayName,
@@ -860,7 +826,7 @@ class _ChampionCard extends StatelessWidget {
                   fontSize: elevated ? 12 : 11,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 entry!.isSvip == 1
                     ? 'SVIP Lv.${entry!.levelNumber}'
@@ -873,7 +839,7 @@ class _ChampionCard extends StatelessWidget {
                   fontSize: 10,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -881,7 +847,7 @@ class _ChampionCard extends StatelessWidget {
                   Icon(
                     Icons.local_fire_department,
                     color: place == 1 ? _Epic.gold : const Color(0xFFFFB347),
-                    size: 14,
+                    size: 13,
                   ),
                   const SizedBox(width: 2),
                   Text(
