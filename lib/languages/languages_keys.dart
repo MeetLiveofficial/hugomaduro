@@ -88,6 +88,11 @@ class LKey {
   static const String messages = "Messages";
   static const String message = "Message";
   static const String chats = "Chats";
+  static const String supportChat = "Chat de Soporte";
+  static const String supportChatSubtitle = "Crea un ticket de soporte";
+  static const String supportChatHint = "Describe tu problema…";
+  static const String supportChatEmpty = "Escribe tu primer mensaje para abrir un ticket.";
+  static const String supportBadge = "SOPORTE";
   static const String newChat = "New Chat";
   static const String newChatHint = "Search a user to start a direct chat";
   static const String searchUsers = "Search users";

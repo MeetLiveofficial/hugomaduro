@@ -35,10 +35,11 @@ class SupportChatController extends BaseController {
   Future<void> _bootstrap() async {
     isLoading.value = true;
     try {
-      final opened = await SupportService.instance.openOrGet();
-      ticket.value = opened;
+      ticket.value = await SupportService.instance.openOrGet();
       await _refreshMessages();
-      await SupportService.instance.markRead(ticketId: ticket.value?.id);
+      if (ticket.value?.id != null) {
+        await SupportService.instance.markRead(ticketId: ticket.value?.id);
+      }
       _pollTimer?.cancel();
       _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
         _refreshMessages(silent: true);
@@ -57,11 +58,10 @@ class SupportChatController extends BaseController {
         ticketId: ticket.value?.id,
       );
       ticket.value = result.ticket;
-      // newest first for reverse ListView
       final sorted = result.messages.toList()
         ..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
       messages.assignAll(sorted);
-      if (!silent) {
+      if (!silent && ticket.value?.id != null) {
         await SupportService.instance.markRead(ticketId: ticket.value?.id);
       }
     } catch (e) {

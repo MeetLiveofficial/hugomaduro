@@ -13,6 +13,7 @@ import 'package:krimson/screen/message_screen/message_screen_controller.dart';
 import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
 import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card.dart';
 import 'package:krimson/screen/message_screen/widget/new_direct_chat_sheet.dart';
+import 'package:krimson/screen/message_screen/widget/support_chat_card.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -167,15 +168,22 @@ class ChatsListView extends StatelessWidget {
     final MessageScreenController controller = Get.find();
     return Obx(() {
       final list = controller.filteredChats;
+      final showSupport = controller.showSupportInSearch;
+      // El chat de soporte siempre va primero (aunque no haya otros chats).
+      final itemCount = list.length + (showSupport ? 1 : 0);
       return NoDataView(
-        showShow: list.isEmpty,
+        showShow: itemCount == 0,
         title: LKey.chatListEmptyTitle.tr,
         description: LKey.chatListEmptyDescription.tr,
         child: ListView.builder(
-          itemCount: list.length,
+          itemCount: itemCount,
           padding: EdgeInsets.zero,
           itemBuilder: (context, index) {
-            ChatThread chatConversation = list[index];
+            if (showSupport && index == 0) {
+              return const SupportChatCard();
+            }
+            final chatIndex = showSupport ? index - 1 : index;
+            ChatThread chatConversation = list[chatIndex];
             chatConversation.bindChatUser();
             return ChatConversationUserCard(chatConversation: chatConversation);
           },

@@ -6,9 +6,11 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/chat_service.dart';
+import 'package:krimson/common/service/api/support_service.dart';
 import 'package:krimson/common/widget/confirmation_dialog.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
+import 'package:krimson/model/support/support_ticket.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
@@ -29,6 +31,7 @@ class MessageScreenController extends BaseController {
   Timer? _pollTimer;
   final TextEditingController searchController = TextEditingController();
   final RxString searchQuery = ''.obs;
+  final Rxn<SupportSummary> supportSummary = Rxn<SupportSummary>();
 
   List<ChatThread> get filteredChats {
     searchQuery.value;
@@ -40,6 +43,15 @@ class MessageScreenController extends BaseController {
     searchQuery.value;
     requestsUsers.length;
     return _filter(requestsUsers);
+  }
+
+  bool get showSupportInSearch {
+    final q = searchQuery.value.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    final title = LKey.supportChat.tr.toLowerCase();
+    final subtitle = LKey.supportChatSubtitle.tr.toLowerCase();
+    final last = (supportSummary.value?.lastMsg ?? '').toLowerCase();
+    return title.contains(q) || subtitle.contains(q) || last.contains(q);
   }
 
   List<ChatThread> _filter(List<ChatThread> source) {
@@ -123,6 +135,7 @@ class MessageScreenController extends BaseController {
       requestsUsers.assignAll(result.requests);
       _syncUnreadBadges(result.chats, result.requests);
       chatError.value = null;
+      await refreshSupportSummary(silent: true);
     } catch (e) {
       Loggers.error('fetchThreads: $e');
       if (!silent) {
@@ -133,12 +146,31 @@ class MessageScreenController extends BaseController {
     }
   }
 
+  Future<void> refreshSupportSummary({bool silent = false}) async {
+    try {
+      supportSummary.value = await SupportService.instance.summary();
+      _syncUnreadBadges(chatsUsers, requestsUsers);
+    } catch (e) {
+      Loggers.error('support summary: $e');
+      if (!silent || supportSummary.value == null) {
+        supportSummary.value = SupportSummary(
+          hasTicket: false,
+          lastMsg: LKey.supportChatSubtitle.tr,
+          userUnread: 0,
+        );
+      }
+    }
+  }
+
   void _syncUnreadBadges(List<ChatThread> chats, List<ChatThread> requests) {
     final chatUnread = chats.where((e) => (e.msgCount ?? 0) > 0).length;
     final requestUnread = requests.where((e) => (e.msgCount ?? 0) > 0).length;
-    dashboardController.chatUnReadCount.value = chatUnread;
+    final supportUnread =
+        (supportSummary.value?.userUnread ?? 0) > 0 ? 1 : 0;
+    dashboardController.chatUnReadCount.value = chatUnread + supportUnread;
     dashboardController.requestUnReadCount.value = requestUnread;
     dashboardController.unReadCount.value = chatUnread +
+        supportUnread +
         requestUnread +
         dashboardController.callsUnReadCount.value;
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/message_screen/message_screen_controller.dart';
+import 'package:krimson/screen/support_chat/support_chat_controller.dart';
 import 'package:krimson/screen/support_chat/support_chat_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
@@ -19,6 +20,9 @@ class SupportChatCard extends StatelessWidget {
     return InkWell(
       onTap: () async {
         await Get.to(() => const SupportChatScreen());
+        if (Get.isRegistered<SupportChatController>()) {
+          Get.delete<SupportChatController>();
+        }
         controller.refreshSupportSummary();
       },
       child: Padding(

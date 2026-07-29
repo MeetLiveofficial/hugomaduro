@@ -18,7 +18,7 @@ class SupportService {
     return SupportSummary.fromJson(data);
   }
 
-  Future<SupportTicket> openOrGet({String? subject}) async {
+  Future<SupportTicket?> openOrGet({String? subject}) async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.support.openOrGet,
       param: {if (subject != null) 'subject': subject},
@@ -28,11 +28,12 @@ class SupportService {
       throw Exception(json['message'] ?? 'openOrGet failed');
     }
     final data = json['data'] as Map<String, dynamic>? ?? {};
-    return SupportTicket.fromJson(
-        Map<String, dynamic>.from(data['ticket'] as Map));
+    final raw = data['ticket'];
+    if (raw is! Map) return null;
+    return SupportTicket.fromJson(Map<String, dynamic>.from(raw));
   }
 
-  Future<({SupportTicket ticket, List<SupportMessage> messages})>
+  Future<({SupportTicket? ticket, List<SupportMessage> messages})>
       fetchMessages({int? ticketId, int? afterId}) async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.support.fetchMessages,
@@ -47,8 +48,10 @@ class SupportService {
       throw Exception(json['message'] ?? 'fetchMessages failed');
     }
     final data = json['data'] as Map<String, dynamic>? ?? {};
-    final ticket = SupportTicket.fromJson(
-        Map<String, dynamic>.from(data['ticket'] as Map));
+    final rawTicket = data['ticket'];
+    final ticket = rawTicket is Map
+        ? SupportTicket.fromJson(Map<String, dynamic>.from(rawTicket))
+        : null;
     final messages = ((data['messages'] as List?) ?? [])
         .map((e) => SupportMessage.fromJson(Map<String, dynamic>.from(e)))
         .toList();
