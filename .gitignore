@@ -60,3 +60,4 @@ android/app/src/main/res/values/strings.xml
 *.apk
 release/
 *.hprof
+*.lock
