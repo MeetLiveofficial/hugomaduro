@@ -166,12 +166,17 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Fragment shaders (Impeller / ui.FragmentProgram.fromAsset)
+  shaders:
+    - shaders/beauty_skin.frag
+
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
     - assets/icons/
     - assets/csv/
     - assets/audios/
+    - assets/filters/beauty/
     - android/app/src/main/res/mipmap-hdpi/
 
   # An image asset can refer to one or more resolution-specific "variants", see
