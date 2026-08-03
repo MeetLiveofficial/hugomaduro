@@ -14,6 +14,12 @@ class ScreenSecurity {
 
   static Future<void> enable() async {
     if (kIsWeb || _enabled) return;
+    // En iOS el bloqueo via UITextField+layer puede romper el layout
+    // (UI a media pantalla). Android ya usa FLAG_SECURE en MainActivity.
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      Loggers.info('ScreenSecurity: skipped on iOS (layout-safe)');
+      return;
+    }
     try {
       await _channel.invokeMethod<void>('enableSecure');
       _enabled = true;

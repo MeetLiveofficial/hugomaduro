@@ -26,7 +26,9 @@ import app_links
 
         DispatchQueue.main.async { [weak self] in
             self?.setupScreenSecurityChannel()
-            self?.enableScreenshotProtection()
+            // No activar al arranque: el reparent de window.layer puede
+            // dejar la UI a media pantalla / esquina en iOS recientes.
+            // Se habilita solo vía canal cuando Dart lo pide, con el path seguro.
         }
 
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -50,26 +52,31 @@ import app_links
         }
     }
 
-    /// Capturas / grabaciones de pantalla en negro (UITextField secure).
+    /// Capturas / grabaciones en negro (capa segura del UITextField).
+    /// Importante: se reparenta la capa del *Flutter view*, no de toda la
+    /// `UIWindow` — reparentar `window.layer` rompe el layout (UI a 1/4).
     private func enableScreenshotProtection() {
-        guard !secureConfigured, let window = self.window else { return }
+        guard !secureConfigured else { return }
+        guard let window = self.window,
+              let flutterView = window.rootViewController?.view else { return }
         secureConfigured = true
 
         let field = UITextField()
         field.isSecureTextEntry = true
         field.isUserInteractionEnabled = false
-        window.addSubview(field)
         field.translatesAutoresizingMaskIntoConstraints = false
+        flutterView.addSubview(field)
         NSLayoutConstraint.activate([
-            field.centerXAnchor.constraint(equalTo: window.centerXAnchor),
-            field.centerYAnchor.constraint(equalTo: window.centerYAnchor),
-            field.widthAnchor.constraint(equalToConstant: 1),
-            field.heightAnchor.constraint(equalToConstant: 1),
+            field.centerXAnchor.constraint(equalTo: flutterView.centerXAnchor),
+            field.centerYAnchor.constraint(equalTo: flutterView.centerYAnchor),
+            field.widthAnchor.constraint(equalToConstant: 0),
+            field.heightAnchor.constraint(equalToConstant: 0),
         ])
 
-        window.layer.superlayer?.addSublayer(field.layer)
-        if let last = field.layer.sublayers?.last {
-            last.addSublayer(window.layer)
+        // La capa "no capturable" suele ser la *primera* sublayer del field.
+        flutterView.layer.superlayer?.addSublayer(field.layer)
+        if let secureLayer = field.layer.sublayers?.first {
+            secureLayer.addSublayer(flutterView.layer)
         }
     }
 }
