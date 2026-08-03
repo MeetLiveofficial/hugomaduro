@@ -177,7 +177,6 @@ flutter:
     - assets/csv/
     - assets/audios/
     - assets/filters/beauty/
-    - android/app/src/main/res/mipmap-hdpi/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
