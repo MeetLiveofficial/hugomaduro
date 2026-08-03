@@ -36,10 +36,13 @@ class LiveKitParticipantVideo extends StatelessWidget {
           );
     }
 
+    // texture: ColorFilter / ImageFilter.shader pueden aplicarse encima.
+    // platformView (UiKitView) ignora los filtros de Flutter.
     Widget view = VideoTrackRenderer(
       track,
       fit: fit,
       mirrorMode: mirror ? VideoViewMirrorMode.mirror : VideoViewMirrorMode.off,
+      renderMode: VideoRenderMode.texture,
     );
 
     if (forcePortraitUpright && _isLandscapeTrack(track)) {

@@ -45,6 +45,7 @@ class LivestreamHostScreen extends StatelessWidget {
       controller.smooth.value = initialSmooth;
       controller.sharpen.value = initialSharpen;
       controller.beautyPrefsApplied = true;
+      controller.applyBeauty();
     }
 
     return PopScope(

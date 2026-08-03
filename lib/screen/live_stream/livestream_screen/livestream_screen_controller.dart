@@ -1988,7 +1988,7 @@ class LivestreamScreenController extends BaseController {
     }
   }
 
-  /// Beauty sobre el preview local (ColorFilter + blur; shader si Impeller).
+  /// Beauty sobre el preview local (shader GPU; ColorFilter de respaldo).
   Future<void> applyBeauty() async {
     if (kIsWeb || isDummy) return;
     await beautyShader.load();
@@ -1996,27 +1996,49 @@ class LivestreamScreenController extends BaseController {
       beautyShader.setLook(const BeautyLook(intensity: 0, mode: 0));
       return;
     }
+    final w = (whiten.value / 100.0).clamp(0.0, 1.0);
+    final r = (rosy.value / 100.0).clamp(0.0, 1.0);
+    final s = (smooth.value / 100.0).clamp(0.0, 1.0);
+    final sh = (sharpen.value / 100.0).clamp(0.0, 1.0);
+    // Intensidad maestra: mezcla de sliders (smooth pesa más).
+    final sliderMaster =
+        (0.45 * s + 0.25 * w + 0.20 * r + 0.10 * sh).clamp(0.15, 1.0);
+
     final style = selectedBeautyFilterId.value;
     if (style.isBeautyGpu) {
       final look = style.beautyLook;
       if (look != null) {
-        // Smooth del sheet escala la intensidad del preset.
-        final scaled = look.intensity * (smooth.value / 100.0).clamp(0.35, 1.0);
-        beautyShader.setLook(BeautyLook(intensity: scaled, mode: look.mode));
+        final scaled =
+            (look.intensity * (0.55 + 0.45 * s)).clamp(0.25, 1.0);
+        beautyShader.setLook(BeautyLook(
+          intensity: scaled,
+          mode: look.mode,
+          whiten: w,
+          rosy: r,
+          smooth: s,
+          sharpen: sh,
+        ));
       }
       return;
     }
-    // Sliders → look genérico.
-    final intensity = (smooth.value / 100.0).clamp(0.0, 1.0);
     double mode = 0;
-    if (rosy.value >= whiten.value && rosy.value >= 45) {
+    if (r >= w && r >= 0.45) {
       mode = 4; // Rose
-    } else if (whiten.value >= 60) {
+    } else if (w >= 0.60) {
       mode = 1; // Porcelain
-    } else if (whiten.value >= 45) {
+    } else if (w >= 0.45) {
       mode = 2; // Fresh
+    } else if (r >= 0.35 && w >= 0.35) {
+      mode = 3; // Warm
     }
-    beautyShader.setLook(BeautyLook(intensity: intensity, mode: mode));
+    beautyShader.setLook(BeautyLook(
+      intensity: sliderMaster,
+      mode: mode,
+      whiten: w,
+      rosy: r,
+      smooth: s,
+      sharpen: sh,
+    ));
   }
 
   void openBeauty() {
@@ -2034,6 +2056,13 @@ class LivestreamScreenController extends BaseController {
       onStyleSelected: (id) {
         selectedBeautyFilterId.value = id;
         if (id.isBeautyGpu) beautyOn.value = true;
+        final look = id.beautyLook;
+        if (look != null && id.isBeautyGpu) {
+          whiten.value = look.whiten * 100;
+          rosy.value = look.rosy * 100;
+          smooth.value = look.smooth * 100;
+          sharpen.value = look.sharpen * 100;
+        }
       },
     );
   }

@@ -45,22 +45,71 @@ extension FaceFilterIdX on FaceFilterId {
   BeautyLook? get beautyLook {
     switch (this) {
       case FaceFilterId.beautySoft:
-        return const BeautyLook(intensity: 0.72, mode: 0);
+        return const BeautyLook(
+          intensity: 0.72,
+          mode: 0,
+          whiten: 0.45,
+          rosy: 0.35,
+          smooth: 0.70,
+          sharpen: 0.30,
+        );
       case FaceFilterId.beautyNatural:
-        return const BeautyLook(intensity: 0.52, mode: 0);
+        return const BeautyLook(
+          intensity: 0.52,
+          mode: 0,
+          whiten: 0.35,
+          rosy: 0.30,
+          smooth: 0.50,
+          sharpen: 0.40,
+        );
       case FaceFilterId.beautyPorcelain:
-        return const BeautyLook(intensity: 0.88, mode: 1);
+        return const BeautyLook(
+          intensity: 0.88,
+          mode: 1,
+          whiten: 0.75,
+          rosy: 0.25,
+          smooth: 0.80,
+          sharpen: 0.25,
+        );
       case FaceFilterId.beautyFresh:
-        return const BeautyLook(intensity: 0.75, mode: 2);
+        return const BeautyLook(
+          intensity: 0.75,
+          mode: 2,
+          whiten: 0.55,
+          rosy: 0.30,
+          smooth: 0.60,
+          sharpen: 0.45,
+        );
       case FaceFilterId.beautyWarm:
-        return const BeautyLook(intensity: 0.80, mode: 3);
+        return const BeautyLook(
+          intensity: 0.80,
+          mode: 3,
+          whiten: 0.40,
+          rosy: 0.45,
+          smooth: 0.65,
+          sharpen: 0.35,
+        );
       case FaceFilterId.beautyRose:
-        return const BeautyLook(intensity: 0.78, mode: 4);
+        return const BeautyLook(
+          intensity: 0.78,
+          mode: 4,
+          whiten: 0.45,
+          rosy: 0.75,
+          smooth: 0.65,
+          sharpen: 0.35,
+        );
       case FaceFilterId.none:
         return const BeautyLook(intensity: 0, mode: 0);
       default:
         // Filtros AR: base beauty ligera debajo del overlay.
-        return const BeautyLook(intensity: 0.35, mode: 0);
+        return const BeautyLook(
+          intensity: 0.35,
+          mode: 0,
+          whiten: 0.30,
+          rosy: 0.25,
+          smooth: 0.40,
+          sharpen: 0.30,
+        );
     }
   }
 

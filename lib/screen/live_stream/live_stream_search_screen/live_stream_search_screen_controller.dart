@@ -204,28 +204,48 @@ class LiveStreamSearchScreenController extends BaseController {
       beautyPipeline.beauty.setLook(const BeautyLook(intensity: 0, mode: 0));
       return;
     }
+    final w = (whiten.value / 100.0).clamp(0.0, 1.0);
+    final r = (rosy.value / 100.0).clamp(0.0, 1.0);
+    final s = (smooth.value / 100.0).clamp(0.0, 1.0);
+    final sh = (sharpen.value / 100.0).clamp(0.0, 1.0);
+    final sliderMaster =
+        (0.45 * s + 0.25 * w + 0.20 * r + 0.10 * sh).clamp(0.15, 1.0);
+
     final style = selectedFilterId.value;
     if (style.isBeautyGpu) {
       final look = style.beautyLook;
       if (look != null) {
         final scaled =
-            look.intensity * (smooth.value / 100.0).clamp(0.4, 1.15);
-        beautyPipeline.beauty.setLook(
-          BeautyLook(intensity: scaled.clamp(0.0, 1.0), mode: look.mode),
-        );
+            (look.intensity * (0.55 + 0.45 * s)).clamp(0.25, 1.0);
+        beautyPipeline.beauty.setLook(BeautyLook(
+          intensity: scaled,
+          mode: look.mode,
+          whiten: w,
+          rosy: r,
+          smooth: s,
+          sharpen: sh,
+        ));
       }
       return;
     }
-    final intensity = (smooth.value / 100.0).clamp(0.0, 1.0);
     double mode = 0;
-    if (rosy.value >= whiten.value && rosy.value >= 45) {
+    if (r >= w && r >= 0.45) {
       mode = 4;
-    } else if (whiten.value >= 60) {
+    } else if (w >= 0.60) {
       mode = 1;
-    } else if (whiten.value >= 45) {
+    } else if (w >= 0.45) {
       mode = 2;
+    } else if (r >= 0.35 && w >= 0.35) {
+      mode = 3;
     }
-    beautyPipeline.beauty.setLook(BeautyLook(intensity: intensity, mode: mode));
+    beautyPipeline.beauty.setLook(BeautyLook(
+      intensity: sliderMaster,
+      mode: mode,
+      whiten: w,
+      rosy: r,
+      smooth: s,
+      sharpen: sh,
+    ));
   }
 
   Future<void> openPreLiveBeauty() async {
@@ -249,7 +269,13 @@ class LiveStreamSearchScreenController extends BaseController {
         selectedFilterId.value = id;
         if (id.isBeautyGpu) beautyOn.value = true;
         final look = id.beautyLook;
-        if (look != null) beautyPipeline.beauty.setLook(look);
+        if (look != null && id.isBeautyGpu) {
+          whiten.value = look.whiten * 100;
+          rosy.value = look.rosy * 100;
+          smooth.value = look.smooth * 100;
+          sharpen.value = look.sharpen * 100;
+        }
+        _syncBeautyShaderIntensity();
       },
     );
     if (accepted == true) {
