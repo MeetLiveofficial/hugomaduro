@@ -85,14 +85,15 @@ class LiveActiveDiscoveryController extends BaseController {
   Future<void> refreshList() async {
     isLoading.value = true;
     try {
+      // Laravel es la fuente de verdad: en PK existen 2 salas (invitador + rival).
+      // Firebase a veces solo tiene la del invitador.
+      _listenLaravel();
       if (useFirebase) {
         final ok = await FirebaseAppHelper.ensureInitialized();
         if (ok && FirebaseAppHelper.isReady) {
           _listenFirestore();
-          return;
         }
       }
-      _listenLaravel();
     } catch (e) {
       showSnackBar(e.toString());
       _setLives([]);
@@ -102,7 +103,6 @@ class LiveActiveDiscoveryController extends BaseController {
   }
 
   void _listenLaravel() {
-    _sub?.cancel();
     _refreshLaravel(silent: false);
     _laravelPoll?.cancel();
     _laravelPoll = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -110,17 +110,19 @@ class LiveActiveDiscoveryController extends BaseController {
     });
   }
 
+  List<Livestream> _firebaseCache = const [];
+
   Future<void> _refreshLaravel({required bool silent}) async {
     try {
       final list = await LiveSessionService.instance.listActive();
-      _setLives(list.where((e) => (e.isDummyLive ?? 0) != 1).toList());
+      final laravel = list.where((e) => (e.isDummyLive ?? 0) != 1).toList();
+      _mergeLives(laravel: laravel, firebase: _firebaseCache);
     } catch (e) {
       if (!silent) showSnackBar('Lives: $e');
     }
   }
 
   void _listenFirestore() {
-    _laravelPoll?.cancel();
     _sub?.cancel();
     _sub = _db.collection(FirebaseConst.liveStreams).snapshots().listen(
       (snap) {
@@ -137,8 +139,9 @@ class LiveActiveDiscoveryController extends BaseController {
             .where((e) => (e.isDummyLive ?? 0) != 1)
             .where((e) => e.type != LivestreamType.dummy)
             .toList();
-        items.sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
-        _setLives(items);
+        _firebaseCache = items;
+        // Re-merge con el último Laravel (si aún no llegó, al menos muestra FB).
+        unawaited(_refreshLaravel(silent: true));
         isLoading.value = false;
       },
       onError: (e) {
@@ -146,6 +149,27 @@ class LiveActiveDiscoveryController extends BaseController {
         isLoading.value = false;
       },
     );
+  }
+
+  /// Une salas Laravel + Firebase por room_id (prioriza Laravel / host_user).
+  void _mergeLives({
+    required List<Livestream> laravel,
+    required List<Livestream> firebase,
+  }) {
+    final byRoom = <String, Livestream>{};
+    for (final s in firebase) {
+      final id = (s.roomID ?? '').trim();
+      if (id.isEmpty) continue;
+      byRoom[id] = s;
+    }
+    for (final s in laravel) {
+      final id = (s.roomID ?? '').trim();
+      if (id.isEmpty) continue;
+      byRoom[id] = s; // Laravel pisa (tiene host_user y estado PK real)
+    }
+    final items = byRoom.values.toList()
+      ..sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
+    _setLives(items);
   }
 
   Map<String, dynamic> _safeLiveJson(Map<String, dynamic> raw) {

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
@@ -40,9 +39,6 @@ class LiveKitRoomController extends GetxController {
   Room? get room => _service.room;
   Stream<DataReceivedEvent> get onDataReceived => _service.onDataReceived;
 
-  /// Web: solo recepción (audiencia). Host A/V requiere nativo.
-  bool canConnect({required bool publish}) => !kIsWeb || !publish;
-
   StreamSubscription? _qualitySub;
 
   @override
@@ -74,12 +70,6 @@ class LiveKitRoomController extends GetxController {
     LiveKitQualityProfile? forceProfile,
     bool forceReconnect = false,
   }) async {
-    final publish = publishCamera || publishMicrophone;
-    if (!canConnect(publish: publish)) {
-      statusMessage.value =
-          'Cámara LIVE en Web no disponible. Usa Android/iOS.';
-      return;
-    }
     if (isConnecting.value) return;
 
     // Si ya estamos en otra sala (o hay que forzar), cerrar antes.

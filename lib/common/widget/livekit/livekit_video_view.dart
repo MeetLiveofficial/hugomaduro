@@ -12,12 +12,16 @@ class LiveKitParticipantVideo extends StatelessWidget {
     this.fit = VideoViewFit.cover,
     this.mirror = false,
     this.placeholder,
+    this.forcePortraitUpright = true,
   });
 
   final Participant? participant;
   final VideoViewFit fit;
   final bool mirror;
   final Widget? placeholder;
+
+  /// En BlueStacks el track a veces llega landscape; rota para UI portrait.
+  final bool forcePortraitUpright;
 
   @override
   Widget build(BuildContext context) {
@@ -32,11 +36,29 @@ class LiveKitParticipantVideo extends StatelessWidget {
           );
     }
 
-    return VideoTrackRenderer(
+    Widget view = VideoTrackRenderer(
       track,
       fit: fit,
       mirrorMode: mirror ? VideoViewMirrorMode.mirror : VideoViewMirrorMode.off,
     );
+
+    if (forcePortraitUpright && _isLandscapeTrack(track)) {
+      view = RotatedBox(quarterTurns: 1, child: view);
+    }
+
+    return view;
+  }
+
+  bool _isLandscapeTrack(VideoTrack track) {
+    try {
+      if (track is LocalVideoTrack) {
+        final d = track.currentOptions.params.dimensions;
+        return d.width > d.height;
+      }
+    } catch (_) {}
+    // Fallback: si el viewport es portrait y el plugin no reporta dims,
+    // no rotar (evitar doble giro).
+    return false;
   }
 }
 

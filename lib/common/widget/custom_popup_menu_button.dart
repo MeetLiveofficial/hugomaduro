@@ -34,14 +34,14 @@ class CustomPopupMenuButton extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 150),
       onOpened: onOpened,
       onCanceled: onCanceled,
-      surfaceTintColor: ColorRes.menuSurface,
+      surfaceTintColor: ColorRes.whitePure,
       offset: offset ?? Offset.zero,
-      color: ColorRes.menuSurfaceElevated,
-      shadowColor: ColorRes.brandMagenta.withValues(alpha: 0.35),
+      color: color ?? ColorRes.whitePure,
+      shadowColor: ColorRes.coralRed.withValues(alpha: 0.2),
       position: PopupMenuPosition.under,
       popUpAnimationStyle: const AnimationStyle(curve: Curves.easeOutCubic),
       shape: SmoothRectangleBorder(
-        side: const BorderSide(color: ColorRes.menuBorder),
+        side: const BorderSide(color: ColorRes.bgGrey),
         borderRadius: const SmoothBorderRadius.all(
             SmoothRadius(cornerRadius: 10, cornerSmoothing: 1)),
       ),
@@ -53,7 +53,7 @@ class CustomPopupMenuButton extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Text(e.title.tr,
                   style: TextStyleCustom.outFitRegular400(
-                      fontSize: 16, color: ColorRes.whitePure)));
+                      fontSize: 16, color: ColorRes.textDarkGrey)));
         }).toList();
       },
       child: child,

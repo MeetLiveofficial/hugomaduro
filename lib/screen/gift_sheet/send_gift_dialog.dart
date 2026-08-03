@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/model/general/settings_model.dart';
 
 /// Overlay del regalo: tamaño original (180) o pantalla completa según [Gift.isFullscreen].
@@ -21,7 +21,7 @@ class _SendGiftDialogState extends State<SendGiftDialog>
 
   bool get _fullscreen => widget.gift.fullscreen;
 
-  /// PNG/JPG: animación corta. GIF/WebP animado: hold un poco más.
+  /// PNG/JPG/SVG: animación corta. GIF/WebP animado: hold un poco más.
   Duration get _totalDuration {
     final path = (widget.gift.image ?? '').toLowerCase();
     final animated = path.endsWith('.gif') ||
@@ -104,8 +104,9 @@ class _SendGiftDialogState extends State<SendGiftDialog>
 
   @override
   Widget build(BuildContext context) {
-    final url = widget.gift.image?.addBaseURL() ?? '';
     final size = MediaQuery.sizeOf(context);
+    final w = _fullscreen ? size.width * 0.85 : 180.0;
+    final h = _fullscreen ? size.height * 0.55 : 180.0;
 
     return Material(
       type: MaterialType.transparency,
@@ -130,22 +131,17 @@ class _SendGiftDialogState extends State<SendGiftDialog>
                 );
               },
               child: IgnorePointer(
-                child: url.isEmpty
-                    ? Icon(Icons.card_giftcard,
-                        size: _fullscreen ? 160 : 120, color: Colors.white)
-                    : Image.network(
-                        url,
-                        width: _fullscreen ? size.width : 180,
-                        height: _fullscreen ? size.height : 180,
-                        fit: _fullscreen ? BoxFit.contain : BoxFit.contain,
-                        filterQuality: FilterQuality.high,
-                        gaplessPlayback: true,
-                        errorBuilder: (_, __, ___) => Icon(
-                          Icons.card_giftcard,
-                          size: _fullscreen ? 160 : 120,
-                          color: Colors.white,
-                        ),
-                      ),
+                child: GiftMedia(
+                  path: widget.gift.image,
+                  width: w,
+                  height: h,
+                  fit: BoxFit.contain,
+                  placeholder: Icon(
+                    Icons.card_giftcard,
+                    size: _fullscreen ? 120 : 80,
+                    color: Colors.white70,
+                  ),
+                ),
               ),
             ),
           ),

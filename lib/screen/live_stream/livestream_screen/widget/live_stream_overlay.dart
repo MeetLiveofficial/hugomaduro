@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/double_tap_detector.dart';
+import 'package:krimson/common/widget/gift_media.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
-import 'package:krimson/common/extensions/string_extension.dart';
-import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
@@ -138,6 +139,13 @@ class LiveStreamOverlay extends StatelessWidget {
                         }
                         return const Center(child: _PausedBadge());
                       }),
+                      Obx(() {
+                        final result = controller.battleResultBanner.value;
+                        if (result == null) return const SizedBox.shrink();
+                        return Center(
+                          child: _BattleResultCard(result: result),
+                        );
+                      }),
                     ],
                   );
                 },
@@ -147,8 +155,118 @@ class LiveStreamOverlay extends StatelessWidget {
             _ComposerRow(
               controller: controller,
               showHostControls: showHostControls,
-              onClose: onClose,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BattleResultCard extends StatelessWidget {
+  final BattleResultBanner result;
+
+  const _BattleResultCard({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.82),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: () {
+          final w = MediaQuery.sizeOf(context).width - 48;
+          return w > 320 ? 320.0 : w;
+        }(),
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: result.isDraw
+                ? Colors.amber.withValues(alpha: 0.85)
+                : ColorRes.themeAccentSolid.withValues(alpha: 0.9),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              result.isDraw ? 'EMPATE' : 'RESULTADO PK',
+              style: TextStyleCustom.outFitBold700(
+                color: result.isDraw
+                    ? Colors.amber
+                    : ColorRes.themeAccentSolid,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (result.isDraw) ...[
+              Text(
+                '${result.winnerName}  =  ${result.loserName}',
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitSemiBold600(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${result.winnerCoins} - ${result.loserCoins}',
+                style: TextStyleCustom.outFitMedium500(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+              ),
+            ] else ...[
+              Text(
+                'GANÓ',
+                style: TextStyleCustom.outFitMedium500(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                result.winnerName,
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitBold700(
+                  color: Colors.white,
+                  fontSize: 20,
+                ),
+              ),
+              Text(
+                '${result.winnerCoins} monedas',
+                style: TextStyleCustom.outFitRegular400(
+                  color: const Color(0xFFFFD56B),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'PERDIÓ',
+                style: TextStyleCustom.outFitMedium500(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                result.loserName,
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitSemiBold600(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
+              ),
+              Text(
+                '${result.loserCoins} monedas',
+                style: TextStyleCustom.outFitRegular400(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -289,8 +407,8 @@ class _GiftIconBtn extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onTap,
           child: SizedBox(
-            width: 38,
-            height: 38,
+            width: 40,
+            height: 40,
             child: Stack(
               alignment: Alignment.center,
               clipBehavior: Clip.none,
@@ -299,8 +417,8 @@ class _GiftIconBtn extends StatelessWidget {
                     color: Colors.white, size: 20),
                 if (hasGifts)
                   Positioned(
-                    right: 7,
-                    top: 7,
+                    right: 8,
+                    top: 8,
                     child: Container(
                       width: 8,
                       height: 8,
@@ -354,8 +472,8 @@ class _LiveIconBtn extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onTap,
           child: SizedBox(
-            width: 38,
-            height: 38,
+            width: 40,
+            height: 40,
             child: Icon(icon, color: Colors.white, size: 20),
           ),
         ),
@@ -378,19 +496,19 @@ class _TopBar extends StatelessWidget {
     final name = host?.fullname ?? host?.username ?? controller.liveTitle;
     final photo = host?.profile;
 
-    // FittedBox de toda la fila: en web estrecho escala en vez de RIGHT overflow.
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
-      child: SizedBox(
-        width: MediaQuery.sizeOf(context).width - 20,
-        child: Row(
-          children: [
-            Flexible(
-              fit: FlexFit.loose,
-              child: Align(
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Host a la izquierda.
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                widthFactor: 1,
                 child: Material(
                   color: Colors.black.withValues(alpha: 0.45),
                   borderRadius: BorderRadius.circular(28),
@@ -418,6 +536,7 @@ class _TopBar extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
@@ -436,8 +555,7 @@ class _TopBar extends StatelessWidget {
                                             Icon(Icons.favorite,
                                                 size: 10,
                                                 color: Colors.white
-                                                    .withValues(
-                                                        alpha: 0.75)),
+                                                    .withValues(alpha: 0.75)),
                                             const SizedBox(width: 2),
                                             Text(
                                               '${controller.likeCount.value}',
@@ -459,8 +577,7 @@ class _TopBar extends StatelessWidget {
                         if (!controller.isHost)
                           Obx(() {
                             if (controller.isFollowingHost.value) {
-                              return _LiveStatusChip(
-                                  controller: controller);
+                              return _LiveStatusChip(controller: controller);
                             }
                             return Material(
                               color: Colors.white,
@@ -478,15 +595,13 @@ class _TopBar extends StatelessWidget {
                                     children: [
                                       Icon(Icons.favorite,
                                           size: 12,
-                                          color:
-                                              ColorRes.themeAccentSolid),
+                                          color: ColorRes.themeAccentSolid),
                                       const SizedBox(width: 3),
                                       Text(
                                         'Unirse',
                                         style: TextStyleCustom
                                             .outFitSemiBold600(
-                                          color:
-                                              ColorRes.themeAccentSolid,
+                                          color: ColorRes.themeAccentSolid,
                                           fontSize: 11,
                                         ),
                                       ),
@@ -504,26 +619,25 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 4),
-            Flexible(
-              fit: FlexFit.loose,
-              child:
-                  _TopContributors(controller: controller, compact: true),
-            ),
-            const SizedBox(width: 4),
-            Obx(() => _Pill(
-                  label: '${controller.watchingCount.value}',
-                )),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints:
-                  const BoxConstraints(minWidth: 36, minHeight: 36),
-              onPressed: onClose,
-              icon: const Icon(Icons.close, color: Colors.white, size: 22),
-            ),
-          ],
-        ),
+          ),
+          // Bloque derecho: contribuidores + viewers + X (al borde).
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _TopContributors(controller: controller, compact: true),
+              const SizedBox(width: 6),
+              Obx(() => _Pill(
+                    label: '${controller.watchingCount.value}',
+                  )),
+              const SizedBox(width: 4),
+              _LiveIconBtn(
+                icon: Icons.close_rounded,
+                tooltip: LKey.exitLiveStream.tr,
+                onTap: onClose,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -547,9 +661,10 @@ class _LiveStatusChip extends StatelessWidget {
           : '$mm:$ss';
       return Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
             decoration: BoxDecoration(
               color: ColorRes.themeAccentSolid,
               borderRadius: BorderRadius.circular(12),
@@ -565,7 +680,7 @@ class _LiveStatusChip extends StatelessWidget {
           if (!battle) ...[
             const SizedBox(width: 4),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(12),
@@ -887,23 +1002,22 @@ class _ChatBubble extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if ((message.giftImage ?? '').isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Image.network(
-                            message.giftImage!.addBaseURL(),
-                            width: 36,
-                            height: 36,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.card_giftcard,
-                              color: Colors.white70,
-                              size: 28,
-                            ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: GiftMedia(
+                          path: (message.giftImage ?? '').isNotEmpty
+                              ? message.giftImage
+                              : controller.resolveGiftImage(message.giftId),
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.contain,
+                          placeholder: const Icon(
+                            Icons.card_giftcard,
+                            color: Colors.white70,
+                            size: 28,
                           ),
-                        )
-                      else
-                        const Icon(Icons.card_giftcard,
-                            color: Colors.white70, size: 28),
+                        ),
+                      ),
                       Flexible(
                         child: Text(
                           'sent a gift'
@@ -1013,7 +1127,7 @@ class _FloatingHeartState extends State<_FloatingHeart>
             scale: _scale.value,
             child: Icon(
               Icons.favorite,
-              color: ColorRes.themeAccentSolid.withValues(alpha: 0.95),
+              color: ColorRes.likeRed.withValues(alpha: 0.95),
               size: 28 + (widget.index % 3) * 4,
               shadows: const [
                 Shadow(color: Colors.black54, blurRadius: 6),
@@ -1082,12 +1196,10 @@ class _TitleDescription extends StatelessWidget {
 class _ComposerRow extends StatelessWidget {
   final LivestreamScreenController controller;
   final bool showHostControls;
-  final VoidCallback onClose;
 
   const _ComposerRow({
     required this.controller,
     required this.showHostControls,
-    required this.onClose,
   });
 
   @override
@@ -1135,16 +1247,18 @@ class _ComposerRow extends StatelessWidget {
           );
         }),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: Container(
-                height: 44,
-                padding: const EdgeInsets.only(left: 14, right: 4),
+                height: 40,
+                padding: const EdgeInsets.only(left: 14, right: 2),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.45),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: Obx(() {
@@ -1161,6 +1275,8 @@ class _ComposerRow extends StatelessWidget {
                           decoration: InputDecoration(
                             border: InputBorder.none,
                             isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 10),
                             hintText: reply != null
                                 ? 'Responder a ${reply.userName}…'
                                 : 'Di Hola',
@@ -1172,26 +1288,22 @@ class _ComposerRow extends StatelessWidget {
                         );
                       }),
                     ),
-                    IconButton(
-                      onPressed: () => controller
-                          .sendComment(controller.commentController.text),
-                      icon: const Icon(Icons.send_rounded,
-                          color: ColorRes.themeAccentSolid, size: 22),
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () => controller
+                            .sendComment(controller.commentController.text),
+                        icon: const Icon(Icons.send_rounded,
+                            color: ColorRes.themeAccentSolid, size: 20),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            // Acciones: FittedBox evita RIGHT overflow en web estrecho.
-            Flexible(
-              fit: FlexFit.loose,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-            // Host: regalos + tareas + PK + options en la misma fila del input.
+            // Acciones fijas, misma altura/eje que el input (sin FittedBox).
             if (showHostControls) ...[
               const SizedBox(width: 6),
               Obx(() => _GiftIconBtn(
@@ -1253,14 +1365,7 @@ class _ComposerRow extends StatelessWidget {
                   ),
                 );
               }),
-              // X de salir: siempre al extremo derecho
-              const SizedBox(width: 6),
-              _LiveIconBtn(
-                icon: Icons.close_rounded,
-                tooltip: LKey.exitLiveStream.tr,
-                danger: true,
-                onTap: onClose,
-              ),
+              // Sin X abajo: el host ya tiene el de la barra superior.
             ],
             if (!controller.isHost) ...[
               const SizedBox(width: 6),
@@ -1271,26 +1376,29 @@ class _ComposerRow extends StatelessWidget {
               const SizedBox(width: 6),
               Material(
                 color: ColorRes.themeAccentSolid,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(20),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(20),
                   onTap: controller.openPrivateCall,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 11),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.call, color: Colors.white, size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Private',
-                          style: TextStyleCustom.outFitMedium500(
-                            color: Colors.white,
-                            fontSize: 13,
+                  child: const SizedBox(
+                    height: 40,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.call, color: Colors.white, size: 16),
+                          SizedBox(width: 4),
+                          Text(
+                            'Private',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1307,18 +1415,8 @@ class _ComposerRow extends StatelessWidget {
                 icon: Icons.card_giftcard_outlined,
                 onTap: controller.openGiftSheet,
               ),
-              const SizedBox(width: 6),
-              _LiveIconBtn(
-                icon: Icons.close_rounded,
-                tooltip: LKey.exitLiveStream.tr,
-                danger: true,
-                onTap: onClose,
-              ),
+              // Sin X abajo: la audiencia ya tiene el de la barra superior.
             ],
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
       ],
@@ -1340,9 +1438,10 @@ class _CircleBtn extends StatelessWidget {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(11),
-          child: Icon(icon, color: ColorRes.themeAccentSolid, size: 22),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon, color: Colors.white, size: 20),
         ),
       ),
     );

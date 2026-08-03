@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/controller/base_controller.dart';
@@ -22,6 +23,10 @@ import 'package:krimson/model/livestream/livestream_user_state.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
+import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
+import 'package:krimson/screen/face_filters/services/face_filter_catalog_store.dart';
+import 'package:krimson/screen/face_filters/services/face_filter_pipeline.dart';
+import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -29,7 +34,8 @@ import 'package:krimson/utilities/theme_res.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:retrytech_plugin/retrytech_plugin.dart';
 
-/// Pre-live: portada + ajustes + Start Live (cámara solo en LiveKit).
+/// Pre-live: portada (imagen fija) + beauty con preview de cámara.
+/// La portada NUNCA se reemplaza por el stream de cámara.
 class LiveStreamSearchScreenController extends BaseController {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
@@ -51,6 +57,15 @@ class LiveStreamSearchScreenController extends BaseController {
   final RxList<User> inviteCandidates = <User>[].obs;
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxBool inviteLoading = false.obs;
+
+  /// Preview de cómo te ves (filtros). Independiente de [coverImageBytes].
+  final FaceFilterPipeline beautyPipeline =
+      FaceFilterPipeline(maxInferenceFps: 15, defaultBeautyIntensity: 0);
+  final GlobalKey beautyPreviewKey = GlobalKey();
+  final RxBool cameraPreviewActive = false.obs;
+  final Rx<FaceFilterId> selectedFilterId = FaceFilterId.none.obs;
+
+  FaceFilterCatalogStore get filterCatalog => FaceFilterCatalogStore.instance;
 
   @override
   void onInit() {
@@ -133,13 +148,6 @@ class LiveStreamSearchScreenController extends BaseController {
       return;
     }
 
-    if (kIsWeb) {
-      showSnackBar(
-        'Live publishing on Web is limited. Prefer Android/iOS for full camera.',
-        second: 3,
-      );
-    }
-
     invitedIds.clear();
     inviteCandidates.clear();
     final ok = await Get.bottomSheet<bool>(
@@ -151,23 +159,106 @@ class LiveStreamSearchScreenController extends BaseController {
       ignoreSafeArea: false,
     );
     if (ok == true) {
-      // Liberar cámara nativa antes de LiveKit (evita conflicto de hardware).
+      // Liberar preview beauty + cámara nativa antes de LiveKit.
+      await stopBeautyCameraPreview();
       releaseNativeCameraIfNeeded();
       await Future.delayed(const Duration(milliseconds: 250));
       await _startLive(user);
     }
   }
 
-  void openPreLiveBeauty() {
-    openLiveBeautySheet(
+  Future<void> startBeautyCameraPreview() async {
+    if (kIsWeb) return;
+    if (cameraPreviewActive.value && beautyPipeline.isReady) return;
+    final cam = await Permission.camera.request();
+    if (!cam.isGranted) {
+      showSnackBar(LKey.cameraMicrophonePermissionTitle.tr);
+      return;
+    }
+    try {
+      filterCatalog.sync();
+      final ok = await beautyPipeline.start();
+      cameraPreviewActive.value = ok;
+      if (ok) _syncBeautyShaderIntensity();
+      if (!ok) {
+        showSnackBar('No se pudo abrir la cámara para el preview');
+      }
+    } catch (e, st) {
+      Loggers.error('startBeautyCameraPreview: $e\n$st');
+      cameraPreviewActive.value = false;
+      showSnackBar('Error al abrir cámara: $e');
+    }
+  }
+
+  Future<void> stopBeautyCameraPreview() async {
+    cameraPreviewActive.value = false;
+    try {
+      await beautyPipeline.stop();
+    } catch (e) {
+      Loggers.error('stopBeautyCameraPreview: $e');
+    }
+  }
+
+  void _syncBeautyShaderIntensity() {
+    if (!beautyOn.value) {
+      beautyPipeline.beauty.setLook(const BeautyLook(intensity: 0, mode: 0));
+      return;
+    }
+    final style = selectedFilterId.value;
+    if (style.isBeautyGpu) {
+      final look = style.beautyLook;
+      if (look != null) {
+        final scaled =
+            look.intensity * (smooth.value / 100.0).clamp(0.4, 1.15);
+        beautyPipeline.beauty.setLook(
+          BeautyLook(intensity: scaled.clamp(0.0, 1.0), mode: look.mode),
+        );
+      }
+      return;
+    }
+    final intensity = (smooth.value / 100.0).clamp(0.0, 1.0);
+    double mode = 0;
+    if (rosy.value >= whiten.value && rosy.value >= 45) {
+      mode = 4;
+    } else if (whiten.value >= 60) {
+      mode = 1;
+    } else if (whiten.value >= 45) {
+      mode = 2;
+    }
+    beautyPipeline.beauty.setLook(BeautyLook(intensity: intensity, mode: mode));
+  }
+
+  Future<void> openPreLiveBeauty() async {
+    await SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+    ]);
+    await startBeautyCameraPreview();
+    _syncBeautyShaderIntensity();
+    final accepted = await openLiveBeautySheet(
       liveController: null,
       whiten: whiten,
       rosy: rosy,
       smooth: smooth,
       sharpen: sharpen,
       beautyOn: beautyOn,
-      onApply: () async {},
+      onApply: () async => _syncBeautyShaderIntensity(),
+      selectedFilterId: selectedFilterId,
+      styleEffects: filterCatalog.effects.toList(),
+      showAcceptButton: true,
+      onStyleSelected: (id) {
+        selectedFilterId.value = id;
+        if (id.isBeautyGpu) beautyOn.value = true;
+        final look = id.beautyLook;
+        if (look != null) beautyPipeline.beauty.setLook(look);
+      },
     );
+    if (accepted == true) {
+      beautyOn.value = true;
+      _syncBeautyShaderIntensity();
+      showSnackBar('Filtro aplicado. Listo para Go Live.');
+      return;
+    }
+    await stopBeautyCameraPreview();
   }
 
   Future<void> openPreLiveInvite() async {
@@ -391,6 +482,8 @@ class LiveStreamSearchScreenController extends BaseController {
   @override
   void onClose() {
     _netSub?.cancel();
+    stopBeautyCameraPreview();
+    beautyPipeline.beauty.dispose();
     releaseNativeCameraIfNeeded();
     titleController.dispose();
     descriptionController.dispose();

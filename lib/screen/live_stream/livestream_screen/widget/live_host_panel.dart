@@ -2,13 +2,13 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
-import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/task_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
-import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
+import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -119,111 +119,137 @@ void openLiveHostOptionsMenu({
           color: whitePure(Get.context!),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: bgGrey(Get.context!),
-                borderRadius: BorderRadius.circular(4),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: (Get.mediaQuery.size.height * 0.72).clamp(320.0, 640.0),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: bgGrey(Get.context!),
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
-            ),
-            if (onPause != null)
-              _HostOptionTile(
-                icon: paused
-                    ? Icons.play_arrow_rounded
-                    : Icons.pause_rounded,
-                title: paused ? 'Reanudar' : 'Pausar',
-                subtitle: paused
-                    ? 'Continuar la transmisión'
-                    : 'Pausar video temporalmente',
-                onTap: () {
-                  Get.back();
-                  onPause();
-                },
+              Flexible(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (onPause != null)
+                        _HostOptionTile(
+                          icon: paused
+                              ? Icons.play_arrow_rounded
+                              : Icons.pause_rounded,
+                          title: paused ? 'Reanudar' : 'Pausar',
+                          subtitle: paused
+                              ? 'Continuar la transmisión'
+                              : 'Pausar video temporalmente',
+                          onTap: () {
+                            Get.back();
+                            onPause();
+                          },
+                        ),
+                      if (onMic != null)
+                        _HostOptionTile(
+                          icon: muted
+                              ? Icons.mic_off_rounded
+                              : Icons.mic_rounded,
+                          title: muted
+                              ? 'Activar micrófono'
+                              : 'Silenciar micrófono',
+                          subtitle: muted
+                              ? 'El mic está muteado'
+                              : 'El mic está abierto',
+                          onTap: () {
+                            Get.back();
+                            onMic();
+                          },
+                        ),
+                      if (onCamera != null)
+                        _HostOptionTile(
+                          icon: (cameraOn ?? true)
+                              ? Icons.videocam_rounded
+                              : Icons.videocam_off_rounded,
+                          title: (cameraOn ?? true)
+                              ? 'Apagar cámara'
+                              : 'Encender cámara',
+                          subtitle: 'Control de video en vivo',
+                          onTap: () {
+                            Get.back();
+                            onCamera();
+                          },
+                        ),
+                      if (onBattle != null)
+                        _HostOptionTile(
+                          icon: Icons.sports_kabaddi_rounded,
+                          title: battleRunning
+                              ? 'Finalizar batalla'
+                              : LKey.startBattle.tr,
+                          subtitle: battleRunning
+                              ? 'Terminar el enfrentamiento 1v1'
+                              : 'Batalla 1v1 con regalos de la audiencia',
+                          onTap: () {
+                            Get.back();
+                            onBattle();
+                          },
+                        ),
+                      if (onQuality != null)
+                        _HostOptionTile(
+                          icon: Icons.high_quality_rounded,
+                          title: 'Calidad de video',
+                          subtitle: qualityLabel != null
+                              ? 'Actual: $qualityLabel'
+                              : 'Baja / Media / Alta',
+                          onTap: () {
+                            Get.back();
+                            onQuality();
+                          },
+                        ),
+                      _HostOptionTile(
+                        icon: Icons.auto_awesome,
+                        title: LKey.beautySettings.tr,
+                        subtitle: LKey.gettingPrettier.tr,
+                        onTap: () {
+                          Get.back();
+                          onBeauty();
+                        },
+                      ),
+                      Obx(() => _HostOptionTile(
+                            icon: networkIconForLabel(networkLabel.value),
+                            title: LKey.networkConnection.tr,
+                            subtitle: networkLabel.value,
+                            onTap: () {
+                              Get.back();
+                              openNetworkInfoSheet(networkLabel.value);
+                            },
+                          )),
+                      _HostOptionTile(
+                        icon: Icons.group_add,
+                        title: LKey.inviteFriends.tr,
+                        subtitle: LKey.inviteToLiveBonus.tr,
+                        onTap: () {
+                          Get.back();
+                          onInvite();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            if (onMic != null)
-              _HostOptionTile(
-                icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                title: muted ? 'Activar micrófono' : 'Silenciar micrófono',
-                subtitle: muted ? 'El mic está muteado' : 'El mic está abierto',
-                onTap: () {
-                  Get.back();
-                  onMic();
-                },
-              ),
-            if (onCamera != null)
-              _HostOptionTile(
-                icon: (cameraOn ?? true)
-                    ? Icons.videocam_rounded
-                    : Icons.videocam_off_rounded,
-                title: (cameraOn ?? true) ? 'Apagar cámara' : 'Encender cámara',
-                subtitle: 'Control de video en vivo',
-                onTap: () {
-                  Get.back();
-                  onCamera();
-                },
-              ),
-            if (onBattle != null)
-              _HostOptionTile(
-                icon: Icons.sports_kabaddi_rounded,
-                title: battleRunning ? 'Finalizar batalla' : LKey.startBattle.tr,
-                subtitle: battleRunning
-                    ? 'Terminar el enfrentamiento 1v1'
-                    : 'Batalla 1v1 con regalos de la audiencia',
-                onTap: () {
-                  Get.back();
-                  onBattle();
-                },
-              ),
-            if (onQuality != null)
-              _HostOptionTile(
-                icon: Icons.high_quality_rounded,
-                title: 'Calidad de video',
-                subtitle: qualityLabel != null
-                    ? 'Actual: $qualityLabel'
-                    : 'Baja / Media / Alta',
-                onTap: () {
-                  Get.back();
-                  onQuality();
-                },
-              ),
-            _HostOptionTile(
-              icon: Icons.auto_awesome,
-              title: LKey.beautySettings.tr,
-              subtitle: LKey.gettingPrettier.tr,
-              onTap: () {
-                Get.back();
-                onBeauty();
-              },
-            ),
-            Obx(() => _HostOptionTile(
-                  icon: networkIconForLabel(networkLabel.value),
-                  title: LKey.networkConnection.tr,
-                  subtitle: networkLabel.value,
-                  onTap: () {
-                    Get.back();
-                    openNetworkInfoSheet(networkLabel.value);
-                  },
-                )),
-            _HostOptionTile(
-              icon: Icons.group_add,
-              title: LKey.inviteFriends.tr,
-              subtitle: LKey.inviteToLiveBonus.tr,
-              onTap: () {
-                Get.back();
-                onInvite();
-              },
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ),
     backgroundColor: Colors.transparent,
+    isScrollControlled: true,
   );
 }
 
@@ -267,7 +293,7 @@ class _HostOptionTile extends StatelessWidget {
   }
 }
 
-Future<void> openLiveBeautySheet({
+Future<bool?> openLiveBeautySheet({
   required LivestreamScreenController? liveController,
   required RxDouble whiten,
   required RxDouble rosy,
@@ -275,125 +301,182 @@ Future<void> openLiveBeautySheet({
   required RxDouble sharpen,
   required RxBool beautyOn,
   required Future<void> Function() onApply,
+  Rx<FaceFilterId>? selectedFilterId,
+  List<FaceFilterEffect>? styleEffects,
+  ValueChanged<FaceFilterId>? onStyleSelected,
+  bool showAcceptButton = false,
 }) {
-  final filters =
-      SessionManager.instance.getSettings()?.deepARFilters ?? <DeepARFilters>[];
+  final effects = styleEffects ?? FaceFilterEffect.catalog;
+  final ctx = Get.context!;
+  final maxH = MediaQuery.sizeOf(ctx).height * (showAcceptButton ? 0.46 : 0.40);
 
-  return Get.bottomSheet(
+  return Get.bottomSheet<bool>(
     SafeArea(
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-        decoration: BoxDecoration(
-          color: whitePure(Get.context!),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Obx(() {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: bgGrey(Get.context!),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              Text(
-                LKey.beautySettings.tr,
-                textAlign: TextAlign.center,
-                style: TextStyleCustom.unboundedSemiBold600(
-                  color: textDarkGrey(Get.context!),
-                  fontSize: 16,
-                ),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(LKey.beautySettings.tr),
-                value: beautyOn.value,
-                activeThumbColor: themeAccentSolid(Get.context!),
-                activeTrackColor:
-                    themeAccentSolid(Get.context!).withValues(alpha: 0.4),
-                onChanged: (v) {
-                  beautyOn.value = v;
-                  onApply();
-                },
-              ),
-              _BeautySlider(
-                label: 'Whiten',
-                value: whiten,
-                enabled: beautyOn.value,
-                onChanged: (_) => onApply(),
-              ),
-              _BeautySlider(
-                label: 'Rosy',
-                value: rosy,
-                enabled: beautyOn.value,
-                onChanged: (_) => onApply(),
-              ),
-              _BeautySlider(
-                label: 'Smooth',
-                value: smooth,
-                enabled: beautyOn.value,
-                onChanged: (_) => onApply(),
-              ),
-              _BeautySlider(
-                label: 'Sharpen',
-                value: sharpen,
-                enabled: beautyOn.value,
-                onChanged: (_) => onApply(),
-              ),
-              if (filters.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Styles',
-                  style: TextStyleCustom.outFitMedium500(
-                    color: textDarkGrey(Get.context!),
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 72,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: filters.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final f = filters[index];
-                      return Column(
-                        children: [
-                          CustomImage(
-                            size: const Size(48, 48),
-                            strokeWidth: 0,
-                            radius: 24,
-                            image: f.image?.addBaseURL(),
-                            fullName: f.title,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            f.title ?? '',
-                            style: TextStyleCustom.outFitLight300(
-                              color: textLightGrey(context),
-                              fontSize: 10,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxH),
+          child: Material(
+            color: whitePure(ctx),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            clipBehavior: Clip.antiAlias,
+            child: Obx(() {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 3,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: bgGrey(ctx),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            LKey.beautySettings.tr,
+                            style: TextStyleCustom.unboundedSemiBold600(
+                              color: textDarkGrey(ctx),
+                              fontSize: 14,
                             ),
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                        Text(
+                          beautyOn.value ? 'On' : 'Off',
+                          style: TextStyleCustom.outFitMedium500(
+                            color: textLightGrey(ctx),
+                            fontSize: 12,
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: beautyOn.value,
+                          activeThumbColor: themeAccentSolid(ctx),
+                          activeTrackColor:
+                              themeAccentSolid(ctx).withValues(alpha: 0.45),
+                          onChanged: (v) {
+                            beautyOn.value = v;
+                            onApply();
+                          },
+                        ),
+                      ],
+                    ),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _BeautySlider(
+                              label: 'Whiten',
+                              value: whiten,
+                              enabled: beautyOn.value,
+                              onChanged: (_) => onApply(),
+                            ),
+                            _BeautySlider(
+                              label: 'Rosy',
+                              value: rosy,
+                              enabled: beautyOn.value,
+                              onChanged: (_) => onApply(),
+                            ),
+                            _BeautySlider(
+                              label: 'Smooth',
+                              value: smooth,
+                              enabled: beautyOn.value,
+                              onChanged: (_) => onApply(),
+                            ),
+                            _BeautySlider(
+                              label: 'Sharpen',
+                              value: sharpen,
+                              enabled: beautyOn.value,
+                              onChanged: (_) => onApply(),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Styles',
+                              style: TextStyleCustom.outFitMedium500(
+                                color: textDarkGrey(ctx),
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (onStyleSelected != null &&
+                                selectedFilterId != null)
+                              FaceFilterCarousel(
+                                selectedId: selectedFilterId.value,
+                                effects: effects,
+                                onSelected: (id) {
+                                  if (id.isBeautyGpu && !beautyOn.value) {
+                                    beautyOn.value = true;
+                                  }
+                                  if (id == FaceFilterId.none) {
+                                    // none: no forzar off; el switch decide
+                                  }
+                                  onStyleSelected(id);
+                                  onApply();
+                                },
+                              )
+                            else
+                              FaceFilterCarousel(
+                                selectedId: FaceFilterId.none,
+                                effects: effects,
+                                onSelected: (_) {},
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (showAcceptButton) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 44,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeAccentSolid(ctx),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                          ),
+                          onPressed: () async {
+                            beautyOn.value = true;
+                            // Si no hay estilo beauty, Soft por defecto.
+                            if (selectedFilterId != null &&
+                                !selectedFilterId.value.isBeautyGpu &&
+                                selectedFilterId.value == FaceFilterId.none) {
+                              selectedFilterId.value = FaceFilterId.beautySoft;
+                              onStyleSelected?.call(FaceFilterId.beautySoft);
+                            }
+                            await onApply();
+                            Get.back(result: true);
+                          },
+                          child: Text(
+                            'Aceptar filtro',
+                            style: TextStyleCustom.outFitSemiBold600(
+                              color: Colors.white,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ],
-          );
-        }),
+              );
+            }),
+          ),
+        ),
       ),
     ),
     isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black26,
   );
 }
 
@@ -419,21 +502,28 @@ class _BeautySlider extends StatelessWidget {
               '$label ${value.value.round()}',
               style: TextStyleCustom.outFitRegular400(
                 color: textLightGrey(context),
-                fontSize: 12,
+                fontSize: 11,
               ),
             ),
-            Slider(
-              value: value.value,
-              min: 0,
-              max: 100,
-              divisions: 20,
-              activeColor: themeAccentSolid(context),
-              onChanged: enabled
-                  ? (v) {
-                      value.value = v;
-                      onChanged(v);
-                    }
-                  : null,
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 2,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+              ),
+              child: Slider(
+                value: value.value,
+                min: 0,
+                max: 100,
+                divisions: 20,
+                activeColor: themeAccentSolid(context),
+                onChanged: enabled
+                    ? (v) {
+                        value.value = v;
+                        onChanged(v);
+                      }
+                    : null,
+              ),
             ),
           ],
         ));

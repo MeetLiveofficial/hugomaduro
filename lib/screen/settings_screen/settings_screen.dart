@@ -49,7 +49,7 @@ class SettingsScreen extends StatelessWidget {
             children: [
               SubscriptionCard(
                   controller: controller, onUpdateUser: onUpdateUser),
-              SettingLabel(title: LKey.personal.toUpperCase()),
+              SettingLabel(title: LKey.personal),
               SettingIconTextWithArrow(
                 icon: AssetRes.icEdit,
                 title: LKey.editProfile,
@@ -98,13 +98,14 @@ class SettingsScreen extends StatelessWidget {
                     Get.to(() => const CoinWalletScreen());
                   },
                 ),
-              SettingIconTextWithArrow(
-                icon: AssetRes.icVideoRequest,
-                title: LKey.tasks,
-                onTap: () {
-                  Get.to(() => const TasksScreen());
-                },
-              ),
+              if (AppRole.canAccessTasks())
+                SettingIconTextWithArrow(
+                  icon: AssetRes.icVideoRequest,
+                  title: LKey.tasks,
+                  onTap: () {
+                    Get.to(() => const TasksScreen());
+                  },
+                ),
               SettingIconTextWithArrow(
                 icon: AssetRes.icVideoRequest,
                 title: LKey.privilegeHub,
@@ -112,7 +113,7 @@ class SettingsScreen extends StatelessWidget {
                   Get.to(() => const PrivilegeHubScreen());
                 },
               ),
-              SettingLabel(title: LKey.privacy.toUpperCase()),
+              SettingLabel(title: LKey.privacy),
               Obx(
                 () => SettingIconTextWithArrow(
                   icon: AssetRes.icEye_1,
@@ -166,7 +167,7 @@ class SettingsScreen extends StatelessWidget {
                   Get.to(() => const NotificationsPage());
                 },
               ),
-              SettingLabel(title: LKey.general.toUpperCase()),
+              SettingLabel(title: LKey.general),
               SettingIconTextWithArrow(
                 icon: AssetRes.icReport,
                 title: LKey.termsOfUse,

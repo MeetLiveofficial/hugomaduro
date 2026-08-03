@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
@@ -17,6 +18,31 @@ class TasksScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!AppRole.canAccessTasks()) {
+      return Scaffold(
+        body: Column(
+          children: [
+            CustomAppBar(title: LKey.tasks.tr, showBack: !isDashBoard),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Las tareas solo están disponibles para streamers.',
+                    textAlign: TextAlign.center,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: textDarkGrey(context),
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final controller = Get.put(TasksScreenController());
 
     return Scaffold(

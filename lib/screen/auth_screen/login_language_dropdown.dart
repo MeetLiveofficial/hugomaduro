@@ -5,7 +5,7 @@ import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
-/// Desplegable de idioma — menú rosa/violeta elevado, distinto del fondo.
+/// Desplegable de idioma — menú blanco con texto oscuro.
 class LoginLanguageDropdown extends StatelessWidget {
   const LoginLanguageDropdown({super.key});
 
@@ -43,13 +43,13 @@ class LoginLanguageDropdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: ColorRes.menuSurface.withValues(alpha: 0.92),
+        color: ColorRes.whitePure,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: ColorRes.menuBorder, width: 1.2),
+        border: Border.all(color: ColorRes.bgGrey, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: ColorRes.brandMagenta.withValues(alpha: 0.25),
-            blurRadius: 16,
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -57,12 +57,12 @@ class LoginLanguageDropdown extends StatelessWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: selected,
-          dropdownColor: ColorRes.menuSurfaceElevated,
+          dropdownColor: ColorRes.whitePure,
           borderRadius: BorderRadius.circular(14),
           menuMaxHeight: 320,
-          iconEnabledColor: ColorRes.brandSoft,
+          iconEnabledColor: ColorRes.coralRed,
           style: TextStyleCustom.outFitMedium500(
-            color: ColorRes.whitePure,
+            color: ColorRes.textDarkGrey,
             fontSize: 14,
           ),
           selectedItemBuilder: (context) {
@@ -73,7 +73,7 @@ class LoginLanguageDropdown extends StatelessWidget {
                     child: Text(
                       '${e.label} (${e.code.toUpperCase()})',
                       style: TextStyleCustom.outFitMedium500(
-                        color: ColorRes.whitePure,
+                        color: ColorRes.textDarkGrey,
                         fontSize: 14,
                       ),
                     ),
@@ -101,8 +101,8 @@ class LoginLanguageDropdown extends StatelessWidget {
                       '${e.label} (${e.code.toUpperCase()})',
                       style: TextStyleCustom.outFitRegular400(
                         color: e.code == selected
-                            ? ColorRes.brandSoft
-                            : ColorRes.whitePure,
+                            ? ColorRes.coralRed
+                            : ColorRes.textDarkGrey,
                         fontSize: 14,
                       ),
                     ),

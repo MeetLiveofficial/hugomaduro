@@ -15,8 +15,11 @@ import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/subscription/subscription_manager.dart';
 import 'package:krimson/languages/dynamic_translations.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/general/countries_model.dart';
+import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart' as user;
 import 'package:krimson/screen/dashboard_screen/dashboard_screen.dart';
+import 'package:krimson/utilities/asset_res.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// Auth de Krimson:
@@ -29,11 +32,18 @@ class AuthScreenController extends BaseController {
   TextEditingController passwordController = TextEditingController();
   TextEditingController confirmPassController = TextEditingController();
 
+  final Rxn<DateTime> birthDate = Rxn<DateTime>();
+  final Rxn<Country> selectedCountry = Rxn<Country>();
+  final RxString selectedLanguage = ''.obs;
+  final RxList<Country> countries = <Country>[].obs;
+  final RxList<Language> languages = <Language>[].obs;
+
   bool get _firebaseReady => FirebaseAppHelper.isReady;
 
   @override
   void onInit() {
     CommonService.instance.fetchGlobalSettings();
+    _loadRegistrationOptions();
     // Solo FCM si Firebase ya está listo (evita [core/no-app] en Auth).
     if (_firebaseReady) {
       FirebaseNotificationManager.instance;
@@ -43,6 +53,77 @@ class AuthScreenController extends BaseController {
       });
     }
     super.onInit();
+  }
+
+  Future<void> _loadRegistrationOptions() async {
+    try {
+      final list = await parseCountries(filePath: AssetRes.countriesCSV);
+      countries.assignAll(list);
+    } catch (_) {}
+    final active = SessionManager.instance.getActiveLanguages();
+    languages.assignAll(active);
+    final current = SessionManager.instance.getLang();
+    if (current.isNotEmpty) {
+      selectedLanguage.value = current;
+    } else if (active.isNotEmpty) {
+      selectedLanguage.value = (active.first.code ?? 'en').toLowerCase();
+    } else {
+      selectedLanguage.value = 'en';
+    }
+  }
+
+  String get birthDateLabel {
+    final d = birthDate.value;
+    if (d == null) return LKey.selectDateOfBirth.tr;
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '$dd/$mm/${d.year}';
+  }
+
+  String get birthDateApi {
+    final d = birthDate.value;
+    if (d == null) return '';
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '${d.year}-$mm-$dd';
+  }
+
+  Future<void> pickBirthDate(BuildContext context) async {
+    final today = _dateOnly(DateTime.now());
+    // Último día válido = exactamente hace 18 años (cumpleaños de 18 inclusive).
+    final maxDob = DateTime(today.year - 18, today.month, today.day);
+    final minDob = DateTime(today.year - 100, today.month, today.day);
+    final initial = birthDate.value != null
+        ? _dateOnly(birthDate.value!)
+        : maxDob;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial.isAfter(maxDob) ? maxDob : initial,
+      firstDate: minDob,
+      lastDate: maxDob,
+      helpText: LKey.dateOfBirth.tr,
+    );
+    if (picked != null) {
+      birthDate.value = _dateOnly(picked);
+    }
+  }
+
+  void selectLanguageCode(String code) {
+    selectedLanguage.value = code.toLowerCase();
+  }
+
+  void selectCountry(Country country) {
+    selectedCountry.value = country;
+  }
+
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  /// true si ya cumplió 18 años (el día del cumpleaños cuenta).
+  bool _isAtLeast18(DateTime dob) {
+    final today = _dateOnly(DateTime.now());
+    final eighteenthBirthday =
+        DateTime(dob.year + 18, dob.month, dob.day);
+    return !today.isBefore(eighteenthBirthday);
   }
 
   Future<void> onLogin() async {
@@ -145,12 +226,27 @@ class AuthScreenController extends BaseController {
     if (password.length < 6) {
       return showSnackBar(LKey.weakPassword.tr);
     }
+    if (birthDate.value == null) {
+      return showSnackBar(LKey.dobRequired.tr);
+    }
+    if (!_isAtLeast18(birthDate.value!)) {
+      return showSnackBar(LKey.mustBe18.tr);
+    }
+    if (selectedCountry.value == null) {
+      return showSnackBar(LKey.countryRequired.tr);
+    }
+    if (selectedLanguage.value.trim().isEmpty) {
+      return showSnackBar(LKey.languageRequired.tr);
+    }
 
     showLoader(barrierDismissible: true);
     try {
       // Registro = Laravel. Sin esperar Firebase/FCM.
       final deviceToken =
           'krimson_android_${DateTime.now().millisecondsSinceEpoch}';
+
+      final lang = selectedLanguage.value.trim().toLowerCase();
+      await SessionManager.instance.setLang(lang, syncRemote: false);
 
       final data = await UserService.instance
           .registerUser(
@@ -159,6 +255,10 @@ class AuthScreenController extends BaseController {
         fullName: fullName,
         deviceToken: deviceToken,
         loginMethod: LoginMethod.email,
+        dob: birthDateApi,
+        country: selectedCountry.value?.countryName,
+        countryCode: selectedCountry.value?.countryCode,
+        appLanguage: lang,
       )
           .timeout(const Duration(seconds: 25), onTimeout: () {
         throw TimeoutException('El servidor tardó demasiado en responder');
@@ -167,6 +267,11 @@ class AuthScreenController extends BaseController {
       if (data == null) {
         return;
       }
+
+      data.appLanguage = lang;
+      data.country = selectedCountry.value?.countryName;
+      data.countryCode = selectedCountry.value?.countryCode;
+      data.dob = birthDateApi;
 
       SessionManager.instance.setPassword(password);
       SessionManager.instance.setUser(data);

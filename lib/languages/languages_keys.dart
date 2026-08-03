@@ -45,6 +45,16 @@ class LKey {
   static const String reportPost = "Report @reportType";
   static const String report = "Report";
   static const String country = "Country";
+  static const String dateOfBirth = "Date of birth";
+  static const String selectCountry = "Select country";
+  static const String selectLanguage = "Select language";
+  static const String selectDateOfBirth = "Select date of birth";
+  static const String mustBe18 =
+      "You must be at least 18 years old to register.";
+  static const String countryRequired = "Please select your country";
+  static const String languageRequired = "Please select a language";
+  static const String dobRequired = "Please select your date of birth";
+  static const String searchCountry = "Search country";
   static const String description = "Description";
   static const String submit = "Submit";
   static const String agreeToPolicy =
@@ -78,6 +88,11 @@ class LKey {
   static const String messages = "Messages";
   static const String message = "Message";
   static const String chats = "Chats";
+  static const String supportChat = "Chat de Soporte";
+  static const String supportChatSubtitle = "Crea un ticket de soporte";
+  static const String supportChatHint = "Describe tu problema…";
+  static const String supportChatEmpty = "Escribe tu primer mensaje para abrir un ticket.";
+  static const String supportBadge = "SOPORTE";
   static const String newChat = "New Chat";
   static const String newChatHint = "Search a user to start a direct chat";
   static const String searchUsers = "Search users";
@@ -111,8 +126,8 @@ class LKey {
   static const String dressingCenter = "Dressing Center";
   static const String honorWall = "Wall of Honor";
   static const String leaderboard = "Leaderboard";
-  static const String clientsRanking = "Clientes";
-  static const String streamersRanking = "Streamers";
+  static const String clientsRanking = "Giver Ranking";
+  static const String streamersRanking = "Receiver Ranking";
   static const String endsIn = "Ends In";
   static const String today = "Today";
   static const String thisMonth = "This Month";

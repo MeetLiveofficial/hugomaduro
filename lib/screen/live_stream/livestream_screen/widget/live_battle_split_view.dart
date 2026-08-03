@@ -47,7 +47,9 @@ class LiveBattleSplitView extends StatelessWidget {
           ? (controller.livestream.hostUser?.fullname ??
               controller.livestream.hostUser?.username ??
               'Host')
-          : 'Invitador';
+          : (controller.battleOpponentName.value.isEmpty
+              ? 'Invitador'
+              : controller.battleOpponentName.value);
       final teamAPhoto = controller.isBattlePrimaryHost
           ? controller.livestream.hostUser?.profile
           : null;

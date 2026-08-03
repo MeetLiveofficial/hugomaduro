@@ -95,12 +95,16 @@ class _LiveBattleInviteDialogState extends State<LiveBattleInviteDialog> {
 
       LiveBattleInviteDialog.clearShown(roomId);
 
-      // Cerrar LIVE/audiencia previa para no dejar la sala LiveKit abierta
-      // (causa típica de "Esperando cámara…" en el PK).
+      // No usar endOrLeave(): tumba endBattle/leave y borra la sala del rival
+      // que acabamos de dejar en RUNNING (desaparece del listado PK).
+      final myLive = result.opponentSession ?? result.session;
+      final keepRoom = (myLive.roomID ?? '').trim();
       final prev = LivestreamScreenController.activeInstance;
       if (prev != null) {
         try {
-          await prev.endOrLeave();
+          await prev.handoffCleanup(
+            preserveLaravelSession: prev.roomId == keepRoom,
+          );
         } catch (e) {
           Loggers.error('cleanup before battle accept: $e');
         }
@@ -108,7 +112,6 @@ class _LiveBattleInviteDialogState extends State<LiveBattleInviteDialog> {
       }
 
       // El rival abre SU propia sala (vinculada) como host.
-      final myLive = result.opponentSession ?? result.session;
       final hostTag = 'live_${myLive.roomID}';
       final lkTag = 'lk_live_${myLive.roomID}';
       if (Get.isRegistered<LivestreamScreenController>(tag: hostTag)) {

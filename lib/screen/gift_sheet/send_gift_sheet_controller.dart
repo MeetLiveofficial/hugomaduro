@@ -168,6 +168,7 @@ class GiftManager {
   static void showAnimationDialog(Gift gift) {
     final ctx = Get.context;
     if (ctx == null) return;
+    if ((gift.image ?? '').trim().isEmpty) return;
 
     // Si ya hay uno, cerrarlo para no apilar stickers.
     if (_giftDialogOpen) {

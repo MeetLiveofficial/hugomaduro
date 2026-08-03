@@ -35,7 +35,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fieldBg = bgColor ?? ColorRes.bgLightGrey;
+    final fieldBg = bgColor ?? ColorRes.whitePure;
     return Container(
       height: height,
       width: width,
@@ -44,7 +44,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
         color: fieldBg,
         shape: SmoothRectangleBorder(
           borderRadius: SmoothBorderRadius(cornerRadius: 8, cornerSmoothing: 1),
-          side: const BorderSide(color: ColorRes.menuBorder, width: 1),
+          side: const BorderSide(color: ColorRes.bgGrey, width: 1),
         ),
       ),
       alignment: Alignment.center,
@@ -56,11 +56,11 @@ class CustomDropDownBtn<T> extends StatelessWidget {
               AssetRes.icDownArrow_1,
               width: 23,
               height: 20,
-              color: ColorRes.brandMagenta,
+              color: ColorRes.textDarkGrey,
             )),
-        dropdownColor: ColorRes.menuSurfaceElevated,
+        dropdownColor: ColorRes.whitePure,
         style: TextStyleCustom.outFitRegular400(
-            color: ColorRes.whitePure, fontSize: 15),
+            color: ColorRes.textDarkGrey, fontSize: 15),
         underline: const SizedBox(),
         isDense: true,
         isExpanded: isExpanded,
@@ -75,13 +75,12 @@ class CustomDropDownBtn<T> extends StatelessWidget {
             value: item,
             child: Text(
               getTitle(item),
-              style: style ??
-                  TextStyleCustom.outFitRegular400(
-                    color: selected
-                        ? ColorRes.brandSoft
-                        : ColorRes.whitePure,
-                    fontSize: 15,
-                  ),
+              style: TextStyleCustom.outFitRegular400(
+                color: selected
+                    ? ColorRes.coralRed
+                    : ColorRes.textDarkGrey,
+                fontSize: 15,
+              ),
             ),
           );
         }).toList(),
@@ -91,10 +90,11 @@ class CustomDropDownBtn<T> extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 getTitle(item),
-                style: TextStyleCustom.outFitMedium500(
-                  color: textDarkGrey(context),
-                  fontSize: 15,
-                ),
+                style: style ??
+                    TextStyleCustom.outFitMedium500(
+                      color: textDarkGrey(context),
+                      fontSize: 15,
+                    ),
                 overflow: TextOverflow.ellipsis,
               ),
             );

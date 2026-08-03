@@ -126,7 +126,7 @@ class HomeTopCenterWidget extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const HomeModeSwitcher(lightOnDark: true),
+          const HomeModeSwitcher(),
           const SizedBox(height: 8),
           InkWell(
             onTap: controller.onToggleDropDown,

@@ -23,10 +23,10 @@ class LiveKitTokenResult {
 /// Arquitectura:
 /// ```
 /// App (autenticada) ──POST /api/livekit/token──► Laravel (authorizeUser)
-///                                              └──► live.nexusdevtech.com/token
+///                                              └──► live.meetlive.online/token
 ///                                                   (firma con API Secret)
 /// App ◄── JWT + wssUrl ────────────────────────────────────────┘
-/// App ──wss──► wss://live.nexusdevtech.com
+/// App ──wss──► wss://live.meetlive.online
 /// ```
 class LiveKitTokenService {
   LiveKitTokenService._();
