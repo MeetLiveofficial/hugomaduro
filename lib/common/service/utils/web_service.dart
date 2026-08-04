@@ -125,6 +125,7 @@ class _User {
   String deleteMyAccount = "${apiURL}user/deleteMyAccount";
   String logOutUser = "${apiURL}user/logOutUser";
   String subscribePlus = "${apiURL}user/subscribePlus";
+  String startKyc = "${apiURL}user/startKyc";
   String fetchUserDetails = "${apiURL}user/fetchUserDetails";
   String updateUserDetails = "${apiURL}user/updateUserDetails";
   String checkUsernameAvailability = "${apiURL}user/checkUsernameAvailability";

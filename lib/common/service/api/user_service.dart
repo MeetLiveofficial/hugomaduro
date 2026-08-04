@@ -163,6 +163,26 @@ class UserService {
     throw Exception(userModel.message ?? 'PLUS+ subscription failed');
   }
 
+  /// Starts a Didit KYC session. Returns session payload:
+  /// `{session_id, session_token, url, status, kyc_status}` or user if already approved.
+  Future<Map<String, dynamic>> startKyc({String? callback, String? language}) async {
+    final response = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.user.startKyc,
+      param: {
+        if (callback != null && callback.isNotEmpty) 'callback': callback,
+        if (language != null && language.isNotEmpty) 'language': language,
+      },
+    );
+    if (response['status'] != true) {
+      throw Exception(response['message']?.toString() ?? 'KYC session failed');
+    }
+    final data = response['data'];
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    return response;
+  }
+
   Future<User?> fetchUserDetails({int? userId, Function()? onError}) async {
     UserModel userModel = await ApiService.instance.call(
         url: WebService.user.fetchUserDetails,

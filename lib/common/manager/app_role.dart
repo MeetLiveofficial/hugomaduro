@@ -44,4 +44,14 @@ class AppRole {
 
   /// Solo streamers ven y completan tareas (retiros).
   static bool canAccessTasks([User? user]) => isStreamer(user);
+
+  /// Solo streamers pueden solicitar retiros en la APP.
+  static bool canWithdraw([User? user]) => isStreamer(user);
+
+  /// KYC obligatorio una sola vez, solo streamers, al solicitar un retiro.
+  static bool needsKycForWithdrawal([User? user]) {
+    final u = user ?? SessionManager.instance.getUser();
+    if (u == null || !isStreamer(u)) return false;
+    return !u.isKycApproved;
+  }
 }

@@ -74,6 +74,9 @@ class User {
       this.notifyGiftReceived,
       this.notifyChat,
       this.isVerify,
+      this.kycStatus,
+      this.diditSessionId,
+      this.kycVerifiedAt,
       this.whoCanViewPost,
       this.showMyFollowing,
       this.receiveMessage,
@@ -138,6 +141,9 @@ class User {
     int? notifyGiftReceived,
     int? notifyChat,
     int? isVerify,
+    String? kycStatus,
+    String? diditSessionId,
+    String? kycVerifiedAt,
     int? whoCanViewPost,
     int? showMyFollowing,
     int? receiveMessage,
@@ -202,6 +208,9 @@ class User {
         notifyGiftReceived: notifyGiftReceived ?? this.notifyGiftReceived,
         notifyChat: notifyChat ?? this.notifyChat,
         isVerify: isVerify ?? this.isVerify,
+        kycStatus: kycStatus ?? this.kycStatus,
+        diditSessionId: diditSessionId ?? this.diditSessionId,
+        kycVerifiedAt: kycVerifiedAt ?? this.kycVerifiedAt,
         whoCanViewPost: whoCanViewPost ?? this.whoCanViewPost,
         showMyFollowing: showMyFollowing ?? this.showMyFollowing,
         receiveMessage: receiveMessage ?? this.receiveMessage,
@@ -279,6 +288,9 @@ class User {
     notifyGiftReceived = _asNum(json['notify_gift_received']);
     notifyChat = _asNum(json['notify_chat']);
     isVerify = _asInt(json['is_verify']);
+    kycStatus = json['kyc_status']?.toString();
+    diditSessionId = json['didit_session_id']?.toString();
+    kycVerifiedAt = json['kyc_verified_at']?.toString();
     whoCanViewPost = _asNum(json['who_can_view_post']);
     showMyFollowing = _asNum(json['show_my_following']);
     receiveMessage = _asNum(json['receive_message']);
@@ -372,7 +384,20 @@ class User {
   num? notifyGiftReceived;
   num? notifyChat;
   int? isVerify;
+  String? kycStatus;
+  String? diditSessionId;
+  String? kycVerifiedAt;
   num? whoCanViewPost;
+
+  /// Didit KYC approved (or grandfathered PLUS+ with is_verify).
+  bool get isKycApproved {
+    if ((kycStatus ?? 'none').toLowerCase() == 'approved') return true;
+    // Fallback before migration / old cached session: verified badge holders.
+    return (isVerify ?? 0) == 1 &&
+        (kycStatus == null ||
+            kycStatus == '' ||
+            kycStatus == 'none');
+  }
   num? showMyFollowing;
   num? receiveMessage;
   num? coinWallet;
@@ -442,6 +467,9 @@ class User {
     map['notify_gift_received'] = notifyGiftReceived;
     map['notify_chat'] = notifyChat;
     map['is_verify'] = isVerify;
+    map['kyc_status'] = kycStatus;
+    map['didit_session_id'] = diditSessionId;
+    map['kyc_verified_at'] = kycVerifiedAt;
     map['who_can_view_post'] = whoCanViewPost;
     map['show_my_following'] = showMyFollowing;
     map['receive_message'] = receiveMessage;
