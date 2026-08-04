@@ -7,7 +7,9 @@ import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
+import 'package:krimson/screen/face_filters/widgets/deep_ar_preview_stack.dart';
 import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
@@ -305,10 +307,19 @@ Future<bool?> openLiveBeautySheet({
   List<FaceFilterEffect>? styleEffects,
   ValueChanged<FaceFilterId>? onStyleSelected,
   bool showAcceptButton = false,
+  /// Si true: carrusel DeepAR (efectos .deepar del panel); oculta sliders.
+  bool useDeepAr = false,
+  List<DeepARFilters>? deepArFilters,
+  Rxn<int>? selectedDeepArFilterId,
+  ValueChanged<DeepARFilters?>? onDeepArFilterSelected,
 }) {
   final effects = styleEffects ?? FaceFilterEffect.catalog;
+  final deepFilters = deepArFilters ?? const <DeepARFilters>[];
   final ctx = Get.context!;
-  final maxH = MediaQuery.sizeOf(ctx).height * (showAcceptButton ? 0.46 : 0.40);
+  final maxH = MediaQuery.sizeOf(ctx).height *
+      (useDeepAr
+          ? (showAcceptButton ? 0.36 : 0.30)
+          : (showAcceptButton ? 0.46 : 0.40));
 
   return Get.bottomSheet<bool>(
     SafeArea(
@@ -342,7 +353,9 @@ Future<bool?> openLiveBeautySheet({
                       children: [
                         Expanded(
                           child: Text(
-                            LKey.beautySettings.tr,
+                            useDeepAr
+                                ? 'DeepAR Filters'
+                                : LKey.beautySettings.tr,
                             style: TextStyleCustom.unboundedSemiBold600(
                               color: textDarkGrey(ctx),
                               fontSize: 14,
@@ -373,40 +386,62 @@ Future<bool?> openLiveBeautySheet({
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _BeautySlider(
-                              label: 'Whiten',
-                              value: whiten,
-                              enabled: beautyOn.value,
-                              onChanged: (_) => onApply(),
-                            ),
-                            _BeautySlider(
-                              label: 'Rosy',
-                              value: rosy,
-                              enabled: beautyOn.value,
-                              onChanged: (_) => onApply(),
-                            ),
-                            _BeautySlider(
-                              label: 'Smooth',
-                              value: smooth,
-                              enabled: beautyOn.value,
-                              onChanged: (_) => onApply(),
-                            ),
-                            _BeautySlider(
-                              label: 'Sharpen',
-                              value: sharpen,
-                              enabled: beautyOn.value,
-                              onChanged: (_) => onApply(),
-                            ),
+                            if (!useDeepAr) ...[
+                              _BeautySlider(
+                                label: 'Whiten',
+                                value: whiten,
+                                enabled: beautyOn.value,
+                                onChanged: (_) => onApply(),
+                              ),
+                              _BeautySlider(
+                                label: 'Rosy',
+                                value: rosy,
+                                enabled: beautyOn.value,
+                                onChanged: (_) => onApply(),
+                              ),
+                              _BeautySlider(
+                                label: 'Smooth',
+                                value: smooth,
+                                enabled: beautyOn.value,
+                                onChanged: (_) => onApply(),
+                              ),
+                              _BeautySlider(
+                                label: 'Sharpen',
+                                value: sharpen,
+                                enabled: beautyOn.value,
+                                onChanged: (_) => onApply(),
+                              ),
+                            ] else ...[
+                              Text(
+                                'Efectos reales (.deepar) del panel. Free: watermark + 10 MAU.',
+                                style: TextStyleCustom.outFitRegular400(
+                                  color: textLightGrey(ctx),
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                             const SizedBox(height: 4),
                             Text(
-                              'Styles',
+                              useDeepAr ? 'Effects' : 'Styles',
                               style: TextStyleCustom.outFitMedium500(
                                 color: textDarkGrey(ctx),
                                 fontSize: 12,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            if (onStyleSelected != null &&
+                            if (useDeepAr)
+                              DeepArFilterCarousel(
+                                filters: deepFilters,
+                                selectedId: selectedDeepArFilterId?.value,
+                                onSelected: (filter) {
+                                  if (filter != null) beautyOn.value = true;
+                                  selectedDeepArFilterId?.value = filter?.id;
+                                  onDeepArFilterSelected?.call(filter);
+                                  onApply();
+                                },
+                              )
+                            else if (onStyleSelected != null &&
                                 selectedFilterId != null)
                               FaceFilterCarousel(
                                 selectedId: selectedFilterId.value,
@@ -414,9 +449,6 @@ Future<bool?> openLiveBeautySheet({
                                 onSelected: (id) {
                                   if (id.isBeautyGpu && !beautyOn.value) {
                                     beautyOn.value = true;
-                                  }
-                                  if (id == FaceFilterId.none) {
-                                    // none: no forzar off; el switch decide
                                   }
                                   onStyleSelected(id);
                                   onApply();
@@ -446,8 +478,8 @@ Future<bool?> openLiveBeautySheet({
                           ),
                           onPressed: () async {
                             beautyOn.value = true;
-                            // Si no hay estilo beauty, Soft por defecto.
-                            if (selectedFilterId != null &&
+                            if (!useDeepAr &&
+                                selectedFilterId != null &&
                                 !selectedFilterId.value.isBeautyGpu &&
                                 selectedFilterId.value == FaceFilterId.none) {
                               selectedFilterId.value = FaceFilterId.beautySoft;

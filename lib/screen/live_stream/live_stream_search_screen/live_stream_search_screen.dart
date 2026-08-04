@@ -7,6 +7,7 @@ import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/screen/face_filters/widgets/deep_ar_preview_stack.dart';
 import 'package:krimson/screen/face_filters/widgets/face_camera_preview_stack.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
@@ -98,9 +99,25 @@ class _StudioBackdrop extends StatelessWidget {
     final profileUrl = (me?.profilePhoto ?? '').trim();
 
     return Obx(() {
+      final deepArCam =
+          controller.deepArPreviewActive.value && controller.useDeepAr && !kIsWeb;
       final previewCam = controller.cameraPreviewActive.value &&
           controller.beautyPipeline.isReady &&
           !kIsWeb;
+
+      if (deepArCam) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            const DeepArPreviewStack(),
+            Positioned(
+              left: 16,
+              bottom: 120,
+              child: _CoverBadge(controller: controller),
+            ),
+          ],
+        );
+      }
 
       if (previewCam) {
         return Stack(

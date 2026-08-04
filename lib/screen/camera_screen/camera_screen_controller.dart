@@ -19,11 +19,13 @@ import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/color_filter_screen/widget/color_filtered.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/screen/face_filters/services/baked_preview_capture.dart';
+import 'package:krimson/screen/face_filters/services/deep_ar_service.dart';
 import 'package:krimson/screen/face_filters/services/face_camera_service.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_catalog_store.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_pipeline.dart';
 import 'package:krimson/screen/face_filters/services/face_mesh_engine.dart';
 import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
+import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/screen/music_sheet/music_sheet.dart';
 import 'package:krimson/screen/selected_music_sheet/selected_music_sheet.dart';
 import 'package:krimson/screen/selected_music_sheet/selected_music_sheet_controller.dart';
@@ -48,6 +50,7 @@ class CameraScreenController extends BaseController
   RxDouble progress = 0.0.obs;
   RxBool isCameraReady = false.obs;
   final Rx<FaceFilterId> selectedFilterId = FaceFilterId.none.obs;
+  final Rxn<int> selectedDeepArFilterId = Rxn<int>();
 
   final GlobalKey previewBoundaryKey = GlobalKey();
   final FaceFilterPipeline filterPipeline =
@@ -55,6 +58,8 @@ class CameraScreenController extends BaseController
   FaceCameraService get cameraService => filterPipeline.camera;
   FaceMeshEngine get meshEngine => filterPipeline.mesh;
   FaceFilterCatalogStore get filterCatalog => FaceFilterCatalogStore.instance;
+  DeepArService get deepAr => DeepArService.instance;
+  bool get useDeepAr => deepAr.isConfigured;
 
   bool get isCaptureReady => isCameraReady.value;
   CameraController? get cameraController => cameraService.controller;
@@ -132,6 +137,20 @@ class CameraScreenController extends BaseController
 
   Future<void> _initCameraPipeline() async {
     isCameraReady.value = false;
+    if (useDeepAr) {
+      try {
+        final ok = await deepAr.initialize();
+        isCameraReady.value = ok;
+        if (!ok) {
+          showSnackBar('No se pudo iniciar DeepAR');
+        }
+      } catch (e, st) {
+        Loggers.error('DeepAR camera init: $e\n$st');
+        isCameraReady.value = false;
+        showSnackBar('Error DeepAR: $e');
+      }
+      return;
+    }
     final granted = await cameraService.requestPermissions();
     if (!granted) {
       showPermissionDeniedSheet();
@@ -162,6 +181,7 @@ class CameraScreenController extends BaseController
   Future<void> disposeCamera() async {
     isCameraReady.value = false;
     await filterPipeline.stop();
+    await deepAr.destroy();
   }
 
   void showPermissionDeniedSheet() {
@@ -256,7 +276,12 @@ class CameraScreenController extends BaseController
   Future<void> onVideoRecordingStart() async {
     if (!isCaptureReady || isRecording.value) return;
     try {
-      await cameraService.startVideoRecording();
+      if (useDeepAr) {
+        final ok = await deepAr.startVideoRecording();
+        if (ok == null) throw Exception('DeepAR recording failed');
+      } else {
+        await cameraService.startVideoRecording();
+      }
       _startAudioPlayback();
       isRecording.value = true;
       isStartingRecording.value = true;
@@ -268,6 +293,13 @@ class CameraScreenController extends BaseController
 
   Future<void> onVideoRecordingPause() async {
     if (!isRecording.value) return;
+    if (useDeepAr) {
+      // DeepAR plugin no expone pause; se detiene el timer UI solamente.
+      _pauseAudioPlayback();
+      isRecording.value = false;
+      _progressTimer?.cancel();
+      return;
+    }
     await cameraService.pauseVideoRecording();
     _pauseAudioPlayback();
     isRecording.value = false;
@@ -276,6 +308,12 @@ class CameraScreenController extends BaseController
 
   Future<void> onVideoRecordingResume() async {
     if (isRecording.value) return;
+    if (useDeepAr) {
+      _resumeAudioPlayback();
+      isRecording.value = true;
+      _startProgressTimer();
+      return;
+    }
     await cameraService.resumeVideoRecording();
     _resumeAudioPlayback();
     isRecording.value = true;
@@ -292,7 +330,13 @@ class CameraScreenController extends BaseController
       progress.value = 0;
 
       showLoader();
-      final file = await cameraService.stopVideoRecording();
+      XFile? file;
+      if (useDeepAr) {
+        final path = await deepAr.stopVideoRecording();
+        if (path != null) file = XFile(path);
+      } else {
+        file = await cameraService.stopVideoRecording();
+      }
       if (file == null) {
         stopLoader();
         showSnackBar('Capture File not found');
@@ -383,10 +427,15 @@ class CameraScreenController extends BaseController
     showLoader();
     try {
       XFile? file;
-      if (selectedFilterId.value != FaceFilterId.none) {
-        file = await captureRepaintBoundaryToFile(previewBoundaryKey);
+      if (useDeepAr) {
+        final path = await deepAr.takeScreenshot();
+        if (path != null) file = XFile(path);
+      } else {
+        if (selectedFilterId.value != FaceFilterId.none) {
+          file = await captureRepaintBoundaryToFile(previewBoundaryKey);
+        }
+        file ??= await cameraService.takePicture();
       }
-      file ??= await cameraService.takePicture();
       if (file == null) {
         showSnackBar('No se pudo capturar la foto');
         return;
@@ -464,6 +513,15 @@ class CameraScreenController extends BaseController
       );
     } else {
       filterPipeline.beauty.setLook(look);
+    }
+  }
+
+  Future<void> onDeepArFilterSelected(DeepARFilters? filter) async {
+    selectedDeepArFilterId.value = filter?.id;
+    if (filter == null) {
+      await deepAr.clearEffect();
+    } else {
+      await deepAr.applyFilter(filter);
     }
   }
 

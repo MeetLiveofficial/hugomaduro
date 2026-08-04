@@ -24,9 +24,11 @@ import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
+import 'package:krimson/screen/face_filters/services/deep_ar_service.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_catalog_store.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_pipeline.dart';
 import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
+import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -63,9 +65,13 @@ class LiveStreamSearchScreenController extends BaseController {
       FaceFilterPipeline(maxInferenceFps: 15, defaultBeautyIntensity: 0);
   final GlobalKey beautyPreviewKey = GlobalKey();
   final RxBool cameraPreviewActive = false.obs;
+  final RxBool deepArPreviewActive = false.obs;
   final Rx<FaceFilterId> selectedFilterId = FaceFilterId.none.obs;
+  final Rxn<int> selectedDeepArFilterId = Rxn<int>();
 
   FaceFilterCatalogStore get filterCatalog => FaceFilterCatalogStore.instance;
+  DeepArService get deepAr => DeepArService.instance;
+  bool get useDeepAr => deepAr.isConfigured;
 
   @override
   void onInit() {
@@ -167,14 +173,45 @@ class LiveStreamSearchScreenController extends BaseController {
     }
   }
 
+  DeepARFilters? _deepArById(int? id) {
+    if (id == null) return null;
+    for (final f in deepAr.filters) {
+      if (f.id == id) return f;
+    }
+    return null;
+  }
+
   Future<void> startBeautyCameraPreview() async {
     if (kIsWeb) return;
-    if (cameraPreviewActive.value && beautyPipeline.isReady) return;
     final cam = await Permission.camera.request();
     if (!cam.isGranted) {
       showSnackBar(LKey.cameraMicrophonePermissionTitle.tr);
       return;
     }
+
+    if (useDeepAr) {
+      if (deepArPreviewActive.value && deepAr.controller != null) return;
+      try {
+        // Liberar MediaPipe/camera si estaba activo.
+        await beautyPipeline.stop();
+        cameraPreviewActive.value = false;
+        final ok = await deepAr.initialize();
+        deepArPreviewActive.value = ok;
+        if (!ok) {
+          showSnackBar('No se pudo iniciar DeepAR (claves / licencia)');
+        } else if (selectedDeepArFilterId.value != null) {
+          final f = _deepArById(selectedDeepArFilterId.value);
+          if (f != null) await deepAr.applyFilter(f);
+        }
+      } catch (e, st) {
+        Loggers.error('startBeautyCameraPreview DeepAR: $e\n$st');
+        deepArPreviewActive.value = false;
+        showSnackBar('Error DeepAR: $e');
+      }
+      return;
+    }
+
+    if (cameraPreviewActive.value && beautyPipeline.isReady) return;
     try {
       filterCatalog.sync();
       final ok = await beautyPipeline.start();
@@ -192,10 +229,16 @@ class LiveStreamSearchScreenController extends BaseController {
 
   Future<void> stopBeautyCameraPreview() async {
     cameraPreviewActive.value = false;
+    deepArPreviewActive.value = false;
     try {
       await beautyPipeline.stop();
     } catch (e) {
       Loggers.error('stopBeautyCameraPreview: $e');
+    }
+    try {
+      await deepAr.destroy();
+    } catch (e) {
+      Loggers.error('stopBeautyCameraPreview DeepAR: $e');
     }
   }
 
@@ -253,7 +296,7 @@ class LiveStreamSearchScreenController extends BaseController {
       DeviceOrientation.portraitUp,
     ]);
     await startBeautyCameraPreview();
-    _syncBeautyShaderIntensity();
+    if (!useDeepAr) _syncBeautyShaderIntensity();
     final accepted = await openLiveBeautySheet(
       liveController: null,
       whiten: whiten,
@@ -261,10 +304,33 @@ class LiveStreamSearchScreenController extends BaseController {
       smooth: smooth,
       sharpen: sharpen,
       beautyOn: beautyOn,
-      onApply: () async => _syncBeautyShaderIntensity(),
+      onApply: () async {
+        if (useDeepAr) {
+          if (!beautyOn.value) {
+            await deepAr.clearEffect();
+            selectedDeepArFilterId.value = null;
+          } else if (selectedDeepArFilterId.value != null) {
+            await deepAr.applyFilter(_deepArById(selectedDeepArFilterId.value));
+          }
+          return;
+        }
+        _syncBeautyShaderIntensity();
+      },
       selectedFilterId: selectedFilterId,
       styleEffects: filterCatalog.effects.toList(),
       showAcceptButton: true,
+      useDeepAr: useDeepAr,
+      deepArFilters: deepAr.filters,
+      selectedDeepArFilterId: selectedDeepArFilterId,
+      onDeepArFilterSelected: (DeepARFilters? f) async {
+        selectedDeepArFilterId.value = f?.id;
+        if (f == null) {
+          await deepAr.clearEffect();
+        } else {
+          beautyOn.value = true;
+          await deepAr.applyFilter(f);
+        }
+      },
       onStyleSelected: (id) {
         selectedFilterId.value = id;
         if (id.isBeautyGpu) beautyOn.value = true;
@@ -280,8 +346,10 @@ class LiveStreamSearchScreenController extends BaseController {
     );
     if (accepted == true) {
       beautyOn.value = true;
-      _syncBeautyShaderIntensity();
-      showSnackBar('Filtro aplicado. Listo para Go Live.');
+      if (!useDeepAr) _syncBeautyShaderIntensity();
+      showSnackBar(useDeepAr
+          ? 'Filtro DeepAR aplicado. Listo para Go Live.'
+          : 'Filtro aplicado. Listo para Go Live.');
       return;
     }
     await stopBeautyCameraPreview();

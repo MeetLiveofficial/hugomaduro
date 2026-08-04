@@ -7,6 +7,7 @@ import 'package:krimson/common/widget/custom_border_round_icon.dart';
 import 'package:krimson/screen/camera_screen/camera_screen_controller.dart';
 import 'package:krimson/screen/camera_screen/widget/camera_bottom_view.dart';
 import 'package:krimson/screen/camera_screen/widget/camera_top_view.dart';
+import 'package:krimson/screen/face_filters/widgets/deep_ar_preview_stack.dart';
 import 'package:krimson/screen/face_filters/widgets/face_camera_preview_stack.dart';
 import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
 import 'package:krimson/screen/selected_music_sheet/selected_music_sheet_controller.dart';
@@ -98,6 +99,9 @@ class CameraScreen extends StatelessWidget {
 
   Widget _buildCameraPreview(CameraScreenController controller) {
     return Obx(() {
+      if (controller.useDeepAr) {
+        return const DeepArPreviewStack();
+      }
       return FaceCameraPreviewStack(
         boundaryKey: controller.previewBoundaryKey,
         controller: controller.cameraController,
@@ -130,6 +134,16 @@ class CameraScreen extends StatelessWidget {
           Obx(() {
             if (!controller.isEffectShow.value) {
               return const SizedBox.shrink();
+            }
+            if (controller.useDeepAr) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DeepArFilterCarousel(
+                  filters: controller.deepAr.filters,
+                  selectedId: controller.selectedDeepArFilterId.value,
+                  onSelected: controller.onDeepArFilterSelected,
+                ),
+              );
             }
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),

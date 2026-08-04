@@ -35,6 +35,7 @@ import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_invite_dialog.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_private_call_sheet.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
+import 'package:krimson/screen/face_filters/services/deep_ar_service.dart';
 import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/utilities/app_res.dart';
@@ -86,7 +87,10 @@ class LivestreamScreenController extends BaseController {
   final RxDouble smooth = 55.0.obs;
   final RxDouble sharpen = 35.0.obs;
   final Rx<FaceFilterId> selectedBeautyFilterId = FaceFilterId.none.obs;
+  final RxnInt selectedDeepArFilterId = RxnInt();
   final BeautyShaderController beautyShader = BeautyShaderController();
+  DeepArService get deepAr => DeepArService.instance;
+  bool get useDeepAr => deepAr.isConfigured;
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxList<User> inviteCandidates = <User>[].obs;
   final RxBool inviteLoading = false.obs;
@@ -2049,10 +2053,31 @@ class LivestreamScreenController extends BaseController {
       smooth: smooth,
       sharpen: sharpen,
       beautyOn: beautyOn,
-      onApply: applyBeauty,
+      onApply: () async {
+        if (useDeepAr) {
+          // Durante el live LiveKit posee la cámara: DeepAR no puede
+          // compartirla. Se guarda la preferencia para el próximo pre-live.
+          if (!beautyOn.value) {
+            selectedDeepArFilterId.value = null;
+          }
+          showSnackBar(
+            'DeepAR aplica el efecto en pre-live / cámara. '
+            'Los espectadores del live aún ven la cámara LiveKit.',
+          );
+          return;
+        }
+        await applyBeauty();
+      },
       selectedFilterId: selectedBeautyFilterId,
       styleEffects: FaceFilterEffect.catalog,
       showAcceptButton: true,
+      useDeepAr: useDeepAr,
+      deepArFilters: deepAr.filters,
+      selectedDeepArFilterId: selectedDeepArFilterId,
+      onDeepArFilterSelected: (f) {
+        selectedDeepArFilterId.value = f?.id;
+        if (f != null) beautyOn.value = true;
+      },
       onStyleSelected: (id) {
         selectedBeautyFilterId.value = id;
         if (id.isBeautyGpu) beautyOn.value = true;
