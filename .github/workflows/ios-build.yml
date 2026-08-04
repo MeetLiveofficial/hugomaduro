@@ -1,0 +1,55 @@
+name: iOS Build (unsigned IPA)
+
+on:
+  push:
+    branches: [feat/ios-release]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build iOS IPA (no codesign)
+    runs-on: macos-14
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Package IPA for Sideloadly
+        run: |
+          set -euo pipefail
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Runner.app not found at $APP_PATH"
+            find build/ios -name "*.app" -type d 2>/dev/null || true
+            exit 1
+          fi
+
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+
+          IPA_NAME="krimson-unsigned.ipa"
+          rm -f "$IPA_NAME"
+          zip -r "$IPA_NAME" Payload
+          ls -lh "$IPA_NAME"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: krimson-ios-unsigned
+          path: krimson-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
