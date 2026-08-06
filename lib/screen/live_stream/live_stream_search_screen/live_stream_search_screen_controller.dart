@@ -23,6 +23,8 @@ import 'package:krimson/model/livestream/livestream_user_state.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/screen/deepar/deepar.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_catalog_store.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_pipeline.dart';
@@ -61,11 +63,13 @@ class LiveStreamSearchScreenController extends BaseController {
   /// Preview de cómo te ves (filtros). Independiente de [coverImageBytes].
   final FaceFilterPipeline beautyPipeline =
       FaceFilterPipeline(maxInferenceFps: 15, defaultBeautyIntensity: 0);
+  final DeepArCameraController deepAr = DeepArCameraController();
   final GlobalKey beautyPreviewKey = GlobalKey();
   final RxBool cameraPreviewActive = false.obs;
   final Rx<FaceFilterId> selectedFilterId = FaceFilterId.none.obs;
 
   FaceFilterCatalogStore get filterCatalog => FaceFilterCatalogStore.instance;
+  bool get useDeepAr => DeepArRuntime.useDeepAr();
 
   @override
   void onInit() {
@@ -74,6 +78,92 @@ class LiveStreamSearchScreenController extends BaseController {
       previewTitle.value = titleController.text;
     });
     _listenNetwork();
+    filterCatalog.sync();
+    // Cámara + filtros visibles de entrada (sin sheet Beauty).
+    if (!kIsWeb) {
+      Future.microtask(() async {
+        await SystemChrome.setPreferredOrientations(const [
+          DeviceOrientation.portraitUp,
+        ]);
+        await startBeautyCameraPreview();
+        await beautyPipeline.beauty.load();
+        beautyOn.value = true;
+        _syncBeautyShaderIntensity();
+      });
+    }
+  }
+
+  /// Tap en filtro MediaPipe (carrusel pre-live).
+  Future<void> onPreLiveFilterTap(FaceFilterId id) async {
+    await startBeautyCameraPreview();
+    selectedFilterId.value = id;
+    beautyOn.value = id != FaceFilterId.none;
+    if (id == FaceFilterId.none) {
+      beautyPipeline.beauty.setLook(const BeautyLook(intensity: 0, mode: 0));
+      return;
+    }
+    _syncBeautyShaderIntensity();
+  }
+
+  /// Tap en filtro DeepAR (carrusel pre-live).
+  Future<void> onPreLiveDeepArFilterTap(DeepARFilters? filter) async {
+    await startBeautyCameraPreview();
+    await onDeepArFilterSelected(filter);
+  }
+
+  Future<void> onDeepArFilterSelected(DeepARFilters? filter) async {
+    await deepAr.switchFilter(filter);
+    if (filter != null) {
+      // DeepAR activo en preview. En LIVE el .deepar no va sobre LiveKit;
+      // no forzar Soft+sliders altos (eso dejaba la cámara amarilla/oscura).
+      beautyOn.value = false;
+      selectedFilterId.value = FaceFilterId.none;
+      whiten.value = 50;
+      rosy.value = 40;
+      smooth.value = 55;
+      sharpen.value = 35;
+    } else {
+      selectedFilterId.value = FaceFilterId.none;
+      beautyOn.value = false;
+    }
+    _syncBeautyShaderIntensity();
+  }
+
+  void _syncBeautyShaderIntensity() {
+    final style = selectedFilterId.value;
+    final preset = style.isBeautyGpu ? style.beautyLook : null;
+    beautyPipeline.beauty.setLook(
+      beautyLookFromSliders(
+        enabled: beautyOn.value && style != FaceFilterId.none,
+        presetMode: preset?.mode,
+        presetIntensity: preset?.intensity ?? 0.75,
+        whiten: whiten.value,
+        rosy: rosy.value,
+        smooth: smooth.value,
+        sharpen: sharpen.value,
+      ),
+    );
+  }
+
+  Future<void> openPreLiveBeauty() async {
+    // Compat: abre sheet solo-filtros (ya no hay Beauty Settings).
+    await startBeautyCameraPreview();
+    await beautyPipeline.beauty.load();
+    _syncBeautyShaderIntensity();
+    await openLiveFiltersSheet(
+      beautyOn: beautyOn,
+      onApply: () async => _syncBeautyShaderIntensity(),
+      selectedFilterId: selectedFilterId,
+      styleEffects: filterCatalog.effects.toList(),
+      useDeepArFilters: useDeepAr,
+      deepArSelectedId: deepAr.selectedFilterId,
+      onDeepArStyleSelected: onDeepArFilterSelected,
+      onStyleSelected: (id) {
+        selectedFilterId.value = id;
+        beautyOn.value = id != FaceFilterId.none;
+        _syncBeautyShaderIntensity();
+      },
+    );
   }
 
   void _listenNetwork() {
@@ -159,16 +249,59 @@ class LiveStreamSearchScreenController extends BaseController {
       ignoreSafeArea: false,
     );
     if (ok == true) {
+      // Snapshot ANTES de destroy: DeepAR.clear selecciona null al liberar cámara.
+      final hasDeepAr = deepAr.selectedFilterId.value != null;
+      final snapDeepArId = deepAr.selectedFilterId.value;
+      // Si había DeepAR: no sustituir por beauty Soft (rompe el look).
+      // El ID se rehidrata en LIVE para el carrusel DeepAR.
+      final snapBeautyOn = !hasDeepAr &&
+          (beautyOn.value || selectedFilterId.value != FaceFilterId.none);
+      final snapWhiten = whiten.value;
+      final snapRosy = rosy.value;
+      final snapSmooth = smooth.value;
+      final snapSharpen = sharpen.value;
+      final snapFilter = hasDeepAr
+          ? FaceFilterId.none
+          : selectedFilterId.value;
+
       // Liberar preview beauty + cámara nativa antes de LiveKit.
       await stopBeautyCameraPreview();
       releaseNativeCameraIfNeeded();
       await Future.delayed(const Duration(milliseconds: 250));
-      await _startLive(user);
+      await _startLive(
+        user,
+        beautyOn: snapBeautyOn,
+        whiten: snapWhiten,
+        rosy: snapRosy,
+        smooth: snapSmooth,
+        sharpen: snapSharpen,
+        filterId: snapFilter,
+        deepArFilterId: snapDeepArId,
+      );
     }
   }
 
   Future<void> startBeautyCameraPreview() async {
     if (kIsWeb) return;
+    if (useDeepAr) {
+      if (cameraPreviewActive.value && deepAr.isReady.value) return;
+      try {
+        await beautyPipeline.stop();
+        final ok = await deepAr.initialize();
+        cameraPreviewActive.value = ok;
+        if (!ok) {
+          showSnackBar(deepAr.statusMessage.value.isEmpty
+              ? 'No se pudo abrir DeepAR'
+              : deepAr.statusMessage.value);
+        }
+      } catch (e, st) {
+        Loggers.error('startBeautyCameraPreview DeepAR: $e\n$st');
+        cameraPreviewActive.value = false;
+        showSnackBar('Error DeepAR: $e');
+      }
+      return;
+    }
+
     if (cameraPreviewActive.value && beautyPipeline.isReady) return;
     final cam = await Permission.camera.request();
     if (!cam.isGranted) {
@@ -176,6 +309,7 @@ class LiveStreamSearchScreenController extends BaseController {
       return;
     }
     try {
+      await deepAr.destroy();
       filterCatalog.sync();
       final ok = await beautyPipeline.start();
       cameraPreviewActive.value = ok;
@@ -194,71 +328,10 @@ class LiveStreamSearchScreenController extends BaseController {
     cameraPreviewActive.value = false;
     try {
       await beautyPipeline.stop();
+      await deepAr.destroy();
     } catch (e) {
       Loggers.error('stopBeautyCameraPreview: $e');
     }
-  }
-
-  void _syncBeautyShaderIntensity() {
-    if (!beautyOn.value) {
-      beautyPipeline.beauty.setLook(const BeautyLook(intensity: 0, mode: 0));
-      return;
-    }
-    final style = selectedFilterId.value;
-    if (style.isBeautyGpu) {
-      final look = style.beautyLook;
-      if (look != null) {
-        final scaled =
-            look.intensity * (smooth.value / 100.0).clamp(0.4, 1.15);
-        beautyPipeline.beauty.setLook(
-          BeautyLook(intensity: scaled.clamp(0.0, 1.0), mode: look.mode),
-        );
-      }
-      return;
-    }
-    final intensity = (smooth.value / 100.0).clamp(0.0, 1.0);
-    double mode = 0;
-    if (rosy.value >= whiten.value && rosy.value >= 45) {
-      mode = 4;
-    } else if (whiten.value >= 60) {
-      mode = 1;
-    } else if (whiten.value >= 45) {
-      mode = 2;
-    }
-    beautyPipeline.beauty.setLook(BeautyLook(intensity: intensity, mode: mode));
-  }
-
-  Future<void> openPreLiveBeauty() async {
-    await SystemChrome.setPreferredOrientations(const [
-      DeviceOrientation.portraitUp,
-    ]);
-    await startBeautyCameraPreview();
-    _syncBeautyShaderIntensity();
-    final accepted = await openLiveBeautySheet(
-      liveController: null,
-      whiten: whiten,
-      rosy: rosy,
-      smooth: smooth,
-      sharpen: sharpen,
-      beautyOn: beautyOn,
-      onApply: () async => _syncBeautyShaderIntensity(),
-      selectedFilterId: selectedFilterId,
-      styleEffects: filterCatalog.effects.toList(),
-      showAcceptButton: true,
-      onStyleSelected: (id) {
-        selectedFilterId.value = id;
-        if (id.isBeautyGpu) beautyOn.value = true;
-        final look = id.beautyLook;
-        if (look != null) beautyPipeline.beauty.setLook(look);
-      },
-    );
-    if (accepted == true) {
-      beautyOn.value = true;
-      _syncBeautyShaderIntensity();
-      showSnackBar('Filtro aplicado. Listo para Go Live.');
-      return;
-    }
-    await stopBeautyCameraPreview();
   }
 
   Future<void> openPreLiveInvite() async {
@@ -362,7 +435,16 @@ class LiveStreamSearchScreenController extends BaseController {
     coverImageUploaded.value = null;
   }
 
-  Future<void> _startLive(User user) async {
+  Future<void> _startLive(
+    User user, {
+    required bool beautyOn,
+    required double whiten,
+    required double rosy,
+    required double smooth,
+    required double sharpen,
+    required FaceFilterId filterId,
+    int? deepArFilterId,
+  }) async {
     final title = titleController.text.trim();
     final details = descriptionController.text.trim();
     if (title.isEmpty) {
@@ -467,11 +549,13 @@ class LiveStreamSearchScreenController extends BaseController {
       await Get.to(() => LivestreamHostScreen(
             isHost: true,
             livestream: stream,
-            initialBeautyOn: beautyOn.value,
-            initialWhiten: whiten.value,
-            initialRosy: rosy.value,
-            initialSmooth: smooth.value,
-            initialSharpen: sharpen.value,
+            initialBeautyOn: beautyOn,
+            initialWhiten: whiten,
+            initialRosy: rosy,
+            initialSmooth: smooth,
+            initialSharpen: sharpen,
+            initialBeautyFilterId: filterId,
+            initialDeepArFilterId: deepArFilterId,
           ));
     } catch (e) {
       stopLoader();
@@ -484,6 +568,7 @@ class LiveStreamSearchScreenController extends BaseController {
     _netSub?.cancel();
     stopBeautyCameraPreview();
     beautyPipeline.beauty.dispose();
+    deepAr.destroy();
     releaseNativeCameraIfNeeded();
     titleController.dispose();
     descriptionController.dispose();

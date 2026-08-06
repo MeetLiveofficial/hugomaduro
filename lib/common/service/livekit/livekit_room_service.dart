@@ -96,34 +96,35 @@ class LiveKitRoomService {
     }
   }
 
-  /// Portrait (9:16) capture — mobile LIVE must not use landscape 16:9 presets.
+  /// Portrait capture con FOV más amplio (3:4).
+  /// Evita el "zoom" excesivo de forzar 9:16 sobre el sensor frontal.
   VideoParameters _captureParams(LiveKitQualityProfile profile) {
     switch (profile) {
       case LiveKitQualityProfile.high:
         return const VideoParameters(
-          dimensions: VideoDimensions(720, 1280),
+          dimensions: VideoDimensions(720, 960),
           encoding: VideoEncoding(maxBitrate: 1500 * 1000, maxFramerate: 24),
         );
       case LiveKitQualityProfile.medium:
         return const VideoParameters(
-          dimensions: VideoDimensions(540, 960),
-          encoding: VideoEncoding(maxBitrate: 800 * 1000, maxFramerate: 20),
+          dimensions: VideoDimensions(540, 720),
+          encoding: VideoEncoding(maxBitrate: 1000 * 1000, maxFramerate: 24),
         );
       case LiveKitQualityProfile.low:
         return const VideoParameters(
-          dimensions: VideoDimensions(360, 640),
-          encoding: VideoEncoding(maxBitrate: 350 * 1000, maxFramerate: 15),
+          dimensions: VideoDimensions(360, 480),
+          encoding: VideoEncoding(maxBitrate: 450 * 1000, maxFramerate: 20),
         );
     }
   }
 
   static const VideoParameters _portraitFallbackLow = VideoParameters(
-    dimensions: VideoDimensions(360, 640),
+    dimensions: VideoDimensions(360, 480),
     encoding: VideoEncoding(maxBitrate: 250 * 1000, maxFramerate: 15),
   );
 
   static const VideoParameters _portraitFallbackMid = VideoParameters(
-    dimensions: VideoDimensions(540, 960),
+    dimensions: VideoDimensions(540, 720),
     encoding: VideoEncoding(maxBitrate: 600 * 1000, maxFramerate: 20),
   );
 
@@ -144,8 +145,8 @@ class LiveKitRoomService {
           videoCodec: 'h264',
           simulcast: true,
           videoEncoding: VideoEncoding(
-            maxBitrate: 600 * 1000,
-            maxFramerate: 20,
+            maxBitrate: 900 * 1000,
+            maxFramerate: 24,
           ),
           degradationPreference: DegradationPreference.balanced,
         );
@@ -154,8 +155,8 @@ class LiveKitRoomService {
           videoCodec: 'h264',
           simulcast: true,
           videoEncoding: VideoEncoding(
-            maxBitrate: 250 * 1000,
-            maxFramerate: 15,
+            maxBitrate: 350 * 1000,
+            maxFramerate: 20,
           ),
           degradationPreference: DegradationPreference.maintainFramerate,
         );
@@ -190,8 +191,8 @@ class LiveKitRoomService {
       await disconnect();
     }
 
-    // Siempre entrar en calidad baja (sin preguntar). El usuario puede subirla en el LIVE.
-    qualityProfile = forceProfile ?? LiveKitQualityProfile.low;
+    // Media por defecto (nitidez aceptable). Baja solo como fallback de connect.
+    qualityProfile = forceProfile ?? LiveKitQualityProfile.medium;
     if (!_qualityChanges.isClosed) {
       _qualityChanges.add(qualityProfile);
     }
@@ -540,12 +541,13 @@ class LiveKitRoomService {
       final key = '${params.dimensions.width}x${params.dimensions.height}';
       if (!tried.add(key)) continue;
       try {
-        return await LocalVideoTrack.createCameraTrack(
+        final track = await LocalVideoTrack.createCameraTrack(
           CameraCaptureOptions(
             cameraPosition: CameraPosition.front,
             params: params,
           ),
         ).timeout(const Duration(seconds: 8));
+        return track;
       } catch (e) {
         Loggers.error('createCameraTrack $key: $e');
       }

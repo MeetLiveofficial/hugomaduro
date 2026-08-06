@@ -1,37 +1,144 @@
 #include <flutter/runtime_effect.glsl>
 
-// uSize is filled by the engine (indices 0–1).
+// Engine fills uSize at indices 0–1.
 uniform vec2 uSize;
-// Index 2
+// Index 2 — overall beauty strength 0..1
 uniform float uIntensity;
-// Index 3 — Soft/Porcelain/Fresh/Warm/Rose
+// Index 3 — Soft/Natural=0 · Porcelain=1 · Fresh=2 · Warm=3 · Rose=4 · Beauty HD=5
 uniform float uMode;
+// Index 4–6 — live sliders (optional overlays also use these in Dart)
+uniform float uWhiten;
+uniform float uRosy;
+uniform float uSharpen;
 uniform sampler2D uTexture;
 
 out vec4 fragColor;
 
-void main() {
-  vec2 uv = FlutterFragCoord().xy / uSize;
-  vec4 color = texture(uTexture, uv);
+vec3 samplePx(vec2 uv, vec2 offsetPx) {
+  return texture(uTexture, clamp(uv + offsetPx / uSize, vec2(0.001), vec2(0.999))).rgb;
+}
 
-  // Lightweight soft look: slight desaturation + lift toward warm skin.
-  float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-  vec3 soft = mix(color.rgb, vec3(luma), 0.18 * uIntensity);
-  vec3 porcelain = mix(soft, vec3(luma) * 1.05, 0.22 * uIntensity);
-  vec3 fresh = soft * mix(vec3(1.0), vec3(0.96, 1.04, 1.02), uIntensity);
-  vec3 warm = soft * mix(vec3(1.0), vec3(1.06, 1.01, 0.94), uIntensity);
-  vec3 rose = soft * mix(vec3(1.0), vec3(1.05, 0.97, 1.02), uIntensity);
+float luma(vec3 c) {
+  return dot(c, vec3(0.299, 0.587, 0.114));
+}
 
-  vec3 look = soft;
-  if (uMode > 0.5 && uMode < 1.5) {
-    look = porcelain;
-  } else if (uMode > 1.5 && uMode < 2.5) {
-    look = fresh;
-  } else if (uMode > 2.5 && uMode < 3.5) {
-    look = warm;
-  } else if (uMode > 3.5) {
-    look = rose;
+/// Soft bilateral-ish blur: weights down neighbors that differ a lot (edges).
+vec3 softBlur(vec2 uv, float radius, vec3 center) {
+  float cl = luma(center);
+  vec3 acc = center * 2.0;
+  float wSum = 2.0;
+
+  // Cross + diagonals (9-tap style, cheap enough for live preview).
+  vec2 offs[8];
+  offs[0] = vec2( radius, 0.0);
+  offs[1] = vec2(-radius, 0.0);
+  offs[2] = vec2(0.0,  radius);
+  offs[3] = vec2(0.0, -radius);
+  offs[4] = vec2( radius,  radius);
+  offs[5] = vec2(-radius,  radius);
+  offs[6] = vec2( radius, -radius);
+  offs[7] = vec2(-radius, -radius);
+
+  for (int i = 0; i < 8; i++) {
+    vec3 s = samplePx(uv, offs[i]);
+    float dl = abs(luma(s) - cl);
+    // Keep edges (eyes, lips, hair) sharper.
+    float w = exp(-dl * dl * 48.0);
+    acc += s * w;
+    wSum += w;
   }
 
-  fragColor = vec4(mix(color.rgb, look, clamp(uIntensity, 0.0, 1.0)), color.a);
+  // Outer ring for stronger pore/blemish coverage when intensity is high.
+  float r2 = radius * 1.65;
+  vec2 outer[4];
+  outer[0] = vec2( r2, 0.0);
+  outer[1] = vec2(-r2, 0.0);
+  outer[2] = vec2(0.0,  r2);
+  outer[3] = vec2(0.0, -r2);
+  for (int i = 0; i < 4; i++) {
+    vec3 s = samplePx(uv, outer[i]);
+    float dl = abs(luma(s) - cl);
+    float w = 0.55 * exp(-dl * dl * 36.0);
+    acc += s * w;
+    wSum += w;
+  }
+
+  return acc / max(wSum, 0.001);
+}
+
+/// Prefer mid-tone warm regions (skin) over hair / background / teeth.
+float skinMask(vec3 c) {
+  float y = luma(c);
+  float mid = smoothstep(0.12, 0.32, y) * (1.0 - smoothstep(0.78, 0.96, y));
+  float warm = smoothstep(-0.02, 0.06, c.r - c.b);
+  float rg = smoothstep(-0.04, 0.05, c.r - c.g);
+  return clamp(mid * mix(0.45, 1.0, warm) * mix(0.7, 1.0, rg), 0.0, 1.0);
+}
+
+vec3 applyLook(vec3 base, float mode, float amount) {
+  float y = luma(base);
+  vec3 soft = mix(base, vec3(y), 0.10 * amount);
+  soft = mix(soft, soft * vec3(1.01, 1.01, 1.015), 0.25 * amount);
+
+  vec3 porcelain = mix(soft, vec3(y) * vec3(1.04, 1.035, 1.05), 0.28 * amount);
+  porcelain = mix(porcelain, porcelain + vec3(0.03, 0.025, 0.035), 0.25 * amount);
+
+  vec3 fresh = soft * mix(vec3(1.0), vec3(0.97, 1.04, 1.05), amount);
+  vec3 warm = soft * mix(vec3(1.0), vec3(1.07, 1.02, 0.94), amount);
+  vec3 rose = soft * mix(vec3(1.0), vec3(1.06, 0.98, 1.03), amount);
+
+  // Beauty HD: even skin + slight glow, natural (neutral, not yellow).
+  vec3 beauty = mix(soft, porcelain, 0.35);
+  beauty = mix(beauty, beauty * vec3(1.015, 1.015, 1.02), 0.35 * amount);
+  beauty = mix(beauty, beauty + vec3(0.012, 0.012, 0.014), 0.25 * amount);
+
+  if (mode > 4.5) return beauty;
+  if (mode > 3.5) return rose;
+  if (mode > 2.5) return warm;
+  if (mode > 1.5) return fresh;
+  if (mode > 0.5) return porcelain;
+  return soft;
+}
+
+void main() {
+  vec2 uv = FlutterFragCoord().xy / uSize;
+  vec4 src = texture(uTexture, uv);
+  float amount = clamp(uIntensity, 0.0, 1.0);
+
+  if (amount < 0.001) {
+    fragColor = src;
+    return;
+  }
+
+  float skin = skinMask(src.rgb);
+  // Stronger radius for Beauty HD / Porcelain.
+  float modeBoost = (uMode > 4.5 || (uMode > 0.5 && uMode < 1.5)) ? 1.25 : 1.0;
+  float radius = mix(1.2, 5.0, amount) * modeBoost;
+
+  vec3 blurred = softBlur(uv, radius, src.rgb);
+  float y0 = luma(src.rgb);
+  float yb = luma(blurred);
+
+  // Extra lift where original is darker than neighborhood = spots / pores.
+  float blemish = clamp((yb - y0) * 6.0, 0.0, 1.0);
+  float edge = clamp(length(src.rgb - blurred) * 4.5, 0.0, 1.0);
+  float smoothW = amount * skin * (0.55 + 0.45 * blemish) * (1.0 - 0.7 * edge);
+
+  vec3 smoothed = mix(src.rgb, blurred, clamp(smoothW, 0.0, 0.92));
+
+  // Slight local contrast restore so face doesn't look plastic.
+  float sharpen = clamp(uSharpen, 0.0, 1.0);
+  vec3 detail = src.rgb - blurred;
+  smoothed += detail * (0.18 + 0.35 * sharpen) * (1.0 - 0.5 * amount);
+
+  vec3 looked = applyLook(smoothed, uMode, amount);
+
+  // Whiten / rosy from sliders.
+  float whiten = clamp(uWhiten, 0.0, 1.0);
+  float rosy = clamp(uRosy, 0.0, 1.0);
+  looked = mix(looked, looked + vec3(0.06, 0.055, 0.05), whiten * 0.55 * skin);
+  looked = mix(looked, looked * vec3(1.05, 0.97, 1.02) + vec3(0.02, 0.0, 0.01),
+               rosy * 0.4 * skin);
+
+  fragColor = vec4(clamp(mix(src.rgb, looked, amount), 0.0, 1.0), src.a);
 }

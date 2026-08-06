@@ -3,7 +3,10 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/livestream/livestream.dart';
+import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
+import 'package:krimson/screen/deepar/deepar_runtime.dart';
+import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_split_view.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_stream_overlay.dart';
@@ -19,6 +22,8 @@ class LivestreamHostScreen extends StatelessWidget {
   final double initialRosy;
   final double initialSmooth;
   final double initialSharpen;
+  final FaceFilterId initialBeautyFilterId;
+  final int? initialDeepArFilterId;
 
   const LivestreamHostScreen({
     super.key,
@@ -29,6 +34,8 @@ class LivestreamHostScreen extends StatelessWidget {
     this.initialRosy = 40,
     this.initialSmooth = 55,
     this.initialSharpen = 35,
+    this.initialBeautyFilterId = FaceFilterId.none,
+    this.initialDeepArFilterId,
   });
 
   @override
@@ -44,7 +51,22 @@ class LivestreamHostScreen extends StatelessWidget {
       controller.rosy.value = initialRosy;
       controller.smooth.value = initialSmooth;
       controller.sharpen.value = initialSharpen;
+      controller.selectedBeautyFilterId.value = initialBeautyFilterId;
+      controller.selectedDeepArFilterId.value = initialDeepArFilterId;
       controller.beautyPrefsApplied = true;
+      // Rehidratar filtro DeepAR del pre-live (carrusel + approx beauty).
+      if (initialDeepArFilterId != null) {
+        DeepARFilters? match;
+        for (final f in DeepArRuntime.filters()) {
+          if (f.id == initialDeepArFilterId) {
+            match = f;
+            break;
+          }
+        }
+        controller.onLiveDeepArFilterSelected(match);
+      } else {
+        controller.applyBeauty();
+      }
     }
 
     return PopScope(
@@ -89,6 +111,7 @@ class LivestreamHostScreen extends StatelessWidget {
                         child: LiveKitParticipantVideo(
                           participant: local,
                           mirror: true,
+                          forcePortraitUpright: false,
                         ),
                       );
                     }

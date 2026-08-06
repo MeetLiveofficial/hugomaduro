@@ -21,6 +21,7 @@ class FaceFilterPainter extends CustomPainter {
 
     switch (effectId) {
       case FaceFilterId.none:
+      case FaceFilterId.beauty:
       case FaceFilterId.beautySoft:
       case FaceFilterId.beautyNatural:
       case FaceFilterId.beautyPorcelain:

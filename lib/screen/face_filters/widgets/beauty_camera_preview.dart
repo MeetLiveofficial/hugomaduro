@@ -9,14 +9,89 @@ import 'package:flutter/material.dart';
 /// Uniforms del shader `shaders/beauty_skin.frag`:
 /// - `uSize` (vec2) → índices 0–1, lo rellena el engine con [ui.ImageFilter.shader]
 /// - `uIntensity` (float) → índice **2**
-/// - `uMode` (float) → índice **3** (look Soft/Porcelain/Fresh/Warm/Rose)
+/// - `uMode` (float) → índice **3** (Soft/Porcelain/Fresh/Warm/Rose/Beauty HD)
+/// - `uWhiten` / `uRosy` / `uSharpen` → índices **4–6**
 /// - `uTexture` (sampler) → lo enlaza el engine
 class BeautyLook {
-  const BeautyLook({required this.intensity, required this.mode});
+  const BeautyLook({
+    required this.intensity,
+    required this.mode,
+    this.whiten = 0,
+    this.rosy = 0,
+    this.sharpen = 0,
+  });
 
   final double intensity;
-  /// 0 Soft/Natural · 1 Porcelain · 2 Fresh · 3 Warm · 4 Rose
+  /// 0 Soft/Natural · 1 Porcelain · 2 Fresh · 3 Warm · 4 Rose · 5 Beauty HD
   final double mode;
+  /// 0–1 — lift / whiten overlay (responde al slider en vivo).
+  final double whiten;
+  /// 0–1 — blush / rosy overlay.
+  final double rosy;
+  /// 0–1 — contraste / definición.
+  final double sharpen;
+}
+
+/// Combina sliders (0–100) + preset opcional en un [BeautyLook] continuo.
+/// Cada slider cambia el resultado para que el preview reaccione al arrastrar.
+BeautyLook beautyLookFromSliders({
+  required bool enabled,
+  double? presetMode,
+  double? presetIntensity,
+  required double whiten,
+  required double rosy,
+  required double smooth,
+  required double sharpen,
+}) {
+  if (!enabled) {
+    return const BeautyLook(intensity: 0, mode: 0);
+  }
+
+  final w = (whiten / 100.0).clamp(0.0, 1.0);
+  final r = (rosy / 100.0).clamp(0.0, 1.0);
+  final s = (smooth / 100.0).clamp(0.0, 1.0);
+  final sh = (sharpen / 100.0).clamp(0.0, 1.0);
+
+  late final double mode;
+  late final double base;
+  if (presetMode != null && presetIntensity != null) {
+    mode = presetMode;
+    base = presetIntensity;
+  } else if (r >= w && r >= 0.35) {
+    mode = 4;
+    base = 0.55 + 0.35 * s;
+  } else if (w >= 0.55) {
+    mode = 1;
+    base = 0.55 + 0.35 * s;
+  } else if (w >= 0.35) {
+    mode = 2;
+    base = 0.55 + 0.35 * s;
+  } else if (r >= 0.2) {
+    mode = 4;
+    base = 0.5 + 0.35 * s;
+  } else if (s >= 0.65) {
+    // Smooth alto sin tint fuerte → Beauty HD
+    mode = 5;
+    base = 0.62 + 0.35 * s;
+  } else {
+    mode = 0;
+    base = 0.45 + 0.4 * s;
+  }
+
+  // Mínimo visible: si beauty está On, el overlay debe notarse en LIVE.
+  final intensity = (base *
+          (0.40 + 0.60 * s) *
+          (0.82 + 0.18 * sh) *
+          (0.85 + 0.15 * (0.55 * w + 0.45 * r)))
+      .clamp(0.35, 1.0);
+
+  return BeautyLook(
+    intensity: intensity,
+    mode: mode,
+    whiten: w,
+    rosy: r,
+    sharpen: sh,
+  );
 }
 
 class BeautyShaderController extends ChangeNotifier {
@@ -26,11 +101,17 @@ class BeautyShaderController extends ChangeNotifier {
   ui.FragmentShader? _shader;
   double _intensity = 0.0;
   double _mode = 0.0;
+  double _whiten = 0.0;
+  double _rosy = 0.0;
+  double _sharpen = 0.0;
   bool _ready = false;
   bool _failed = false;
 
   double get intensity => _intensity;
   double get mode => _mode;
+  double get whiten => _whiten;
+  double get rosy => _rosy;
+  double get sharpen => _sharpen;
 
   bool get isReady => _ready;
 
@@ -63,6 +144,9 @@ class BeautyShaderController extends ChangeNotifier {
   void _pushUniforms() {
     _shader?.setFloat(2, _intensity);
     _shader?.setFloat(3, _mode);
+    _shader?.setFloat(4, _whiten);
+    _shader?.setFloat(5, _rosy);
+    _shader?.setFloat(6, _sharpen);
   }
 
   void setIntensity(double value) {
@@ -76,11 +160,21 @@ class BeautyShaderController extends ChangeNotifier {
   void setLook(BeautyLook look) {
     final nextI = look.intensity.clamp(0.0, 1.0);
     final nextM = look.mode;
-    if ((nextI - _intensity).abs() < 0.001 && (nextM - _mode).abs() < 0.001) {
+    final nextW = look.whiten.clamp(0.0, 1.0);
+    final nextR = look.rosy.clamp(0.0, 1.0);
+    final nextS = look.sharpen.clamp(0.0, 1.0);
+    if ((nextI - _intensity).abs() < 0.0005 &&
+        (nextM - _mode).abs() < 0.0005 &&
+        (nextW - _whiten).abs() < 0.0005 &&
+        (nextR - _rosy).abs() < 0.0005 &&
+        (nextS - _sharpen).abs() < 0.0005) {
       return;
     }
     _intensity = nextI;
     _mode = nextM;
+    _whiten = nextW;
+    _rosy = nextR;
+    _sharpen = nextS;
     _pushUniforms();
     notifyListeners();
   }
@@ -118,74 +212,117 @@ class BeautyFiltered extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final intensity = controller.intensity;
-        if (intensity <= 0.001) return child;
+        final whiten = controller.whiten;
+        final rosy = controller.rosy;
+        final sharpen = controller.sharpen;
+        final active = intensity > 0.001 ||
+            whiten > 0.001 ||
+            rosy > 0.001 ||
+            sharpen > 0.001;
+        if (!active) return child;
 
         final mode = controller.mode;
         final tint = _tintColor(mode);
-        final lift = _liftAlpha(mode, intensity);
+        // Lift suave y neutro (sin velo crema/amarillo).
+        final lift = (_liftAlpha(mode, intensity) + 0.10 * whiten).clamp(0.0, 0.18);
+        final rosyAlpha = (0.22 * rosy).clamp(0.0, 0.14);
 
         Widget layered = child;
 
-        // Best-effort (muchos devices lo ignoran sobre Texture).
+        // Tone ligero (sin blur a pantalla completa: oscurecía y ensuciaba).
         try {
           layered = ColorFiltered(
             colorFilter: ColorFilter.matrix(
-              _toneMatrix(mode: mode, intensity: intensity * 0.85),
+              _toneMatrix(
+                mode: mode,
+                intensity: (intensity * 0.45 + 0.12 * whiten + 0.08 * rosy)
+                    .clamp(0.0, 0.55),
+                sharpen: sharpen,
+              ),
             ),
             child: layered,
           );
         } catch (_) {}
 
+        // Shader path (Impeller / devices que lo soportan sobre el child).
+        final shader = controller.shader;
+        if (controller.isSupported && shader != null && intensity > 0.01) {
+          try {
+            layered = ImageFiltered(
+              imageFilter: ui.ImageFilter.shader(shader),
+              child: layered,
+            );
+          } catch (_) {}
+        }
+
+        // Soft even-skin: blanco neutro, no crema.
+        final smoothVeil = (0.03 + 0.06 * intensity).clamp(0.0, 0.10);
+        // Tinte del look solo en el centro y muy suave (antes teñía toda la pantalla).
+        final tintCenter = (0.02 + 0.05 * intensity).clamp(0.0, 0.07);
+
         return Stack(
           fit: StackFit.expand,
           children: [
             layered,
-            // Glow central (piel más luminosa) — siempre visible.
             IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    center: const Alignment(0, -0.12),
-                    radius: 0.95,
+                    center: const Alignment(0, -0.08),
+                    radius: 0.88,
                     colors: [
-                      Colors.white.withValues(alpha: lift),
+                      Colors.white.withValues(alpha: smoothVeil),
                       Colors.transparent,
                     ],
                   ),
                 ),
               ),
             ),
-            // Tinte del look (Warm/Rose/Fresh…) — siempre visible.
-            IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(0, -0.05),
-                    radius: 1.15,
-                    colors: [
-                      tint.withValues(alpha: 0.10 + 0.22 * intensity),
-                      tint.withValues(alpha: 0.22 + 0.38 * intensity),
-                    ],
+            if (lift > 0.01)
+              IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -0.12),
+                      radius: 0.9,
+                      colors: [
+                        Colors.white.withValues(alpha: lift),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            // Soft vignette (look “beauty cam”).
-            IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.center,
-                    radius: 1.05,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.12 * intensity),
-                    ],
-                    stops: const [0.55, 1.0],
+            if (rosyAlpha > 0.01)
+              IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0, 0.1),
+                      radius: 0.7,
+                      colors: [
+                        const Color(0xFFF48FB1).withValues(alpha: rosyAlpha),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            if (tintCenter > 0.01)
+              IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -0.05),
+                      radius: 0.75,
+                      colors: [
+                        tint.withValues(alpha: tintCenter),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       },
@@ -193,61 +330,75 @@ class BeautyFiltered extends StatelessWidget {
   }
 
   static Color _tintColor(double mode) {
-    if (mode < 0.5) return const Color(0xFFFFE0D0); // Soft / Natural
-    if (mode < 1.5) return const Color(0xFFFFF5FA); // Porcelain
-    if (mode < 2.5) return const Color(0xFFB3E5FC); // Fresh
-    if (mode < 3.5) return const Color(0xFFFFB74D); // Warm
-    return const Color(0xFFF48FB1); // Rose
+    if (mode > 4.5) return const Color(0xFFFFF8F5); // Beauty HD — casi neutro
+    if (mode < 0.5) return const Color(0xFFFFF6F2); // Soft / Natural
+    if (mode < 1.5) return const Color(0xFFFFFBFD); // Porcelain
+    if (mode < 2.5) return const Color(0xFFF0F9FF); // Fresh
+    if (mode < 3.5) return const Color(0xFFFFF3E0); // Warm (suave)
+    return const Color(0xFFFFF0F5); // Rose
   }
 
   static double _liftAlpha(double mode, double intensity) {
-    final base = mode >= 0.5 && mode < 1.5 ? 0.28 : 0.16;
-    return (base * intensity).clamp(0.0, 0.4);
+    final base = mode > 4.5
+        ? 0.12
+        : (mode >= 0.5 && mode < 1.5 ? 0.12 : 0.08);
+    return (base * intensity).clamp(0.0, 0.14);
   }
 
-  /// Matriz 4×5 (row-major) para [ColorFilter.matrix].
+  /// Matriz 4×5 (row-major) para [ColorFilter.matrix] — tonos suaves, sin cast amarillo.
   static List<double> _toneMatrix({
     required double mode,
     required double intensity,
+    double sharpen = 0,
   }) {
     double r = 1, g = 1, b = 1;
     double ro = 0, go = 0, bo = 0;
+    final sh = sharpen.clamp(0.0, 1.0);
+    final i = intensity.clamp(0.0, 1.0);
 
-    if (mode < 0.5) {
-      r = 1.0 + 0.06 * intensity;
-      g = 1.0 + 0.04 * intensity;
-      b = 1.0 + 0.02 * intensity;
-      ro = 0.03 * intensity;
-      go = 0.02 * intensity;
-      bo = 0.01 * intensity;
+    if (mode > 4.5) {
+      // Beauty HD — lift neutro (R≈G≈B)
+      r = 1.0 + 0.04 * i + 0.02 * sh;
+      g = 1.0 + 0.04 * i + 0.02 * sh;
+      b = 1.0 + 0.035 * i + 0.02 * sh;
+      ro = 0.015 * i;
+      go = 0.015 * i;
+      bo = 0.012 * i;
+    } else if (mode < 0.5) {
+      r = 1.0 + 0.03 * i + 0.02 * sh;
+      g = 1.0 + 0.03 * i + 0.02 * sh;
+      b = 1.0 + 0.025 * i + 0.015 * sh;
+      ro = 0.01 * i;
+      go = 0.01 * i;
+      bo = 0.008 * i;
     } else if (mode < 1.5) {
-      r = 1.0 + 0.08 * intensity;
-      g = 1.0 + 0.09 * intensity;
-      b = 1.0 + 0.12 * intensity;
-      ro = 0.05 * intensity;
-      go = 0.05 * intensity;
-      bo = 0.06 * intensity;
+      r = 1.0 + 0.04 * i;
+      g = 1.0 + 0.045 * i;
+      b = 1.0 + 0.05 * i;
+      ro = 0.02 * i;
+      go = 0.02 * i;
+      bo = 0.022 * i;
     } else if (mode < 2.5) {
-      r = 1.0 + 0.03 * intensity;
-      g = 1.0 + 0.07 * intensity;
-      b = 1.0 + 0.14 * intensity;
-      ro = 0.02 * intensity;
-      go = 0.03 * intensity;
-      bo = 0.06 * intensity;
+      r = 1.0 + 0.015 * i;
+      g = 1.0 + 0.03 * i;
+      b = 1.0 + 0.05 * i;
+      ro = 0.008 * i;
+      go = 0.012 * i;
+      bo = 0.02 * i;
     } else if (mode < 3.5) {
-      r = 1.0 + 0.16 * intensity;
-      g = 1.0 + 0.08 * intensity;
-      b = 1.0 - 0.10 * intensity;
-      ro = 0.06 * intensity;
-      go = 0.03 * intensity;
-      bo = -0.03 * intensity;
+      r = 1.0 + 0.06 * i;
+      g = 1.0 + 0.035 * i;
+      b = 1.0 + 0.01 * i;
+      ro = 0.02 * i;
+      go = 0.012 * i;
+      bo = 0.0;
     } else {
-      r = 1.0 + 0.18 * intensity;
-      g = 1.0 - 0.02 * intensity;
-      b = 1.0 + 0.08 * intensity;
-      ro = 0.07 * intensity;
-      go = 0.01 * intensity;
-      bo = 0.04 * intensity;
+      r = 1.0 + 0.05 * i;
+      g = 1.0 + 0.02 * i;
+      b = 1.0 + 0.03 * i;
+      ro = 0.02 * i;
+      go = 0.008 * i;
+      bo = 0.012 * i;
     }
 
     return <double>[

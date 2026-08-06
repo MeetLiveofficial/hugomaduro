@@ -86,6 +86,7 @@ class LivestreamScreenController extends BaseController {
   final RxDouble smooth = 55.0.obs;
   final RxDouble sharpen = 35.0.obs;
   final Rx<FaceFilterId> selectedBeautyFilterId = FaceFilterId.none.obs;
+  final RxnInt selectedDeepArFilterId = RxnInt();
   final BeautyShaderController beautyShader = BeautyShaderController();
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxList<User> inviteCandidates = <User>[].obs;
@@ -950,6 +951,9 @@ class LivestreamScreenController extends BaseController {
     });
     ever(liveKit!.mediaRevision, (_) {
       _syncViewersFromLiveKit();
+      if (isHost) {
+        applyBeauty();
+      }
       update();
     });
 
@@ -962,12 +966,16 @@ class LivestreamScreenController extends BaseController {
         publishCamera: shouldPublishAv,
         publishMicrophone: shouldPublishAv,
         wsUrl: liveKitWsUrl,
-        forceProfile: LiveKitQualityProfile.low,
+        forceProfile: LiveKitQualityProfile.medium,
         // Si quedó una conexión fantasma (sala no cerrada), forzar rejoin.
         forceReconnect: liveKit!.isConnected.value &&
             liveKit!.connectedRoomName != avRoomId,
       );
       _connectedLiveKitRoom = avRoomId;
+      // Reaplicar beauty del pre-live cuando ya hay track de cámara.
+      if (isHost) {
+        await applyBeauty();
+      }
     } catch (e) {
       // No tumbar el LIVE: chat sigue; UI ofrece Reintentar.
       Loggers.error('live join LiveKit: $e');
@@ -1992,48 +2000,74 @@ class LivestreamScreenController extends BaseController {
   Future<void> applyBeauty() async {
     if (kIsWeb || isDummy) return;
     await beautyShader.load();
-    if (!beautyOn.value) {
-      beautyShader.setLook(const BeautyLook(intensity: 0, mode: 0));
-      return;
-    }
     final style = selectedBeautyFilterId.value;
-    if (style.isBeautyGpu) {
-      final look = style.beautyLook;
-      if (look != null) {
-        // Smooth del sheet escala la intensidad del preset.
-        final scaled = look.intensity * (smooth.value / 100.0).clamp(0.35, 1.0);
-        beautyShader.setLook(BeautyLook(intensity: scaled, mode: look.mode));
-      }
+    final preset = style.isBeautyGpu ? style.beautyLook : null;
+    beautyShader.setLook(
+      beautyLookFromSliders(
+        enabled: beautyOn.value,
+        presetMode: preset?.mode,
+        presetIntensity: preset?.intensity,
+        whiten: whiten.value,
+        rosy: rosy.value,
+        smooth: smooth.value,
+        sharpen: sharpen.value,
+      ),
+    );
+  }
+
+  /// Tap filtro DeepAR en LIVE.
+  ///
+  /// LiveKit publica la cámara nativa (DeepAR no puede compartir el sensor).
+  /// Se conserva el ID seleccionado y se aplica un beauty suave como aproximación
+  /// (evita el cast amarillo/oscuro del Soft forzado anterior).
+  Future<void> onLiveDeepArFilterSelected(DeepARFilters? filter) async {
+    selectedDeepArFilterId.value = filter?.id;
+    if (filter == null) {
+      selectedBeautyFilterId.value = FaceFilterId.none;
+      beautyOn.value = false;
+      await applyBeauty();
       return;
     }
-    // Sliders → look genérico.
-    final intensity = (smooth.value / 100.0).clamp(0.0, 1.0);
-    double mode = 0;
-    if (rosy.value >= whiten.value && rosy.value >= 45) {
-      mode = 4; // Rose
-    } else if (whiten.value >= 60) {
-      mode = 1; // Porcelain
-    } else if (whiten.value >= 45) {
-      mode = 2; // Fresh
+    final title = (filter.title ?? '').toLowerCase();
+    FaceFilterId mapped = FaceFilterId.beauty;
+    if (title.contains('rose') || title.contains('pink')) {
+      mapped = FaceFilterId.beautyRose;
+    } else if (title.contains('warm') || title.contains('sun')) {
+      mapped = FaceFilterId.beautyWarm;
+    } else if (title.contains('fresh') || title.contains('cool')) {
+      mapped = FaceFilterId.beautyFresh;
+    } else if (title.contains('porcelain') || title.contains('white')) {
+      mapped = FaceFilterId.beautyPorcelain;
+    } else if (title.contains('natural')) {
+      mapped = FaceFilterId.beautyNatural;
+    } else if (title.contains('soft') || title.contains('makeup')) {
+      mapped = FaceFilterId.beautySoft;
     }
-    beautyShader.setLook(BeautyLook(intensity: intensity, mode: mode));
+    selectedBeautyFilterId.value = mapped;
+    beautyOn.value = true;
+    // Intensidades moderadas — no el Soft 85/70/90 que oscurecía/amarilleaba.
+    whiten.value = 40;
+    rosy.value = 25;
+    smooth.value = 65;
+    sharpen.value = 30;
+    await applyBeauty();
   }
 
   void openBeauty() {
-    openLiveBeautySheet(
-      liveController: this,
-      whiten: whiten,
-      rosy: rosy,
-      smooth: smooth,
-      sharpen: sharpen,
+    // En LIVE la cámara la tiene LiveKit: DeepAR/AR mesh no pueden
+    // compartir el sensor. El sheet solo ofrece beauty GPU local.
+    openLiveFiltersSheet(
       beautyOn: beautyOn,
       onApply: applyBeauty,
       selectedFilterId: selectedBeautyFilterId,
-      styleEffects: FaceFilterEffect.catalog,
-      showAcceptButton: true,
+      styleEffects: FaceFilterEffect.catalog
+          .where((e) => e.id == FaceFilterId.none || e.id.isBeautyGpu)
+          .toList(),
+      useDeepArFilters: false,
       onStyleSelected: (id) {
         selectedBeautyFilterId.value = id;
-        if (id.isBeautyGpu) beautyOn.value = true;
+        beautyOn.value = id != FaceFilterId.none;
+        applyBeauty();
       },
     );
   }
@@ -2341,7 +2375,7 @@ class LivestreamScreenController extends BaseController {
         publishCamera: shouldPublishAv,
         publishMicrophone: shouldPublishAv,
         wsUrl: liveKitWsUrl,
-        forceProfile: LiveKitQualityProfile.low,
+        forceProfile: LiveKitQualityProfile.medium,
         forceReconnect: true,
       );
       _connectedLiveKitRoom = targetRoom;
@@ -2516,7 +2550,7 @@ class LivestreamScreenController extends BaseController {
         publishCamera: true,
         publishMicrophone: true,
         wsUrl: liveKitWsUrl,
-        forceProfile: LiveKitQualityProfile.low,
+        forceProfile: LiveKitQualityProfile.medium,
         forceReconnect: true,
       );
       _connectedLiveKitRoom = target;

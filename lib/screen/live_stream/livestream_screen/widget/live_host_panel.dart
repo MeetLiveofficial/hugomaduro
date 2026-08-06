@@ -7,6 +7,8 @@ import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/screen/deepar/deepar.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
@@ -15,9 +17,8 @@ import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// Un solo botón lateral que abre Options (beauty, mic, pausa, calidad…).
+/// Un solo botón lateral que abre Options (mic, pausa, calidad…).
 class LiveHostActionBar extends StatelessWidget {
-  final VoidCallback onBeauty;
   final VoidCallback onInvite;
   final VoidCallback? onBattle;
   final VoidCallback? onQuality;
@@ -34,7 +35,6 @@ class LiveHostActionBar extends StatelessWidget {
 
   const LiveHostActionBar({
     super.key,
-    required this.onBeauty,
     required this.onInvite,
     required this.networkLabel,
     this.onBattle,
@@ -59,7 +59,6 @@ class LiveHostActionBar extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () => openLiveHostOptionsMenu(
-          onBeauty: onBeauty,
           onInvite: onInvite,
           onBattle: onBattle,
           onQuality: onQuality,
@@ -98,7 +97,6 @@ class LiveHostActionBar extends StatelessWidget {
 }
 
 void openLiveHostOptionsMenu({
-  required VoidCallback onBeauty,
   required VoidCallback onInvite,
   required RxString networkLabel,
   VoidCallback? onBattle,
@@ -212,15 +210,6 @@ void openLiveHostOptionsMenu({
                             onQuality();
                           },
                         ),
-                      _HostOptionTile(
-                        icon: Icons.auto_awesome,
-                        title: LKey.beautySettings.tr,
-                        subtitle: LKey.gettingPrettier.tr,
-                        onTap: () {
-                          Get.back();
-                          onBeauty();
-                        },
-                      ),
                       Obx(() => _HostOptionTile(
                             icon: networkIconForLabel(networkLabel.value),
                             title: LKey.networkConnection.tr,
@@ -293,6 +282,120 @@ class _HostOptionTile extends StatelessWidget {
   }
 }
 
+/// Sheet / barra de solo filtros (sin sliders Beauty).
+Future<bool?> openLiveFiltersSheet({
+  required RxBool beautyOn,
+  required Future<void> Function() onApply,
+  Rx<FaceFilterId>? selectedFilterId,
+  List<FaceFilterEffect>? styleEffects,
+  ValueChanged<FaceFilterId>? onStyleSelected,
+  bool useDeepArFilters = false,
+  RxnInt? deepArSelectedId,
+  ValueChanged<DeepARFilters?>? onDeepArStyleSelected,
+}) {
+  final effects = styleEffects ?? FaceFilterEffect.catalog;
+  final deepArOn = useDeepArFilters;
+  final ctx = Get.context!;
+
+  return Get.bottomSheet<bool>(
+    SafeArea(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Material(
+          color: Colors.black.withValues(alpha: 0.82),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          clipBehavior: Clip.antiAlias,
+          child: Obx(() {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 3,
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Filtros',
+                    textAlign: TextAlign.center,
+                    style: TextStyleCustom.unboundedSemiBold600(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (deepArOn)
+                    DeepArFilterCarousel(
+                      selectedId: deepArSelectedId?.value,
+                      onSelected: (filter) {
+                        beautyOn.value = filter != null;
+                        onDeepArStyleSelected?.call(filter);
+                        onApply();
+                      },
+                    )
+                  else if (onStyleSelected != null && selectedFilterId != null)
+                    FaceFilterCarousel(
+                      selectedId: selectedFilterId.value,
+                      effects: effects,
+                      onSelected: (id) {
+                        selectedFilterId.value = id;
+                        beautyOn.value = id != FaceFilterId.none;
+                        onStyleSelected(id);
+                        onApply();
+                      },
+                    )
+                  else
+                    FaceFilterCarousel(
+                      selectedId: FaceFilterId.none,
+                      effects: effects,
+                      onSelected: (_) {},
+                    ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 44,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeAccentSolid(ctx),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                      ),
+                      onPressed: () async {
+                        await onApply();
+                        Get.back(result: true);
+                      },
+                      child: Text(
+                        'Listo',
+                        style: TextStyleCustom.outFitSemiBold600(
+                          color: Colors.white,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ),
+      ),
+    ),
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black26,
+  );
+}
+
+/// @Deprecated — usar [openLiveFiltersSheet].
 Future<bool?> openLiveBeautySheet({
   required LivestreamScreenController? liveController,
   required RxDouble whiten,
@@ -305,229 +408,20 @@ Future<bool?> openLiveBeautySheet({
   List<FaceFilterEffect>? styleEffects,
   ValueChanged<FaceFilterId>? onStyleSelected,
   bool showAcceptButton = false,
+  bool useDeepArFilters = false,
+  RxnInt? deepArSelectedId,
+  ValueChanged<DeepARFilters?>? onDeepArStyleSelected,
 }) {
-  final effects = styleEffects ?? FaceFilterEffect.catalog;
-  final ctx = Get.context!;
-  final maxH = MediaQuery.sizeOf(ctx).height * (showAcceptButton ? 0.46 : 0.40);
-
-  return Get.bottomSheet<bool>(
-    SafeArea(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxH),
-          child: Material(
-            color: whitePure(ctx),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            clipBehavior: Clip.antiAlias,
-            child: Obx(() {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 3,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: bgGrey(ctx),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            LKey.beautySettings.tr,
-                            style: TextStyleCustom.unboundedSemiBold600(
-                              color: textDarkGrey(ctx),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          beautyOn.value ? 'On' : 'Off',
-                          style: TextStyleCustom.outFitMedium500(
-                            color: textLightGrey(ctx),
-                            fontSize: 12,
-                          ),
-                        ),
-                        Switch.adaptive(
-                          value: beautyOn.value,
-                          activeThumbColor: themeAccentSolid(ctx),
-                          activeTrackColor:
-                              themeAccentSolid(ctx).withValues(alpha: 0.45),
-                          onChanged: (v) {
-                            beautyOn.value = v;
-                            onApply();
-                          },
-                        ),
-                      ],
-                    ),
-                    Flexible(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _BeautySlider(
-                              label: 'Whiten',
-                              value: whiten,
-                              enabled: beautyOn.value,
-                              onChanged: (_) => onApply(),
-                            ),
-                            _BeautySlider(
-                              label: 'Rosy',
-                              value: rosy,
-                              enabled: beautyOn.value,
-                              onChanged: (_) => onApply(),
-                            ),
-                            _BeautySlider(
-                              label: 'Smooth',
-                              value: smooth,
-                              enabled: beautyOn.value,
-                              onChanged: (_) => onApply(),
-                            ),
-                            _BeautySlider(
-                              label: 'Sharpen',
-                              value: sharpen,
-                              enabled: beautyOn.value,
-                              onChanged: (_) => onApply(),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Styles',
-                              style: TextStyleCustom.outFitMedium500(
-                                color: textDarkGrey(ctx),
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            if (onStyleSelected != null &&
-                                selectedFilterId != null)
-                              FaceFilterCarousel(
-                                selectedId: selectedFilterId.value,
-                                effects: effects,
-                                onSelected: (id) {
-                                  if (id.isBeautyGpu && !beautyOn.value) {
-                                    beautyOn.value = true;
-                                  }
-                                  if (id == FaceFilterId.none) {
-                                    // none: no forzar off; el switch decide
-                                  }
-                                  onStyleSelected(id);
-                                  onApply();
-                                },
-                              )
-                            else
-                              FaceFilterCarousel(
-                                selectedId: FaceFilterId.none,
-                                effects: effects,
-                                onSelected: (_) {},
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (showAcceptButton) ...[
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 44,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: themeAccentSolid(ctx),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(22),
-                            ),
-                          ),
-                          onPressed: () async {
-                            beautyOn.value = true;
-                            // Si no hay estilo beauty, Soft por defecto.
-                            if (selectedFilterId != null &&
-                                !selectedFilterId.value.isBeautyGpu &&
-                                selectedFilterId.value == FaceFilterId.none) {
-                              selectedFilterId.value = FaceFilterId.beautySoft;
-                              onStyleSelected?.call(FaceFilterId.beautySoft);
-                            }
-                            await onApply();
-                            Get.back(result: true);
-                          },
-                          child: Text(
-                            'Aceptar filtro',
-                            style: TextStyleCustom.outFitSemiBold600(
-                              color: Colors.white,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
-    ),
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    barrierColor: Colors.black26,
+  return openLiveFiltersSheet(
+    beautyOn: beautyOn,
+    onApply: onApply,
+    selectedFilterId: selectedFilterId,
+    styleEffects: styleEffects,
+    onStyleSelected: onStyleSelected,
+    useDeepArFilters: useDeepArFilters,
+    deepArSelectedId: deepArSelectedId,
+    onDeepArStyleSelected: onDeepArStyleSelected,
   );
-}
-
-class _BeautySlider extends StatelessWidget {
-  final String label;
-  final RxDouble value;
-  final bool enabled;
-  final ValueChanged<double> onChanged;
-
-  const _BeautySlider({
-    required this.label,
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$label ${value.value.round()}',
-              style: TextStyleCustom.outFitRegular400(
-                color: textLightGrey(context),
-                fontSize: 11,
-              ),
-            ),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 2,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-              ),
-              child: Slider(
-                value: value.value,
-                min: 0,
-                max: 100,
-                divisions: 20,
-                activeColor: themeAccentSolid(context),
-                onChanged: enabled
-                    ? (v) {
-                        value.value = v;
-                        onChanged(v);
-                      }
-                    : null,
-              ),
-            ),
-          ],
-        ));
-  }
 }
 
 Future<void> openLiveInviteSheet({

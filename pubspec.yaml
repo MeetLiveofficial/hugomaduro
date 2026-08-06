@@ -175,6 +175,9 @@ flutter:
     - assets/filters/beauty/
     - android/app/src/main/res/mipmap-hdpi/
 
+  shaders:
+    - shaders/beauty_skin.frag
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

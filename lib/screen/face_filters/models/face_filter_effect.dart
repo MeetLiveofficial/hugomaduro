@@ -6,6 +6,8 @@ import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 enum FaceFilterId {
   none,
   /// GPU beauty looks (fragment shader) — visibles en el carrusel.
+  /// Beauty HD: suavizado fuerte + even skin (preset principal).
+  beauty,
   beautySoft,
   beautyNatural,
   beautyPorcelain,
@@ -30,6 +32,7 @@ extension FaceFilterIdX on FaceFilterId {
 
   /// Filtros de belleza facial vía shader GPU (sin overlay MediaPipe).
   bool get isBeautyGpu =>
+      this == FaceFilterId.beauty ||
       this == FaceFilterId.beautySoft ||
       this == FaceFilterId.beautyNatural ||
       this == FaceFilterId.beautyPorcelain ||
@@ -44,23 +47,37 @@ extension FaceFilterIdX on FaceFilterId {
   /// Preset GPU asociado (null = apagar beauty o dejar base suave).
   BeautyLook? get beautyLook {
     switch (this) {
+      case FaceFilterId.beauty:
+        // mode 5 = Beauty HD (smooth + even skin, sin cast amarillo).
+        return const BeautyLook(
+          intensity: 0.78,
+          mode: 5,
+          whiten: 0.12,
+          rosy: 0.05,
+          sharpen: 0.18,
+        );
       case FaceFilterId.beautySoft:
-        return const BeautyLook(intensity: 0.72, mode: 0);
+        return const BeautyLook(intensity: 0.65, mode: 0, sharpen: 0.12);
       case FaceFilterId.beautyNatural:
-        return const BeautyLook(intensity: 0.52, mode: 0);
+        return const BeautyLook(intensity: 0.48, mode: 0, sharpen: 0.15);
       case FaceFilterId.beautyPorcelain:
-        return const BeautyLook(intensity: 0.88, mode: 1);
+        return const BeautyLook(
+          intensity: 0.78,
+          mode: 1,
+          whiten: 0.18,
+          sharpen: 0.1,
+        );
       case FaceFilterId.beautyFresh:
-        return const BeautyLook(intensity: 0.75, mode: 2);
+        return const BeautyLook(intensity: 0.68, mode: 2, whiten: 0.08);
       case FaceFilterId.beautyWarm:
-        return const BeautyLook(intensity: 0.80, mode: 3);
+        return const BeautyLook(intensity: 0.70, mode: 3, rosy: 0.06);
       case FaceFilterId.beautyRose:
-        return const BeautyLook(intensity: 0.78, mode: 4);
+        return const BeautyLook(intensity: 0.70, mode: 4, rosy: 0.18);
       case FaceFilterId.none:
         return const BeautyLook(intensity: 0, mode: 0);
       default:
         // Filtros AR: base beauty ligera debajo del overlay.
-        return const BeautyLook(intensity: 0.35, mode: 0);
+        return const BeautyLook(intensity: 0.42, mode: 0);
     }
   }
 
@@ -135,9 +152,16 @@ class FaceFilterEffect {
     ),
     // —— Belleza facial (GPU) ——
     FaceFilterEffect(
+      id: FaceFilterId.beauty,
+      title: 'Beauty',
+      icon: Icons.face_retouching_natural,
+      accent: Color(0xFFFFAB91),
+      assetIcon: 'assets/filters/beauty/beauty_soft.jpg',
+    ),
+    FaceFilterEffect(
       id: FaceFilterId.beautySoft,
       title: 'Soft',
-      icon: Icons.face_retouching_natural,
+      icon: Icons.spa,
       accent: Color(0xFFFFCCBC),
       assetIcon: 'assets/filters/beauty/beauty_soft.jpg',
     ),

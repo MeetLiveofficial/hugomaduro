@@ -7,7 +7,10 @@ import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/screen/deepar/deepar.dart';
+import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 import 'package:krimson/screen/face_filters/widgets/face_camera_preview_stack.dart';
+import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -74,6 +77,7 @@ class LiveStreamSearchScreen extends StatelessWidget {
                 const Spacer(),
                 _RightControls(controller: controller),
                 const SizedBox(height: 8),
+                if (!kIsWeb) _PreLiveFiltersBar(controller: controller),
                 _BottomBar(
                   controller: controller,
                   displayName: displayName,
@@ -98,9 +102,32 @@ class _StudioBackdrop extends StatelessWidget {
     final profileUrl = (me?.profilePhoto ?? '').trim();
 
     return Obx(() {
-      final previewCam = controller.cameraPreviewActive.value &&
+      final deepArReady = controller.useDeepAr &&
+          controller.cameraPreviewActive.value &&
+          controller.deepAr.isReady.value &&
+          !kIsWeb;
+      final previewCam = !controller.useDeepAr &&
+          controller.cameraPreviewActive.value &&
           controller.beautyPipeline.isReady &&
           !kIsWeb;
+
+      if (deepArReady) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            // Beauty overlays encima de DeepAR.
+            BeautyFiltered(
+              controller: controller.beautyPipeline.beauty,
+              child: DeepArPreview(controller: controller.deepAr),
+            ),
+            Positioned(
+              left: 16,
+              bottom: 200,
+              child: _CoverBadge(controller: controller),
+            ),
+          ],
+        );
+      }
 
       if (previewCam) {
         return Stack(
@@ -118,7 +145,7 @@ class _StudioBackdrop extends StatelessWidget {
             // Miniatura de portada: no se mezcla con el preview de cámara.
             Positioned(
               left: 16,
-              bottom: 120,
+              bottom: 200,
               child: _CoverBadge(controller: controller),
             ),
           ],
@@ -325,14 +352,6 @@ class _RightControls extends StatelessWidget {
               onTap: controller.pickLiveCover,
             ),
             const SizedBox(height: 14),
-            if (!kIsWeb) ...[
-              CustomBorderRoundIcon(
-                widget: const Icon(Icons.auto_awesome,
-                    color: Colors.white, size: 22),
-                onTap: controller.openPreLiveBeauty,
-              ),
-              const SizedBox(height: 14),
-            ],
             CustomBorderRoundIcon(
               widget:
                   const Icon(Icons.group_add, color: Colors.white, size: 22),
@@ -342,6 +361,33 @@ class _RightControls extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Carrusel de filtros visible sobre la cámara (pre-live).
+class _PreLiveFiltersBar extends StatelessWidget {
+  final LiveStreamSearchScreenController controller;
+
+  const _PreLiveFiltersBar({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final deepArOn = controller.useDeepAr;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: deepArOn
+            ? DeepArFilterCarousel(
+                selectedId: controller.deepAr.selectedFilterId.value,
+                onSelected: controller.onPreLiveDeepArFilterTap,
+              )
+            : FaceFilterCarousel(
+                selectedId: controller.selectedFilterId.value,
+                effects: controller.filterCatalog.effects.toList(),
+                onSelected: controller.onPreLiveFilterTap,
+              ),
+      );
+    });
   }
 }
 
