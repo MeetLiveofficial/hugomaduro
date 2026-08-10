@@ -1,0 +1,35 @@
+group = "com.nexus.gpupixel"
+version = "1.0.0"
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+android {
+    namespace = "com.nexus.gpupixel"
+    compileSdk = 36
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+        main.jniLibs.srcDirs += "src/main/jniLibs"
+        main.assets.srcDirs += "src/main/assets"
+    }
+
+    defaultConfig {
+        minSdk = 24
+    }
+}
+
+dependencies {
+    // AAR explotado: classes.jar + jniLibs + assets (AGP no permite AAR local en plugins).
+    implementation files("libs/gpupixel-classes.jar")
+    implementation "androidx.annotation:annotation:1.9.1"
+}
