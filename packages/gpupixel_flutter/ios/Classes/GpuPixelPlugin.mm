@@ -204,11 +204,11 @@
 
   auto landmarks = _detector->Detect(
       bgra.data(), width, height, width * 4,
-      GPUPIXEL_MODE_FMT_VIDEO, GPUPIXEL_FRAME_TYPE_BGRA);
+      gpupixel::GPUPIXEL_MODE_FMT_VIDEO, gpupixel::GPUPIXEL_FRAME_TYPE_BGRA);
   if (!landmarks.empty()) {
     _reshape->SetFaceLandmarks(landmarks);
   }
-  _source->ProcessData(bgra.data(), width, height, width * 4, GPUPIXEL_FRAME_TYPE_BGRA);
+  _source->ProcessData(bgra.data(), width, height, width * 4, gpupixel::GPUPIXEL_FRAME_TYPE_BGRA);
 
   const uint8_t *out = _sink->GetRgbaBuffer();
   int ow = _sink->GetWidth();
