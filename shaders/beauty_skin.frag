@@ -77,21 +77,59 @@ float skinMask(vec3 c) {
 
 vec3 applyLook(vec3 base, float mode, float amount) {
   float y = luma(base);
-  vec3 soft = mix(base, vec3(y), 0.10 * amount);
-  soft = mix(soft, soft * vec3(1.01, 1.01, 1.015), 0.25 * amount);
+  // Soft — piel suave, casi neutro
+  vec3 soft = mix(base, vec3(y), 0.12 * amount);
+  soft = mix(soft, soft * vec3(1.01, 1.01, 1.02), 0.30 * amount);
 
-  vec3 porcelain = mix(soft, vec3(y) * vec3(1.04, 1.035, 1.05), 0.28 * amount);
-  porcelain = mix(porcelain, porcelain + vec3(0.03, 0.025, 0.035), 0.25 * amount);
+  // Porcelain — blanquecino frío
+  vec3 porcelain = mix(soft, vec3(y) * vec3(1.06, 1.05, 1.09), 0.42 * amount);
+  porcelain = mix(porcelain, porcelain + vec3(0.045, 0.04, 0.055), 0.35 * amount);
 
-  vec3 fresh = soft * mix(vec3(1.0), vec3(0.97, 1.04, 1.05), amount);
-  vec3 warm = soft * mix(vec3(1.0), vec3(1.07, 1.02, 0.94), amount);
-  vec3 rose = soft * mix(vec3(1.0), vec3(1.06, 0.98, 1.03), amount);
+  // Fresh — verde-azul fresco
+  vec3 fresh = soft * mix(vec3(1.0), vec3(0.92, 1.08, 1.10), amount * 1.15);
 
-  // Beauty HD: even skin + slight glow, natural (neutral, not yellow).
-  vec3 beauty = mix(soft, porcelain, 0.35);
-  beauty = mix(beauty, beauty * vec3(1.015, 1.015, 1.02), 0.35 * amount);
-  beauty = mix(beauty, beauty + vec3(0.012, 0.012, 0.014), 0.25 * amount);
+  // Warm — dorado/naranja
+  vec3 warm = soft * mix(vec3(1.0), vec3(1.14, 1.04, 0.88), amount * 1.2);
 
+  // Rose — rosa/magenta
+  vec3 rose = soft * mix(vec3(1.0), vec3(1.12, 0.94, 1.06), amount * 1.25);
+  rose = mix(rose, rose + vec3(0.04, 0.0, 0.02), 0.35 * amount);
+
+  // Beauty HD — glow neutro + even
+  vec3 beauty = mix(soft, porcelain, 0.40);
+  beauty = mix(beauty, beauty * vec3(1.03, 1.03, 1.04), 0.45 * amount);
+  beauty = mix(beauty, beauty + vec3(0.02, 0.02, 0.022), 0.35 * amount);
+
+  // Dewy — brillo húmedo + rosado
+  vec3 dewy = mix(soft, soft + vec3(0.05, 0.03, 0.04), 0.55 * amount);
+  dewy = dewy * mix(vec3(1.0), vec3(1.08, 0.98, 1.05), amount);
+
+  // Matte — aplanar + desaturar
+  vec3 matte = mix(base, vec3(y), 0.28 * amount);
+  matte = mix(matte, matte * vec3(0.98, 0.97, 0.96), 0.35 * amount);
+
+  // Peach — melocotón
+  vec3 peach = soft * mix(vec3(1.0), vec3(1.16, 1.02, 0.90), amount * 1.3);
+  peach = mix(peach, peach + vec3(0.05, 0.015, 0.0), 0.4 * amount);
+
+  // Night — contraste frío
+  vec3 night = soft * mix(vec3(1.0), vec3(0.92, 0.96, 1.10), amount * 1.15);
+  night = mix(night, night * vec3(0.95, 0.97, 1.05), 0.4 * amount);
+
+  // Crystal — brillante + cool
+  vec3 crystal = mix(porcelain, fresh, 0.45);
+  crystal = mix(crystal, crystal + vec3(0.04, 0.045, 0.055), 0.45 * amount);
+
+  // Glass — piel de cristal (muy claro + cool)
+  vec3 glass = mix(porcelain, porcelain * vec3(1.05, 1.06, 1.10), 0.55 * amount);
+  glass = mix(glass, glass + vec3(0.05, 0.05, 0.06), 0.4 * amount);
+
+  if (mode > 10.5) return glass;
+  if (mode > 9.5) return crystal;
+  if (mode > 8.5) return night;
+  if (mode > 7.5) return peach;
+  if (mode > 6.5) return matte;
+  if (mode > 5.5) return dewy;
   if (mode > 4.5) return beauty;
   if (mode > 3.5) return rose;
   if (mode > 2.5) return warm;
@@ -136,9 +174,9 @@ void main() {
   // Whiten / rosy from sliders.
   float whiten = clamp(uWhiten, 0.0, 1.0);
   float rosy = clamp(uRosy, 0.0, 1.0);
-  looked = mix(looked, looked + vec3(0.06, 0.055, 0.05), whiten * 0.55 * skin);
-  looked = mix(looked, looked * vec3(1.05, 0.97, 1.02) + vec3(0.02, 0.0, 0.01),
-               rosy * 0.4 * skin);
+  looked = mix(looked, looked + vec3(0.10, 0.09, 0.08), whiten * 0.75 * skin);
+  looked = mix(looked, looked * vec3(1.10, 0.94, 1.04) + vec3(0.035, 0.0, 0.015),
+               rosy * 0.65 * skin);
 
   fragColor = vec4(clamp(mix(src.rgb, looked, amount), 0.0, 1.0), src.a);
 }
