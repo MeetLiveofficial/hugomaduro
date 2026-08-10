@@ -1,0 +1,19 @@
+name: facebetter_flutter
+description: FaceBetter beauty pipeline bridge (Texture + MethodChannel) for Krimson.
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.1
+  flutter: ">=3.24.0"
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.nexus.facebetter
+        pluginClass: FaceBetterPlugin
+
+dependencies:
+  flutter:
+    sdk: flutter
