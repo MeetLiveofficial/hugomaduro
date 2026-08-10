@@ -32,6 +32,10 @@ class FaceCameraService {
   int _cameraIndex = 0;
   bool _isBusyFrame = false;
   FaceCameraFrameCallback? onFrame;
+  String? lastError;
+
+  /// Solo web (getUserMedia HtmlElementView).
+  String? get webViewType => null;
 
   CameraController? get controller => _controller;
   bool get isReady => _controller?.value.isInitialized == true;

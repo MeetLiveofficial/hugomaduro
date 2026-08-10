@@ -61,6 +61,8 @@ class WorkScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 _EarningsCard(data: data),
                 const SizedBox(height: 16),
+                _CallPricingCard(data: data, controller: controller),
+                const SizedBox(height: 16),
                 _TasksSection(),
                 if (controller.showDetail.value) ...[
                   const SizedBox(height: 16),
@@ -810,7 +812,7 @@ class _TasksSection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Revisa y reclama tus tareas diarias, especiales y bonus desde aquí.',
+            'LIVE 120 pts + Otras 30 pts = 150 para retiro. Grado B/C: tareas de llamadas privadas.',
             style: TextStyleCustom.outFitRegular400(
               color: Colors.white70,
               fontSize: 12,
@@ -819,5 +821,110 @@ class _TasksSection extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _CallPricingCard extends StatelessWidget {
+  const _CallPricingCard({required this.data, required this.controller});
+
+  final StreamerWorkStats data;
+  final WorkScreenController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final pricing = data.callPricing;
+    final price = pricing?.effectivePrice ?? 0;
+    final canEdit = pricing?.canEdit == true;
+    final grade = pricing?.grade ?? data.weeklyLevel.grade;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: WorkScreen._card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${LKey.callPrice.tr}: $price ${LKey.coins.tr}',
+            style: TextStyleCustom.outFitSemiBold600(
+              color: Colors.white,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            canEdit
+                ? 'Grado $grade: puedes editar el precio (rango ${pricing?.min}-${pricing?.max}).'
+                : 'Grado $grade: precio fijo de la plataforma.',
+            style: TextStyleCustom.outFitRegular400(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
+          if (canEdit) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => _editPrice(context),
+                style: TextButton.styleFrom(
+                  backgroundColor: WorkScreen._pink,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(
+                  LKey.edit.tr,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: Colors.white,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editPrice(BuildContext context) async {
+    final pricing = data.callPricing;
+    if (pricing == null) return;
+    final field = TextEditingController(text: '${pricing.effectivePrice}');
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: WorkScreen._card,
+        title: Text(LKey.callPrice.tr,
+            style: TextStyleCustom.outFitSemiBold600(color: Colors.white)),
+        content: TextField(
+          controller: field,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: '${pricing.min} - ${pricing.max}',
+            hintStyle: const TextStyle(color: Colors.white54),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text(LKey.cancel.tr),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: Text(LKey.save.tr),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final v = int.tryParse(field.text.trim());
+      if (v != null) {
+        await controller.updateCallPrice(v);
+      }
+    }
   }
 }

@@ -1,4 +1,3 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
@@ -8,9 +7,8 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
-import 'package:krimson/screen/deepar/deepar.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
-import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
+import 'package:krimson/screen/facebetter/facebetter_style_filters_sheet.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -25,7 +23,6 @@ class LiveHostActionBar extends StatelessWidget {
   final VoidCallback? onPause;
   final VoidCallback? onMic;
   final VoidCallback? onCamera;
-  final RxString networkLabel;
   final String? qualityLabel;
   final bool battleRunning;
   final bool paused;
@@ -36,7 +33,6 @@ class LiveHostActionBar extends StatelessWidget {
   const LiveHostActionBar({
     super.key,
     required this.onInvite,
-    required this.networkLabel,
     this.onBattle,
     this.onQuality,
     this.onPause,
@@ -65,7 +61,6 @@ class LiveHostActionBar extends StatelessWidget {
           onPause: onPause,
           onMic: onMic,
           onCamera: onCamera,
-          networkLabel: networkLabel,
           qualityLabel: qualityLabel,
           battleRunning: battleRunning,
           paused: paused,
@@ -98,7 +93,6 @@ class LiveHostActionBar extends StatelessWidget {
 
 void openLiveHostOptionsMenu({
   required VoidCallback onInvite,
-  required RxString networkLabel,
   VoidCallback? onBattle,
   VoidCallback? onQuality,
   VoidCallback? onPause,
@@ -210,15 +204,6 @@ void openLiveHostOptionsMenu({
                             onQuality();
                           },
                         ),
-                      Obx(() => _HostOptionTile(
-                            icon: networkIconForLabel(networkLabel.value),
-                            title: LKey.networkConnection.tr,
-                            subtitle: networkLabel.value,
-                            onTap: () {
-                              Get.back();
-                              openNetworkInfoSheet(networkLabel.value);
-                            },
-                          )),
                       _HostOptionTile(
                         icon: Icons.group_add,
                         title: LKey.inviteFriends.tr,
@@ -282,7 +267,7 @@ class _HostOptionTile extends StatelessWidget {
   }
 }
 
-/// Sheet / barra de solo filtros (sin sliders Beauty).
+/// Sheet de filtros estilo FaceBetter (demo.facebetter.net).
 Future<bool?> openLiveFiltersSheet({
   required RxBool beautyOn,
   required Future<void> Function() onApply,
@@ -292,100 +277,34 @@ Future<bool?> openLiveFiltersSheet({
   bool useDeepArFilters = false,
   RxnInt? deepArSelectedId,
   ValueChanged<DeepARFilters?>? onDeepArStyleSelected,
+  /// Sliders nativos (0–100).
+  RxDouble? whiten,
+  RxDouble? smooth,
+  RxDouble? rosy,
+  RxDouble? sharpen,
+  RxDouble? slimFace,
+  RxDouble? bigEye,
 }) {
   final effects = styleEffects ?? FaceFilterEffect.catalog;
-  final deepArOn = useDeepArFilters;
-  final ctx = Get.context!;
-
   return Get.bottomSheet<bool>(
     SafeArea(
       child: Align(
         alignment: Alignment.bottomCenter,
-        child: Material(
-          color: Colors.black.withValues(alpha: 0.82),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          clipBehavior: Clip.antiAlias,
-          child: Obx(() {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 3,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Filtros',
-                    textAlign: TextAlign.center,
-                    style: TextStyleCustom.unboundedSemiBold600(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (deepArOn)
-                    DeepArFilterCarousel(
-                      selectedId: deepArSelectedId?.value,
-                      onSelected: (filter) {
-                        beautyOn.value = filter != null;
-                        onDeepArStyleSelected?.call(filter);
-                        onApply();
-                      },
-                    )
-                  else if (onStyleSelected != null && selectedFilterId != null)
-                    FaceFilterCarousel(
-                      selectedId: selectedFilterId.value,
-                      effects: effects,
-                      onSelected: (id) {
-                        selectedFilterId.value = id;
-                        beautyOn.value = id != FaceFilterId.none;
-                        onStyleSelected(id);
-                        onApply();
-                      },
-                    )
-                  else
-                    FaceFilterCarousel(
-                      selectedId: FaceFilterId.none,
-                      effects: effects,
-                      onSelected: (_) {},
-                    ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 44,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeAccentSolid(ctx),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                      ),
-                      onPressed: () async {
-                        await onApply();
-                        Get.back(result: true);
-                      },
-                      child: Text(
-                        'Listo',
-                        style: TextStyleCustom.outFitSemiBold600(
-                          color: Colors.white,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+        child: FaceBetterStyleFiltersPanel(
+          beautyOn: beautyOn,
+          onApply: onApply,
+          selectedFilterId: selectedFilterId,
+          styleEffects: effects,
+          onStyleSelected: onStyleSelected,
+          useDeepArFilters: useDeepArFilters,
+          deepArSelectedId: deepArSelectedId,
+          onDeepArStyleSelected: onDeepArStyleSelected,
+          whiten: whiten,
+          smooth: smooth,
+          rosy: rosy,
+          sharpen: sharpen,
+          slimFace: slimFace,
+          bigEye: bigEye,
         ),
       ),
     ),
@@ -421,6 +340,10 @@ Future<bool?> openLiveBeautySheet({
     useDeepArFilters: useDeepArFilters,
     deepArSelectedId: deepArSelectedId,
     onDeepArStyleSelected: onDeepArStyleSelected,
+    whiten: whiten,
+    smooth: smooth,
+    rosy: rosy,
+    sharpen: sharpen,
   );
 }
 
@@ -597,121 +520,6 @@ Future<void> openLiveInviteSheet({
     ),
     isScrollControlled: true,
   ).whenComplete(searchCtrl.dispose);
-}
-
-String networkLabelFromResults(List<ConnectivityResult> results) {
-  if (results.contains(ConnectivityResult.none) || results.isEmpty) {
-    return LKey.networkOffline.tr;
-  }
-  if (results.contains(ConnectivityResult.wifi)) {
-    return LKey.networkWifi.tr;
-  }
-  if (results.contains(ConnectivityResult.mobile)) {
-    return LKey.networkMobile.tr;
-  }
-  if (results.contains(ConnectivityResult.ethernet)) {
-    return 'Ethernet';
-  }
-  return results.first.name;
-}
-
-IconData networkIconForLabel(String label) {
-  final lower = label.toLowerCase();
-  if (lower.contains('off') || lower.contains('sin')) {
-    return Icons.wifi_off;
-  }
-  if (lower.contains('mobile') || lower.contains('móvil') || lower.contains('movil')) {
-    return Icons.signal_cellular_alt;
-  }
-  if (lower.contains('ethernet')) {
-    return Icons.settings_ethernet;
-  }
-  return Icons.wifi;
-}
-
-void openNetworkInfoSheet(String networkLabel) {
-  final isOffline = networkLabel.toLowerCase().contains('off') ||
-      networkLabel.toLowerCase().contains('sin');
-  final isWifi = networkLabel.toLowerCase().contains('wi');
-  final tip = isOffline
-      ? 'Sin conexión. Conéctate a Wi‑Fi o datos móviles para transmitir.'
-      : isWifi
-          ? 'Wi‑Fi estable recomendado para LIVE. Evita cambiar de red durante la transmisión.'
-          : 'Estás en datos móviles. El LIVE puede consumir mucha data y tener más latencia.';
-
-  Get.bottomSheet(
-    Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black12,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                Icon(networkIconForLabel(networkLabel), size: 28),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    LKey.networkConnection.tr,
-                    style: TextStyleCustom.unboundedSemiBold600(
-                      color: Colors.black87,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              networkLabel,
-              style: TextStyleCustom.outFitMedium500(
-                color: themeAccentSolid(Get.context!),
-                fontSize: 15,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              tip,
-              style: TextStyleCustom.outFitRegular400(
-                color: Colors.black54,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: Get.back,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeColor(Get.context!),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 /// Desplegable de tareas durante el LIVE (estilo Options).

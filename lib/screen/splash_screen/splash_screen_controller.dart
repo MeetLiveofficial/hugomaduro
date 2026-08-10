@@ -11,6 +11,7 @@ import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/app_update_service.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/network_helper/network_helper.dart';
@@ -144,6 +145,7 @@ class SplashScreenController extends BaseController {
           if (value != null) {
             Get.offAll(() => DashboardScreen(myUser: value),
                 routeName: '/dashboard');
+            unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
             return;
           }
         } catch (e) {
@@ -151,6 +153,7 @@ class SplashScreenController extends BaseController {
         }
         SessionManager.instance.clearSomeKey();
         Get.offAll(() => const LoginScreen(), routeName: '/login');
+        unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
       } else {
         if (SessionManager.instance.isLogin() &&
             !SessionManager.instance.hasAuthToken) {
@@ -159,6 +162,7 @@ class SplashScreenController extends BaseController {
         // Login directo (idioma en el select del Login; onboarding solo si ya
         // se marcó como pendiente explícitamente en flujos futuros).
         Get.offAll(() => const LoginScreen(), routeName: '/login');
+        unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
       }
     } catch (e, st) {
       Loggers.error('Splash fetchSettings error: $e\n$st');

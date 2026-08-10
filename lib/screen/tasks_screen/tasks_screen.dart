@@ -88,6 +88,7 @@ class _Tabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final selected = controller.selectedTab.value;
+      final codes = controller.visibleTabCodes;
       return Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
         padding: const EdgeInsets.all(4),
@@ -97,9 +98,8 @@ class _Tabs extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _tab(context, LKey.dailyTasks.tr, 0, selected == 0),
-            _tab(context, LKey.specialTasks.tr, 1, selected == 1),
-            _tab(context, LKey.bonusTasks.tr, 2, selected == 2),
+            for (var i = 0; i < codes.length; i++)
+              _tab(context, controller.tabLabel(codes[i]), i, selected == i),
           ],
         ),
       );
@@ -141,6 +141,7 @@ class _PointsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      final b = controller.buckets.value;
       final cat = controller.currentCategory;
       final done = cat?.completedCount ?? 0;
       final total = cat?.totalCount ?? 0;
@@ -150,49 +151,31 @@ class _PointsHeader extends StatelessWidget {
           color: bgGrey(context),
           borderRadius: BorderRadius.circular(14),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    LKey.withdrawalPoints.tr,
-                    style: TextStyleCustom.outFitRegular400(
-                      color: textLightGrey(context),
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${controller.withdrawalPoints.value}',
-                    style: TextStyleCustom.outFitBold700(
-                      color: textDarkGrey(context),
-                      fontSize: 22,
-                    ),
-                  ),
-                ],
+            Text(
+              'Puntos para retiro ${b.combinedPoints} / ${b.targetTotal} pts',
+              style: TextStyleCustom.outFitBold700(
+                color: textDarkGrey(context),
+                fontSize: 16,
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  LKey.progressLabel.tr,
-                  style: TextStyleCustom.outFitRegular400(
-                    color: textLightGrey(context),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$done / $total',
-                  style: TextStyleCustom.outFitSemiBold600(
-                    color: textDarkGrey(context),
-                    fontSize: 16,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 8),
+            Text(
+              'LIVE: ${b.livePoints}/${b.liveMax}  ·  Otras: ${b.otherPoints}/${b.otherMax}',
+              style: TextStyleCustom.outFitMedium500(
+                color: textLightGrey(context),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${LKey.withdrawalPoints.tr}: ${controller.withdrawalPoints.value}  ·  $done / $total',
+              style: TextStyleCustom.outFitRegular400(
+                color: textLightGrey(context),
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -214,6 +197,9 @@ class _EligibilityBanner extends StatelessWidget {
       final can = gate['can_withdraw_min'] == true;
       final maxUsd = gate['max_withdrawable_usd_today'];
       final dailyOk = gate['daily_complete_today'] == true;
+      final livePts = gate['live_points_today'];
+      final otherPts = gate['other_points_today'];
+      final target = gate['target_points'] ?? 150;
       final msg = can
           ? LKey.youCanWithdrawToday.tr
           : (dailyOk
@@ -239,6 +225,16 @@ class _EligibilityBanner extends StatelessWidget {
                 fontSize: 13,
               ),
             ),
+            if (livePts != null || otherPts != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Hoy LIVE ${livePts ?? 0} + Otras ${otherPts ?? 0} (meta $target)',
+                style: TextStyleCustom.outFitRegular400(
+                  color: textLightGrey(context),
+                  fontSize: 12,
+                ),
+              ),
+            ],
             if (maxUsd != null) ...[
               const SizedBox(height: 4),
               Text(
@@ -270,7 +266,8 @@ class _TaskList extends StatelessWidget {
         return NoDataView(title: LKey.noTasksAvailable.tr);
       }
       return Column(
-        children: tasks.map((t) => _TaskCard(task: t, controller: controller)).toList(),
+        children:
+            tasks.map((t) => _TaskCard(task: t, controller: controller)).toList(),
       );
     });
   }
@@ -295,6 +292,14 @@ class _TaskCard extends StatelessWidget {
       default:
         return LKey.pending.tr;
     }
+  }
+
+  String _progressLabel() {
+    if (task.isDual && task.requires != null) {
+      final r = task.requires!;
+      return '${task.progressMinutes}/${r.minutes} min · ${task.progressCoins}/${r.coins} coins · ${_statusLabel()}';
+    }
+    return '${task.progressValue}/${task.targetValue} · ${_statusLabel()}';
   }
 
   @override
@@ -339,27 +344,33 @@ class _TaskCard extends StatelessWidget {
               fontSize: 12,
             ),
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: task.progressRatio,
-              minHeight: 6,
-              backgroundColor: Colors.black12,
-              color: themeAccentSolid(context),
+          if (task.isDual && task.requires != null) ...[
+            const SizedBox(height: 8),
+            _DualBars(task: task),
+          ] else ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: task.progressRatio,
+                minHeight: 6,
+                backgroundColor: Colors.black12,
+                color: themeAccentSolid(context),
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 8),
           Row(
             children: [
-              Text(
-                '${task.progressValue}/${task.targetValue} · ${_statusLabel()}',
-                style: TextStyleCustom.outFitRegular400(
-                  color: textLightGrey(context),
-                  fontSize: 12,
+              Expanded(
+                child: Text(
+                  _progressLabel(),
+                  style: TextStyleCustom.outFitRegular400(
+                    color: textLightGrey(context),
+                    fontSize: 12,
+                  ),
                 ),
               ),
-              const Spacer(),
               if (task.status == 'completed')
                 SizedBox(
                   height: 34,
@@ -374,6 +385,44 @@ class _TaskCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DualBars extends StatelessWidget {
+  final TaskItem task;
+
+  const _DualBars({required this.task});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = task.requires!;
+    final minRatio =
+        r.minutes <= 0 ? 1.0 : (task.progressMinutes / r.minutes).clamp(0.0, 1.0);
+    final coinRatio =
+        r.coins <= 0 ? 1.0 : (task.progressCoins / r.coins).clamp(0.0, 1.0);
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: minRatio,
+            minHeight: 5,
+            backgroundColor: Colors.black12,
+            color: themeAccentSolid(context),
+          ),
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: coinRatio,
+            minHeight: 5,
+            backgroundColor: Colors.black12,
+            color: Colors.amber.shade700,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -14,6 +14,19 @@ enum FaceFilterId {
   beautyFresh,
   beautyWarm,
   beautyRose,
+  /// Looks belleza personalizados (LIVE / FaceBetter params).
+  beautyDewy,
+  beautyMatte,
+  beautyRadiant,
+  beautyClear,
+  beautyVFace,
+  beautyDoll,
+  beautyPeach,
+  beautySilk,
+  beautyCrystal,
+  beautyNight,
+  beautySnatch,
+  beautyGlass,
   meshDebug,
   glasses,
   dogEars,
@@ -38,7 +51,19 @@ extension FaceFilterIdX on FaceFilterId {
       this == FaceFilterId.beautyPorcelain ||
       this == FaceFilterId.beautyFresh ||
       this == FaceFilterId.beautyWarm ||
-      this == FaceFilterId.beautyRose;
+      this == FaceFilterId.beautyRose ||
+      this == FaceFilterId.beautyDewy ||
+      this == FaceFilterId.beautyMatte ||
+      this == FaceFilterId.beautyRadiant ||
+      this == FaceFilterId.beautyClear ||
+      this == FaceFilterId.beautyVFace ||
+      this == FaceFilterId.beautyDoll ||
+      this == FaceFilterId.beautyPeach ||
+      this == FaceFilterId.beautySilk ||
+      this == FaceFilterId.beautyCrystal ||
+      this == FaceFilterId.beautyNight ||
+      this == FaceFilterId.beautySnatch ||
+      this == FaceFilterId.beautyGlass;
 
   /// Necesita Face Mesh / CustomPainter AR.
   bool get needsFaceMesh =>
@@ -48,35 +73,160 @@ extension FaceFilterIdX on FaceFilterId {
   BeautyLook? get beautyLook {
     switch (this) {
       case FaceFilterId.beauty:
-        // mode 5 = Beauty HD (smooth + even skin, sin cast amarillo).
         return const BeautyLook(
-          intensity: 0.78,
+          intensity: 0.88,
           mode: 5,
+          whiten: 0.22,
+          rosy: 0.08,
+          sharpen: 0.28,
+        );
+      case FaceFilterId.beautySoft:
+        return const BeautyLook(
+          intensity: 0.72,
+          mode: 0,
           whiten: 0.12,
+          rosy: 0.06,
+          sharpen: 0.10,
+        );
+      case FaceFilterId.beautyNatural:
+        return const BeautyLook(
+          intensity: 0.52,
+          mode: 0,
+          whiten: 0.05,
+          rosy: 0.04,
+          sharpen: 0.20,
+        );
+      case FaceFilterId.beautyPorcelain:
+        return const BeautyLook(
+          intensity: 0.90,
+          mode: 1,
+          whiten: 0.55,
+          rosy: 0.04,
+          sharpen: 0.12,
+        );
+      case FaceFilterId.beautyFresh:
+        return const BeautyLook(
+          intensity: 0.82,
+          mode: 2,
+          whiten: 0.18,
+          rosy: 0.10,
+          sharpen: 0.22,
+        );
+      case FaceFilterId.beautyWarm:
+        return const BeautyLook(
+          intensity: 0.85,
+          mode: 3,
+          whiten: 0.12,
+          rosy: 0.18,
+          sharpen: 0.15,
+        );
+      case FaceFilterId.beautyRose:
+        return const BeautyLook(
+          intensity: 0.86,
+          mode: 4,
+          whiten: 0.20,
+          rosy: 0.55,
+          sharpen: 0.14,
+        );
+      case FaceFilterId.beautyDewy:
+        return const BeautyLook(
+          intensity: 0.88,
+          mode: 6,
+          whiten: 0.25,
+          rosy: 0.40,
+          sharpen: 0.08,
+        );
+      case FaceFilterId.beautyMatte:
+        return const BeautyLook(
+          intensity: 0.90,
+          mode: 7,
+          whiten: 0.20,
+          rosy: 0.02,
+          sharpen: 0.35,
+        );
+      case FaceFilterId.beautyRadiant:
+        return const BeautyLook(
+          intensity: 0.88,
+          mode: 5,
+          whiten: 0.30,
+          rosy: 0.22,
+          sharpen: 0.40,
+        );
+      case FaceFilterId.beautyClear:
+        return const BeautyLook(
+          intensity: 0.86,
+          mode: 1,
+          whiten: 0.70,
           rosy: 0.05,
           sharpen: 0.18,
         );
-      case FaceFilterId.beautySoft:
-        return const BeautyLook(intensity: 0.65, mode: 0, sharpen: 0.12);
-      case FaceFilterId.beautyNatural:
-        return const BeautyLook(intensity: 0.48, mode: 0, sharpen: 0.15);
-      case FaceFilterId.beautyPorcelain:
+      case FaceFilterId.beautyVFace:
         return const BeautyLook(
-          intensity: 0.78,
-          mode: 1,
+          intensity: 0.80,
+          mode: 5,
           whiten: 0.18,
-          sharpen: 0.1,
+          rosy: 0.12,
+          sharpen: 0.25,
         );
-      case FaceFilterId.beautyFresh:
-        return const BeautyLook(intensity: 0.68, mode: 2, whiten: 0.08);
-      case FaceFilterId.beautyWarm:
-        return const BeautyLook(intensity: 0.70, mode: 3, rosy: 0.06);
-      case FaceFilterId.beautyRose:
-        return const BeautyLook(intensity: 0.70, mode: 4, rosy: 0.18);
+      case FaceFilterId.beautyDoll:
+        return const BeautyLook(
+          intensity: 0.90,
+          mode: 4,
+          whiten: 0.40,
+          rosy: 0.45,
+          sharpen: 0.15,
+        );
+      case FaceFilterId.beautyPeach:
+        return const BeautyLook(
+          intensity: 0.88,
+          mode: 8,
+          whiten: 0.15,
+          rosy: 0.50,
+          sharpen: 0.12,
+        );
+      case FaceFilterId.beautySilk:
+        return const BeautyLook(
+          intensity: 0.95,
+          mode: 7,
+          whiten: 0.35,
+          rosy: 0.10,
+          sharpen: 0.05,
+        );
+      case FaceFilterId.beautyCrystal:
+        return const BeautyLook(
+          intensity: 0.88,
+          mode: 10,
+          whiten: 0.45,
+          rosy: 0.08,
+          sharpen: 0.55,
+        );
+      case FaceFilterId.beautyNight:
+        return const BeautyLook(
+          intensity: 0.80,
+          mode: 9,
+          whiten: 0.10,
+          rosy: 0.15,
+          sharpen: 0.50,
+        );
+      case FaceFilterId.beautySnatch:
+        return const BeautyLook(
+          intensity: 0.92,
+          mode: 5,
+          whiten: 0.28,
+          rosy: 0.20,
+          sharpen: 0.45,
+        );
+      case FaceFilterId.beautyGlass:
+        return const BeautyLook(
+          intensity: 0.90,
+          mode: 11,
+          whiten: 0.60,
+          rosy: 0.12,
+          sharpen: 0.40,
+        );
       case FaceFilterId.none:
         return const BeautyLook(intensity: 0, mode: 0);
       default:
-        // Filtros AR: base beauty ligera debajo del overlay.
         return const BeautyLook(intensity: 0.42, mode: 0);
     }
   }
@@ -109,7 +259,6 @@ extension RemoteFaceFilterMapping on RemoteFaceFilter {
       accent: accentColor != null
           ? parseAccent(fallback: builtin?.accent ?? const Color(0xFF9E9E9E))
           : (builtin?.accent ?? parseAccent()),
-      assetIcon: builtin?.assetIcon,
       remote: this,
     );
   }
@@ -156,49 +305,114 @@ class FaceFilterEffect {
       title: 'Beauty',
       icon: Icons.face_retouching_natural,
       accent: Color(0xFFFFAB91),
-      assetIcon: 'assets/filters/beauty/beauty_soft.jpg',
     ),
     FaceFilterEffect(
       id: FaceFilterId.beautySoft,
       title: 'Soft',
       icon: Icons.spa,
       accent: Color(0xFFFFCCBC),
-      assetIcon: 'assets/filters/beauty/beauty_soft.jpg',
     ),
     FaceFilterEffect(
       id: FaceFilterId.beautyNatural,
       title: 'Natural',
       icon: Icons.spa_outlined,
       accent: Color(0xFFA5D6A7),
-      assetIcon: 'assets/filters/beauty/beauty_natural.jpg',
     ),
     FaceFilterEffect(
       id: FaceFilterId.beautyPorcelain,
       title: 'Porcelain',
       icon: Icons.brightness_5,
       accent: Color(0xFFF8BBD0),
-      assetIcon: 'assets/filters/beauty/beauty_porcelain.jpg',
     ),
     FaceFilterEffect(
       id: FaceFilterId.beautyFresh,
       title: 'Fresh',
       icon: Icons.water_drop_outlined,
       accent: Color(0xFF81D4FA),
-      assetIcon: 'assets/filters/beauty/beauty_fresh.jpg',
     ),
     FaceFilterEffect(
       id: FaceFilterId.beautyWarm,
       title: 'Warm',
       icon: Icons.wb_sunny,
       accent: Color(0xFFFFB74D),
-      assetIcon: 'assets/filters/beauty/beauty_warm.jpg',
     ),
     FaceFilterEffect(
       id: FaceFilterId.beautyRose,
       title: 'Rose',
       icon: Icons.favorite_border,
       accent: Color(0xFFF48FB1),
-      assetIcon: 'assets/filters/beauty/beauty_rose.jpg',
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyDewy,
+      title: 'Dewy',
+      icon: Icons.opacity,
+      accent: Color(0xFFB2EBF2),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyMatte,
+      title: 'Matte',
+      icon: Icons.blur_on,
+      accent: Color(0xFFE0E0E0),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyRadiant,
+      title: 'Radiant',
+      icon: Icons.wb_iridescent_outlined,
+      accent: Color(0xFFFFE082),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyClear,
+      title: 'Clear',
+      icon: Icons.auto_fix_high,
+      accent: Color(0xFFE1F5FE),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyVFace,
+      title: 'V-Face',
+      icon: Icons.face_3_outlined,
+      accent: Color(0xFFCE93D8),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyDoll,
+      title: 'Doll',
+      icon: Icons.visibility_outlined,
+      accent: Color(0xFFF8BBD0),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyPeach,
+      title: 'Peach',
+      icon: Icons.emoji_nature,
+      accent: Color(0xFFFFAB91),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautySilk,
+      title: 'Silk',
+      icon: Icons.texture,
+      accent: Color(0xFFF5F5F5),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyCrystal,
+      title: 'Crystal',
+      icon: Icons.diamond_outlined,
+      accent: Color(0xFFB3E5FC),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyNight,
+      title: 'Night',
+      icon: Icons.nightlight_round,
+      accent: Color(0xFF90A4AE),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautySnatch,
+      title: 'Snatch',
+      icon: Icons.auto_awesome,
+      accent: Color(0xFFFF8A65),
+    ),
+    FaceFilterEffect(
+      id: FaceFilterId.beautyGlass,
+      title: 'Glass',
+      icon: Icons.water,
+      accent: Color(0xFF80DEEA),
     ),
     // —— AR / fun ——
     FaceFilterEffect(

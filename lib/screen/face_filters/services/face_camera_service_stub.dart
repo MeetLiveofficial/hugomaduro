@@ -18,6 +18,8 @@ class FaceCameraService {
   bool get mirrorHorizontal => true;
   int get rotationDegrees => 0;
   double get nativeAspectRatio => 3 / 4;
+  String? get lastError => null;
+  String? get webViewType => null;
 
   Future<bool> requestPermissions() async => false;
 

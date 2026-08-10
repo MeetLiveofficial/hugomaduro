@@ -66,6 +66,18 @@ class CallService {
         Map<String, dynamic>.from(json['data'] as Map? ?? {}));
   }
 
+  Future<Map<String, dynamic>> updateCallPrice({required int callPrice}) async {
+    final json = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.call.updateCallPrice,
+      param: {'call_price': callPrice},
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'update call price failed');
+    }
+    return Map<String, dynamic>.from(json['data'] as Map? ?? {});
+  }
+
   Future<CallRequestModel> _mutate(String url, int callRequestId) async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: url,

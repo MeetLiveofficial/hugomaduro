@@ -41,12 +41,20 @@ class FaceFilterPipeline {
 
   ValueListenable<FaceMeshFrame?> get frameListenable => mesh.frameNotifier;
 
-  bool get isReady => _running && camera.isReady && mesh.isInitialized;
+  bool get isReady =>
+      _running && camera.isReady && (kIsWeb || mesh.isInitialized);
 
   Future<bool> start({
     CameraLensDirection preferred = CameraLensDirection.front,
   }) async {
-    if (kIsWeb) return false;
+    // Web: preview getUserMedia + beauty shader (sin MediaPipe nativo).
+    if (kIsWeb) {
+      await beauty.load();
+      beauty.setIntensity(defaultBeautyIntensity);
+      final ok = await camera.initialize(preferred: preferred);
+      _running = ok;
+      return ok;
+    }
     await mesh.initialize();
     // Cargar shader en paralelo a la cámara (best-effort; Web/Skia → no-op).
     await beauty.load();

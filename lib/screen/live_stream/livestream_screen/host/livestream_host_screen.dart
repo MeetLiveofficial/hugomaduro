@@ -22,6 +22,8 @@ class LivestreamHostScreen extends StatelessWidget {
   final double initialRosy;
   final double initialSmooth;
   final double initialSharpen;
+  final double initialSlimFace;
+  final double initialBigEye;
   final FaceFilterId initialBeautyFilterId;
   final int? initialDeepArFilterId;
 
@@ -34,6 +36,8 @@ class LivestreamHostScreen extends StatelessWidget {
     this.initialRosy = 40,
     this.initialSmooth = 55,
     this.initialSharpen = 35,
+    this.initialSlimFace = 0,
+    this.initialBigEye = 0,
     this.initialBeautyFilterId = FaceFilterId.none,
     this.initialDeepArFilterId,
   });
@@ -51,6 +55,8 @@ class LivestreamHostScreen extends StatelessWidget {
       controller.rosy.value = initialRosy;
       controller.smooth.value = initialSmooth;
       controller.sharpen.value = initialSharpen;
+      controller.slimFace.value = initialSlimFace;
+      controller.bigEye.value = initialBigEye;
       controller.selectedBeautyFilterId.value = initialBeautyFilterId;
       controller.selectedDeepArFilterId.value = initialDeepArFilterId;
       controller.beautyPrefsApplied = true;

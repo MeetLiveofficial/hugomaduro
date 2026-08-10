@@ -14,8 +14,21 @@ class TasksScreenController extends BaseController {
   final eligibility = Rxn<Map<String, dynamic>>();
   final periodKey = ''.obs;
   final pageLoading = true.obs;
+  final buckets = TaskBuckets(
+    livePoints: 0,
+    liveMax: 120,
+    otherPoints: 0,
+    otherMax: 30,
+    targetTotal: 150,
+  ).obs;
+  final weeklyCallGrade = ''.obs;
 
-  static const tabCodes = ['daily', 'special', 'bonus'];
+  /// Prefer API order; fallback labels for known codes.
+  List<String> get visibleTabCodes {
+    final codes = categories.map((c) => c.code).toList();
+    if (codes.isNotEmpty) return codes;
+    return const ['live', 'other', 'private_bc'];
+  }
 
   @override
   void onInit() {
@@ -23,7 +36,6 @@ class TasksScreenController extends BaseController {
     loadTasks();
   }
 
-  /// Mantiene perfil / sesión alineados con el saldo real tras auto-claim.
   void _syncWithdrawalPoints(int points) {
     withdrawalPoints.value = points;
 
@@ -40,10 +52,8 @@ class TasksScreenController extends BaseController {
           Get.find<ProfileScreenController>(tag: ProfileScreenController.tag);
       final current = profile.userData.value;
       if (current != null && current.id == meId) {
-        profile.userData.value =
-            current.copyWith(withdrawalPoints: points);
-        profile.profileController
-            .updateUser(profile.userData.value);
+        profile.userData.value = current.copyWith(withdrawalPoints: points);
+        profile.profileController.updateUser(profile.userData.value);
       }
     }
 
@@ -65,9 +75,14 @@ class TasksScreenController extends BaseController {
       final res = await TaskService.instance.list();
       if (res.status == true && res.data != null) {
         categories.assignAll(res.data!.categories);
+        buckets.value = res.data!.buckets;
+        weeklyCallGrade.value = res.data!.weeklyCallGrade ?? '';
         _syncWithdrawalPoints(res.data!.withdrawalPoints);
         eligibility.value = res.data!.eligibilityPreview;
         periodKey.value = res.data!.periodKey;
+        if (selectedTab.value >= visibleTabCodes.length) {
+          selectedTab.value = 0;
+        }
       } else {
         showSnackBar(res.message ?? LKey.somethingWentWrong.tr);
       }
@@ -80,11 +95,31 @@ class TasksScreenController extends BaseController {
 
   TaskCategoryGroup? get currentCategory {
     if (categories.isEmpty) return null;
-    final code = tabCodes[selectedTab.value.clamp(0, tabCodes.length - 1)];
+    final codes = visibleTabCodes;
+    final code = codes[selectedTab.value.clamp(0, codes.length - 1)];
     try {
       return categories.firstWhere((c) => c.code == code);
     } catch (_) {
       return categories.first;
+    }
+  }
+
+  String tabLabel(String code) {
+    switch (code) {
+      case 'live':
+        return 'LIVE';
+      case 'other':
+        return 'Otras';
+      case 'private_bc':
+        return 'B/C';
+      case 'daily':
+        return LKey.dailyTasks.tr;
+      case 'special':
+        return LKey.specialTasks.tr;
+      case 'bonus':
+        return LKey.bonusTasks.tr;
+      default:
+        return code;
     }
   }
 

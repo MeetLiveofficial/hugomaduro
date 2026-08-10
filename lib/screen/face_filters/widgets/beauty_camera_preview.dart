@@ -22,7 +22,8 @@ class BeautyLook {
   });
 
   final double intensity;
-  /// 0 Soft/Natural · 1 Porcelain · 2 Fresh · 3 Warm · 4 Rose · 5 Beauty HD
+  /// 0 Soft · 1 Porcelain · 2 Fresh · 3 Warm · 4 Rose · 5 Beauty HD
+  /// 6 Dewy · 7 Matte · 8 Peach · 9 Night · 10 Crystal · 11 Glass
   final double mode;
   /// 0–1 — lift / whiten overlay (responde al slider en vivo).
   final double whiten;
@@ -80,10 +81,10 @@ BeautyLook beautyLookFromSliders({
 
   // Mínimo visible: si beauty está On, el overlay debe notarse en LIVE.
   final intensity = (base *
-          (0.40 + 0.60 * s) *
-          (0.82 + 0.18 * sh) *
-          (0.85 + 0.15 * (0.55 * w + 0.45 * r)))
-      .clamp(0.35, 1.0);
+          (0.55 + 0.45 * s) *
+          (0.85 + 0.15 * sh) *
+          (0.80 + 0.20 * (0.55 * w + 0.45 * r)))
+      .clamp(0.45, 1.0);
 
   return BeautyLook(
     intensity: intensity,
@@ -224,8 +225,8 @@ class BeautyFiltered extends StatelessWidget {
         final mode = controller.mode;
         final tint = _tintColor(mode);
         // Lift suave y neutro (sin velo crema/amarillo).
-        final lift = (_liftAlpha(mode, intensity) + 0.10 * whiten).clamp(0.0, 0.18);
-        final rosyAlpha = (0.22 * rosy).clamp(0.0, 0.14);
+        final lift = (_liftAlpha(mode, intensity) + 0.18 * whiten).clamp(0.0, 0.28);
+        final rosyAlpha = (0.28 * rosy).clamp(0.0, 0.18);
 
         Widget layered = child;
 
@@ -255,10 +256,10 @@ class BeautyFiltered extends StatelessWidget {
           } catch (_) {}
         }
 
-        // Soft even-skin: blanco neutro, no crema.
-        final smoothVeil = (0.03 + 0.06 * intensity).clamp(0.0, 0.10);
-        // Tinte del look solo en el centro y muy suave (antes teñía toda la pantalla).
-        final tintCenter = (0.02 + 0.05 * intensity).clamp(0.0, 0.07);
+        // Soft even-skin (fallback sin GPUPixel; debe notarse al mover sliders).
+        final smoothVeil = (0.05 + 0.12 * intensity + 0.08 * whiten).clamp(0.0, 0.18);
+        // Tinte del look solo en el centro.
+        final tintCenter = (0.03 + 0.08 * intensity).clamp(0.0, 0.12);
 
         return Stack(
           fit: StackFit.expand,

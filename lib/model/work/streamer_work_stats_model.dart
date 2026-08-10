@@ -4,6 +4,7 @@ class StreamerWorkStats {
     required this.today,
     required this.weeklyLevel,
     required this.benefits,
+    this.callPricing,
   });
 
   factory StreamerWorkStats.fromJson(Map<String, dynamic> json) {
@@ -18,6 +19,10 @@ class StreamerWorkStats {
           .map((e) => e.toString())
           .where((e) => e.isNotEmpty)
           .toList(),
+      callPricing: json['call_pricing'] is Map
+          ? WorkCallPricing.fromJson(
+              Map<String, dynamic>.from(json['call_pricing']))
+          : null,
     );
   }
 
@@ -25,6 +30,39 @@ class StreamerWorkStats {
   final WorkTodayStats today;
   final WorkWeeklyLevel weeklyLevel;
   final List<String> benefits;
+  final WorkCallPricing? callPricing;
+}
+
+class WorkCallPricing {
+  WorkCallPricing({
+    this.canEdit = false,
+    this.grade = 'NEW',
+    this.levelPrice = 0,
+    this.overridePrice,
+    this.effectivePrice = 0,
+    this.min = 0,
+    this.max = 0,
+  });
+
+  factory WorkCallPricing.fromJson(Map<String, dynamic> json) {
+    return WorkCallPricing(
+      canEdit: json['can_edit'] == true,
+      grade: json['grade']?.toString() ?? 'NEW',
+      levelPrice: _asInt(json['level_price']) ?? 0,
+      overridePrice: _asInt(json['override_price']),
+      effectivePrice: _asInt(json['effective_price']) ?? 0,
+      min: _asInt(json['min']) ?? 0,
+      max: _asInt(json['max']) ?? 0,
+    );
+  }
+
+  final bool canEdit;
+  final String grade;
+  final int levelPrice;
+  final int? overridePrice;
+  final int effectivePrice;
+  final int min;
+  final int max;
 }
 
 class WorkUserStats {

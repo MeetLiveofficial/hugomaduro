@@ -7,10 +7,10 @@ import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
-import 'package:krimson/screen/deepar/deepar.dart';
-import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 import 'package:krimson/screen/face_filters/widgets/face_camera_preview_stack.dart';
 import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
+import 'package:krimson/screen/face_filters/widgets/web_camera_preview.dart';
+import 'package:krimson/screen/gpupixel/gpupixel.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -102,23 +102,53 @@ class _StudioBackdrop extends StatelessWidget {
     final profileUrl = (me?.profilePhoto ?? '').trim();
 
     return Obx(() {
-      final deepArReady = controller.useDeepAr &&
+      final gpuReady = !kIsWeb &&
           controller.cameraPreviewActive.value &&
-          controller.deepAr.isReady.value &&
-          !kIsWeb;
-      final previewCam = !controller.useDeepAr &&
+          controller.gpuPixelPreviewActive.value &&
+          controller.gpuPixel.hasTexture;
+      final webCamReady = kIsWeb &&
           controller.cameraPreviewActive.value &&
           controller.beautyPipeline.isReady &&
-          !kIsWeb;
+          (controller.beautyPipeline.camera.webViewType ?? '').isNotEmpty;
 
-      if (deepArReady) {
+      if (gpuReady) {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // Beauty overlays encima de DeepAR.
-            BeautyFiltered(
-              controller: controller.beautyPipeline.beauty,
-              child: DeepArPreview(controller: controller.deepAr),
+            GpuPixelPreview(controller: controller.gpuPixel),
+            Positioned(
+              left: 16,
+              bottom: 200,
+              child: _CoverBadge(controller: controller),
+            ),
+          ],
+        );
+      }
+
+      if (webCamReady) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            WebCameraPreview(
+              viewType: controller.beautyPipeline.camera.webViewType!,
+            ),
+            Positioned(
+              left: 12,
+              right: 12,
+              top: 100,
+              child: Material(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  child: Text(
+                    'Web: preview de cámara + belleza por shader. '
+                    'GPUPixel nativo = Android/iOS.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ),
+              ),
             ),
             Positioned(
               left: 16,
@@ -129,7 +159,12 @@ class _StudioBackdrop extends StatelessWidget {
         );
       }
 
-      if (previewCam) {
+      final nativeFallbackReady = !kIsWeb &&
+          controller.cameraPreviewActive.value &&
+          !controller.gpuPixelPreviewActive.value &&
+          controller.beautyPipeline.isReady;
+
+      if (nativeFallbackReady) {
         return Stack(
           fit: StackFit.expand,
           children: [
@@ -137,12 +172,12 @@ class _StudioBackdrop extends StatelessWidget {
               boundaryKey: controller.beautyPreviewKey,
               controller: controller.beautyPipeline.camera.controller,
               isReady: controller.beautyPipeline.isReady,
-              nativeAspectRatio: controller.beautyPipeline.camera.nativeAspectRatio,
+              nativeAspectRatio:
+                  controller.beautyPipeline.camera.nativeAspectRatio,
               frameListenable: controller.beautyPipeline.frameListenable,
               effectId: controller.selectedFilterId.value,
               beauty: controller.beautyPipeline.beauty,
             ),
-            // Miniatura de portada: no se mezcla con el preview de cámara.
             Positioned(
               left: 16,
               bottom: 200,
@@ -178,41 +213,46 @@ class _StudioBackdrop extends StatelessWidget {
           bg,
           const ColoredBox(color: Color(0x66000000)),
           Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black.withValues(alpha: 0.45),
-                    border: Border.all(color: Colors.white24),
+            child: GestureDetector(
+              onTap: controller.startBeautyCameraPreview,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.45),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Icon(Icons.videocam_rounded,
+                        color: Colors.white70, size: 36),
                   ),
-                  child: const Icon(Icons.videocam_rounded,
-                      color: Colors.white70, size: 36),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  LKey.goLive.tr,
-                  style: TextStyleCustom.outFitSemiBold600(
-                    color: Colors.white,
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Text(
-                    'Elige portada · abre Beauty para ver tu cámara',
-                    textAlign: TextAlign.center,
-                    style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70,
-                      fontSize: 13,
+                  const SizedBox(height: 14),
+                  Text(
+                    LKey.goLive.tr,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 18,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Text(
+                      kIsWeb
+                          ? 'Toca para abrir la cámara (permiso del navegador)'
+                          : 'Abriendo belleza GPUPixel…',
+                      textAlign: TextAlign.center,
+                      style: TextStyleCustom.outFitRegular400(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -347,6 +387,12 @@ class _RightControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             CustomBorderRoundIcon(
+              widget: const Icon(Icons.face_retouching_natural,
+                  color: Colors.white, size: 22),
+              onTap: controller.openPreLiveBeauty,
+            ),
+            const SizedBox(height: 14),
+            CustomBorderRoundIcon(
               widget: const Icon(Icons.image_outlined,
                   color: Colors.white, size: 22),
               onTap: controller.pickLiveCover,
@@ -364,7 +410,7 @@ class _RightControls extends StatelessWidget {
   }
 }
 
-/// Carrusel de filtros visible sobre la cámara (pre-live).
+/// Carrusel de looks GPUPixel (BeautyFace + FaceReshape).
 class _PreLiveFiltersBar extends StatelessWidget {
   final LiveStreamSearchScreenController controller;
 
@@ -373,19 +419,13 @@ class _PreLiveFiltersBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final deepArOn = controller.useDeepAr;
       return Padding(
         padding: const EdgeInsets.only(bottom: 6),
-        child: deepArOn
-            ? DeepArFilterCarousel(
-                selectedId: controller.deepAr.selectedFilterId.value,
-                onSelected: controller.onPreLiveDeepArFilterTap,
-              )
-            : FaceFilterCarousel(
-                selectedId: controller.selectedFilterId.value,
-                effects: controller.filterCatalog.effects.toList(),
-                onSelected: controller.onPreLiveFilterTap,
-              ),
+        child: FaceFilterCarousel(
+          selectedId: controller.selectedFilterId.value,
+          effects: GpuPixelLooks.catalog,
+          onSelected: controller.onPreLiveFilterTap,
+        ),
       );
     });
   }

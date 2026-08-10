@@ -28,6 +28,18 @@ class FaceFilterPainter extends CustomPainter {
       case FaceFilterId.beautyFresh:
       case FaceFilterId.beautyWarm:
       case FaceFilterId.beautyRose:
+      case FaceFilterId.beautyDewy:
+      case FaceFilterId.beautyMatte:
+      case FaceFilterId.beautyRadiant:
+      case FaceFilterId.beautyClear:
+      case FaceFilterId.beautyVFace:
+      case FaceFilterId.beautyDoll:
+      case FaceFilterId.beautyPeach:
+      case FaceFilterId.beautySilk:
+      case FaceFilterId.beautyCrystal:
+      case FaceFilterId.beautyNight:
+      case FaceFilterId.beautySnatch:
+      case FaceFilterId.beautyGlass:
         break;
       case FaceFilterId.meshDebug:
         _paintMesh(canvas, size, data);

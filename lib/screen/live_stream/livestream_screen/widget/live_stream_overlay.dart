@@ -1357,7 +1357,6 @@ class _ComposerRow extends StatelessWidget {
                     onPause: controller.togglePauseLive,
                     onMic: controller.toggleLiveAudioMute,
                     onCamera: controller.liveKit?.toggleCamera,
-                    networkLabel: controller.networkLabel,
                     qualityLabel: qualityText,
                     battleRunning: battleOn,
                     paused: paused,
