@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/gift_wallet_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/gift_wallet/withdraw_model.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
+import 'package:krimson/screen/kyc_screen/kyc_verification_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -88,9 +91,30 @@ class WithdrawalsScreenController extends BaseController {
       return;
     }
     if (enabledGateways.isEmpty) {
-      showSnackBar('No hay métodos de retiro habilitados');
+      showSnackBar('No hay metodos de retiro habilitados');
       return;
     }
+
+    // KYC una sola vez, solo al retirar (streamers).
+    try {
+      final fresh = await UserService.instance.fetchUserDetails(
+        userId: SessionManager.instance.getUserID(),
+      );
+      if (AppRole.needsKycForWithdrawal(fresh)) {
+        final verified = await Get.to<bool>(
+          () => KycVerificationScreen(user: fresh),
+          routeName: '/kyc',
+        );
+        if (verified != true) {
+          showSnackBar('Debes verificar tu identidad para retirar');
+          return;
+        }
+      }
+    } catch (e) {
+      showSnackBar('No se pudo comprobar la verificacion: $e');
+      return;
+    }
+
     final ok = await Get.bottomSheet<bool>(
       const RequestWithdrawalSheet(),
       isScrollControlled: true,

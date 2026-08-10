@@ -1204,6 +1204,8 @@ class _ComposerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // El carrusel de filtros vive solo en pre-LIVE. Dentro del LIVE se
+    // oculta: el look ya quedó elegido antes de "Go Live" (sheet en panel).
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1349,14 +1351,12 @@ class _ComposerRow extends StatelessWidget {
                   icon: Icons.tune_rounded,
                   tooltip: 'Options',
                   onTap: () => openLiveHostOptionsMenu(
-                    onBeauty: controller.openBeauty,
                     onInvite: controller.openInvite,
                     onBattle: controller.openBattle,
                     onQuality: controller.openQualitySheet,
                     onPause: controller.togglePauseLive,
                     onMic: controller.toggleLiveAudioMute,
                     onCamera: controller.liveKit?.toggleCamera,
-                    networkLabel: controller.networkLabel,
                     qualityLabel: qualityText,
                     battleRunning: battleOn,
                     paused: paused,

@@ -1,4 +1,3 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
@@ -9,24 +8,21 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
-import 'package:krimson/screen/face_filters/widgets/deep_ar_preview_stack.dart';
-import 'package:krimson/screen/face_filters/widgets/face_filter_carousel.dart';
+import 'package:krimson/screen/facebetter/facebetter_style_filters_sheet.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// Un solo botón lateral que abre Options (beauty, mic, pausa, calidad…).
+/// Un solo botón lateral que abre Options (mic, pausa, calidad…).
 class LiveHostActionBar extends StatelessWidget {
-  final VoidCallback onBeauty;
   final VoidCallback onInvite;
   final VoidCallback? onBattle;
   final VoidCallback? onQuality;
   final VoidCallback? onPause;
   final VoidCallback? onMic;
   final VoidCallback? onCamera;
-  final RxString networkLabel;
   final String? qualityLabel;
   final bool battleRunning;
   final bool paused;
@@ -36,9 +32,7 @@ class LiveHostActionBar extends StatelessWidget {
 
   const LiveHostActionBar({
     super.key,
-    required this.onBeauty,
     required this.onInvite,
-    required this.networkLabel,
     this.onBattle,
     this.onQuality,
     this.onPause,
@@ -61,14 +55,12 @@ class LiveHostActionBar extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () => openLiveHostOptionsMenu(
-          onBeauty: onBeauty,
           onInvite: onInvite,
           onBattle: onBattle,
           onQuality: onQuality,
           onPause: onPause,
           onMic: onMic,
           onCamera: onCamera,
-          networkLabel: networkLabel,
           qualityLabel: qualityLabel,
           battleRunning: battleRunning,
           paused: paused,
@@ -100,9 +92,7 @@ class LiveHostActionBar extends StatelessWidget {
 }
 
 void openLiveHostOptionsMenu({
-  required VoidCallback onBeauty,
   required VoidCallback onInvite,
-  required RxString networkLabel,
   VoidCallback? onBattle,
   VoidCallback? onQuality,
   VoidCallback? onPause,
@@ -215,24 +205,6 @@ void openLiveHostOptionsMenu({
                           },
                         ),
                       _HostOptionTile(
-                        icon: Icons.auto_awesome,
-                        title: LKey.beautySettings.tr,
-                        subtitle: LKey.gettingPrettier.tr,
-                        onTap: () {
-                          Get.back();
-                          onBeauty();
-                        },
-                      ),
-                      Obx(() => _HostOptionTile(
-                            icon: networkIconForLabel(networkLabel.value),
-                            title: LKey.networkConnection.tr,
-                            subtitle: networkLabel.value,
-                            onTap: () {
-                              Get.back();
-                              openNetworkInfoSheet(networkLabel.value);
-                            },
-                          )),
-                      _HostOptionTile(
                         icon: Icons.group_add,
                         title: LKey.inviteFriends.tr,
                         subtitle: LKey.inviteToLiveBonus.tr,
@@ -295,6 +267,54 @@ class _HostOptionTile extends StatelessWidget {
   }
 }
 
+/// Sheet de filtros estilo FaceBetter (demo.facebetter.net).
+Future<bool?> openLiveFiltersSheet({
+  required RxBool beautyOn,
+  required Future<void> Function() onApply,
+  Rx<FaceFilterId>? selectedFilterId,
+  List<FaceFilterEffect>? styleEffects,
+  ValueChanged<FaceFilterId>? onStyleSelected,
+  bool useDeepArFilters = false,
+  RxnInt? deepArSelectedId,
+  ValueChanged<DeepARFilters?>? onDeepArStyleSelected,
+  /// Sliders nativos (0–100).
+  RxDouble? whiten,
+  RxDouble? smooth,
+  RxDouble? rosy,
+  RxDouble? sharpen,
+  RxDouble? slimFace,
+  RxDouble? bigEye,
+}) {
+  final effects = styleEffects ?? FaceFilterEffect.catalog;
+  return Get.bottomSheet<bool>(
+    SafeArea(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: FaceBetterStyleFiltersPanel(
+          beautyOn: beautyOn,
+          onApply: onApply,
+          selectedFilterId: selectedFilterId,
+          styleEffects: effects,
+          onStyleSelected: onStyleSelected,
+          useDeepArFilters: useDeepArFilters,
+          deepArSelectedId: deepArSelectedId,
+          onDeepArStyleSelected: onDeepArStyleSelected,
+          whiten: whiten,
+          smooth: smooth,
+          rosy: rosy,
+          sharpen: sharpen,
+          slimFace: slimFace,
+          bigEye: bigEye,
+        ),
+      ),
+    ),
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black26,
+  );
+}
+
+/// @Deprecated — usar [openLiveFiltersSheet].
 Future<bool?> openLiveBeautySheet({
   required LivestreamScreenController? liveController,
   required RxDouble whiten,
@@ -307,259 +327,24 @@ Future<bool?> openLiveBeautySheet({
   List<FaceFilterEffect>? styleEffects,
   ValueChanged<FaceFilterId>? onStyleSelected,
   bool showAcceptButton = false,
-  /// Si true: carrusel DeepAR (efectos .deepar del panel); oculta sliders.
-  bool useDeepAr = false,
-  List<DeepARFilters>? deepArFilters,
-  Rxn<int>? selectedDeepArFilterId,
-  ValueChanged<DeepARFilters?>? onDeepArFilterSelected,
+  bool useDeepArFilters = false,
+  RxnInt? deepArSelectedId,
+  ValueChanged<DeepARFilters?>? onDeepArStyleSelected,
 }) {
-  final effects = styleEffects ?? FaceFilterEffect.catalog;
-  final deepFilters = deepArFilters ?? const <DeepARFilters>[];
-  final ctx = Get.context!;
-  final maxH = MediaQuery.sizeOf(ctx).height *
-      (useDeepAr
-          ? (showAcceptButton ? 0.36 : 0.30)
-          : (showAcceptButton ? 0.46 : 0.40));
-
-  return Get.bottomSheet<bool>(
-    SafeArea(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxH),
-          child: Material(
-            color: whitePure(ctx),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            clipBehavior: Clip.antiAlias,
-            child: Obx(() {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 3,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: bgGrey(ctx),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            useDeepAr
-                                ? 'DeepAR Filters'
-                                : LKey.beautySettings.tr,
-                            style: TextStyleCustom.unboundedSemiBold600(
-                              color: textDarkGrey(ctx),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          beautyOn.value ? 'On' : 'Off',
-                          style: TextStyleCustom.outFitMedium500(
-                            color: textLightGrey(ctx),
-                            fontSize: 12,
-                          ),
-                        ),
-                        Switch.adaptive(
-                          value: beautyOn.value,
-                          activeThumbColor: themeAccentSolid(ctx),
-                          activeTrackColor:
-                              themeAccentSolid(ctx).withValues(alpha: 0.45),
-                          onChanged: (v) {
-                            beautyOn.value = v;
-                            onApply();
-                          },
-                        ),
-                      ],
-                    ),
-                    Flexible(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (!useDeepAr) ...[
-                              _BeautySlider(
-                                label: 'Whiten',
-                                value: whiten,
-                                enabled: beautyOn.value,
-                                onChanged: (_) => onApply(),
-                              ),
-                              _BeautySlider(
-                                label: 'Rosy',
-                                value: rosy,
-                                enabled: beautyOn.value,
-                                onChanged: (_) => onApply(),
-                              ),
-                              _BeautySlider(
-                                label: 'Smooth',
-                                value: smooth,
-                                enabled: beautyOn.value,
-                                onChanged: (_) => onApply(),
-                              ),
-                              _BeautySlider(
-                                label: 'Sharpen',
-                                value: sharpen,
-                                enabled: beautyOn.value,
-                                onChanged: (_) => onApply(),
-                              ),
-                            ] else ...[
-                              Text(
-                                'Efectos reales (.deepar) del panel. Free: watermark + 10 MAU.',
-                                style: TextStyleCustom.outFitRegular400(
-                                  color: textLightGrey(ctx),
-                                  fontSize: 11,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                            ],
-                            const SizedBox(height: 4),
-                            Text(
-                              useDeepAr ? 'Effects' : 'Styles',
-                              style: TextStyleCustom.outFitMedium500(
-                                color: textDarkGrey(ctx),
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            if (useDeepAr)
-                              DeepArFilterCarousel(
-                                filters: deepFilters,
-                                selectedId: selectedDeepArFilterId?.value,
-                                onSelected: (filter) {
-                                  if (filter != null) beautyOn.value = true;
-                                  selectedDeepArFilterId?.value = filter?.id;
-                                  onDeepArFilterSelected?.call(filter);
-                                  onApply();
-                                },
-                              )
-                            else if (onStyleSelected != null &&
-                                selectedFilterId != null)
-                              FaceFilterCarousel(
-                                selectedId: selectedFilterId.value,
-                                effects: effects,
-                                onSelected: (id) {
-                                  if (id.isBeautyGpu && !beautyOn.value) {
-                                    beautyOn.value = true;
-                                  }
-                                  onStyleSelected(id);
-                                  onApply();
-                                },
-                              )
-                            else
-                              FaceFilterCarousel(
-                                selectedId: FaceFilterId.none,
-                                effects: effects,
-                                onSelected: (_) {},
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (showAcceptButton) ...[
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 44,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: themeAccentSolid(ctx),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(22),
-                            ),
-                          ),
-                          onPressed: () async {
-                            beautyOn.value = true;
-                            if (!useDeepAr &&
-                                selectedFilterId != null &&
-                                !selectedFilterId.value.isBeautyGpu &&
-                                selectedFilterId.value == FaceFilterId.none) {
-                              selectedFilterId.value = FaceFilterId.beautySoft;
-                              onStyleSelected?.call(FaceFilterId.beautySoft);
-                            }
-                            await onApply();
-                            Get.back(result: true);
-                          },
-                          child: Text(
-                            'Aceptar filtro',
-                            style: TextStyleCustom.outFitSemiBold600(
-                              color: Colors.white,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
-    ),
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    barrierColor: Colors.black26,
+  return openLiveFiltersSheet(
+    beautyOn: beautyOn,
+    onApply: onApply,
+    selectedFilterId: selectedFilterId,
+    styleEffects: styleEffects,
+    onStyleSelected: onStyleSelected,
+    useDeepArFilters: useDeepArFilters,
+    deepArSelectedId: deepArSelectedId,
+    onDeepArStyleSelected: onDeepArStyleSelected,
+    whiten: whiten,
+    smooth: smooth,
+    rosy: rosy,
+    sharpen: sharpen,
   );
-}
-
-class _BeautySlider extends StatelessWidget {
-  final String label;
-  final RxDouble value;
-  final bool enabled;
-  final ValueChanged<double> onChanged;
-
-  const _BeautySlider({
-    required this.label,
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$label ${value.value.round()}',
-              style: TextStyleCustom.outFitRegular400(
-                color: textLightGrey(context),
-                fontSize: 11,
-              ),
-            ),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 2,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-              ),
-              child: Slider(
-                value: value.value,
-                min: 0,
-                max: 100,
-                divisions: 20,
-                activeColor: themeAccentSolid(context),
-                onChanged: enabled
-                    ? (v) {
-                        value.value = v;
-                        onChanged(v);
-                      }
-                    : null,
-              ),
-            ),
-          ],
-        ));
-  }
 }
 
 Future<void> openLiveInviteSheet({
@@ -735,121 +520,6 @@ Future<void> openLiveInviteSheet({
     ),
     isScrollControlled: true,
   ).whenComplete(searchCtrl.dispose);
-}
-
-String networkLabelFromResults(List<ConnectivityResult> results) {
-  if (results.contains(ConnectivityResult.none) || results.isEmpty) {
-    return LKey.networkOffline.tr;
-  }
-  if (results.contains(ConnectivityResult.wifi)) {
-    return LKey.networkWifi.tr;
-  }
-  if (results.contains(ConnectivityResult.mobile)) {
-    return LKey.networkMobile.tr;
-  }
-  if (results.contains(ConnectivityResult.ethernet)) {
-    return 'Ethernet';
-  }
-  return results.first.name;
-}
-
-IconData networkIconForLabel(String label) {
-  final lower = label.toLowerCase();
-  if (lower.contains('off') || lower.contains('sin')) {
-    return Icons.wifi_off;
-  }
-  if (lower.contains('mobile') || lower.contains('móvil') || lower.contains('movil')) {
-    return Icons.signal_cellular_alt;
-  }
-  if (lower.contains('ethernet')) {
-    return Icons.settings_ethernet;
-  }
-  return Icons.wifi;
-}
-
-void openNetworkInfoSheet(String networkLabel) {
-  final isOffline = networkLabel.toLowerCase().contains('off') ||
-      networkLabel.toLowerCase().contains('sin');
-  final isWifi = networkLabel.toLowerCase().contains('wi');
-  final tip = isOffline
-      ? 'Sin conexión. Conéctate a Wi‑Fi o datos móviles para transmitir.'
-      : isWifi
-          ? 'Wi‑Fi estable recomendado para LIVE. Evita cambiar de red durante la transmisión.'
-          : 'Estás en datos móviles. El LIVE puede consumir mucha data y tener más latencia.';
-
-  Get.bottomSheet(
-    Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black12,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                Icon(networkIconForLabel(networkLabel), size: 28),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    LKey.networkConnection.tr,
-                    style: TextStyleCustom.unboundedSemiBold600(
-                      color: Colors.black87,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              networkLabel,
-              style: TextStyleCustom.outFitMedium500(
-                color: themeAccentSolid(Get.context!),
-                fontSize: 15,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              tip,
-              style: TextStyleCustom.outFitRegular400(
-                color: Colors.black54,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: Get.back,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeColor(Get.context!),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 /// Desplegable de tareas durante el LIVE (estilo Options).

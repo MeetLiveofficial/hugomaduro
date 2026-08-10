@@ -1,16 +1,7 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# GPUPixel prebuilt (zips grandes; el AAR/framework van en packages/gpupixel_flutter)
+third_party/gpupixel/*.zip
+third_party/gpupixel/android/aar_unzip/
+third_party/gpupixel/android/classes/
 
 # IntelliJ related
 *.iml
@@ -61,3 +52,10 @@ android/app/src/main/res/values/strings.xml
 release/
 *.hprof
 *.lock
+# FaceBetter secrets (AppID/AppKey)
+lib/facebetter_secrets.dart
+packages/facebetter_flutter/android/libs/sdk.zip
+packages/facebetter_flutter/android/libs/_extract/
+packages/facebetter_flutter/android/libs/aar_unpacked/
+packages/facebetter_flutter/android/libs/facebetter.aar
+

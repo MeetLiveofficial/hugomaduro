@@ -19,6 +19,11 @@ class WebService {
   static var privilege = _Privilege();
   static var task = _Task();
   static var filter = _Filter();
+  static var app = _App();
+}
+
+class _App {
+  String checkUpdate = "${apiURL}app/checkUpdate";
 }
 
 class _Filter {
@@ -49,6 +54,7 @@ class _Call {
   String cancel = "${apiURL}call/cancel";
   String end = "${apiURL}call/end";
   String workStats = "${apiURL}call/workStats";
+  String updateCallPrice = "${apiURL}call/updateCallPrice";
 }
 
 class _Chat {
@@ -125,6 +131,7 @@ class _User {
   String deleteMyAccount = "${apiURL}user/deleteMyAccount";
   String logOutUser = "${apiURL}user/logOutUser";
   String subscribePlus = "${apiURL}user/subscribePlus";
+  String startKyc = "${apiURL}user/startKyc";
   String fetchUserDetails = "${apiURL}user/fetchUserDetails";
   String updateUserDetails = "${apiURL}user/updateUserDetails";
   String checkUsernameAvailability = "${apiURL}user/checkUsernameAvailability";

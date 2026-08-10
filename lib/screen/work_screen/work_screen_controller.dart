@@ -26,4 +26,17 @@ class WorkScreenController extends BaseController {
   }
 
   void toggleDetail() => showDetail.toggle();
+
+  Future<void> updateCallPrice(int price) async {
+    showLoader();
+    try {
+      await CallService.instance.updateCallPrice(callPrice: price);
+      await loadStats();
+      showSnackBar('Call price updated');
+    } catch (e) {
+      showSnackBar(e.toString());
+    } finally {
+      stopLoader();
+    }
+  }
 }

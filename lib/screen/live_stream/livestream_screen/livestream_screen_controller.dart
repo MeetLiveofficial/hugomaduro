@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -37,6 +36,7 @@ import 'package:krimson/screen/live_stream/livestream_screen/widget/live_private
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/screen/face_filters/services/deep_ar_service.dart';
 import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
+import 'package:krimson/screen/gpupixel/gpupixel.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -80,17 +80,19 @@ class LivestreamScreenController extends BaseController {
   final RxBool mediaReady = false.obs;
   final RxString statusMessage = ''.obs;
 
-  final RxString networkLabel = LKey.networkWifi.obs;
   final RxBool beautyOn = false.obs;
   final RxDouble whiten = 50.0.obs;
   final RxDouble rosy = 40.0.obs;
   final RxDouble smooth = 55.0.obs;
   final RxDouble sharpen = 35.0.obs;
+  /// Perfilado / ojos grandes (GPUPixel FaceReshapeFilter), 0–100.
+  final RxDouble slimFace = 0.0.obs;
+  final RxDouble bigEye = 0.0.obs;
   final Rx<FaceFilterId> selectedBeautyFilterId = FaceFilterId.none.obs;
   final RxnInt selectedDeepArFilterId = RxnInt();
   final BeautyShaderController beautyShader = BeautyShaderController();
-  DeepArService get deepAr => DeepArService.instance;
-  bool get useDeepAr => deepAr.isConfigured;
+  /// Motor nativo GPUPixel (preview/params). En LIVE la cámara la tiene LiveKit.
+  final GpuPixelController gpuPixel = GpuPixelController();
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxList<User> inviteCandidates = <User>[].obs;
   final RxBool inviteLoading = false.obs;
@@ -150,7 +152,6 @@ class LivestreamScreenController extends BaseController {
   /// Última sala LiveKit a la que nos conectamos (para detectar cambio post-PK).
   String? _connectedLiveKitRoom;
 
-  StreamSubscription<List<ConnectivityResult>>? _netSub;
   StreamSubscription? _dataSub;
   Timer? _sessionPoll;
   Timer? _commentPoll;
@@ -276,7 +277,6 @@ class LivestreamScreenController extends BaseController {
     if (isBattleRunning.value || isBattleWaiting.value) {
       battleLikeForUserId.value ??= livestream.hostId;
     }
-    _listenNetwork();
     _startLiveElapsedTicker();
     if (isHost) {
       beautyShader.load().then((_) => applyBeauty());
@@ -382,16 +382,6 @@ class LivestreamScreenController extends BaseController {
       SystemUiMode.manual,
       overlays: SystemUiOverlay.values,
     );
-  }
-
-  void _listenNetwork() {
-    final connectivity = Connectivity();
-    connectivity.checkConnectivity().then((r) {
-      networkLabel.value = networkLabelFromResults(r);
-    });
-    _netSub = connectivity.onConnectivityChanged.listen((r) {
-      networkLabel.value = networkLabelFromResults(r);
-    });
   }
 
   Future<void> _bootstrap() async {
@@ -954,6 +944,9 @@ class LivestreamScreenController extends BaseController {
     });
     ever(liveKit!.mediaRevision, (_) {
       _syncViewersFromLiveKit();
+      if (isHost) {
+        applyBeauty();
+      }
       update();
     });
 
@@ -966,12 +959,16 @@ class LivestreamScreenController extends BaseController {
         publishCamera: shouldPublishAv,
         publishMicrophone: shouldPublishAv,
         wsUrl: liveKitWsUrl,
-        forceProfile: LiveKitQualityProfile.low,
+        forceProfile: LiveKitQualityProfile.medium,
         // Si quedó una conexión fantasma (sala no cerrada), forzar rejoin.
         forceReconnect: liveKit!.isConnected.value &&
             liveKit!.connectedRoomName != avRoomId,
       );
       _connectedLiveKitRoom = avRoomId;
+      // Reaplicar beauty del pre-live cuando ya hay track de cámara.
+      if (isHost) {
+        await applyBeauty();
+      }
     } catch (e) {
       // No tumbar el LIVE: chat sigue; UI ofrece Reintentar.
       Loggers.error('live join LiveKit: $e');
@@ -1992,66 +1989,83 @@ class LivestreamScreenController extends BaseController {
     }
   }
 
-  /// Beauty sobre el preview local (shader GPU; ColorFilter de respaldo).
+  /// Beauty: shader Flutter (overlay LIVE) + params GPUPixel nativos.
+  /// Nota: sin gpuPixel.start() en LIVE (cámara = LiveKit). applyParams es no-op
+  /// hasta ExternalVideoTrack; el overlay BeautyShader sí refleja los looks.
   Future<void> applyBeauty() async {
     if (kIsWeb || isDummy) return;
     await beautyShader.load();
-    if (!beautyOn.value) {
-      beautyShader.setLook(const BeautyLook(intensity: 0, mode: 0));
-      return;
-    }
-    final w = (whiten.value / 100.0).clamp(0.0, 1.0);
-    final r = (rosy.value / 100.0).clamp(0.0, 1.0);
-    final s = (smooth.value / 100.0).clamp(0.0, 1.0);
-    final sh = (sharpen.value / 100.0).clamp(0.0, 1.0);
-    // Intensidad maestra: mezcla de sliders (smooth pesa más).
-    final sliderMaster =
-        (0.45 * s + 0.25 * w + 0.20 * r + 0.10 * sh).clamp(0.15, 1.0);
-
     final style = selectedBeautyFilterId.value;
-    if (style.isBeautyGpu) {
-      final look = style.beautyLook;
-      if (look != null) {
-        final scaled =
-            (look.intensity * (0.55 + 0.45 * s)).clamp(0.25, 1.0);
-        beautyShader.setLook(BeautyLook(
-          intensity: scaled,
-          mode: look.mode,
-          whiten: w,
-          rosy: r,
-          smooth: s,
-          sharpen: sh,
-        ));
-      }
+    final preset = style.isBeautyGpu ? style.beautyLook : null;
+    if (!beautyOn.value || preset == null) {
+      beautyShader.setLook(const BeautyLook(intensity: 0, mode: 0));
+    } else {
+      beautyShader.setLook(
+        BeautyLook(
+          intensity: preset.intensity.clamp(0.5, 1.0),
+          mode: preset.mode,
+          whiten: (whiten.value / 100.0).clamp(0.0, 1.0),
+          rosy: (rosy.value / 100.0).clamp(0.0, 1.0),
+          sharpen: (sharpen.value / 100.0).clamp(0.0, 1.0),
+        ),
+      );
+    }
+    await gpuPixel.applyParams(
+      GpuPixelBeautyParams.fromSliders(
+        enabled: beautyOn.value,
+        whiten: whiten.value,
+        smooth: smooth.value,
+        slimFace: slimFace.value,
+        bigEye: bigEye.value,
+      ),
+      debounce: false,
+    );
+  }
+
+  /// Tap filtro DeepAR en LIVE.
+  ///
+  /// LiveKit publica la cámara nativa (DeepAR no puede compartir el sensor).
+  /// Se conserva el ID seleccionado y se aplica un beauty suave como aproximación
+  /// (evita el cast amarillo/oscuro del Soft forzado anterior).
+  Future<void> onLiveDeepArFilterSelected(DeepARFilters? filter) async {
+    selectedDeepArFilterId.value = filter?.id;
+    if (filter == null) {
+      selectedBeautyFilterId.value = FaceFilterId.none;
+      beautyOn.value = false;
+      await applyBeauty();
       return;
     }
-    double mode = 0;
-    if (r >= w && r >= 0.45) {
-      mode = 4; // Rose
-    } else if (w >= 0.60) {
-      mode = 1; // Porcelain
-    } else if (w >= 0.45) {
-      mode = 2; // Fresh
-    } else if (r >= 0.35 && w >= 0.35) {
-      mode = 3; // Warm
+    final title = (filter.title ?? '').toLowerCase();
+    FaceFilterId mapped = FaceFilterId.beauty;
+    if (title.contains('rose') || title.contains('pink')) {
+      mapped = FaceFilterId.beautyRose;
+    } else if (title.contains('warm') || title.contains('sun')) {
+      mapped = FaceFilterId.beautyWarm;
+    } else if (title.contains('fresh') || title.contains('cool')) {
+      mapped = FaceFilterId.beautyFresh;
+    } else if (title.contains('porcelain') || title.contains('white')) {
+      mapped = FaceFilterId.beautyPorcelain;
+    } else if (title.contains('natural')) {
+      mapped = FaceFilterId.beautyNatural;
+    } else if (title.contains('soft') || title.contains('makeup')) {
+      mapped = FaceFilterId.beautySoft;
     }
-    beautyShader.setLook(BeautyLook(
-      intensity: sliderMaster,
-      mode: mode,
-      whiten: w,
-      rosy: r,
-      smooth: s,
-      sharpen: sh,
-    ));
+    selectedBeautyFilterId.value = mapped;
+    beautyOn.value = true;
+    // Intensidades moderadas — no el Soft 85/70/90 que oscurecía/amarilleaba.
+    whiten.value = 40;
+    rosy.value = 25;
+    smooth.value = 65;
+    sharpen.value = 30;
+    await applyBeauty();
   }
 
   void openBeauty() {
-    openLiveBeautySheet(
-      liveController: this,
-      whiten: whiten,
-      rosy: rosy,
-      smooth: smooth,
-      sharpen: sharpen,
+    // LIVE: LiveKit posee la cámara. No llamar gpuPixel.start() (conflicto Camera2).
+    // Overlay local = BeautyShader; applyParams solo tiene efecto si el engine
+    // nativo estuviera corriendo (ExternalVideoTrack pendiente).
+    // Docs: https://gpupixel.pixpark.net/guide/intro
+    openLiveFiltersSheet(
       beautyOn: beautyOn,
       onApply: () async {
         if (useDeepAr) {
@@ -2069,25 +2083,26 @@ class LivestreamScreenController extends BaseController {
         await applyBeauty();
       },
       selectedFilterId: selectedBeautyFilterId,
-      styleEffects: FaceFilterEffect.catalog,
-      showAcceptButton: true,
-      useDeepAr: useDeepAr,
-      deepArFilters: deepAr.filters,
-      selectedDeepArFilterId: selectedDeepArFilterId,
-      onDeepArFilterSelected: (f) {
-        selectedDeepArFilterId.value = f?.id;
-        if (f != null) beautyOn.value = true;
-      },
+      styleEffects: GpuPixelLooks.catalog,
+      useDeepArFilters: false,
+      whiten: whiten,
+      smooth: smooth,
+      rosy: rosy,
+      sharpen: sharpen,
+      slimFace: slimFace,
+      bigEye: bigEye,
       onStyleSelected: (id) {
         selectedBeautyFilterId.value = id;
-        if (id.isBeautyGpu) beautyOn.value = true;
-        final look = id.beautyLook;
-        if (look != null && id.isBeautyGpu) {
-          whiten.value = look.whiten * 100;
-          rosy.value = look.rosy * 100;
-          smooth.value = look.smooth * 100;
-          sharpen.value = look.sharpen * 100;
-        }
+        beautyOn.value = id != FaceFilterId.none;
+        GpuPixelLooks.applyToSliders(
+          id,
+          setBeautyOn: (on) => beautyOn.value = on,
+          setWhiten: (v) => whiten.value = v,
+          setSmooth: (v) => smooth.value = v,
+          setSlimFace: (v) => slimFace.value = v,
+          setBigEye: (v) => bigEye.value = v,
+        );
+        applyBeauty();
       },
     );
   }
@@ -2395,7 +2410,7 @@ class LivestreamScreenController extends BaseController {
         publishCamera: shouldPublishAv,
         publishMicrophone: shouldPublishAv,
         wsUrl: liveKitWsUrl,
-        forceProfile: LiveKitQualityProfile.low,
+        forceProfile: LiveKitQualityProfile.medium,
         forceReconnect: true,
       );
       _connectedLiveKitRoom = targetRoom;
@@ -2570,7 +2585,7 @@ class LivestreamScreenController extends BaseController {
         publishCamera: true,
         publishMicrophone: true,
         wsUrl: liveKitWsUrl,
-        forceProfile: LiveKitQualityProfile.low,
+        forceProfile: LiveKitQualityProfile.medium,
         forceReconnect: true,
       );
       _connectedLiveKitRoom = target;
@@ -3055,11 +3070,11 @@ class LivestreamScreenController extends BaseController {
     _followBannerTimer?.cancel();
     _battleTicker?.cancel();
     _liveElapsedTicker?.cancel();
-    _netSub?.cancel();
     _dataSub?.cancel();
     commentController.dispose();
     dummyPlayer?.dispose();
     beautyShader.dispose();
+    gpuPixel.dispose();
     final tag = 'lk_live_$roomId';
     if (Get.isRegistered<LiveKitRoomController>(tag: tag)) {
       Get.delete<LiveKitRoomController>(tag: tag);

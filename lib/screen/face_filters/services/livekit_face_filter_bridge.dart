@@ -8,19 +8,19 @@ import 'package:krimson/screen/face_filters/services/face_filter_pipeline.dart';
 import 'package:krimson/screen/face_filters/widgets/face_camera_preview_stack.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-/// Puente LiveKit ↔ pipeline MediaPipe.
+/// Puente LiveKit ↔ pipeline MediaPipe / GPUPixel.
 ///
 /// Estrategia de rendimiento (móvil):
 /// 1. LiveKit publica la cámara nativa (encoder H.264 estable, simulcast).
 /// 2. En paralelo, [FaceFilterPipeline] analiza frames a ≤ [maxInferenceFps]
-///    para landmarks (sin bloquear publicación).
-/// 3. El host ve overlay local via [buildHostPreview].
+///    para landmarks (sin bloquear publicación) — o GPUPixel en pre-live.
+/// 3. El host ve overlay local via [buildHostPreview] / BeautyShader.
 /// 4. Cuando el filtro es `none`, se puede omitir MediaPipe por completo.
 ///
-/// Nota: inyectar píxeles compuestos en el track RTC de LiveKit Flutter
-/// requiere un capturer custom (no expuesto de forma portable en
-/// livekit_client). El bridge deja el hook [onFilterChanged] y el preview
-/// host listo; el track publicado sigue siendo la cámara LiveKit.
+/// Nota: inyectar píxeles compuestos (GPUPixel Sink) en el track RTC de
+/// LiveKit Flutter requiere un capturer custom. Ver
+/// `packages/gpupixel_flutter/README.md`. El track publicado sigue
+/// siendo la cámara LiveKit.
 class LiveKitFaceFilterBridge {
   LiveKitFaceFilterBridge({
     FaceFilterPipeline? pipeline,

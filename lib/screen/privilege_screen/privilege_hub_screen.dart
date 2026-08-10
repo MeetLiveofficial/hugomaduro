@@ -164,6 +164,13 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                               onTap: () =>
                                   Get.to(() => const LeaderboardScreen()),
                             ),
+                            _HubTile(
+                              icon: AssetRes.icRanking,
+                              title: LKey.leaderboard.tr,
+                              subtitle: LKey.learnMore.tr,
+                              onTap: () =>
+                                  Get.to(() => const LeaderboardScreen()),
+                            ),
                           ],
                         ),
                       ),

@@ -3,7 +3,7 @@ import 'package:krimson/common/manager/haptic_manager.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-/// TikTok-style horizontal strip of circular effect thumbnails.
+/// Carrusel de filtros con nombre visible y color único por look.
 class FaceFilterCarousel extends StatefulWidget {
   const FaceFilterCarousel({
     super.key,
@@ -54,27 +54,9 @@ class _FaceFilterCarouselState extends State<FaceFilterCarousel> {
     return i < 0 ? 0 : i;
   }
 
-  DecorationImage? _thumbImage(FaceFilterEffect effect) {
-    final url = effect.iconUrl;
-    if (url != null && url.isNotEmpty) {
-      return DecorationImage(
-        image: NetworkImage(url),
-        fit: BoxFit.cover,
-      );
-    }
-    final asset = effect.assetIcon;
-    if (asset != null && asset.isNotEmpty) {
-      return DecorationImage(
-        image: AssetImage(asset),
-        fit: BoxFit.cover,
-      );
-    }
-    return null;
-  }
-
   void _scrollToSelected() {
     if (!_scrollController.hasClients) return;
-    const itemExtent = 76.0;
+    const itemExtent = 78.0;
     final target = (_selectedIndex * itemExtent) -
         (MediaQuery.sizeOf(context).width / 2) +
         (itemExtent / 2) +
@@ -90,73 +72,112 @@ class _FaceFilterCarouselState extends State<FaceFilterCarousel> {
   Widget build(BuildContext context) {
     final items = _effects;
     return SizedBox(
-      height: 86,
+      height: 96,
       child: ListView.separated(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final effect = items[index];
           final selected = effect.id == widget.selectedId;
+          final size = selected ? 56.0 : 50.0;
           return GestureDetector(
             onTap: () {
               HapticManager.shared.light();
               widget.onSelected(effect.id);
             },
-            child: AnimatedScale(
-              scale: selected ? 1.08 : 1.0,
-              duration: const Duration(milliseconds: 160),
-              child: Stack(
-                clipBehavior: Clip.none,
+            child: SizedBox(
+              width: 68,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: selected ? 64 : 58,
-                    height: selected ? 64 : 58,
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    width: size,
+                    height: size,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: effect.hasPhotoThumb
-                          ? Colors.black26
-                          : null,
-                      gradient: effect.hasPhotoThumb
-                          ? null
-                          : LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                effect.accent,
-                                effect.accent.withValues(alpha: 0.55),
-                                Colors.black.withValues(alpha: 0.35),
-                              ],
-                            ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          effect.accent,
+                          effect.accent.withValues(alpha: 0.55),
+                          Colors.black.withValues(alpha: 0.45),
+                        ],
+                      ),
                       border: Border.all(
                         color: selected
                             ? whitePure(context)
-                            : whitePure(context).withValues(alpha: 0.45),
-                        width: selected ? 3 : 1.5,
+                            : whitePure(context).withValues(alpha: 0.4),
+                        width: selected ? 2.5 : 1.2,
                       ),
-                      image: _thumbImage(effect),
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: effect.accent.withValues(alpha: 0.55),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
                     ),
-                    child: effect.hasPhotoThumb
-                        ? null
-                        : Icon(effect.icon,
-                            color: whitePure(context), size: 24),
-                  ),
-                  if (effect.isPremium)
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFD740),
-                          shape: BoxShape.circle,
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (effect.hasPhotoThumb)
+                          ColorFiltered(
+                            colorFilter: ColorFilter.mode(
+                              effect.accent.withValues(alpha: 0.45),
+                              BlendMode.softLight,
+                            ),
+                            child: effect.iconUrl != null &&
+                                    effect.iconUrl!.isNotEmpty
+                                ? Image.network(
+                                    effect.iconUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const SizedBox.shrink(),
+                                  )
+                                : Image.asset(
+                                    effect.assetIcon!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const SizedBox.shrink(),
+                                  ),
+                          ),
+                        Center(
+                          child: Icon(
+                            effect.icon,
+                            color: whitePure(context),
+                            size: selected ? 24 : 20,
+                            shadows: const [
+                              Shadow(
+                                color: Colors.black54,
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
                         ),
-                        child: const Icon(Icons.lock,
-                            size: 10, color: Colors.black87),
-                      ),
+                      ],
                     ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    effect.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: selected ? Colors.white : Colors.white70,
+                      fontSize: 10,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),

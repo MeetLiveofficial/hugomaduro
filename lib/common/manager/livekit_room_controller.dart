@@ -34,7 +34,7 @@ class LiveKitRoomController extends GetxController {
   final RxInt pingMs = 0.obs;
   final RxInt fps = 0.obs;
   final Rx<LiveKitQualityProfile> qualityProfile =
-      LiveKitQualityProfile.low.obs;
+      LiveKitQualityProfile.medium.obs;
 
   Room? get room => _service.room;
   Stream<DataReceivedEvent> get onDataReceived => _service.onDataReceived;
@@ -94,8 +94,8 @@ class LiveKitRoomController extends GetxController {
         publishCamera: publishCamera,
         publishMicrophone: publishMicrophone,
         wsUrl: wsUrl,
-        // Entrada silenciosa siempre en baja calidad.
-        forceProfile: forceProfile ?? LiveKitQualityProfile.low,
+        // Entrada en media por defecto (540×720 @ 20fps). Baja solo si falla.
+        forceProfile: forceProfile ?? LiveKitQualityProfile.medium,
       );
       _syncFromService();
       isConnected.value = true;
