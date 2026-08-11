@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-/// Mensaje de chat en vivo (texto / GIF / like / gift / follow).
+/// Mensaje de chat en vivo (texto / GIF / like / gift / follow / join).
 class LiveChatMessage {
   LiveChatMessage({
     required this.id,
@@ -15,13 +15,17 @@ class LiveChatMessage {
     this.replyToId,
     this.replyToUserName,
     this.replyToText,
+    this.entranceVideo,
+    this.userLevel,
+    this.levelTitle,
+    this.isSvip = false,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
   final String id;
   final int userId;
   final String userName;
-  final String type; // text | gif | like | gift | follow
+  final String type; // text | gif | like | gift | follow | join
   final String? text;
   final String? gifUrl;
   final int? giftId;
@@ -30,10 +34,25 @@ class LiveChatMessage {
   final String? replyToId;
   final String? replyToUserName;
   final String? replyToText;
+  /// Video de entrada del nivel (ruta relativa o URL).
+  final String? entranceVideo;
+  /// Número de nivel del usuario (join / personalización).
+  final int? userLevel;
+  /// Título del nivel (ej. "Oro", "SVIP").
+  final String? levelTitle;
+  final bool isSvip;
   final DateTime createdAt;
 
   bool get isReply =>
       (replyToId ?? '').isNotEmpty || (replyToUserName ?? '').isNotEmpty;
+
+  /// Entrada destacada: nivel alto, SVIP o video de entrada.
+  bool get isNotableJoin {
+    if (type != 'join') return false;
+    if (isSvip) return true;
+    if ((entranceVideo ?? '').trim().isNotEmpty) return true;
+    return (userLevel ?? 0) >= 4;
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -48,6 +67,10 @@ class LiveChatMessage {
         'reply_to_id': replyToId,
         'reply_to_user_name': replyToUserName,
         'reply_to_text': replyToText,
+        'entrance_video': entranceVideo,
+        'user_level': userLevel,
+        'level_title': levelTitle,
+        'is_svip': isSvip ? 1 : 0,
         'ts': createdAt.millisecondsSinceEpoch,
       };
 
@@ -56,6 +79,12 @@ class LiveChatMessage {
       if (v == null) return null;
       if (v is num) return v.toInt();
       return int.tryParse('$v');
+    }
+
+    bool asBool(dynamic v) {
+      if (v == true || v == 1 || v == '1') return true;
+      if (v is String && v.toLowerCase() == 'true') return true;
+      return false;
     }
 
     return LiveChatMessage(
@@ -71,6 +100,10 @@ class LiveChatMessage {
       replyToId: json['reply_to_id']?.toString(),
       replyToUserName: json['reply_to_user_name']?.toString(),
       replyToText: json['reply_to_text']?.toString(),
+      entranceVideo: json['entrance_video']?.toString(),
+      userLevel: asInt(json['user_level']),
+      levelTitle: json['level_title']?.toString(),
+      isSvip: asBool(json['is_svip']),
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         json['ts'] is num
             ? (json['ts'] as num).toInt()

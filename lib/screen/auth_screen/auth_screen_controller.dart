@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
@@ -403,6 +404,7 @@ class AuthScreenController extends BaseController {
   }
 
   void _notifyRegistrationBonusIfNeeded(user.User data) {
+    if (AppRole.isClient(data)) return;
     final setting = SessionManager.instance.getSettings();
     if (data.isDummy == 0 &&
         data.newRegister == true &&

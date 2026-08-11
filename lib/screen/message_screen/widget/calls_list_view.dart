@@ -29,7 +29,7 @@ class CallsListController extends BaseController {
   void onInit() {
     super.onInit();
     refreshInbox();
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 6), (_) {
       refreshInbox(silent: true);
     });
   }

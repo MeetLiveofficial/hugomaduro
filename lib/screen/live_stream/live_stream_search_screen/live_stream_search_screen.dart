@@ -77,7 +77,10 @@ class LiveStreamSearchScreen extends StatelessWidget {
                 const Spacer(),
                 _RightControls(controller: controller),
                 const SizedBox(height: 8),
-                if (!kIsWeb) _PreLiveFiltersBar(controller: controller),
+                if (!kIsWeb &&
+                    LiveStreamSearchScreenController
+                        .kPreLiveBeautyFiltersEnabled)
+                  _PreLiveFiltersBar(controller: controller),
                 _BottomBar(
                   controller: controller,
                   displayName: displayName,
@@ -132,24 +135,25 @@ class _StudioBackdrop extends StatelessWidget {
             WebCameraPreview(
               viewType: controller.beautyPipeline.camera.webViewType!,
             ),
-            Positioned(
-              left: 12,
-              right: 12,
-              top: 100,
-              child: Material(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  child: Text(
-                    'Web: preview de cámara + belleza por shader. '
-                    'GPUPixel nativo = Android/iOS.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+            if (LiveStreamSearchScreenController.kPreLiveBeautyFiltersEnabled)
+              Positioned(
+                left: 12,
+                right: 12,
+                top: 100,
+                child: Material(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    child: Text(
+                      'Web: preview de cámara + belleza por shader. '
+                      'GPUPixel nativo = Android/iOS.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
                   ),
                 ),
               ),
-            ),
             Positioned(
               left: 16,
               bottom: 200,
@@ -243,7 +247,10 @@ class _StudioBackdrop extends StatelessWidget {
                     child: Text(
                       kIsWeb
                           ? 'Toca para abrir la cámara (permiso del navegador)'
-                          : 'Abriendo belleza GPUPixel…',
+                          : (LiveStreamSearchScreenController
+                                  .kPreLiveBeautyFiltersEnabled
+                              ? 'Abriendo belleza GPUPixel…'
+                              : 'Abriendo cámara…'),
                       textAlign: TextAlign.center,
                       style: TextStyleCustom.outFitRegular400(
                         color: Colors.white70,
@@ -386,12 +393,14 @@ class _RightControls extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CustomBorderRoundIcon(
-              widget: const Icon(Icons.face_retouching_natural,
-                  color: Colors.white, size: 22),
-              onTap: controller.openPreLiveBeauty,
-            ),
-            const SizedBox(height: 14),
+            if (LiveStreamSearchScreenController.kPreLiveBeautyFiltersEnabled) ...[
+              CustomBorderRoundIcon(
+                widget: const Icon(Icons.face_retouching_natural,
+                    color: Colors.white, size: 22),
+                onTap: controller.openPreLiveBeauty,
+              ),
+              const SizedBox(height: 14),
+            ],
             CustomBorderRoundIcon(
               widget: const Icon(Icons.image_outlined,
                   color: Colors.white, size: 22),

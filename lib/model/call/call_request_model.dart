@@ -56,10 +56,42 @@ class CallRequestModel {
   final CallParty? caller;
   final CallParty? callee;
 
-  bool get isPending => status == 'pending';
-  bool get isAccepted => status == 'accepted';
+  bool get isPending =>
+      (status ?? '').toLowerCase().trim() == 'pending';
+  bool get isAccepted =>
+      (status ?? '').toLowerCase().trim() == 'accepted';
   bool get isRejected =>
       (status ?? '').toLowerCase().trim() == 'rejected';
+
+  CallRequestModel copyWith({
+    int? id,
+    int? callerId,
+    int? calleeId,
+    int? coinsCost,
+    int? userLevel,
+    String? status,
+    String? roomId,
+    String? respondedAt,
+    String? endedAt,
+    String? createdAt,
+    CallParty? caller,
+    CallParty? callee,
+  }) {
+    return CallRequestModel(
+      id: id ?? this.id,
+      callerId: callerId ?? this.callerId,
+      calleeId: calleeId ?? this.calleeId,
+      coinsCost: coinsCost ?? this.coinsCost,
+      userLevel: userLevel ?? this.userLevel,
+      status: status ?? this.status,
+      roomId: roomId ?? this.roomId,
+      respondedAt: respondedAt ?? this.respondedAt,
+      endedAt: endedAt ?? this.endedAt,
+      createdAt: createdAt ?? this.createdAt,
+      caller: caller ?? this.caller,
+      callee: callee ?? this.callee,
+    );
+  }
 }
 
 class CallParty {

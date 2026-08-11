@@ -105,7 +105,7 @@ class LiveActiveDiscoveryController extends BaseController {
   void _listenLaravel() {
     _refreshLaravel(silent: false);
     _laravelPoll?.cancel();
-    _laravelPoll = Timer.periodic(const Duration(seconds: 5), (_) {
+    _laravelPoll = Timer.periodic(const Duration(seconds: 10), (_) {
       _refreshLaravel(silent: true);
     });
   }

@@ -2,6 +2,7 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
@@ -23,6 +24,8 @@ class LevelScreen extends StatelessWidget {
     final current = userLevels ?? SessionManager.instance.getUser()?.getLevel;
     final accent = themeAccentSolid(context);
     final bg = scaffoldBackgroundColor(context);
+    // Clientes solo ven progreso (nivel + monedas); sin textos de beneficios.
+    final showBenefits = AppRole.isStreamer();
 
     return Scaffold(
       backgroundColor: bg,
@@ -31,6 +34,7 @@ class LevelScreen extends StatelessWidget {
           _Header(
             current: current,
             accent: accent,
+            showBenefits: showBenefits,
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
@@ -65,6 +69,7 @@ class LevelScreen extends StatelessWidget {
                   level: level,
                   isCurrent: isCurrent,
                   accent: accent,
+                  showBenefits: showBenefits,
                 );
               },
             ),
@@ -78,12 +83,18 @@ class LevelScreen extends StatelessWidget {
 class _Header extends StatelessWidget {
   final UserLevel? current;
   final Color accent;
+  final bool showBenefits;
 
-  const _Header({required this.current, required this.accent});
+  const _Header({
+    required this.current,
+    required this.accent,
+    required this.showBenefits,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final benefits = current?.benefits ?? const <String>[];
+    final benefits =
+        showBenefits ? (current?.benefits ?? const <String>[]) : const <String>[];
 
     return Container(
       width: double.infinity,
@@ -284,11 +295,13 @@ class _LevelCard extends StatelessWidget {
   final UserLevel level;
   final bool isCurrent;
   final Color accent;
+  final bool showBenefits;
 
   const _LevelCard({
     required this.level,
     required this.isCurrent,
     required this.accent,
+    required this.showBenefits,
   });
 
   @override
@@ -373,42 +386,44 @@ class _LevelCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              _MetaChip(
-                label:
-                    '${LKey.callPrice.tr}: ${level.callRequestCoins} ${LKey.coins.tr}',
-                emphasized: isCurrent,
-              ),
-              _MetaChip(
-                label:
-                    '${LKey.receiveCalls.tr}: ${level.canReceiveCalls == 1 ? LKey.yes.tr : LKey.no.tr}',
-                emphasized: isCurrent && level.canReceiveCalls == 1,
-              ),
-              _MetaChip(
-                label:
-                    '${LKey.canGoLive.tr}: ${level.canGoLive == 1 ? LKey.yes.tr : LKey.no.tr}',
-                emphasized: isCurrent && level.canGoLive == 1,
-              ),
-            ],
-          ),
-          if (level.benefits.isNotEmpty) ...[
+          if (showBenefits) ...[
             const SizedBox(height: 10),
-            ...level.benefits.take(3).map(
-                  (b) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      '• $b',
-                      style: TextStyleCustom.outFitRegular400(
-                        fontSize: 12,
-                        color: textDarkGrey(context).withValues(alpha: 0.75),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                _MetaChip(
+                  label:
+                      '${LKey.callPrice.tr}: ${level.callRequestCoins} ${LKey.coins.tr}',
+                  emphasized: isCurrent,
+                ),
+                _MetaChip(
+                  label:
+                      '${LKey.receiveCalls.tr}: ${level.canReceiveCalls == 1 ? LKey.yes.tr : LKey.no.tr}',
+                  emphasized: isCurrent && level.canReceiveCalls == 1,
+                ),
+                _MetaChip(
+                  label:
+                      '${LKey.canGoLive.tr}: ${level.canGoLive == 1 ? LKey.yes.tr : LKey.no.tr}',
+                  emphasized: isCurrent && level.canGoLive == 1,
+                ),
+              ],
+            ),
+            if (level.benefits.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ...level.benefits.take(3).map(
+                    (b) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '• $b',
+                        style: TextStyleCustom.outFitRegular400(
+                          fontSize: 12,
+                          color: textDarkGrey(context).withValues(alpha: 0.75),
+                        ),
                       ),
                     ),
                   ),
-                ),
+            ],
           ],
         ],
       ),

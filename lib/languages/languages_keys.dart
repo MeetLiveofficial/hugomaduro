@@ -36,6 +36,7 @@ class LKey {
   static const String coin = "Coin";
   static const String send = "Send";
   static const String sendGifts = "Send Gifts";
+  static const String all = "All";
   static const String yourGiftHasBeenSent = "Your gift has been sent";
   static const String successfully = "Successfully";
   static const String checkVideos = "Check Videos";

@@ -8,6 +8,7 @@ import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/explore_screen/explore_screen.dart';
+import 'package:krimson/screen/explore_screen/explore_screen_controller.dart';
 import 'package:krimson/screen/home_screen/unified_home_screen.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen.dart';
 import 'package:krimson/screen/message_screen/message_screen.dart';
@@ -92,13 +93,14 @@ class DashboardScreen extends StatelessWidget {
         items.add(_buildWorkNavItem());
       }
       for (var i = 0; i < controller.bottomIconList.length; i++) {
+        // Cliente: Match en el centro (sustituye Go Live).
         if (AppRole.isClient(roleUser) &&
             i == DashboardScreenController.tabLive) {
+          items.add(_buildMatchNavItem());
           continue;
         }
         if (AppRole.isStreamer(roleUser) &&
-            (i == DashboardScreenController.tabHome ||
-                i == DashboardScreenController.tabExplore)) {
+            i == DashboardScreenController.tabHome) {
           continue;
         }
         items.add(_buildBottomNavItem(controller, i));
@@ -252,6 +254,57 @@ class DashboardScreen extends StatelessWidget {
         Icons.work_outline_rounded,
         size: 26,
         color: Colors.white,
+      ),
+    );
+  }
+
+  /// Cliente: Match en el centro de la barra.
+  Widget _buildMatchNavItem() {
+    final explore = Get.isRegistered<ExploreScreenController>()
+        ? Get.find<ExploreScreenController>()
+        : Get.put(ExploreScreenController());
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: explore.startMatch,
+      child: SizedBox(
+        width: 56,
+        height: 56,
+        child: Center(
+          child: Obx(() {
+            final busy = explore.isMatching.value;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 48,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: ColorRes.themeAccentSolid,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: ColorRes.themeAccentSolid.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.favorite_rounded,
+                      size: 22,
+                      color: Colors.white,
+                    ),
+            );
+          }),
+        ),
       ),
     );
   }

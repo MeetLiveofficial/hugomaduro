@@ -503,7 +503,7 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
     unawaited(ChatTranslatorService.instance.ensureReady());
     await _refreshLaravelMessages();
     _laravelPoll?.cancel();
-    _laravelPoll = Timer.periodic(const Duration(seconds: 3), (_) {
+    _laravelPoll = Timer.periodic(const Duration(seconds: 5), (_) {
       _refreshLaravelMessages(silent: true);
     });
   }

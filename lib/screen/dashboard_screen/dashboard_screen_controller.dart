@@ -15,6 +15,7 @@ import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/subscription/subscription_manager.dart';
@@ -23,9 +24,12 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
+import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/feed_screen/feed_screen_controller.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_invite_dialog.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_invite_dialog.dart';
 import 'package:krimson/model/livestream/livestream.dart';
@@ -34,7 +38,7 @@ import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 
 class DashboardScreenController extends BaseController with GetSingleTickerProviderStateMixin {
-  /// Orden bottom nav: Home · Explore · Live (centro) · Chat · Profile
+  /// Orden bottom nav: Home · Explore · Live/Match (centro) · Chat · Profile
   static const int tabHome = 0;
   static const int tabExplore = 1;
   static const int tabLive = 2;
@@ -122,19 +126,82 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     _fetchUnReadCount();
     startCacheCleanupScheduler();
     _startLiveInvitePoll();
+    _startIncomingCallPoll();
     _subscribeFollowUserIds();
     updateDummyUsers();
   }
 
   Timer? _liveInvitePollTimer;
+  Timer? _incomingCallPollTimer;
   Timer? _heartbeatTimer;
+  final Set<int> _seenIncomingCallIds = {};
+  bool _incomingCallPollPrimed = false;
+  bool _incomingCallPollBusy = false;
 
   /// Poll de invitaciones LIVE (cubre Web/sin FCM real).
   void _startLiveInvitePoll() {
     _liveInvitePollTimer?.cancel();
     Future.microtask(_pollLiveInvites);
     _liveInvitePollTimer =
-        Timer.periodic(const Duration(seconds: 4), (_) => _pollLiveInvites());
+        Timer.periodic(const Duration(seconds: 8), (_) => _pollLiveInvites());
+  }
+
+  /// Poll global de llamadas entrantes (badge + overlay; cubre sin FCM / BlueStacks).
+  void _startIncomingCallPoll() {
+    _incomingCallPollTimer?.cancel();
+    Future.microtask(_pollIncomingCalls);
+    _incomingCallPollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _pollIncomingCalls(),
+    );
+  }
+
+  Future<void> _pollIncomingCalls() async {
+    if (_incomingCallPollBusy) return;
+    if (!SessionManager.instance.isLogin() ||
+        !SessionManager.instance.hasAuthToken) {
+      return;
+    }
+    // LIVE ya tiene su propio poll de llamadas.
+    if (LivestreamScreenController.activeInstance != null) return;
+    if (OutgoingCallController.activeInstance != null) return;
+    if (Get.currentRoute.contains('VideoCall') ||
+        Get.currentRoute.contains('OutgoingCall') ||
+        Get.currentRoute.contains('IncomingCall')) {
+      return;
+    }
+
+    _incomingCallPollBusy = true;
+    try {
+      final inbox = await CallService.instance.inbox();
+      final pending =
+          inbox.received.where((e) => e.isPending && e.id != null).toList();
+
+      callsUnReadCount.value = pending.length;
+      unReadCount.value = chatUnReadCount.value +
+          requestUnReadCount.value +
+          callsUnReadCount.value;
+
+      if (!_incomingCallPollPrimed) {
+        _seenIncomingCallIds.addAll(pending.map((e) => e.id!));
+        _incomingCallPollPrimed = true;
+        if (pending.isNotEmpty) {
+          await LiveIncomingCallOverlay.show(pending.first);
+        }
+        return;
+      }
+
+      for (final item in pending) {
+        if (_seenIncomingCallIds.add(item.id!)) {
+          await LiveIncomingCallOverlay.show(item);
+          break;
+        }
+      }
+    } catch (e) {
+      Loggers.error('dashboard incoming call poll: $e');
+    } finally {
+      _incomingCallPollBusy = false;
+    }
   }
 
   Future<void> _pollLiveInvites() async {
@@ -175,6 +242,8 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   void stopBackgroundWork() {
     _liveInvitePollTimer?.cancel();
     _liveInvitePollTimer = null;
+    _incomingCallPollTimer?.cancel();
+    _incomingCallPollTimer = null;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
     _unReadCountSubscription?.cancel();
@@ -191,10 +260,6 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   onChanged(int index) {
     // Client: no estudio LIVE (el icono tampoco se muestra).
     if (index == tabLive && AppRole.isClient(user)) {
-      return;
-    }
-    // Streamer: no Search/Explore.
-    if (index == tabExplore && AppRole.isStreamer(user)) {
       return;
     }
     final isDarkChrome = index == tabHome &&

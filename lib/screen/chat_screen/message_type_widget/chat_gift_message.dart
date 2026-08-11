@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/model/chat/message_data.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_media_helpers.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -22,11 +23,18 @@ class ChatGiftMessage extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ChatNetworkMedia(
+          GiftMedia(
             path: message.imageMessage,
             width: 48,
             height: 48,
             fit: BoxFit.contain,
+            muted: true,
+            looping: true,
+            placeholder: Icon(
+              Icons.card_giftcard,
+              size: 36,
+              color: textLightGrey(context),
+            ),
           ),
           const SizedBox(width: 10),
           Column(

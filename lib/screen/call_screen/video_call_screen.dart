@@ -12,6 +12,7 @@ import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/screen/call_screen/match_recharge_dialog.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
@@ -23,17 +24,26 @@ import 'package:krimson/utilities/theme_res.dart';
 class VideoCallScreen extends StatelessWidget {
   final CallRequestModel call;
   final bool resumeLiveOnHangup;
+  final bool isMatchPreview;
+  final int matchFreeSeconds;
 
   const VideoCallScreen({
     super.key,
     required this.call,
     this.resumeLiveOnHangup = false,
+    this.isMatchPreview = false,
+    this.matchFreeSeconds = 30,
   });
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(
-      VideoCallController(call, resumeLiveOnHangup: resumeLiveOnHangup),
+      VideoCallController(
+        call,
+        resumeLiveOnHangup: resumeLiveOnHangup,
+        isMatchPreview: isMatchPreview,
+        matchFreeSeconds: matchFreeSeconds,
+      ),
       tag: 'call_${call.id}',
     );
     return Scaffold(
@@ -58,21 +68,63 @@ class VideoCallScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    LKey.videoCall.tr,
+                    controller.isMatchClient
+                        ? 'Match'
+                        : LKey.videoCall.tr,
                     style: TextStyleCustom.outFitMedium500(
                         color: whitePure(context), fontSize: 16),
                   ),
                   const SizedBox(height: 4),
-                  Obx(() => Text(
-                        controller.elapsedLabel.value,
-                        style: TextStyleCustom.outFitRegular400(
-                          color: whitePure(context).withValues(alpha: 0.8),
-                          fontSize: 13,
-                        ),
-                      )),
+                  Obx(() {
+                    final match = controller.isMatchClient;
+                    final left = controller.matchSecondsLeft.value;
+                    final label = match
+                        ? '00:${left.toString().padLeft(2, '0')}'
+                        : controller.elapsedLabel.value;
+                    return Text(
+                      label,
+                      style: TextStyleCustom.outFitRegular400(
+                        color: match && left <= 5
+                            ? ColorRes.themeAccentSolid
+                            : whitePure(context).withValues(alpha: 0.8),
+                        fontSize: match ? 18 : 13,
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
+            if (controller.isMatchClient)
+              Positioned(
+                top: 52,
+                left: 0,
+                right: 0,
+                child: Obx(() {
+                  final left = controller.matchSecondsLeft.value;
+                  if (left > 10) return const SizedBox.shrink();
+                  return Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        left <= 0
+                            ? 'Tiempo agotado'
+                            : 'Match termina en $left s',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
             Positioned(
               left: 16,
               right: 16,
@@ -138,23 +190,48 @@ class _RoundBtn extends StatelessWidget {
 }
 
 class VideoCallController extends BaseController {
-  VideoCallController(this.call, {this.resumeLiveOnHangup = false});
+  VideoCallController(
+    this.call, {
+    this.resumeLiveOnHangup = false,
+    this.isMatchPreview = false,
+    this.matchFreeSeconds = 30,
+  });
 
   final CallRequestModel call;
   final bool resumeLiveOnHangup;
+  final bool isMatchPreview;
+  final int matchFreeSeconds;
   final RxString status = 'Connecting...'.obs;
   final RxString elapsedLabel = '00:00'.obs;
+  final RxInt matchSecondsLeft = 30.obs;
 
   late final LiveKitRoomController liveKit;
   Timer? _elapsedTimer;
   DateTime? _startedAt;
+  bool _matchCountdownStarted = false;
+  bool _ending = false;
 
   String get roomId => call.roomId ?? 'call_${call.id}';
   String get _tag => 'lk_call_${call.id}';
 
+  bool get isMatchClient {
+    if (!isMatchPreview) return false;
+    final me = SessionManager.instance.getUserID();
+    return call.callerId == me;
+  }
+
+  int get _matchDuration {
+    final fromSettings =
+        SessionManager.instance.getSettings()?.matchFreeSeconds ?? 0;
+    if (matchFreeSeconds > 0) return matchFreeSeconds;
+    if (fromSettings > 0) return fromSettings;
+    return 30;
+  }
+
   @override
   void onInit() {
     super.onInit();
+    matchSecondsLeft.value = _matchDuration;
     liveKit = Get.put(LiveKitRoomController(), tag: _tag);
   }
 
@@ -172,6 +249,10 @@ class VideoCallController extends BaseController {
   }
 
   void _startElapsedTimer() {
+    if (isMatchClient) {
+      _startMatchCountdown();
+      return;
+    }
     _startedAt ??= DateTime.now();
     _elapsedTimer?.cancel();
     _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -181,6 +262,21 @@ class VideoCallController extends BaseController {
       final mm = (s ~/ 60).toString().padLeft(2, '0');
       final ss = (s % 60).toString().padLeft(2, '0');
       elapsedLabel.value = '$mm:$ss';
+    });
+  }
+
+  void _startMatchCountdown() {
+    if (!isMatchClient || _matchCountdownStarted || _ending) return;
+    _matchCountdownStarted = true;
+    matchSecondsLeft.value = _matchDuration;
+    _elapsedTimer?.cancel();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_ending) return;
+      final next = matchSecondsLeft.value - 1;
+      matchSecondsLeft.value = next < 0 ? 0 : next;
+      if (next <= 0) {
+        unawaited(hangUp(showMatchRecharge: true));
+      }
     });
   }
 
@@ -220,7 +316,12 @@ class VideoCallController extends BaseController {
         wsUrl: liveKitWsUrl,
       );
       status.value = 'Waiting for peer...';
-      _startElapsedTimer();
+      // Match: el cronómetro empieza al conectar (preview cliente).
+      if (isMatchClient) {
+        _startMatchCountdown();
+      } else {
+        _startElapsedTimer();
+      }
     } catch (e) {
       status.value = e.toString();
       showSnackBar(e.toString());
@@ -256,7 +357,13 @@ class VideoCallController extends BaseController {
     );
   }
 
-  Future<void> hangUp() async {
+  Future<void> hangUp({bool showMatchRecharge = false}) async {
+    if (_ending) return;
+    _ending = true;
+    final peer = call.caller?.id == SessionManager.instance.getUserID()
+        ? call.callee
+        : call.caller;
+    final cost = call.coinsCost;
     await _cleanup(notifyApi: true);
     if (resumeLiveOnHangup) {
       final live = LivestreamScreenController.activeInstance;
@@ -265,6 +372,11 @@ class VideoCallController extends BaseController {
       } catch (_) {}
     }
     Get.back();
+    if (showMatchRecharge && isMatchClient) {
+      Future.microtask(() {
+        MatchRechargeDialog.show(peer: peer, callCost: cost);
+      });
+    }
   }
 
   Future<void> _cleanup({required bool notifyApi}) async {

@@ -11,12 +11,16 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/leaderboard_screen/leaderboard_screen_controller.dart';
+import 'package:krimson/screen/home_screen/widget/home_mode_switcher.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Ranking Giver / Receiver — podio épico estilo arena real.
+/// [asTab]: embebido en Home del Streamer (sin back; con switcher Ranking|Reels|Posts).
 class LeaderboardScreen extends StatelessWidget {
-  const LeaderboardScreen({super.key});
+  final bool asTab;
+
+  const LeaderboardScreen({super.key, this.asTab = false});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +36,7 @@ class LeaderboardScreen extends StatelessWidget {
             bottom: false,
             child: Column(
               children: [
-                const _Header(),
+                _Header(asTab: asTab),
                 const SizedBox(height: 6),
                 _TypeTabs(controller: controller),
                 const SizedBox(height: 8),
@@ -46,23 +50,11 @@ class LeaderboardScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 _PeriodFilters(controller: controller),
                 const SizedBox(height: 10),
-                // Podio fijo: no scrollea con la lista
-                Obx(() {
-                  if (controller.isLoading.value && controller.users.isEmpty) {
-                    return const SizedBox(height: 280, child: LoaderWidget());
-                  }
-                  if (controller.users.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return _PodiumStage(users: controller.users);
-                }),
-                const SizedBox(height: 12),
-                // Solo scrollea el ranking 4+
                 Expanded(
                   child: Obx(() {
                     if (controller.isLoading.value &&
                         controller.users.isEmpty) {
-                      return const SizedBox.shrink();
+                      return const LoaderWidget();
                     }
                     if (controller.users.isEmpty) {
                       return NoDataView(
@@ -74,14 +66,29 @@ class LeaderboardScreen extends StatelessWidget {
                     final rest = controller.users.length > 3
                         ? controller.users.length - 3
                         : 0;
-                    return ListView.separated(
+                    // Un solo scroll: podio + lista 4+ (evita solape del ranking
+                    // sobre las tarjetas TOP 3).
+                    return CustomScrollView(
                       physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
-                      itemCount: rest,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        return _RankRow(entry: controller.users[index + 3]);
-                      },
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: _PodiumStage(users: controller.users),
+                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
+                          sliver: SliverList.separated(
+                            itemCount: rest,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              return _RankRow(
+                                entry: controller.users[index + 3],
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     );
                   }),
                 ),
@@ -116,7 +123,9 @@ abstract final class _Epic {
 // ───────────────────────────────────────────── Header / tabs / periods
 
 class _Header extends StatelessWidget {
-  const _Header();
+  final bool asTab;
+
+  const _Header({this.asTab = false});
 
   @override
   Widget build(BuildContext context) {
@@ -124,26 +133,42 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
       child: Row(
         children: [
-          IconButton(
-            onPressed: Get.back,
-            icon: const Icon(Icons.arrow_back_ios_new,
-                color: Colors.white, size: 20),
-          ),
-          Expanded(
-            child: ShaderMask(
-              shaderCallback: (b) => const LinearGradient(
-                colors: [Color(0xFFFFF1C1), Color(0xFFFFD56B), Color(0xFFFFB020)],
-              ).createShader(b),
-              child: Text(
-                LKey.leaderboard.tr,
-                textAlign: TextAlign.center,
-                style: TextStyleCustom.unboundedBold700(
-                  color: Colors.white,
-                  fontSize: 19,
+          if (asTab)
+            const Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: HomeModeSwitcher(),
+                ),
+              ),
+            )
+          else ...[
+            IconButton(
+              onPressed: Get.back,
+              icon: const Icon(Icons.arrow_back_ios_new,
+                  color: Colors.white, size: 20),
+            ),
+            Expanded(
+              child: ShaderMask(
+                shaderCallback: (b) => const LinearGradient(
+                  colors: [
+                    Color(0xFFFFF1C1),
+                    Color(0xFFFFD56B),
+                    Color(0xFFFFB020)
+                  ],
+                ).createShader(b),
+                child: Text(
+                  LKey.leaderboard.tr,
+                  textAlign: TextAlign.center,
+                  style: TextStyleCustom.unboundedBold700(
+                    color: Colors.white,
+                    fontSize: 19,
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
           IconButton(
             onPressed: () {
               Get.dialog(
@@ -675,9 +700,17 @@ class _PodiumStage extends StatelessWidget {
       return const SizedBox(height: 12);
     }
 
-    // Altura fija → #2 y #3 alineados en la misma base; sin hueco enorme arriba
+    // Altura justa al card #1 (el más alto): sin hueco vacío arriba ni
+    // recorte de las banners de score que se solapaban con el ranking 4+.
+    const figure1 = 108.0;
+    const figureArea1 = figure1 + 22;
+    const badgeH = 22.0;
+    const bannerH = 86.0;
+    const cardH = figureArea1 + 4 + badgeH + 6 + bannerH;
+    const stageH = cardH + 8;
+
     return SizedBox(
-      height: 292,
+      height: stageH,
       child: Stack(
         clipBehavior: Clip.hardEdge,
         children: [
@@ -685,7 +718,7 @@ class _PodiumStage extends StatelessWidget {
             child: CustomPaint(painter: _PodiumFloorPainter()),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -705,7 +738,7 @@ class _PodiumStage extends StatelessWidget {
                     place: 1,
                     colors: _Epic.place1,
                     accent: _Epic.gold,
-                    figureSize: 108,
+                    figureSize: figure1,
                     elevated: true,
                   ),
                 ),

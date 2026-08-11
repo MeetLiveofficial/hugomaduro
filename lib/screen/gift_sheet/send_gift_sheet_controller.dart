@@ -19,6 +19,8 @@ import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 
 class SendGiftSheetController extends BaseController {
+  static const int pageSize = 10;
+
   Rx<Setting?> settings = Rx<Setting?>(null);
   Rx<User?> myUser = Rx<User?>(null);
   int? userId;
@@ -26,12 +28,24 @@ class SendGiftSheetController extends BaseController {
   GiftType? giftType;
   LivestreamScreenController? livestreamController;
 
+  /// 0 = todas las categorías.
+  final RxInt selectedCategoryId = 0.obs;
+  final RxList<GiftCategory> categories = <GiftCategory>[].obs;
+  final RxList<Gift> visibleGifts = <Gift>[].obs;
+  final RxBool hasMore = false.obs;
+  final ScrollController scrollController = ScrollController();
+
+  List<Gift> _filteredGifts = [];
+  int _loadedCount = 0;
+  bool _loadingMore = false;
+
   SendGiftSheetController(this.giftType, this.userId, this.liveUsers);
 
   @override
   void onInit() {
     super.onInit();
     _initData();
+    scrollController.addListener(_onScroll);
 
     if (liveUsers.isNotEmpty &&
         (giftType == GiftType.livestream || giftType == GiftType.battle)) {
@@ -55,10 +69,60 @@ class SendGiftSheetController extends BaseController {
     }
   }
 
+  @override
+  void onClose() {
+    scrollController.removeListener(_onScroll);
+    scrollController.dispose();
+    super.onClose();
+  }
+
   _initData() {
     settings.value = SessionManager.instance.getSettings();
     myUser.value = SessionManager.instance.getUser();
+    final cats = List<GiftCategory>.from(settings.value?.giftCategories ?? []);
+    cats.sort((a, b) => (a.sortOrder ?? 0).compareTo(b.sortOrder ?? 0));
+    categories.assignAll(cats);
     GiftMediaCache.precacheGifts(settings.value?.gifts);
+    selectCategory(0);
+  }
+
+  void selectCategory(int categoryId) {
+    selectedCategoryId.value = categoryId;
+    final all = settings.value?.gifts ?? [];
+    if (categoryId <= 0) {
+      _filteredGifts = List<Gift>.from(all);
+    } else {
+      _filteredGifts =
+          all.where((g) => (g.categoryId ?? 0) == categoryId).toList();
+    }
+    _loadedCount = 0;
+    visibleGifts.clear();
+    hasMore.value = _filteredGifts.isNotEmpty;
+    loadMore();
+    if (scrollController.hasClients) {
+      scrollController.jumpTo(0);
+    }
+  }
+
+  void loadMore() {
+    if (_loadingMore || _loadedCount >= _filteredGifts.length) {
+      hasMore.value = _loadedCount < _filteredGifts.length;
+      return;
+    }
+    _loadingMore = true;
+    final end = (_loadedCount + pageSize).clamp(0, _filteredGifts.length);
+    visibleGifts.addAll(_filteredGifts.sublist(_loadedCount, end));
+    _loadedCount = end;
+    hasMore.value = _loadedCount < _filteredGifts.length;
+    _loadingMore = false;
+  }
+
+  void _onScroll() {
+    if (!scrollController.hasClients || !hasMore.value) return;
+    final pos = scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 100) {
+      loadMore();
+    }
   }
 
   void onGiftTap(Gift gift, BuildContext context) {
@@ -148,6 +212,9 @@ class GiftManager {
       BattleView battleViewType = BattleView.red,
       List<AppUser> streamUsers = const [],
       required Function(GiftManager giftManager) onCompletion}) async {
+    if (Get.isRegistered<SendGiftSheetController>()) {
+      Get.delete<SendGiftSheetController>(force: true);
+    }
     await Get.bottomSheet<GiftManager>(
       SendGiftSheet(
         userId: userId,
@@ -157,6 +224,9 @@ class GiftManager {
       ),
       isScrollControlled: true,
     ).then((gift) {
+      if (Get.isRegistered<SendGiftSheetController>()) {
+        Get.delete<SendGiftSheetController>(force: true);
+      }
       if (gift != null) {
         onCompletion(gift);
       }

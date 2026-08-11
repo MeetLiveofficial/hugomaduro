@@ -43,6 +43,8 @@ class Params {
   static const String keyword = 'keyword';
   static const String limit = 'limit';
   static const String lastItemId = 'last_item_id';
+  static const String offset = 'offset';
+  static const String presence = 'presence';
   static const String categoryId = 'category_id';
   static const String file = 'file';
   static const String filePath = 'filePath';

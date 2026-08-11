@@ -1,48 +1,247 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
-import 'package:krimson/common/service/api/post_service.dart';
-import 'package:krimson/model/post_story/post/explore_page_model.dart';
-import 'package:krimson/model/post_story/post_model.dart';
-import 'package:krimson/screen/hashtag_screen/hashtag_screen.dart';
-import 'package:krimson/screen/post_screen/single_post_screen.dart';
-import 'package:krimson/screen/reels_screen/reels_screen.dart';
-import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
+import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
+import 'package:krimson/model/general/countries_model.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/call_screen/match_recommend_sheet.dart';
+import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
+import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card.dart';
+import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/asset_res.dart';
 
 class ExploreScreenController extends BaseController {
-  Rx<ExplorePageData?> explorePageData = Rx(null);
+  final RxList<User> streamers = <User>[].obs;
+  final RxList<Country> countries = <Country>[].obs;
+  final RxList<Language> languages = <Language>[].obs;
+
+  final TextEditingController searchController = TextEditingController();
+  final ScrollController scrollController = ScrollController();
+
+  final RxnString selectedCountryCode = RxnString();
+  final RxnString selectedCountryName = RxnString();
+  final RxnString selectedLanguageCode = RxnString();
+  final RxString searchText = ''.obs;
+  /// `all` | `live` | `active`
+  final RxString presenceFilter = 'all'.obs;
+
+  final RxBool isLoadingMore = false.obs;
+  final RxBool hasMore = true.obs;
+  final RxBool isMatching = false.obs;
+
+  Timer? _debounce;
+  bool _started = false;
 
   @override
   void onInit() {
     super.onInit();
-    fetchExplorePageData();
+    scrollController.addListener(_onScroll);
+    _bootstrap();
   }
 
-  Future<void> fetchExplorePageData() async {
+  @override
+  void onClose() {
+    _debounce?.cancel();
+    searchController.dispose();
+    scrollController.dispose();
+    super.onClose();
+  }
+
+  Future<void> _bootstrap() async {
+    await Future.wait([_loadCountries(), _loadLanguages()]);
+    await refreshList();
+    _started = true;
+  }
+
+  Future<void> _loadCountries() async {
+    try {
+      final list = await parseCountries(filePath: AssetRes.countriesCSV);
+      list.sort((a, b) => a.countryName.compareTo(b.countryName));
+      countries.assignAll(list);
+    } catch (e) {
+      Loggers.error('explore countries: $e');
+    }
+  }
+
+  Future<void> _loadLanguages() async {
+    final list = (SessionManager.instance.getSettings()?.languages ?? [])
+        .where((l) => (l.status ?? 0) == 1 && (l.code ?? '').isNotEmpty)
+        .toList();
+    languages.assignAll(list);
+  }
+
+  void onSearchChanged(String value) {
+    searchText.value = value;
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (_started) refreshList();
+    });
+  }
+
+  void selectCountry(Country? country) {
+    if (country == null) {
+      selectedCountryCode.value = null;
+      selectedCountryName.value = null;
+    } else {
+      selectedCountryCode.value = country.countryCode;
+      selectedCountryName.value = country.countryName;
+    }
+    refreshList();
+  }
+
+  void selectLanguage(Language? lang) {
+    selectedLanguageCode.value =
+        (lang?.code ?? '').trim().isEmpty ? null : lang!.code!.trim();
+    refreshList();
+  }
+
+  void selectPresence(String value) {
+    final next = value.trim().toLowerCase();
+    if (next != 'all' && next != 'live' && next != 'active') return;
+    // Streamer → clientes: no tiene sentido "En vivo".
+    if (AppRole.isStreamer() && next == 'live') return;
+    if (presenceFilter.value == next) return;
+    presenceFilter.value = next;
+    refreshList();
+  }
+
+  void clearFilters() {
+    selectedCountryCode.value = null;
+    selectedCountryName.value = null;
+    selectedLanguageCode.value = null;
+    presenceFilter.value = 'all';
+    searchController.clear();
+    searchText.value = '';
+    refreshList();
+  }
+
+  void _onScroll() {
+    if (!scrollController.hasClients || isLoadingMore.value || !hasMore.value) {
+      return;
+    }
+    if (scrollController.position.pixels >=
+        scrollController.position.maxScrollExtent - 240) {
+      loadMore();
+    }
+  }
+
+  Future<void> refreshList() async {
+    if (AppRole.isStreamer() && presenceFilter.value == 'live') {
+      presenceFilter.value = 'all';
+    }
     isLoading.value = true;
-    explorePageData.value = await PostService.instance.fetchExplorePageData();
-    isLoading.value = false;
+    hasMore.value = true;
+    try {
+      final list = await UserService.instance.exploreStreamers(
+        limit: AppRes.paginationLimit,
+        offset: 0,
+        keyWord: searchController.text.trim(),
+        country: selectedCountryName.value,
+        countryCode: selectedCountryCode.value,
+        appLanguage: selectedLanguageCode.value,
+        presence: presenceFilter.value,
+      );
+      streamers.assignAll(list);
+      hasMore.value = list.length >= AppRes.paginationLimit;
+    } catch (e) {
+      Loggers.error('exploreStreamers: $e');
+      streamers.clear();
+      showSnackBar(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      isLoading.value = false;
+    }
   }
 
-  void onExploreTap(String? hashtag) {
-    Get.to(() => HashtagScreen(hashtag: hashtag ?? '', index: 0),
-        preventDuplicates: false);
+  Future<void> loadMore() async {
+    if (isLoadingMore.value || !hasMore.value || streamers.isEmpty) return;
+    isLoadingMore.value = true;
+    try {
+      final list = await UserService.instance.exploreStreamers(
+        offset: streamers.length,
+        limit: AppRes.paginationLimit,
+        keyWord: searchController.text.trim(),
+        country: selectedCountryName.value,
+        countryCode: selectedCountryCode.value,
+        appLanguage: selectedLanguageCode.value,
+        presence: presenceFilter.value,
+      );
+      if (list.isEmpty) {
+        hasMore.value = false;
+      } else {
+        streamers.addAll(list);
+        hasMore.value = list.length >= AppRes.paginationLimit;
+      }
+    } catch (e) {
+      Loggers.error('exploreStreamers more: $e');
+    } finally {
+      isLoadingMore.value = false;
+    }
   }
 
-  void onPostTap(Post post) {
-    switch (post.postType) {
-      case PostType.reel:
-      case PostType.video:
-        Get.to(() => ReelsScreen(reels: [post].obs, position: 0, pageType: ReelPageType.search));
-        break;
-      case PostType.image:
-        Get.to(() => SinglePostScreen(post: post, isFromNotification: false));
-        break;
-      case PostType.text:
-        break;
-      case PostType.none:
-        Loggers.error('Post Type none');
-        break;
+  Future<void> openProfile(User user) async {
+    await NavigationService.shared.openProfileScreen(user);
+  }
+
+  void openChat(User user) {
+    openDirectChatWith(user);
+  }
+
+  Future<void> startCall(User user) async {
+    // Streamer → cliente: solo mensajes, sin videollamada.
+    if (AppRole.isStreamer()) {
+      showSnackBar('Con clientes solo puedes enviar mensajes');
+      return;
+    }
+    if (!AppRole.canReceivePaidCalls(user)) {
+      showSnackBar('Este streamer no recibe llamadas ahora');
+      return;
+    }
+    final cost = user.callRequestCoins > 0
+        ? user.callRequestCoins
+        : user.getLevel.callRequestCoins;
+    if (cost > 0 &&
+        !CoinGate.ensureEnough(cost, message: 'Moneda insuficiente')) {
+      return;
+    }
+    Get.to(() => OutgoingCallScreen(callee: user, cost: cost));
+  }
+
+  /// Match: busca streamer del mismo idioma y recomienda llamada.
+  Future<void> startMatch() async {
+    if (AppRole.isStreamer()) {
+      showSnackBar('Match solo está disponible para clientes');
+      return;
+    }
+    if (isMatching.value) return;
+    isMatching.value = true;
+    try {
+      final me = SessionManager.instance.getUser();
+      final lang = (selectedLanguageCode.value ?? me?.appLanguage ?? '')
+          .trim()
+          .toLowerCase();
+      final match = await CallService.instance.findMatch(
+        appLanguage: lang.isEmpty ? null : lang,
+      );
+      await MatchRecommendSheet.show(match);
+    } catch (e) {
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      if (msg.toLowerCase().contains('no match')) {
+        showSnackBar('No hay usuarios disponibles con tu idioma ahora');
+      } else {
+        showSnackBar(msg);
+      }
+      Loggers.error('startMatch: $e');
+    } finally {
+      isMatching.value = false;
     }
   }
 }

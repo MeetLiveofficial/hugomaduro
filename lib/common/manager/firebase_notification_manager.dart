@@ -154,10 +154,8 @@ class FirebaseNotificationManager {
       } else if (type == 'call_request') {
         showNotification(message, isCall: true);
         _refreshCallsBadge();
-        // Solo overlay si está en LIVE; si no, solo notificación + pestaña CALL.
-        if (LivestreamScreenController.activeInstance != null) {
-          _openIncomingCallFromPush(message.data);
-        }
+        // App en foreground: siempre mostrar UI de llamada entrante.
+        _openIncomingCallFromPush(message.data);
         return;
       } else if (type == 'call_rejected') {
         showNotification(message, isCall: true);
@@ -363,16 +361,11 @@ class FirebaseNotificationManager {
           .toList();
       if (pending.isEmpty) return;
       final call = pending.first;
-      final onLive = LivestreamScreenController.activeInstance != null;
+      final opened = await LiveIncomingCallOverlay.show(call);
+      if (opened) return;
 
-      if (onLive) {
-        await LiveIncomingCallOverlay.show(call);
-        return;
-      }
-
-      // Fuera de LIVE: solo abrir UI si el usuario tocó la notificación.
+      // Fallback si no hubo contexto de diálogo (p. ej. transición de ruta).
       if (!forceOpen) return;
-
       if (Get.isRegistered<DashboardScreenController>()) {
         final dash = Get.find<DashboardScreenController>();
         dash.selectedPageIndex.value = DashboardScreenController.tabChat;

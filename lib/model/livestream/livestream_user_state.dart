@@ -13,30 +13,46 @@ class LivestreamUserState {
   List<int> followersGained;
   int joinStreamTime;
   AppUser? user;
+  /// 1 = usuario en videollamada mientras sigue en la sesión LIVE.
+  bool inCall;
 
-  LivestreamUserState({ this.audioStatus = VideoAudioStatus.on,
+  LivestreamUserState({
+    this.audioStatus = VideoAudioStatus.on,
     this.videoStatus = VideoAudioStatus.on,
-      required this.type,
-      required this.userId,
-      required this.liveCoin,
-      required this.currentBattleCoin,
-      required this.totalBattleCoin,
-      required this.followersGained,
-      required this.joinStreamTime,
-      this.user});
+    required this.type,
+    required this.userId,
+    required this.liveCoin,
+    required this.currentBattleCoin,
+    required this.totalBattleCoin,
+    required this.followersGained,
+    required this.joinStreamTime,
+    this.user,
+    this.inCall = false,
+  });
 
   factory LivestreamUserState.fromJson(Map<String, dynamic> json) {
+    final inCallRaw = json['in_call'] ?? json['inCall'] ?? 0;
+    final inCall = inCallRaw == true ||
+        inCallRaw == 1 ||
+        inCallRaw == '1' ||
+        '${inCallRaw}'.toLowerCase() == 'true';
     return LivestreamUserState(
-        audioStatus: VideoAudioStatus.fromString(json['audio_status']),
-        videoStatus: VideoAudioStatus.fromString(json['video_status']),
-        type: LivestreamUserType.fromString(json['type'] ?? ''),
-        userId: json['user_id'] ?? 0,
-        liveCoin: json['live_coin'] ?? 0,
-        currentBattleCoin: json['current_battle_coin'] ?? 0,
-        totalBattleCoin: json['total_battle_coin'] ?? 0,
-        followersGained: json['followers_gained'].cast<int>() ?? [],
-        joinStreamTime: json['join_stream_time'] ?? 0,
-        user: json['user'] != null ? AppUser.fromJson(json['user']) : null);
+      audioStatus: VideoAudioStatus.fromString(json['audio_status']),
+      videoStatus: VideoAudioStatus.fromString(json['video_status']),
+      type: LivestreamUserType.fromString(json['type'] ?? ''),
+      userId: json['user_id'] ?? 0,
+      liveCoin: json['live_coin'] ?? 0,
+      currentBattleCoin: json['current_battle_coin'] ?? 0,
+      totalBattleCoin: json['total_battle_coin'] ?? 0,
+      followersGained: json['followers_gained'] is List
+          ? (json['followers_gained'] as List)
+              .map((e) => int.tryParse('$e') ?? 0)
+              .toList()
+          : <int>[],
+      joinStreamTime: json['join_stream_time'] ?? 0,
+      user: json['user'] != null ? AppUser.fromJson(json['user']) : null,
+      inCall: inCall,
+    );
   }
 
   Map<String, dynamic> toJson() {
@@ -50,6 +66,7 @@ class LivestreamUserState {
       'total_battle_coin': totalBattleCoin,
       'followers_gained': followersGained,
       'join_stream_time': joinStreamTime,
+      'in_call': inCall ? 1 : 0,
       if (user != null) 'user': user?.toJson()
     };
   }

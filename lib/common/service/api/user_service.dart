@@ -322,6 +322,36 @@ class UserService {
     return model.data ?? [];
   }
 
+  /// Explorar: solo streamers, filtros país / idioma / keyword / presencia.
+  Future<List<User>> exploreStreamers({
+    int? lastItemId,
+    int? offset,
+    String keyWord = '',
+    String? country,
+    String? countryCode,
+    String? appLanguage,
+    String presence = 'all',
+    required int limit,
+  }) async {
+    UsersModel model = await ApiService.instance.call(
+        url: WebService.user.exploreStreamers,
+        param: {
+          if (offset != null) Params.offset: offset,
+          if (offset == null && lastItemId != null)
+            Params.lastItemId: lastItemId,
+          Params.limit: limit,
+          if (keyWord.isNotEmpty) Params.keyword: keyWord,
+          if ((country ?? '').trim().isNotEmpty) Params.country: country,
+          if ((countryCode ?? '').trim().isNotEmpty)
+            Params.countryCode: countryCode,
+          if ((appLanguage ?? '').trim().isNotEmpty)
+            Params.appLanguage: appLanguage,
+          if (presence.trim().isNotEmpty) Params.presence: presence.trim(),
+        },
+        fromJson: UsersModel.fromJson);
+    return model.data ?? [];
+  }
+
   Future<List<Follower>> fetchMyFollowers(
       {required int lastItemId, required int? userId}) async {
     bool isMe = userId == SessionManager.instance.getUserID();

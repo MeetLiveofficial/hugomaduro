@@ -48,7 +48,9 @@ class _Privilege {
 
 class _Call {
   String create = "${apiURL}call/create";
+  String findMatch = "${apiURL}call/findMatch";
   String inbox = "${apiURL}call/inbox";
+  String status = "${apiURL}call/status";
   String accept = "${apiURL}call/accept";
   String reject = "${apiURL}call/reject";
   String cancel = "${apiURL}call/cancel";
@@ -139,6 +141,7 @@ class _User {
   String editeUserLink = "${apiURL}user/editeUserLink";
   String deleteUserLink = "${apiURL}user/deleteUserLink";
   String searchUsers = "${apiURL}user/searchUsers";
+  String exploreStreamers = "${apiURL}user/exploreStreamers";
   String fetchMyFollowers = "${apiURL}user/fetchMyFollowers";
   String fetchUserFollowers = "${apiURL}user/fetchUserFollowers";
   String fetchUserFollowings = "${apiURL}user/fetchUserFollowings";
