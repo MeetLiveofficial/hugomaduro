@@ -258,16 +258,15 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   onChanged(int index) {
-    // Client: no estudio LIVE (el icono tampoco se muestra).
-    if (index == tabLive && AppRole.isClient(user)) {
-      return;
-    }
+    // Streamer: tabLive = estudio Go Live. Cliente: tabLive = Match.
     final isDarkChrome = index == tabHome &&
         (homeTabMode.value == HomeTabMode.reels ||
             homeTabMode.value == HomeTabMode.live);
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
         statusBarBrightness:
-            isDarkChrome ? Brightness.dark : Brightness.light));
+            isDarkChrome || (index == tabLive && AppRole.isClient(user))
+                ? Brightness.dark
+                : Brightness.light));
     if (index == tabHome && homeTabMode.value == HomeTabMode.feed) {
       onFeedPostScrollDown(index);
     }

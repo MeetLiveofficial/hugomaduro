@@ -865,6 +865,43 @@ class _CallPricingCard extends StatelessWidget {
               fontSize: 12,
             ),
           ),
+          const SizedBox(height: 12),
+          Obx(() {
+            final on = controller.matchEnabled.value;
+            return Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        LKey.receiveMatch.tr,
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        LKey.receiveMatchHint.tr,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white54,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                  Switch(
+                  value: on,
+                  activeThumbColor: WorkScreen._green,
+                  onChanged: controller.matchToggleBusy.value
+                      ? null
+                      : (v) => controller.setMatchEnabled(v),
+                ),
+              ],
+            );
+          }),
           if (canEdit) ...[
             const SizedBox(height: 10),
             Align(

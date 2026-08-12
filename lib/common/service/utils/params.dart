@@ -13,6 +13,7 @@ class Params {
   static const String mobileCountryCode = 'mobile_country_code';
   static const String showMyFollowing = 'show_my_following';
   static const String receiveMessage = 'receive_message';
+  static const String matchEnabled = 'match_enabled';
   static const String isVerify = 'is_verify';
   static const String url = 'url';
   static const String title = 'title';

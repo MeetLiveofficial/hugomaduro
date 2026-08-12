@@ -18,13 +18,11 @@ import 'package:krimson/utilities/theme_res.dart';
 /// Un solo botón lateral que abre Options (mic, pausa, calidad…).
 class LiveHostActionBar extends StatelessWidget {
   final VoidCallback onInvite;
-  final VoidCallback? onBattle;
   final VoidCallback? onQuality;
   final VoidCallback? onPause;
   final VoidCallback? onMic;
   final VoidCallback? onCamera;
   final String? qualityLabel;
-  final bool battleRunning;
   final bool paused;
   final bool muted;
   final bool? cameraOn;
@@ -33,13 +31,11 @@ class LiveHostActionBar extends StatelessWidget {
   const LiveHostActionBar({
     super.key,
     required this.onInvite,
-    this.onBattle,
     this.onQuality,
     this.onPause,
     this.onMic,
     this.onCamera,
     this.qualityLabel,
-    this.battleRunning = false,
     this.paused = false,
     this.muted = false,
     this.cameraOn,
@@ -56,13 +52,11 @@ class LiveHostActionBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         onTap: () => openLiveHostOptionsMenu(
           onInvite: onInvite,
-          onBattle: onBattle,
           onQuality: onQuality,
           onPause: onPause,
           onMic: onMic,
           onCamera: onCamera,
           qualityLabel: qualityLabel,
-          battleRunning: battleRunning,
           paused: paused,
           muted: muted,
           cameraOn: cameraOn,
@@ -93,13 +87,13 @@ class LiveHostActionBar extends StatelessWidget {
 
 void openLiveHostOptionsMenu({
   required VoidCallback onInvite,
-  VoidCallback? onBattle,
   VoidCallback? onQuality,
   VoidCallback? onPause,
   VoidCallback? onMic,
   VoidCallback? onCamera,
+  VoidCallback? onGiftSenders,
+  String? giftSendersSubtitle,
   String? qualityLabel,
-  bool battleRunning = false,
   bool paused = false,
   bool muted = false,
   bool? cameraOn,
@@ -178,20 +172,6 @@ void openLiveHostOptionsMenu({
                             onCamera();
                           },
                         ),
-                      if (onBattle != null)
-                        _HostOptionTile(
-                          icon: Icons.sports_kabaddi_rounded,
-                          title: battleRunning
-                              ? 'Finalizar batalla'
-                              : LKey.startBattle.tr,
-                          subtitle: battleRunning
-                              ? 'Terminar el enfrentamiento 1v1'
-                              : 'Batalla 1v1 con regalos de la audiencia',
-                          onTap: () {
-                            Get.back();
-                            onBattle();
-                          },
-                        ),
                       if (onQuality != null)
                         _HostOptionTile(
                           icon: Icons.high_quality_rounded,
@@ -202,6 +182,17 @@ void openLiveHostOptionsMenu({
                           onTap: () {
                             Get.back();
                             onQuality();
+                          },
+                        ),
+                      if (onGiftSenders != null)
+                        _HostOptionTile(
+                          icon: Icons.card_giftcard_rounded,
+                          title: 'Regalos recibidos',
+                          subtitle: giftSendersSubtitle ??
+                              'Ver quién te envió regalos',
+                          onTap: () {
+                            Get.back();
+                            onGiftSenders();
                           },
                         ),
                       _HostOptionTile(

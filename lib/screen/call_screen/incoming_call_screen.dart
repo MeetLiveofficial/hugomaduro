@@ -12,7 +12,6 @@ import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
-import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -36,8 +35,9 @@ class IncomingCallScreen extends StatelessWidget {
     final peer = call.caller;
 
     if (asDialog) {
-      // Panel inferior = mitad de pantalla (el LIVE sigue visible arriba).
+      // Half-sheet: ~50% pantalla; el fondo (Match/LIVE/dashboard) sigue visible.
       final h = MediaQuery.sizeOf(context).height;
+      final isMatch = call.isMatchSession;
       return Material(
         color: Colors.transparent,
         child: Align(
@@ -65,7 +65,7 @@ class IncomingCallScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      LKey.incomingCall.tr,
+                      isMatch ? 'Match' : LKey.incomingCall.tr,
                       style: TextStyleCustom.outFitRegular400(
                         color: whitePure(context).withValues(alpha: 0.75),
                         fontSize: 13,
@@ -99,6 +99,23 @@ class IncomingCallScreen extends StatelessWidget {
                         ),
                       ),
                     ],
+                    if (call.coinsCost > 0) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(AssetRes.icCoin, height: 14, width: 14),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${call.coinsCost}',
+                            style: TextStyleCustom.outFitMedium500(
+                              color: whitePure(context),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     Obx(() {
                       final err = controller.errorText.value;
                       if (err == null || err.isEmpty) {
@@ -128,7 +145,7 @@ class IncomingCallScreen extends StatelessWidget {
                           onTap: controller.reject,
                         ),
                         _CircleAction(
-                          color: ColorRes.themeAccentSolid,
+                          color: Colors.green,
                           icon: Icons.call,
                           label: LKey.accept.tr,
                           compact: true,
@@ -153,7 +170,7 @@ class IncomingCallScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 28),
             Text(
-              LKey.incomingCall.tr,
+              call.isMatchSession ? 'Match' : LKey.incomingCall.tr,
               style: TextStyleCustom.outFitRegular400(
                 color: whitePure(context).withValues(alpha: 0.75),
                 fontSize: 15,
@@ -232,7 +249,7 @@ class IncomingCallScreen extends StatelessWidget {
                   onTap: controller.reject,
                 ),
                 _CircleAction(
-                  color: ColorRes.themeAccentSolid,
+                  color: Colors.green,
                   icon: Icons.call,
                   label: LKey.accept.tr,
                   onTap: controller.accept,
@@ -304,21 +321,76 @@ class IncomingCallController extends GetxController {
   CallRequestModel call;
   final RxnString errorText = RxnString();
   bool _busy = false;
+  bool _closed = false;
   final AudioPlayer _ringtone = AudioPlayer();
+  Timer? _statusPoll;
+
+  /// Cierra el overlay si el emisor canceló (FCM / poll).
+  static void handleRemoteCancelled(int? callRequestId) {
+    if (callRequestId == null) return;
+    final tag = 'incoming_$callRequestId';
+    if (!Get.isRegistered<IncomingCallController>(tag: tag)) return;
+    final c = Get.find<IncomingCallController>(tag: tag);
+    unawaited(c._dismissRemoteCancelled());
+  }
+
+  /// Cierra cualquier incoming abierto (p. ej. ya no está pending en inbox).
+  static void dismissIfOpen(int callRequestId) {
+    handleRemoteCancelled(callRequestId);
+  }
 
   @override
   void onInit() {
     super.onInit();
     _startRingtone();
+    _startStatusPoll();
   }
 
   @override
   void onClose() {
+    _statusPoll?.cancel();
+    _statusPoll = null;
     _stopRingtone();
     try {
       _ringtone.dispose();
     } catch (_) {}
     super.onClose();
+  }
+
+  void _startStatusPoll() {
+    _statusPoll?.cancel();
+    // Sin FCM (BlueStacks/web): detectar cancelación del caller.
+    _statusPoll = Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(_checkStillPending());
+    });
+  }
+
+  Future<void> _checkStillPending() async {
+    if (_busy || _closed || call.id == null) return;
+    try {
+      final fresh = await CallService.instance.status(call.id!);
+      final st = (fresh.status ?? '').toLowerCase().trim();
+      if (st == 'cancelled' ||
+          st == 'expired' ||
+          st == 'ended' ||
+          st == 'rejected') {
+        await _dismissRemoteCancelled();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _dismissRemoteCancelled() async {
+    if (_closed || _busy) return;
+    _closed = true;
+    _statusPoll?.cancel();
+    await _stopRingtone();
+    _closeIncomingUi();
+    final tag = 'incoming_${call.id}';
+    try {
+      if (Get.isRegistered<IncomingCallController>(tag: tag)) {
+        Get.delete<IncomingCallController>(tag: tag, force: true);
+      }
+    } catch (_) {}
   }
 
   Future<void> _startRingtone() async {
@@ -353,8 +425,9 @@ class IncomingCallController extends GetxController {
   }
 
   Future<void> accept() async {
-    if (_busy || call.id == null) return;
+    if (_busy || _closed || call.id == null) return;
     _busy = true;
+    _statusPoll?.cancel();
     await _stopRingtone();
     try {
       final updated = await CallService.instance.accept(call.id!);
@@ -366,30 +439,48 @@ class IncomingCallController extends GetxController {
           await live.pauseLiveKitForCall();
         } catch (_) {}
       }
+      _closed = true;
       _closeIncomingUi();
       await Future.delayed(const Duration(milliseconds: 80));
       if (keepLive) {
-        Get.to(() => VideoCallScreen(call: updated, resumeLiveOnHangup: true));
+        Get.to(() => VideoCallScreen(
+              call: updated,
+              resumeLiveOnHangup: true,
+              isMatchPreview: updated.isMatchSession,
+              matchFreeSeconds: updated.matchSeconds > 0
+                  ? updated.matchSeconds
+                  : 30,
+            ));
       } else {
-        Get.off(() => VideoCallScreen(call: updated));
+        Get.off(() => VideoCallScreen(
+              call: updated,
+              isMatchPreview: updated.isMatchSession,
+              matchFreeSeconds: updated.matchSeconds > 0
+                  ? updated.matchSeconds
+                  : 30,
+            ));
       }
     } catch (e) {
       errorText.value = e.toString().replaceFirst('Exception: ', '');
       _busy = false;
       await _startRingtone();
+      _startStatusPoll();
     }
   }
 
   Future<void> reject() async {
-    if (_busy || call.id == null) return;
+    if (_busy || _closed || call.id == null) return;
     _busy = true;
+    _statusPoll?.cancel();
     await _stopRingtone();
     try {
       await CallService.instance.reject(call.id!);
+      _closed = true;
       _closeIncomingUi();
     } catch (e) {
       errorText.value = e.toString().replaceFirst('Exception: ', '');
       _busy = false;
+      _startStatusPoll();
     }
   }
 }

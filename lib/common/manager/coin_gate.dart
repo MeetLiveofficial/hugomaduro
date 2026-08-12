@@ -24,9 +24,10 @@ class CoinGate {
         (SessionManager.instance.getUser()?.coinWallet ?? 0).toInt();
     if (wallet >= needed) return true;
 
+    final msg = message ?? LKey.insufficientCoins.tr;
     Get.snackbar(
       '',
-      message ?? 'Moneda insuficiente',
+      msg,
       snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.black87,
       colorText: Colors.white,
@@ -34,7 +35,7 @@ class CoinGate {
       borderRadius: 24,
       titleText: const SizedBox.shrink(),
       messageText: Text(
-        message ?? 'Moneda insuficiente',
+        msg,
         textAlign: TextAlign.center,
         style: const TextStyle(color: Colors.white, fontSize: 14),
       ),

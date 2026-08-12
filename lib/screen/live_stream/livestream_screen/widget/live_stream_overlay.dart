@@ -13,6 +13,25 @@ import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/level_avatar_style.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
+String _liveJoinLabel(LiveChatMessage message) {
+  if (message.isSvip || (message.userLevel ?? 0) >= 8) {
+    return LKey.arrivedInStyle.tr;
+  }
+  if ((message.userLevel ?? 0) >= 4) {
+    return LKey.joinedShort.tr;
+  }
+  return LKey.joinedTheLive.tr;
+}
+
+String _liveGiftLabel(LiveChatMessage message) {
+  final coins = message.giftCoins;
+  final base = LKey.sentAGift.tr;
+  if (coins != null && coins > 0) {
+    return '$base · $coins ${LKey.coins.tr}';
+  }
+  return base;
+}
+
 /// Overlay LIVE: host/viewers arriba; título + chat/Private/Like/Gift abajo.
 class LiveStreamOverlay extends StatelessWidget {
   final LivestreamScreenController controller;
@@ -162,7 +181,7 @@ class LiveStreamOverlay extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             if (!controller.isHost)
-              _AudienceGiftIncentiveSlider(controller: controller),
+              _GiftIncentiveSlider(controller: controller),
             _ComposerRow(
               controller: controller,
               showHostControls: showHostControls,
@@ -203,7 +222,7 @@ class _BattleResultCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              result.isDraw ? 'EMPATE' : 'RESULTADO PK',
+              result.isDraw ? LKey.pkDraw.tr : LKey.pkResult.tr,
               style: TextStyleCustom.outFitBold700(
                 color: result.isDraw
                     ? Colors.amber
@@ -231,7 +250,7 @@ class _BattleResultCard extends StatelessWidget {
               ),
             ] else ...[
               Text(
-                'GANÓ',
+                LKey.pkWon.tr,
                 style: TextStyleCustom.outFitMedium500(
                   color: Colors.white54,
                   fontSize: 12,
@@ -247,7 +266,7 @@ class _BattleResultCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '${result.winnerCoins} monedas',
+                '${result.winnerCoins} ${LKey.coins.tr}',
                 style: TextStyleCustom.outFitRegular400(
                   color: const Color(0xFFFFD56B),
                   fontSize: 13,
@@ -255,7 +274,7 @@ class _BattleResultCard extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'PERDIÓ',
+                LKey.pkLost.tr,
                 style: TextStyleCustom.outFitMedium500(
                   color: Colors.white54,
                   fontSize: 12,
@@ -271,7 +290,7 @@ class _BattleResultCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '${result.loserCoins} monedas',
+                '${result.loserCoins} ${LKey.coins.tr}',
                 style: TextStyleCustom.outFitRegular400(
                   color: Colors.white54,
                   fontSize: 12,
@@ -304,7 +323,7 @@ class _FollowBanner extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '${message.userName} te sigue',
+                '${message.userName} ${LKey.isFollowingYou.tr}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyleCustom.outFitMedium500(
@@ -329,14 +348,9 @@ class _JoinLevelBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final level = message.userLevel ?? 1;
     final svip = message.isSvip;
-    final title = (message.levelTitle ?? '').trim();
     final gradient = LevelAvatarStyle.ringGradient(level, svip: svip);
-    final badge = svip
-        ? (title.isNotEmpty ? 'SVIP · $title' : 'SVIP')
-        : (title.isNotEmpty ? 'Lv.$level · $title' : 'Lv.$level');
-    final subtitle = (message.text ?? '').trim().isNotEmpty
-        ? message.text!
-        : 'entró al LIVE';
+    final badge = svip ? LKey.svip.tr : 'Lv. $level';
+    final subtitle = _liveJoinLabel(message);
 
     return Material(
       borderRadius: BorderRadius.circular(14),
@@ -433,8 +447,8 @@ class _BattleWaitingBanner extends StatelessWidget {
     return Obx(() {
       final name = controller.battleOpponentName.value;
       final label = name.isEmpty
-          ? 'Esperando respuesta a la batalla…'
-          : 'Esperando a $name…';
+          ? LKey.waitingBattleResponse.tr
+          : LKey.waitingForUser.trParams({'name': name});
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -460,7 +474,7 @@ class _BattleWaitingBanner extends StatelessWidget {
               ),
             ),
             Text(
-              'BATALLA',
+              LKey.battle.tr.toUpperCase(),
               style: TextStyleCustom.outFitSemiBold600(
                 color: ColorRes.themeAccentSolid,
                 fontSize: 11,
@@ -490,63 +504,13 @@ class _PausedBadge extends StatelessWidget {
           const Icon(Icons.pause_circle_filled, color: Colors.white, size: 22),
           const SizedBox(width: 8),
           Text(
-            'PAUSADO',
+            LKey.paused.tr,
             style: TextStyleCustom.outFitMedium500(
               color: Colors.white,
               fontSize: 13,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Regalos: icono limpio + punto rojo (sin número grande).
-class _GiftIconBtn extends StatelessWidget {
-  final bool hasGifts;
-  final VoidCallback onTap;
-
-  const _GiftIconBtn({required this.hasGifts, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: 'Regalos',
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.45),
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: SizedBox(
-            width: 40,
-            height: 40,
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.card_giftcard_outlined,
-                    color: Colors.white, size: 20),
-                if (hasGifts)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: ColorRes.themeAccentSolid,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white24, width: 0.8),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -712,7 +676,7 @@ class _TopBar extends StatelessWidget {
                                           color: ColorRes.themeAccentSolid),
                                       const SizedBox(width: 3),
                                       Text(
-                                        'Unirse',
+                                        LKey.follow.tr,
                                         style: TextStyleCustom
                                             .outFitSemiBold600(
                                           color: ColorRes.themeAccentSolid,
@@ -774,7 +738,7 @@ class _LiveStatusChip extends StatelessWidget {
       final timeLabel = hh > 0
           ? '${hh.toString().padLeft(2, '0')}:$mm:$ss'
           : '$mm:$ss';
-      final statusLabel = inCall ? 'EN LLAMADA' : (battle ? 'PK' : 'LIVE');
+      final statusLabel = inCall ? LKey.inCall.tr : (battle ? 'PK' : 'LIVE');
       final statusColor = inCall
           ? const Color(0xFFE67E22)
           : ColorRes.themeAccentSolid;
@@ -1044,6 +1008,7 @@ class _ChatBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final canReply =
         message.type == 'text' || message.type == 'gif' || message.type == 'gift';
+    final isGiftBoost = message.type == 'gift_boost';
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -1052,7 +1017,13 @@ class _ChatBubble extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: canReply ? () => controller.setReplyTo(message) : null,
+          onTap: isGiftBoost && !controller.isHost
+              ? () => controller.sendGiftDirectly(
+                    giftId: message.giftId,
+                    giftImage: message.giftImage,
+                    coinPrice: message.giftCoins,
+                  )
+              : (canReply ? () => controller.setReplyTo(message) : null),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Column(
@@ -1091,7 +1062,7 @@ class _ChatBubble extends StatelessWidget {
                           ),
                           child: Text(
                             message.isSvip
-                                ? 'SVIP'
+                                ? LKey.svip.tr
                                 : 'Lv.${message.userLevel}',
                             style: TextStyleCustom.outFitMedium500(
                               color: Colors.white,
@@ -1119,7 +1090,7 @@ class _ChatBubble extends StatelessWidget {
                 const SizedBox(height: 2),
                 if (message.type == 'follow')
                   Text(
-                    message.text ?? 'te sigue',
+                    '${LKey.isFollowingYou.tr}',
                     style: TextStyleCustom.outFitMedium500(
                       color: Colors.white,
                       fontSize: 13,
@@ -1127,7 +1098,7 @@ class _ChatBubble extends StatelessWidget {
                   )
                 else if (message.type == 'join')
                   Text(
-                    message.text ?? 'entró al LIVE',
+                    _liveJoinLabel(message),
                     style: TextStyleCustom.outFitMedium500(
                       color: Colors.white.withValues(alpha: 0.92),
                       fontSize: 13,
@@ -1135,8 +1106,8 @@ class _ChatBubble extends StatelessWidget {
                   )
                 else if (message.type == 'call_invite')
                   Text(
-                    '📞 ${message.text ?? 'invita a una llamada'}'
-                    '${message.giftCoins != null && message.giftCoins! > 0 ? ' · ${message.giftCoins} coins' : ''}',
+                    '📞 ${LKey.invitesToPrivateCall.tr}'
+                    '${message.giftCoins != null && message.giftCoins! > 0 ? ' · ${message.giftCoins} ${LKey.coins.tr}' : ''}',
                     style: TextStyleCustom.outFitMedium500(
                       color: ColorRes.accentPeach,
                       fontSize: 13,
@@ -1148,7 +1119,7 @@ class _ChatBubble extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          message.text ?? '¡Envíame regalos!',
+                          message.text ?? LKey.sendMeGifts.tr,
                           style: TextStyleCustom.outFitMedium500(
                             color: ColorRes.accentPeach,
                             fontSize: 13,
@@ -1214,8 +1185,7 @@ class _ChatBubble extends StatelessWidget {
                       ),
                       Flexible(
                         child: Text(
-                          'sent a gift'
-                          '${message.giftCoins != null && message.giftCoins! > 0 ? ' · ${message.giftCoins} coins' : ''}',
+                          _liveGiftLabel(message),
                           style: TextStyleCustom.outFitRegular400(
                             color: Colors.white,
                             fontSize: 13,
@@ -1225,12 +1195,27 @@ class _ChatBubble extends StatelessWidget {
                     ],
                   )
                 else
-                  Text(
-                    message.text ?? '',
-                    style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white,
-                      fontSize: 13,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        message.displayText,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (message.isTranslated) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          message.originalText ?? '',
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white54,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
               ],
             ),
@@ -1387,83 +1372,123 @@ class _TitleDescription extends StatelessWidget {
   }
 }
 
-class _AudienceGiftIncentiveSlider extends StatelessWidget {
+class _GiftIncentiveSlider extends StatelessWidget {
   final LivestreamScreenController controller;
 
-  const _AudienceGiftIncentiveSlider({required this.controller});
+  const _GiftIncentiveSlider({required this.controller});
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final slots = controller.giftIncentives;
+      final sendingId = controller.sendingGiftId.value;
+      final count = controller.giftIncentives.length;
+      if (count <= 0) return const SizedBox.shrink();
+      final slots = controller.giftIncentives
+          .where((e) => e.isConfigured)
+          .toList(growable: false);
       if (slots.isEmpty) return const SizedBox.shrink();
       return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(bottom: 6),
         child: SizedBox(
-          height: 78,
+          height: 56,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 2),
             itemCount: slots.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (_, __) => const SizedBox(width: 6),
             itemBuilder: (context, index) {
               final slot = slots[index];
               final msg = slot.trimmedMessage;
-              return InkWell(
-                onTap: () => controller.openGiftSheet(),
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  width: 148,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: Row(
-                    children: [
-                      GiftMedia(
-                        path: slot.image,
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.contain,
-                        muted: true,
-                        looping: true,
-                        placeholder: const Icon(
-                          Icons.card_giftcard,
-                          color: ColorRes.accentPeach,
-                          size: 28,
-                        ),
+              final sending = sendingId != null && sendingId == slot.giftId;
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    if (controller.isHost) return;
+                    if (controller.sendingGiftId.value != null) return;
+                    controller.sendIncentiveGift(slot);
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 108,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: sending
+                            ? ColorRes.themeAccentSolid
+                            : Colors.white24,
                       ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
+                    ),
+                    child: Stack(
+                      children: [
+                        Row(
                           children: [
-                            Text(
-                              msg.isEmpty ? '¡Regálame!' : msg,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyleCustom.outFitMedium500(
-                                color: Colors.white,
-                                fontSize: 11,
+                            IgnorePointer(
+                              child: GiftMedia(
+                                path: slot.image,
+                                width: 32,
+                                height: 32,
+                                fit: BoxFit.contain,
+                                muted: true,
+                                looping: true,
+                                placeholder: const Icon(
+                                  Icons.card_giftcard,
+                                  color: ColorRes.accentPeach,
+                                  size: 22,
+                                ),
                               ),
                             ),
-                            Text(
-                              '(${slot.coinPrice ?? 0})',
-                              style: TextStyleCustom.outFitRegular400(
-                                color: ColorRes.accentPeach,
-                                fontSize: 11,
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    msg.isEmpty ? LKey.giftMe.tr : msg,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyleCustom.outFitMedium500(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  Text(
+                                    '(${slot.coinPrice ?? 0})',
+                                    style: TextStyleCustom.outFitRegular400(
+                                      color: ColorRes.accentPeach,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const Icon(Icons.card_giftcard,
-                          color: ColorRes.accentPeach, size: 16),
-                    ],
+                        if (sending)
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.45),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: ColorRes.themeAccentSolid,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -1506,8 +1531,8 @@ class _ComposerRow extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Respondiendo a ${reply.userName}'
-                        '${(reply.text ?? '').isNotEmpty ? ': ${reply.text}' : ''}',
+                        '${LKey.replyingTo.tr} ${reply.userName}'
+                        '${reply.displayText.isNotEmpty ? ': ${reply.displayText}' : ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyleCustom.outFitRegular400(
@@ -1541,15 +1566,18 @@ class _ComposerRow extends StatelessWidget {
               if (!expanded) ...[
                 const SizedBox(width: 8),
                 Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    reverse: false,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (showHostControls) ..._hostActions(controller),
-                        if (!controller.isHost) ..._audienceActions(controller),
-                      ],
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (showHostControls) ..._hostActions(controller),
+                          if (!controller.isHost)
+                            ..._audienceActions(controller),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1569,30 +1597,25 @@ class _ComposerRow extends StatelessWidget {
 
   List<Widget> _hostActions(LivestreamScreenController c) {
     return [
-      Obx(() => _BadgeIconBtn(
-            icon: Icons.card_giftcard_rounded,
-            tooltip: 'Incentivar regalos',
-            accent: true,
-            onTap: c.openGiftBoostSheet,
-          )),
+      _BadgeIconBtn(
+        icon: Icons.card_giftcard_rounded,
+        tooltip: LKey.boostGifts.tr,
+        accent: true,
+        onTap: c.openGiftBoostSheet,
+      ),
       const SizedBox(width: 6),
       _BadgeIconBtn(
         icon: Icons.call_rounded,
-        tooltip: 'Invitar a llamada',
+        tooltip: LKey.inviteToCall.tr,
         accent: true,
         onTap: c.inviteAudienceToCall,
       ),
       const SizedBox(width: 6),
       Obx(() => _BadgeIconBtn(
             icon: Icons.chat_bubble_outline_rounded,
-            tooltip: 'Chats',
+            tooltip: LKey.chats.tr,
             badge: c.unreadChatCount.value,
             onTap: c.openUnreadChatsSheet,
-          )),
-      const SizedBox(width: 6),
-      Obx(() => _GiftIconBtn(
-            hasGifts: c.giftSenders.isNotEmpty,
-            onTap: c.openGiftSendersSheet,
           )),
       const SizedBox(width: 6),
       _LiveIconBtn(
@@ -1608,7 +1631,7 @@ class _ComposerRow extends StatelessWidget {
           icon: battleOn
               ? Icons.flag_rounded
               : Icons.sports_kabaddi_rounded,
-          tooltip: battleOn ? 'Fin batalla' : 'Batalla',
+          tooltip: battleOn ? LKey.endBattle.tr : LKey.battle.tr,
           accent: !battleOn,
           danger: battleOn,
           onTap: c.openBattle,
@@ -1620,27 +1643,28 @@ class _ComposerRow extends StatelessWidget {
         final muted = c.liveKit == null
             ? c.isLiveAudioMuted.value
             : !(c.liveKit!.microphoneEnabled.value);
-        final battleOn =
-            c.isBattleRunning.value || c.isBattleWaiting.value;
         final qualityText = c.liveKit == null
-            ? 'Baja'
+            ? LKey.qualityLow.tr
             : switch (c.liveKit!.qualityProfile.value) {
-                LiveKitQualityProfile.low => 'Baja',
-                LiveKitQualityProfile.medium => 'Media',
-                LiveKitQualityProfile.high => 'Alta',
+                LiveKitQualityProfile.low => LKey.qualityLow.tr,
+                LiveKitQualityProfile.medium => LKey.qualityMedium.tr,
+                LiveKitQualityProfile.high => LKey.qualityHigh.tr,
               };
+        final hasReceivedGifts = c.giftSenders.isNotEmpty;
         return _LiveIconBtn(
           icon: Icons.tune_rounded,
-          tooltip: 'Options',
+          tooltip: LKey.options.tr,
           onTap: () => openLiveHostOptionsMenu(
             onInvite: c.openInvite,
-            onBattle: c.openBattle,
             onQuality: c.openQualitySheet,
             onPause: c.togglePauseLive,
             onMic: c.toggleLiveAudioMute,
             onCamera: c.liveKit?.toggleCamera,
+            onGiftSenders: c.openGiftSendersSheet,
+            giftSendersSubtitle: hasReceivedGifts
+                ? LKey.seeGiftSenders.tr
+                : LKey.noGiftsYet.tr,
             qualityLabel: qualityText,
-            battleRunning: battleOn,
             paused: paused,
             muted: muted,
             cameraOn: c.liveKit?.cameraEnabled.value,
@@ -1654,7 +1678,7 @@ class _ComposerRow extends StatelessWidget {
     return [
       Obx(() => _BadgeIconBtn(
             icon: Icons.chat_bubble_outline_rounded,
-            tooltip: 'Chats',
+            tooltip: LKey.chats.tr,
             badge: c.unreadChatCount.value,
             onTap: c.openUnreadChatsSheet,
           )),
@@ -1670,18 +1694,18 @@ class _ComposerRow extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: c.openPrivateCall,
-          child: const SizedBox(
+          child: SizedBox(
             height: 40,
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.call, color: Colors.white, size: 16),
-                  SizedBox(width: 4),
+                  const Icon(Icons.call, color: Colors.white, size: 16),
+                  const SizedBox(width: 4),
                   Text(
-                    'Private',
-                    style: TextStyle(
+                    LKey.privateCall.tr,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -1720,19 +1744,19 @@ class _DiHolaChip extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: onTap,
-        child: const SizedBox(
+        child: SizedBox(
           height: 40,
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.chat_bubble_outline_rounded,
+                const Icon(Icons.chat_bubble_outline_rounded,
                     color: Colors.white70, size: 16),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(
-                  'Di Hola',
-                  style: TextStyle(
+                  LKey.sayHello.tr,
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -1782,8 +1806,8 @@ class _ExpandedChatField extends StatelessWidget {
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   hintText: reply != null
-                      ? 'Responder a ${reply.userName}…'
-                      : 'Di Hola',
+                      ? '${LKey.reply.tr} ${reply.userName}…'
+                      : LKey.sayHello.tr,
                   hintStyle: TextStyleCustom.outFitRegular400(
                     color: Colors.white54,
                     fontSize: 14,

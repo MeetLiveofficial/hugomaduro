@@ -13,11 +13,14 @@ import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/chat_service.dart';
+import 'package:krimson/common/service/api/gift_wallet_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
+import 'package:krimson/common/service/translation/chat_translator_service.dart';
 import 'package:krimson/common/widget/gift_media.dart';
+import 'package:krimson/languages/dynamic_translations.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/giphy/giphy_model.dart';
@@ -127,6 +130,8 @@ class LivestreamScreenController extends BaseController {
   /// Remitentes de regalos acumulados en esta sesión.
   final RxList<LiveGiftSender> giftSenders = <LiveGiftSender>[].obs;
   final RxList<LiveGiftIncentive> giftIncentives = <LiveGiftIncentive>[].obs;
+  /// Gift del slider que se está enviando (spinner en el chip, no Get.dialog).
+  final RxnInt sendingGiftId = RxnInt();
   /// Banner "X te sigue" (host + audiencia).
   final Rxn<LiveChatMessage> followBanner = Rxn<LiveChatMessage>();
   Timer? _followBannerTimer;
@@ -293,6 +298,9 @@ class LivestreamScreenController extends BaseController {
   @override
   void onInit() {
     super.onInit();
+    if (Get.isRegistered<DynamicTranslations>()) {
+      Get.find<DynamicTranslations>().ensureLiveFallbacks();
+    }
     activeInstance = this;
     _enterImmersiveLive();
     selectedGiftUser.value = livestream.hostUser;
@@ -402,14 +410,13 @@ class LivestreamScreenController extends BaseController {
     final levelNum = me.levelNumber ?? level.level ?? 1;
     final levelTitle = (me.levelTitle ?? level.title ?? '').trim();
     final isSvip = level.isSvipLevel == 1;
-    final entranceVideo = (level.entranceVideo ?? '').trim();
-    final joinText = isSvip
-        ? 'llegó con estilo SVIP'
-        : (levelNum >= 8
-            ? 'llegó con estilo Lv.$levelNum'
-            : (levelNum >= 4
-                ? 'entró · Lv.$levelNum'
-                : 'entró al LIVE'));
+    // Video desde el nivel del usuario o catálogo settings (LV 5/6, etc.).
+    final entranceVideo =
+        (_entranceVideoForLevelNumber(levelNum) ?? (level.entranceVideo ?? ''))
+            .trim();
+    final joinText = isSvip || levelNum >= 8
+        ? LKey.arrivedInStyle.tr
+        : (levelNum >= 4 ? LKey.joinedShort.tr : LKey.joinedTheLive.tr);
     final msg = LiveChatMessage(
       id: clientId,
       userId: me.id!,
@@ -423,16 +430,32 @@ class LivestreamScreenController extends BaseController {
     );
     _appendChatMessage(msg);
     try {
+      // Payload con meta para hosts que solo reciben el poll de comentarios.
+      final safeVideo = entranceVideo.replaceAll('|', '%7C');
       await LiveSessionService.instance.sendComment(
         roomId: roomId,
         clientId: clientId,
         type: 'text',
-        text: '👋 $name $joinText',
+        text:
+            '👋JOIN|$levelNum|${isSvip ? 1 : 0}|$safeVideo|$name $joinText',
       );
     } catch (_) {}
     try {
       await liveKit?.publishData(msg.toBytes());
     } catch (_) {}
+  }
+
+  /// Video de entrada del catálogo `userLevels` por número de nivel.
+  String? _entranceVideoForLevelNumber(int levelNum) {
+    if (levelNum <= 0) return null;
+    final levels = SessionManager.instance.getSettings()?.userLevels ?? [];
+    for (final l in levels) {
+      if (l.level == levelNum) {
+        final v = (l.entranceVideo ?? '').trim();
+        return v.isEmpty ? null : v;
+      }
+    }
+    return null;
   }
 
   /// Oculta barra de navegación / status del sistema durante el LIVE.
@@ -463,6 +486,8 @@ class LivestreamScreenController extends BaseController {
         await _loadHostFollowStatus();
       } else {
         await _refreshSessionStats(silent: true);
+        // Precargar traductor: comentarios de Clientes → idioma del Streamer.
+        unawaited(ChatTranslatorService.instance.preloadForUserLanguage());
         // Publicar/actualizar doc en Firestore para que el listado muestre
         // también la sala del rival en PK (no solo la del invitador).
         unawaited(_publishLiveDocToFirestore());
@@ -603,7 +628,7 @@ class LivestreamScreenController extends BaseController {
       userId: me.id!,
       userName: name,
       type: 'follow',
-      text: '$name te sigue',
+      text: LKey.isFollowingYou.tr,
     );
     _appendChatMessage(msg);
     try {
@@ -611,7 +636,7 @@ class LivestreamScreenController extends BaseController {
         roomId: roomId,
         clientId: clientId,
         type: 'text',
-        text: 'ðŸ‘¤ $name te sigue',
+        text: 'ðŸ‘¤ $name ${LKey.isFollowingYou.tr}',
       );
     } catch (_) {}
     try {
@@ -974,14 +999,7 @@ class LivestreamScreenController extends BaseController {
     if (direct.isNotEmpty) return direct;
     final levelNum = msg.userLevel;
     if (levelNum == null || levelNum <= 0) return null;
-    final levels = SessionManager.instance.getSettings()?.userLevels ?? [];
-    for (final l in levels) {
-      if (l.level == levelNum) {
-        final v = (l.entranceVideo ?? '').trim();
-        return v.isEmpty ? null : v;
-      }
-    }
-    return null;
+    return _entranceVideoForLevelNumber(levelNum);
   }
 
   void _startSessionPolling() {
@@ -1061,9 +1079,8 @@ class LivestreamScreenController extends BaseController {
     }
 
     ever(liveKit!.statusMessage, (msg) {
-      if (msg.isNotEmpty) {
-        statusMessage.value = msg;
-      }
+      // Incluir '' para limpiar "Leaving…" / estados tras pause/resume de llamada.
+      statusMessage.value = msg;
     });
     ever(liveKit!.mediaRevision, (_) {
       _syncViewersFromLiveKit();
@@ -1323,7 +1340,7 @@ class LivestreamScreenController extends BaseController {
         userId: msg.userId,
         userName: msg.userName,
         type: 'call_invite',
-        text: (callInvite.group(2) ?? 'te invita a una llamada privada').trim(),
+        text: (callInvite.group(2) ?? LKey.invitesToPrivateCall.tr).trim(),
         giftCoins: int.tryParse(callInvite.group(1) ?? '0') ?? 0,
         createdAt: msg.createdAt,
       );
@@ -1336,7 +1353,7 @@ class LivestreamScreenController extends BaseController {
         userId: msg.userId,
         userName: msg.userName,
         type: 'gift_boost',
-        text: (giftBoost.group(2) ?? '¡Envíame regalos!').trim(),
+        text: (giftBoost.group(2) ?? LKey.sendMeGifts.tr).trim(),
         giftId: giftId,
         giftImage: _resolveGiftImage(giftId),
         createdAt: msg.createdAt,
@@ -1361,7 +1378,7 @@ class LivestreamScreenController extends BaseController {
         userId: msg.userId,
         userName: msg.userName,
         type: 'gift',
-        text: 'sent a gift',
+        text: LKey.sentAGift.tr,
         giftId: giftId,
         giftCoins: giftCoins,
         giftImage: image,
@@ -1375,7 +1392,7 @@ class LivestreamScreenController extends BaseController {
         userId: msg.userId,
         userName: msg.userName,
         type: 'gift',
-        text: 'sent a gift',
+        text: LKey.sentAGift.tr,
         giftId: giftId,
         giftCoins: giftCoins,
         giftImage: image,
@@ -1396,7 +1413,7 @@ class LivestreamScreenController extends BaseController {
         userId: msg.userId,
         userName: msg.userName,
         type: 'gift',
-        text: 'sent a gift',
+        text: LKey.sentAGift.tr,
         giftId: giftId,
         giftCoins: giftCoins,
         giftImage: image,
@@ -1408,7 +1425,7 @@ class LivestreamScreenController extends BaseController {
         userId: msg.userId,
         userName: msg.userName,
         type: 'gift',
-        text: 'sent a gift',
+        text: LKey.sentAGift.tr,
         giftId: giftId,
         giftCoins: giftCoins,
         giftImage: image,
@@ -1418,38 +1435,71 @@ class LivestreamScreenController extends BaseController {
 
     final lower = text.toLowerCase();
     if (text.contains('ðŸŽ') &&
-        (lower.contains('sent a gift') || lower.contains('envió un regalo'))) {
+        (lower.contains('sent a gift') ||
+            lower.contains('envió un regalo') ||
+            lower.contains('enviou um presente'))) {
       return LiveChatMessage(
         id: msg.id,
         userId: msg.userId,
         userName: msg.userName,
         type: 'gift',
-        text: 'sent a gift',
+        text: LKey.sentAGift.tr,
         createdAt: msg.createdAt,
       );
     }
-    if (text.contains('ðŸ‘¤') || lower.contains('te sigue')) {
+    if (text.contains('ðŸ‘¤') ||
+        lower.contains('te sigue') ||
+        lower.contains('is following you') ||
+        lower.contains('está te seguindo')) {
       return LiveChatMessage(
         id: msg.id,
         userId: msg.userId,
         userName: msg.userName,
         type: 'follow',
-        text: text.replaceFirst('ðŸ‘¤', '').trim().isEmpty
-            ? '${msg.userName} te sigue'
-            : text.replaceFirst('ðŸ‘¤', '').trim(),
+        text: LKey.isFollowingYou.tr,
         createdAt: msg.createdAt,
       );
     }
-    if (lower.contains('entró al live') ||
+    final joinMeta =
+        RegExp(r'JOIN\|(\d+)\|([01])\|([^|]*)\|(.*)').firstMatch(text);
+    if (joinMeta != null ||
+        lower.contains('entró al live') ||
         lower.contains('entro al live') ||
+        lower.contains('joined the live') ||
+        lower.contains('arrived in style') ||
+        lower.contains('entrou no live') ||
         text.contains('👋')) {
+      final levelNum = joinMeta != null
+          ? int.tryParse(joinMeta.group(1) ?? '')
+          : null;
+      final isSvip = joinMeta?.group(2) == '1';
+      var video = (joinMeta?.group(3) ?? '').trim().replaceAll('%7C', '|');
+      if (video.isEmpty && levelNum != null) {
+        video = _entranceVideoForLevelNumber(levelNum) ?? '';
+      }
+      final rest = (joinMeta?.group(4) ?? text)
+          .replaceFirst('👋', '')
+          .trim();
+      var joinText = rest;
+      // Quitar nombre duplicado al inicio si viene "Name entró".
+      if (joinText.toLowerCase().startsWith(msg.userName.toLowerCase())) {
+        joinText = joinText.substring(msg.userName.length).trim();
+      }
+      joinText = joinText
+          .replaceAll(RegExp(r'\s*[·•]\s*Lv\.?\s*\d+', caseSensitive: false), '')
+          .replaceAll(RegExp(r'\s*Lv\.?\s*\d+', caseSensitive: false), '')
+          .trim();
+      if (joinText.isEmpty) joinText = LKey.joinedShort.tr;
       return LiveChatMessage(
         id: msg.id,
         userId: msg.userId,
         userName: msg.userName,
         type: 'join',
-        text: 'entró al LIVE',
-        entranceVideo: msg.entranceVideo,
+        text: joinText,
+        entranceVideo: video.isEmpty ? null : video,
+        userLevel: levelNum ?? msg.userLevel,
+        levelTitle: msg.levelTitle,
+        isSvip: isSvip || msg.isSvip,
         createdAt: msg.createdAt,
       );
     }
@@ -1506,7 +1556,8 @@ class LivestreamScreenController extends BaseController {
 
     final isFollow = msg.type == 'follow' ||
         (msg.type == 'text' &&
-            (msg.text ?? '').contains('te sigue'));
+            ((msg.text ?? '').contains('te sigue') ||
+                (msg.text ?? '').toLowerCase().contains('is following you')));
     if (isFollow) {
       _showFollowBanner(
         msg.type == 'follow'
@@ -1523,6 +1574,48 @@ class LivestreamScreenController extends BaseController {
     chatMessages.add(msg);
     while (chatMessages.length > maxVisibleComments) {
       chatMessages.removeAt(0);
+    }
+
+    // Traducir textos de otros usuarios al idioma de la app (como en CHATS).
+    if (msg.type == 'text' &&
+        !msg.isTranslated &&
+        (msg.text ?? '').trim().isNotEmpty) {
+      final raw = (msg.text ?? '').trim();
+      final isProtocol = raw.contains('GIFT|') ||
+          raw.contains('JOIN|') ||
+          raw.contains('BOOST|') ||
+          raw.contains('CALL_INVITE|');
+      final me = SessionManager.instance.getUserID();
+      if (!isProtocol && msg.userId != me) {
+        unawaited(_translateLiveChat(msg));
+      }
+    }
+  }
+
+  Future<void> _translateLiveChat(LiveChatMessage msg) async {
+    final original = (msg.text ?? '').trim();
+    if (original.isEmpty) return;
+    try {
+      await ChatTranslatorService.instance.ensureReady(
+        targetLangCode: SessionManager.instance.getLang(),
+      );
+      final translated = await ChatTranslatorService.instance.translateText(
+        original,
+        targetLangCode: SessionManager.instance.getLang(),
+      );
+      final out = translated.trim();
+      if (out.isEmpty || out == original) return;
+      final idx = chatMessages.indexWhere((m) => m.id == msg.id);
+      if (idx < 0) return;
+      // Si ya se tradujo (p. ej. poll + LiveKit), no pisar.
+      if (chatMessages[idx].isTranslated) return;
+      chatMessages[idx] = msg.copyWithTranslation(
+        original: original,
+        translated: out,
+      );
+      chatMessages.refresh();
+    } catch (e) {
+      Loggers.error('live chat translate: $e');
     }
   }
 
@@ -1741,6 +1834,115 @@ class LivestreamScreenController extends BaseController {
     );
   }
 
+  /// Envía un regalo concreto al host sin abrir el sheet (boost / slider).
+  bool _sendingDirectGift = false;
+
+  Future<void> sendGiftDirectly({
+    int? giftId,
+    String? giftImage,
+    int? coinPrice,
+  }) async {
+    if (isHost) return;
+    if (_sendingDirectGift) return;
+    final hostId = livestream.hostId;
+    if (hostId == null) return;
+    final meId = SessionManager.instance.getUserID();
+    if (meId != 0 && meId == hostId) return;
+    if (giftId == null || giftId <= 0) {
+      await openGiftSheet();
+      return;
+    }
+
+    Gift? gift;
+    final catalog = SessionManager.instance.getSettings()?.gifts ?? [];
+    for (final g in catalog) {
+      if (g.id == giftId) {
+        gift = Gift(
+          id: g.id,
+          categoryId: g.categoryId,
+          coinPrice: g.coinPrice,
+          image: g.image,
+          isFullscreen: g.isFullscreen,
+        );
+        break;
+      }
+    }
+    gift ??= Gift(
+      id: giftId,
+      image: giftImage ?? resolveGiftImage(giftId),
+      coinPrice: coinPrice,
+    );
+    if ((gift.image ?? '').isEmpty && (giftImage ?? '').isNotEmpty) {
+      gift.image = giftImage;
+    }
+    if ((gift.coinPrice ?? 0) <= 0 && (coinPrice ?? 0) > 0) {
+      gift.coinPrice = coinPrice;
+    }
+
+    var price = gift.coinPrice ?? 0;
+    if (price <= 0) {
+      for (final g in catalog) {
+        if (g.id == giftId && (g.coinPrice ?? 0) > 0) {
+          price = g.coinPrice!;
+          gift.coinPrice = price;
+          break;
+        }
+      }
+    }
+    if (price <= 0 && (coinPrice ?? 0) > 0) {
+      price = coinPrice!;
+      gift.coinPrice = price;
+    }
+    if (price <= 0) {
+      showSnackBar(LKey.giftNotAvailable.tr);
+      return;
+    }
+
+    if (!CoinGate.ensureEnough(price, message: LKey.insufficientCoins.tr)) {
+      return;
+    }
+
+    _sendingDirectGift = true;
+    sendingGiftId.value = giftId;
+    try {
+      final detailed = await GiftWalletService.instance.sendGiftDetailed(
+        giftId: giftId,
+        userId: hostId,
+      );
+      if (!detailed.ok) {
+        showSnackBar(detailed.message ?? LKey.giftNotAvailable.tr);
+        return;
+      }
+      if (detailed.coinPrice > 0) {
+        gift.coinPrice = detailed.coinPrice;
+      }
+      if ((detailed.image ?? '').isNotEmpty) {
+        gift.image = detailed.image;
+      }
+
+      final me = SessionManager.instance.getUser();
+      me?.removeCoinFromWallet(gift.coinPrice ?? price);
+      SessionManager.instance.setUser(me);
+
+      // Cerrar loader residual ANTES de la animación (Get.back pisa dialogs).
+      stopLoader();
+      GiftManager.showAnimationDialog(gift);
+      await broadcastGift(gift);
+    } finally {
+      sendingGiftId.value = null;
+      _sendingDirectGift = false;
+    }
+  }
+
+  /// Envía el regalo del slot de incentivo (slider cliente).
+  Future<void> sendIncentiveGift(LiveGiftIncentive slot) async {
+    await sendGiftDirectly(
+      giftId: slot.giftId,
+      giftImage: slot.image,
+      coinPrice: slot.coinPrice,
+    );
+  }
+
   Future<void> _openBattleGiftPicker(int hostId) async {
     final redId = battleRedUserId;
     final blueId = battleBlueUserId;
@@ -1804,7 +2006,7 @@ class LivestreamScreenController extends BaseController {
       userId: me.id!,
       userName: name,
       type: 'gift',
-      text: 'sent a gift · $coins coins',
+      text: LKey.sentAGift.tr,
       giftId: gift.id,
       giftImage: image,
       giftCoins: coins,
@@ -1812,7 +2014,8 @@ class LivestreamScreenController extends BaseController {
     // Ya se animó en openGiftSheet; aquí solo chat + tab.
     _appendChatMessage(msg, animateGift: false);
     // Payload corto (sin URL): evita max length del API y parseo frágil.
-    final encoded = 'ðŸŽGIFT|${gift.id ?? 0}|$coins| $name sent a gift · $coins coins';
+    final encoded =
+        'ðŸŽGIFT|${gift.id ?? 0}|$coins| $name ${LKey.sentAGift.tr} · $coins ${LKey.coins.tr}';
     try {
       await LiveSessionService.instance.sendComment(
         roomId: roomId,
@@ -1857,7 +2060,7 @@ class LivestreamScreenController extends BaseController {
           await UserService.instance.fetchUserDetails(userId: hostId);
       stopLoader();
       if (hostUser == null) {
-        showSnackBar('Host not found');
+        showSnackBar(LKey.somethingWentWrong.tr);
         return;
       }
 
@@ -1944,10 +2147,10 @@ class LivestreamScreenController extends BaseController {
     final coins = incentive?.coinPrice ?? gift?.coinPrice ?? 0;
     final customMsg = (incentive?.trimmedMessage ?? '').trim();
     final text = gift == null
-        ? '¡Envíame regalos!'
+        ? LKey.sendMeGifts.tr
         : (customMsg.isNotEmpty
             ? '$customMsg ($coins)'
-            : '¡Regálame uno de $coins coins!');
+            : '${LKey.giftMe.tr} ($coins ${LKey.coins.tr})');
     final msg = LiveChatMessage(
       id: clientId,
       userId: me.id!,
@@ -2066,6 +2269,14 @@ class LivestreamScreenController extends BaseController {
       margin: const EdgeInsets.all(12),
       borderRadius: 16,
       duration: const Duration(seconds: 5),
+      onTap: (_) {
+        Get.closeCurrentSnackbar();
+        unawaited(sendGiftDirectly(
+          giftId: msg.giftId,
+          giftImage: msg.giftImage,
+          coinPrice: msg.giftCoins,
+        ));
+      },
       icon: (msg.giftImage ?? '').isNotEmpty || msg.giftId != null
           ? Padding(
               padding: const EdgeInsets.all(6),
@@ -2086,7 +2297,11 @@ class LivestreamScreenController extends BaseController {
       mainButton: TextButton(
         onPressed: () {
           Get.closeCurrentSnackbar();
-          openGiftSheet();
+          unawaited(sendGiftDirectly(
+            giftId: msg.giftId,
+            giftImage: msg.giftImage,
+            coinPrice: msg.giftCoins,
+          ));
         },
         child: const Text(
           'Regalar',
@@ -2201,24 +2416,33 @@ class LivestreamScreenController extends BaseController {
   Future<void> pauseLiveKitForCall() async {
     hostInCall.value = true;
     try {
-      await liveKit?.disconnect();
+      await liveKit?.disconnect(silent: true);
     } catch (e) {
       Loggers.error('pauseLiveKitForCall: $e');
+    } finally {
+      statusMessage.value = '';
     }
   }
 
   /// Reconecta al LIVE tras colgar la videollamada.
   Future<void> resumeLiveKitAfterCall() async {
     hostInCall.value = false;
-    if (isDummy || liveKit == null) return;
+    statusMessage.value = '';
+    if (isDummy || liveKit == null) {
+      update();
+      return;
+    }
     final me = SessionManager.instance.getUser();
     if (me == null) return;
     try {
       if (liveKit!.isConnected.value) {
         await liveKit!.setCameraEnabled(shouldPublishAv);
         await liveKit!.setMicrophoneEnabled(shouldPublishAv);
+        statusMessage.value = '';
+        update();
         return;
       }
+      statusMessage.value = isHost ? 'Reconectando LIVE…' : 'Reconectando…';
       await liveKit!.connect(
         roomName: avRoomId,
         identity: '${me.id}',
@@ -2226,10 +2450,18 @@ class LivestreamScreenController extends BaseController {
         publishCamera: shouldPublishAv,
         publishMicrophone: shouldPublishAv,
         wsUrl: liveKitWsUrl,
+        forceReconnect: true,
       );
+      _connectedLiveKitRoom = avRoomId;
+      if (isHost) {
+        await applyBeauty();
+      }
+      statusMessage.value = '';
       update();
     } catch (e) {
       Loggers.error('resumeLiveKitAfterCall: $e');
+      statusMessage.value = 'Sin video. Toca Reintentar.';
+      update();
     }
   }
 

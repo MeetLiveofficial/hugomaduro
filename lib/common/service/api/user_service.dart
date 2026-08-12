@@ -209,6 +209,7 @@ class UserService {
       String? appLanguage,
       bool? showMyFollowing,
       bool? receiveMessage,
+      bool? matchEnabled,
       bool? notifyPostLike,
       bool? notifyPostComment,
       bool? notifyFollow,
@@ -244,6 +245,8 @@ class UserService {
           if (isVerify != null) Params.isVerify: isVerify,
           if (receiveMessage != null)
             Params.receiveMessage: receiveMessage ? 1 : 0,
+          if (matchEnabled != null)
+            Params.matchEnabled: matchEnabled ? 1 : 0,
           if (showMyFollowing != null)
             Params.showMyFollowing: showMyFollowing ? 1 : 0,
           if (notifyPostLike != null)

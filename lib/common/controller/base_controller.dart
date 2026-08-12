@@ -24,6 +24,9 @@ class BaseController extends FullLifeCycleController {
   }
 
   void stopLoader() {
+    // Solo cerrar el loader propio. Get.back() a ciegas cierra
+    // animaciones de regalo u otros dialogs y deja el spinner colgado.
+    if (!isLoading.value) return;
     if (Get.isDialogOpen == true) {
       Get.back();
     }

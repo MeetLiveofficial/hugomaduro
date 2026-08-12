@@ -67,6 +67,8 @@ class SettingsScreenController extends BaseController {
         notifyChat: settingToggle == SettingToggle.notifyChat ? value : null,
         receiveMessage:
             settingToggle == SettingToggle.receiveMessage ? value : null,
+        matchEnabled:
+            settingToggle == SettingToggle.matchEnabled ? value : null,
         showMyFollowing:
             settingToggle == SettingToggle.showMyFollowings ? value : null);
     isUpdateApiCalled.value = false;
@@ -239,6 +241,7 @@ enum WhoCanSeePost {
 enum SettingToggle {
   showMyFollowings,
   receiveMessage,
+  matchEnabled,
   notifyPostLike,
   notifyPostComment,
   notifyFollow,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/widget/gift_media.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -51,7 +52,7 @@ class LiveGiftBoostSheet extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Incentivar regalos',
+                      LKey.boostGifts.tr,
                       style: TextStyleCustom.outFitMedium500(
                         color: Colors.white,
                         fontSize: 16,
@@ -161,7 +162,7 @@ class LiveGiftBoostSheet extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      'Invitar a regalar',
+                      LKey.sendMeGifts.tr,
                       style: TextStyleCustom.outFitMedium500(
                         color: Colors.white,
                         fontSize: 14,

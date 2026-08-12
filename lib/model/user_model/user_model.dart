@@ -80,6 +80,7 @@ class User {
       this.whoCanViewPost,
       this.showMyFollowing,
       this.receiveMessage,
+      this.matchEnabled = 1,
       this.coinWallet,
       this.withdrawalPoints,
       this.withdrawWalletAccount,
@@ -147,6 +148,7 @@ class User {
     int? whoCanViewPost,
     int? showMyFollowing,
     int? receiveMessage,
+    int? matchEnabled,
     int? coinWallet,
     int? withdrawalPoints,
     int? coinCollectedLifetime,
@@ -214,6 +216,7 @@ class User {
         whoCanViewPost: whoCanViewPost ?? this.whoCanViewPost,
         showMyFollowing: showMyFollowing ?? this.showMyFollowing,
         receiveMessage: receiveMessage ?? this.receiveMessage,
+        matchEnabled: matchEnabled ?? this.matchEnabled,
         coinWallet: coinWallet ?? this.coinWallet,
         withdrawalPoints: withdrawalPoints ?? this.withdrawalPoints,
         coinCollectedLifetime:
@@ -294,6 +297,7 @@ class User {
     whoCanViewPost = _asNum(json['who_can_view_post']);
     showMyFollowing = _asNum(json['show_my_following']);
     receiveMessage = _asNum(json['receive_message']);
+    matchEnabled = _asNum(json['match_enabled']) ?? 1;
     coinWallet = _asNum(json['coin_wallet']);
     withdrawalPoints = _asInt(json['withdrawal_points']);
     withdrawWalletAccount = json['withdraw_wallet_account']?.toString();
@@ -400,6 +404,8 @@ class User {
   }
   num? showMyFollowing;
   num? receiveMessage;
+  /// 1 = acepta Match de clientes; 0 = no aparece en Match.
+  num matchEnabled = 1;
   num? coinWallet;
   int? withdrawalPoints;
   String? withdrawWalletAccount;
@@ -473,6 +479,7 @@ class User {
     map['who_can_view_post'] = whoCanViewPost;
     map['show_my_following'] = showMyFollowing;
     map['receive_message'] = receiveMessage;
+    map['match_enabled'] = matchEnabled;
     map['coin_wallet'] = coinWallet;
     map['withdrawal_points'] = withdrawalPoints;
     map['withdraw_wallet_account'] = withdrawWalletAccount;

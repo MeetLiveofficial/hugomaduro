@@ -160,6 +160,24 @@ class SettingsScreen extends StatelessWidget {
                   );
                 },
               ),
+              if (AppRole.isStreamer(controller.myUser.value))
+                Obx(
+                  () {
+                    final enabled =
+                        (controller.myUser.value?.matchEnabled ?? 1) == 1;
+                    return SettingIconTextWithArrow(
+                      icon: AssetRes.icEye_1,
+                      title: LKey.receiveMatch,
+                      widget: CustomToggle(
+                        isOn: enabled.obs,
+                        onChanged: (value) async {
+                          controller.onChangedToggle(
+                              value, SettingToggle.matchEnabled);
+                        },
+                      ),
+                    );
+                  },
+                ),
               SettingIconTextWithArrow(
                 icon: AssetRes.icNotification_1,
                 title: LKey.notifications,

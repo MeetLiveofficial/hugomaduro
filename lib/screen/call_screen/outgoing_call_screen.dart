@@ -208,7 +208,7 @@ class OutgoingCallController extends BaseController {
     required this.cost,
     this.isMatch = false,
     this.matchFreeSeconds = 30,
-  });
+  }) : subtitle = (isMatch ? 'Match…' : LKey.calling.tr).obs;
 
   /// Instancia activa para cerrar desde FCM `call_rejected` / `call_accepted`.
   static OutgoingCallController? activeInstance;
@@ -218,7 +218,7 @@ class OutgoingCallController extends BaseController {
   final bool isMatch;
   final int matchFreeSeconds;
 
-  final RxString subtitle = LKey.calling.tr.obs;
+  final RxString subtitle;
   final RxnString errorText = RxnString();
 
   CallRequestModel? call;
@@ -294,7 +294,7 @@ class OutgoingCallController extends BaseController {
     _poll?.cancel();
     _timeout?.cancel();
     await _stopRingback();
-    subtitle.value = LKey.connecting.tr;
+    subtitle.value = isMatch ? 'Conectando Match…' : LKey.connecting.tr;
 
     final targetId = callRequestId ?? updated?.id ?? call?.id;
     CallRequestModel? current = updated ?? call;
@@ -338,6 +338,8 @@ class OutgoingCallController extends BaseController {
         coinsCost: cost,
         status: 'accepted',
         roomId: rid,
+        matchSeconds: isMatch ? matchFreeSeconds : 0,
+        isMatch: isMatch,
         callee: CallParty(
           id: callee.id,
           username: callee.username,
@@ -345,6 +347,27 @@ class OutgoingCallController extends BaseController {
           profilePhoto: callee.profilePhoto,
         ),
       );
+    }
+
+    // Asegurar responded_at (ancla del cronómetro sync).
+    if (current != null &&
+        ((current.respondedAt ?? '').trim().isEmpty ||
+            (isMatch && current.matchSeconds <= 0))) {
+      final fresh = await fetchFresh();
+      if (fresh != null) {
+        current = current.copyWith(
+          status: fresh.status ?? current.status,
+          roomId: (fresh.roomId ?? '').trim().isNotEmpty
+              ? fresh.roomId
+              : current.roomId,
+          respondedAt: fresh.respondedAt ?? current.respondedAt,
+          matchSeconds: fresh.matchSeconds > 0
+              ? fresh.matchSeconds
+              : (isMatch ? matchFreeSeconds : current.matchSeconds),
+        );
+      } else if (isMatch && current.matchSeconds <= 0) {
+        current = current.copyWith(matchSeconds: matchFreeSeconds);
+      }
     }
 
     if (current == null) {
@@ -367,7 +390,7 @@ class OutgoingCallController extends BaseController {
     if ((current.roomId ?? '').trim().isEmpty) {
       Loggers.error('enterAcceptedCall: empty room_id for ${current.id}');
       _joined = false;
-      subtitle.value = LKey.callFailed.tr;
+      subtitle.value = isMatch ? 'Match fallido' : LKey.callFailed.tr;
       return;
     }
 
@@ -421,9 +444,14 @@ class OutgoingCallController extends BaseController {
       return;
     }
 
-    subtitle.value = LKey.calling.tr;
+    subtitle.value = isMatch ? 'Match…' : LKey.calling.tr;
     try {
-      call = await CallService.instance.create(userId: userId);
+      call = await CallService.instance.create(
+        userId: userId,
+        isMatch: isMatch,
+        matchSeconds: isMatch ? matchFreeSeconds : null,
+        coinsCost: cost > 0 ? cost : null,
+      );
       final me = SessionManager.instance.getUser();
       if (me != null && cost > 0) {
         me.removeCoinFromWallet(cost);
@@ -446,7 +474,7 @@ class OutgoingCallController extends BaseController {
           }
         } catch (_) {}
         await _stopRingback();
-        subtitle.value = LKey.callNoAnswer.tr;
+        subtitle.value = isMatch ? 'Sin respuesta' : LKey.callNoAnswer.tr;
         await _cancelRemote();
         await Future.delayed(const Duration(milliseconds: 900));
         await cancelAndClose(skipCancelApi: true);
@@ -455,7 +483,7 @@ class OutgoingCallController extends BaseController {
       await _stopRingback();
       final msg = e.toString().replaceFirst('Exception: ', '');
       errorText.value = msg;
-      subtitle.value = LKey.callFailed.tr;
+      subtitle.value = isMatch ? 'Match fallido' : LKey.callFailed.tr;
       if (msg.toLowerCase().contains('insufficient') ||
           msg.toLowerCase().contains('coin')) {
         CoinGate.ensureEnough(cost, message: 'Moneda insuficiente');
@@ -472,7 +500,7 @@ class OutgoingCallController extends BaseController {
     _poll?.cancel();
     _timeout?.cancel();
     await _stopRingback();
-    subtitle.value = LKey.callRejected.tr;
+    subtitle.value = isMatch ? 'Match rechazado' : LKey.callRejected.tr;
     final me = SessionManager.instance.getUser();
     if (me != null && cost > 0) {
       me.coinWallet = (me.coinWallet ?? 0) + cost;
@@ -519,7 +547,7 @@ class OutgoingCallController extends BaseController {
         _poll?.cancel();
         _timeout?.cancel();
         await _stopRingback();
-        subtitle.value = LKey.callCancelled.tr;
+        subtitle.value = isMatch ? 'Match cancelado' : LKey.callCancelled.tr;
         await Future.delayed(const Duration(milliseconds: 800));
         await cancelAndClose(skipCancelApi: true);
       }

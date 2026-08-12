@@ -8,6 +8,7 @@ class LiveChatMessage {
     required this.userName,
     required this.type,
     this.text,
+    this.originalText,
     this.gifUrl,
     this.giftId,
     this.giftImage,
@@ -26,7 +27,10 @@ class LiveChatMessage {
   final int userId;
   final String userName;
   final String type; // text | gif | like | gift | follow | join
+  /// Texto mostrado (traducido al idioma del receptor si aplica).
   final String? text;
+  /// Original antes de traducir (solo local, no se envía por LiveKit).
+  final String? originalText;
   final String? gifUrl;
   final int? giftId;
   final String? giftImage;
@@ -43,6 +47,14 @@ class LiveChatMessage {
   final bool isSvip;
   final DateTime createdAt;
 
+  String get displayText => (text ?? '').trim();
+
+  bool get isTranslated {
+    final o = (originalText ?? '').trim();
+    final t = (text ?? '').trim();
+    return o.isNotEmpty && t.isNotEmpty && o != t;
+  }
+
   bool get isReply =>
       (replyToId ?? '').isNotEmpty || (replyToUserName ?? '').isNotEmpty;
 
@@ -54,12 +66,39 @@ class LiveChatMessage {
     return (userLevel ?? 0) >= 4;
   }
 
+  LiveChatMessage copyWithTranslation({
+    required String original,
+    required String translated,
+  }) {
+    return LiveChatMessage(
+      id: id,
+      userId: userId,
+      userName: userName,
+      type: type,
+      text: translated,
+      originalText: original,
+      gifUrl: gifUrl,
+      giftId: giftId,
+      giftImage: giftImage,
+      giftCoins: giftCoins,
+      replyToId: replyToId,
+      replyToUserName: replyToUserName,
+      replyToText: replyToText,
+      entranceVideo: entranceVideo,
+      userLevel: userLevel,
+      levelTitle: levelTitle,
+      isSvip: isSvip,
+      createdAt: createdAt,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'user_id': userId,
         'user_name': userName,
         'type': type,
-        'text': text,
+        // Solo el texto original viaja por red / API.
+        'text': (originalText ?? text),
         'gif_url': gifUrl,
         'gift_id': giftId,
         'gift_image': giftImage,

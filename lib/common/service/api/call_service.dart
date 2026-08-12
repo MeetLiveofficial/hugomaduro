@@ -8,10 +8,21 @@ class CallService {
   CallService._();
   static final CallService instance = CallService._();
 
-  Future<CallRequestModel> create({required int userId}) async {
+  Future<CallRequestModel> create({
+    required int userId,
+    bool isMatch = false,
+    int? matchSeconds,
+    int? coinsCost,
+  }) async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.call.create,
-      param: {'user_id': userId},
+      param: {
+        'user_id': userId,
+        if (isMatch) 'is_match': 1,
+        if (matchSeconds != null && matchSeconds > 0)
+          'match_seconds': matchSeconds,
+        if (coinsCost != null && coinsCost > 0) 'coins_cost': coinsCost,
+      },
       fromJson: (j) => j,
     );
     if (json['status'] != true) {
@@ -22,12 +33,21 @@ class CallService {
   }
 
   /// Recomienda streamer del mismo idioma para Match (sin crear la llamada).
-  Future<MatchRecommendation> findMatch({String? appLanguage}) async {
+  /// [mode]: `random` (default) o `goddess` (prioriza grados A/S/SS).
+  /// [excludeUserIds]: streamers ya vistos (swipe al siguiente).
+  Future<MatchRecommendation> findMatch({
+    String? appLanguage,
+    String mode = 'random',
+    List<int> excludeUserIds = const [],
+  }) async {
+    final exclude = excludeUserIds.where((id) => id > 0).toSet().toList();
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.call.findMatch,
       param: {
         if ((appLanguage ?? '').trim().isNotEmpty)
           'app_language': appLanguage!.trim(),
+        if (mode.trim().isNotEmpty) 'mode': mode.trim().toLowerCase(),
+        if (exclude.isNotEmpty) 'exclude_user_ids': exclude.join(','),
       },
       fromJson: (j) => j,
     );
@@ -87,6 +107,28 @@ class CallService {
 
   Future<CallRequestModel> end(int callRequestId) async {
     return _mutate(WebService.call.end, callRequestId);
+  }
+
+  /// Alarga el Match en la misma llamada (misma room LiveKit).
+  Future<CallRequestModel> extendMatch({
+    required int callRequestId,
+    required int extraSeconds,
+    required int coinsCost,
+  }) async {
+    final json = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.call.extendMatch,
+      param: {
+        'call_request_id': callRequestId,
+        'extra_seconds': extraSeconds,
+        'coins_cost': coinsCost,
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'extend match failed');
+    }
+    return CallRequestModel.fromJson(
+        Map<String, dynamic>.from(json['data'] as Map));
   }
 
   Future<StreamerWorkStats> workStats() async {

@@ -3,9 +3,8 @@ import 'package:get/get.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/incoming_call_screen.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
-import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 
-/// Overlay de llamada entrante: half-sheet en LIVE, pantalla completa fuera de LIVE.
+/// Overlay de llamada entrante: always half-sheet (no fullscreen).
 class LiveIncomingCallOverlay {
   LiveIncomingCallOverlay._();
 
@@ -29,37 +28,23 @@ class LiveIncomingCallOverlay {
     final ctx = Get.overlayContext ?? Get.context;
     if (ctx == null) return false;
 
-    final onLive = LivestreamScreenController.activeInstance != null;
-
     _opening = true;
     try {
       await showGeneralDialog(
         context: ctx,
         barrierDismissible: false,
         barrierLabel: 'incoming_call',
-        barrierColor: onLive ? Colors.black38 : const Color(0xFF0B0F14),
+        barrierColor: Colors.black54,
         useRootNavigator: true,
         pageBuilder: (context, animation, secondaryAnimation) {
-          return IncomingCallScreen(call: call, asDialog: onLive);
+          return IncomingCallScreen(call: call, asDialog: true);
         },
         transitionBuilder: (context, animation, secondaryAnimation, child) {
-          if (onLive) {
-            final offset = Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOut));
-            return SlideTransition(position: offset, child: child);
-          }
-          return FadeTransition(
-            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-            child: ScaleTransition(
-              scale: Tween<double>(begin: 0.92, end: 1).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOut),
-              ),
-              child: child,
-            ),
-          );
+          final offset = Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+          return SlideTransition(position: offset, child: child);
         },
       );
       return true;

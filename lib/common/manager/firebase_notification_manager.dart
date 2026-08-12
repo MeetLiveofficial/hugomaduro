@@ -162,6 +162,11 @@ class FirebaseNotificationManager {
         final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
         OutgoingCallController.handleRemoteRejected(id);
         return;
+      } else if (type == 'call_cancelled') {
+        final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+        IncomingCallController.handleRemoteCancelled(id);
+        _refreshCallsBadge();
+        return;
       } else if (type == 'call_accepted') {
         showNotification(message, isCall: true);
         _openAcceptedCallFromPush(message.data);
@@ -259,6 +264,11 @@ class FirebaseNotificationManager {
     if (dataType == 'call_rejected') {
       final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
       OutgoingCallController.handleRemoteRejected(id);
+      return;
+    }
+    if (dataType == 'call_cancelled') {
+      final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+      IncomingCallController.handleRemoteCancelled(id);
       return;
     }
     if (dataType == 'call_accepted') {
@@ -364,7 +374,7 @@ class FirebaseNotificationManager {
       final opened = await LiveIncomingCallOverlay.show(call);
       if (opened) return;
 
-      // Fallback si no hubo contexto de diálogo (p. ej. transición de ruta).
+      // Fallback: half-sheet también vía Get.to (sin pantalla completa).
       if (!forceOpen) return;
       if (Get.isRegistered<DashboardScreenController>()) {
         final dash = Get.find<DashboardScreenController>();
@@ -373,7 +383,12 @@ class FirebaseNotificationManager {
       if (Get.isRegistered<MessageScreenController>()) {
         Get.find<MessageScreenController>().openCallsTab();
       }
-      Get.to(() => IncomingCallScreen(call: call));
+      Get.to(
+        () => IncomingCallScreen(call: call, asDialog: true),
+        opaque: false,
+        fullscreenDialog: true,
+        transition: Transition.downToUp,
+      );
     } catch (e) {
       Loggers.error('open incoming call from push: $e');
     }

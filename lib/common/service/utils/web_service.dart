@@ -55,6 +55,7 @@ class _Call {
   String reject = "${apiURL}call/reject";
   String cancel = "${apiURL}call/cancel";
   String end = "${apiURL}call/end";
+  String extendMatch = "${apiURL}call/extendMatch";
   String workStats = "${apiURL}call/workStats";
   String updateCallPrice = "${apiURL}call/updateCallPrice";
 }

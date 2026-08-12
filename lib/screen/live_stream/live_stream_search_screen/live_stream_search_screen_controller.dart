@@ -84,6 +84,8 @@ class LiveStreamSearchScreenController extends BaseController {
   final DeepArCameraController deepAr = DeepArCameraController();
   final GlobalKey beautyPreviewKey = GlobalKey();
   final RxBool cameraPreviewActive = false.obs;
+  /// True mientras se pide permiso / inicia el preview de cámara.
+  final RxBool cameraPreviewLoading = false.obs;
   final Rx<FaceFilterId> selectedFilterId = FaceFilterId.none.obs;
 
   FaceFilterCatalogStore get filterCatalog => FaceFilterCatalogStore.instance;
@@ -329,7 +331,18 @@ class LiveStreamSearchScreenController extends BaseController {
         (gpuPixelPreviewActive.value || beautyPipeline.isReady)) {
       return;
     }
+    if (cameraPreviewLoading.value) return;
 
+    cameraPreviewLoading.value = true;
+    try {
+      await _startBeautyCameraPreviewBody(preferFaceBetter: preferFaceBetter);
+    } finally {
+      cameraPreviewLoading.value = false;
+    }
+  }
+
+  Future<void> _startBeautyCameraPreviewBody(
+      {bool preferFaceBetter = false}) async {
     // Web: cámara + shader Flutter.
     if (kIsWeb) {
       try {

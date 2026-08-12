@@ -137,10 +137,8 @@ class _LevelEntranceDialogState extends State<_LevelEntranceDialog>
     final level = widget.level ?? 0;
     final title = (widget.levelTitle ?? '').trim();
     final levelLabel = widget.isSvip
-        ? (title.isNotEmpty ? 'SVIP · $title' : 'SVIP')
-        : (level > 0
-            ? (title.isNotEmpty ? 'Lv.$level · $title' : 'Lv.$level')
-            : title);
+        ? 'SVIP'
+        : (level > 0 ? 'Lv. $level' : title);
 
     return Material(
       type: MaterialType.transparency,

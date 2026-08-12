@@ -269,8 +269,10 @@ class LiveKitRoomController extends GetxController {
   Future<void> publishData(List<int> bytes, {String topic = 'live_chat'}) =>
       _service.publishDataBytes(bytes, topic: topic);
 
-  Future<void> disconnect() async {
-    statusMessage.value = 'Leaving…';
+  Future<void> disconnect({bool silent = false}) async {
+    if (!silent) {
+      statusMessage.value = 'Leaving…';
+    }
     try {
       await _service.disconnect();
     } finally {

@@ -181,6 +181,8 @@ class LKey {
   static const String whoCanSeePosts = "Who Can See Posts";
   static const String showMyFollowings = "Show My Followings";
   static const String showChatBtn = "Show Chat Button";
+  static const String receiveMatch = "Receive Match";
+  static const String receiveMatchHint = "Allow clients to Match with you";
   static const String notifications = "Notifications";
   static const String general = "General";
   static const String postLikes = "Post Likes";
@@ -733,4 +735,38 @@ class LKey {
   static const String connected = "Connected";
   static const String disconnected = "Disconnected";
   static const String withdraw = "Withdraw";
+
+  // Live overlay / chat events
+  static const String sayHello = "Say Hello";
+  static const String sentAGift = "sent a gift";
+  static const String arrivedInStyle = "arrived in style";
+  static const String joinedTheLive = "joined the LIVE";
+  static const String joinedShort = "joined";
+  static const String isFollowingYou = "is following you";
+  static const String sendMeGifts = "Send me gifts!";
+  static const String giftMe = "Gift me!";
+  static const String privateCall = "Private";
+  static const String giftNotAvailable = "Gift not available";
+  static const String insufficientCoins = "Insufficient coins";
+  static const String invitesToPrivateCall = "invites you to a private call";
+  static const String boostGifts = "Boost gifts";
+  static const String inviteToCall = "Invite to call";
+  static const String endBattle = "End battle";
+  static const String battle = "Battle";
+  static const String waitingBattleResponse = "Waiting for battle response…";
+  static const String waitingForUser = "Waiting for @name…";
+  static const String paused = "PAUSED";
+  static const String inCall = "IN CALL";
+  static const String pkDraw = "DRAW";
+  static const String pkResult = "PK RESULT";
+  static const String pkWon = "WON";
+  static const String pkLost = "LOST";
+  static const String qualityLow = "Low";
+  static const String qualityMedium = "Medium";
+  static const String qualityHigh = "High";
+  static const String seeGiftSenders = "See who sent you gifts";
+  static const String noGiftsYet = "No gifts yet";
+  static const String options = "Options";
+  static const String later = "Later";
+  static const String invitesYouToLive = "invites you to their LIVE";
 }

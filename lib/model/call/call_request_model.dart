@@ -7,6 +7,8 @@ class CallRequestModel {
     this.userLevel = 1,
     this.status,
     this.roomId,
+    this.matchSeconds = 0,
+    this.isMatch = false,
     this.respondedAt,
     this.endedAt,
     this.createdAt,
@@ -15,6 +17,15 @@ class CallRequestModel {
   });
 
   factory CallRequestModel.fromJson(Map<String, dynamic> json) {
+    final matchSeconds = json['match_seconds'] is num
+        ? (json['match_seconds'] as num).toInt()
+        : int.tryParse('${json['match_seconds'] ?? 0}') ?? 0;
+    final roomId = json['room_id']?.toString();
+    final isMatchFlag = json['is_match'] == true ||
+        json['is_match'] == 1 ||
+        '${json['is_match']}' == '1' ||
+        matchSeconds > 0 ||
+        (roomId ?? '').toLowerCase().startsWith('match');
     return CallRequestModel(
       id: json['id'] is num ? (json['id'] as num).toInt() : int.tryParse('${json['id']}'),
       callerId: json['caller_id'] is num
@@ -30,7 +41,11 @@ class CallRequestModel {
           ? (json['user_level'] as num).toInt()
           : int.tryParse('${json['user_level'] ?? 1}') ?? 1,
       status: json['status']?.toString(),
-      roomId: json['room_id']?.toString(),
+      roomId: roomId,
+      matchSeconds: matchSeconds > 0
+          ? matchSeconds
+          : (matchSecondsFromRoomId(roomId) ?? 0),
+      isMatch: isMatchFlag,
       respondedAt: json['responded_at']?.toString(),
       endedAt: json['ended_at']?.toString(),
       createdAt: json['created_at']?.toString(),
@@ -43,6 +58,13 @@ class CallRequestModel {
     );
   }
 
+  static int? matchSecondsFromRoomId(String? roomId) {
+    if (roomId == null || roomId.isEmpty) return null;
+    final m = RegExp(r'^match(\d+)_', caseSensitive: false).firstMatch(roomId);
+    if (m == null) return null;
+    return int.tryParse(m.group(1)!);
+  }
+
   final int? id;
   final int? callerId;
   final int? calleeId;
@@ -50,6 +72,9 @@ class CallRequestModel {
   final int userLevel;
   final String? status;
   final String? roomId;
+  /// Ventana Match planificada (s). >0 o [isMatch] = llamada Match.
+  final int matchSeconds;
+  final bool isMatch;
   final String? respondedAt;
   final String? endedAt;
   final String? createdAt;
@@ -63,6 +88,12 @@ class CallRequestModel {
   bool get isRejected =>
       (status ?? '').toLowerCase().trim() == 'rejected';
 
+  /// True si viene del flujo Match (misma lógica de llamada, naming distinto).
+  bool get isMatchSession =>
+      isMatch ||
+      matchSeconds > 0 ||
+      (roomId ?? '').toLowerCase().startsWith('match');
+
   CallRequestModel copyWith({
     int? id,
     int? callerId,
@@ -71,6 +102,8 @@ class CallRequestModel {
     int? userLevel,
     String? status,
     String? roomId,
+    int? matchSeconds,
+    bool? isMatch,
     String? respondedAt,
     String? endedAt,
     String? createdAt,
@@ -85,6 +118,8 @@ class CallRequestModel {
       userLevel: userLevel ?? this.userLevel,
       status: status ?? this.status,
       roomId: roomId ?? this.roomId,
+      matchSeconds: matchSeconds ?? this.matchSeconds,
+      isMatch: isMatch ?? this.isMatch,
       respondedAt: respondedAt ?? this.respondedAt,
       endedAt: endedAt ?? this.endedAt,
       createdAt: createdAt ?? this.createdAt,
