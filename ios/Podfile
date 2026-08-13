@@ -54,6 +54,30 @@ post_install do |installer|
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)', 'BYPASS_PERMISSION_LOCATION_ALWAYS=1']
       end
     end
+
+    # gpupixel_flutter: headers from vendored_frameworks are found, but the C++ dylib
+    # must be forced onto OTHER_LDFLAGS (same pattern as deepar_flutter_plus).
+    if target.name == 'gpupixel_flutter'
+      target.build_configurations.each do |config|
+        config.build_settings['FRAMEWORK_SEARCH_PATHS'] ||= ['$(inherited)']
+        fw = '"$(PODS_TARGET_SRCROOT)/Frameworks"'
+        unless Array(config.build_settings['FRAMEWORK_SEARCH_PATHS']).join(' ').include?('Frameworks')
+          config.build_settings['FRAMEWORK_SEARCH_PATHS'] << fw
+        end
+        dylib = '$(PODS_TARGET_SRCROOT)/Frameworks/gpupixel.framework/gpupixel'
+        ld = config.build_settings['OTHER_LDFLAGS']
+        ld = ld.is_a?(Array) ? ld.dup : [ld || '$(inherited)']
+        flat = ld.flatten.join(' ')
+        unless flat.include?('gpupixel')
+          ld << '-framework' << 'gpupixel' << '-lc++'
+        end
+        unless flat.include?('gpupixel.framework/gpupixel')
+          ld << dylib
+        end
+        config.build_settings['OTHER_LDFLAGS'] = ld
+      end
+    end
+
     # add these lines:
     target.build_configurations.each do |config|
       if Gem::Version.new($iOSVersion) > Gem::Version.new(config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'])
