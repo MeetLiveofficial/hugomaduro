@@ -14,29 +14,66 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 /// Pantalla saliente estilo WhatsApp: avanza al aceptar.
-class OutgoingCallScreen extends StatelessWidget {
+class OutgoingCallScreen extends StatefulWidget {
   final User callee;
   final int cost;
+  final bool isMatch;
+  final int matchFreeSeconds;
 
   const OutgoingCallScreen({
     super.key,
     required this.callee,
     required this.cost,
+    this.isMatch = false,
+    this.matchFreeSeconds = 30,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final tag = 'outgoing_${callee.id}_${DateTime.now().millisecondsSinceEpoch}';
-    final controller = Get.put(
-      OutgoingCallController(callee: callee, cost: cost),
-      tag: tag,
+  State<OutgoingCallScreen> createState() => _OutgoingCallScreenState();
+}
+
+class _OutgoingCallScreenState extends State<OutgoingCallScreen> {
+  late final String _tag;
+  late final OutgoingCallController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tag estable: un solo controller (antes DateTime.now() recreaba uno por rebuild).
+    _tag = 'outgoing_${widget.callee.id}';
+    if (Get.isRegistered<OutgoingCallController>(tag: _tag)) {
+      Get.delete<OutgoingCallController>(tag: _tag, force: true);
+    }
+    controller = Get.put(
+      OutgoingCallController(
+        callee: widget.callee,
+        cost: widget.cost,
+        isMatch: widget.isMatch,
+        matchFreeSeconds: widget.matchFreeSeconds,
+      ),
+      tag: _tag,
     );
+  }
+
+  @override
+  void dispose() {
+    if (Get.isRegistered<OutgoingCallController>(tag: _tag)) {
+      Get.delete<OutgoingCallController>(tag: _tag, force: true);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final callee = widget.callee;
+    final cost = widget.cost;
 
     return PopScope(
       canPop: false,
@@ -166,15 +203,22 @@ class OutgoingCallScreen extends StatelessWidget {
 }
 
 class OutgoingCallController extends BaseController {
-  OutgoingCallController({required this.callee, required this.cost});
+  OutgoingCallController({
+    required this.callee,
+    required this.cost,
+    this.isMatch = false,
+    this.matchFreeSeconds = 30,
+  }) : subtitle = (isMatch ? 'Match…' : LKey.calling.tr).obs;
 
-  /// Instancia activa para cerrar desde FCM `call_rejected`.
+  /// Instancia activa para cerrar desde FCM `call_rejected` / `call_accepted`.
   static OutgoingCallController? activeInstance;
 
   final User callee;
   final int cost;
+  final bool isMatch;
+  final int matchFreeSeconds;
 
-  final RxString subtitle = LKey.calling.tr.obs;
+  final RxString subtitle;
   final RxnString errorText = RxnString();
 
   CallRequestModel? call;
@@ -182,6 +226,7 @@ class OutgoingCallController extends BaseController {
   Timer? _timeout;
   bool _closing = false;
   bool _joined = false;
+  bool _checkBusy = false;
   final AudioPlayer _ringback = AudioPlayer();
 
   @override
@@ -219,7 +264,7 @@ class OutgoingCallController extends BaseController {
     unawaited(c._onRejected());
   }
 
-  /// El receptor aceptó: una sola navegación a VideoCall (evita doble pantalla / kick LiveKit).
+  /// El receptor aceptó: una sola navegación a VideoCall.
   static void handleRemoteAccepted({
     int? callRequestId,
     String? roomId,
@@ -232,84 +277,142 @@ class OutgoingCallController extends BaseController {
         c.call!.id != callRequestId) {
       return;
     }
-    unawaited(c._enterAcceptedCall(updated: call, roomId: roomId));
+    unawaited(c._enterAcceptedCall(
+      updated: call,
+      roomId: roomId,
+      callRequestId: callRequestId,
+    ));
   }
 
   Future<void> _enterAcceptedCall({
     CallRequestModel? updated,
     String? roomId,
+    int? callRequestId,
   }) async {
     if (_joined || _closing) return;
     _joined = true;
     _poll?.cancel();
     _timeout?.cancel();
     await _stopRingback();
-    subtitle.value = LKey.connecting.tr;
+    subtitle.value = isMatch ? 'Conectando Match…' : LKey.connecting.tr;
 
+    final targetId = callRequestId ?? updated?.id ?? call?.id;
     CallRequestModel? current = updated ?? call;
-    final rid = (roomId ?? current?.roomId ?? '').trim();
+    var rid = (roomId ?? current?.roomId ?? '').trim();
 
-    if (current == null ||
-        !current.isAccepted ||
-        (current.roomId ?? '').isEmpty) {
-      // Completar desde inbox o con room_id del push.
+    Future<CallRequestModel?> fetchFresh() async {
+      if (targetId != null) {
+        try {
+          return await CallService.instance.status(targetId);
+        } catch (e) {
+          Loggers.error('call status: $e');
+        }
+      }
       try {
         final inbox = await CallService.instance.inbox();
         for (final e in [...inbox.sent, ...inbox.received]) {
-          if (e.id == call?.id) {
-            current = e;
-            break;
-          }
+          if (targetId != null && e.id == targetId) return e;
+          if (call?.id != null && e.id == call!.id) return e;
         }
-      } catch (_) {}
+      } catch (e) {
+        Loggers.error('call inbox poll: $e');
+      }
+      return null;
     }
 
-    current ??= call;
+    if (current == null ||
+        !current.isAccepted ||
+        (current.roomId ?? '').trim().isEmpty) {
+      final fresh = await fetchFresh();
+      if (fresh != null) current = fresh;
+    }
+
+    rid = (roomId ?? current?.roomId ?? rid).trim();
+
+    // Sintetizar si el push trae room_id aunque no haya modelo local.
+    if (current == null && rid.isNotEmpty && targetId != null) {
+      current = CallRequestModel(
+        id: targetId,
+        callerId: SessionManager.instance.getUserID(),
+        calleeId: callee.id,
+        coinsCost: cost,
+        status: 'accepted',
+        roomId: rid,
+        matchSeconds: isMatch ? matchFreeSeconds : 0,
+        isMatch: isMatch,
+        callee: CallParty(
+          id: callee.id,
+          username: callee.username,
+          fullname: callee.fullname,
+          profilePhoto: callee.profilePhoto,
+        ),
+      );
+    }
+
+    // Asegurar responded_at (ancla del cronómetro sync).
+    if (current != null &&
+        ((current.respondedAt ?? '').trim().isEmpty ||
+            (isMatch && current.matchSeconds <= 0))) {
+      final fresh = await fetchFresh();
+      if (fresh != null) {
+        current = current.copyWith(
+          status: fresh.status ?? current.status,
+          roomId: (fresh.roomId ?? '').trim().isNotEmpty
+              ? fresh.roomId
+              : current.roomId,
+          respondedAt: fresh.respondedAt ?? current.respondedAt,
+          matchSeconds: fresh.matchSeconds > 0
+              ? fresh.matchSeconds
+              : (isMatch ? matchFreeSeconds : current.matchSeconds),
+        );
+      } else if (isMatch && current.matchSeconds <= 0) {
+        current = current.copyWith(matchSeconds: matchFreeSeconds);
+      }
+    }
+
     if (current == null) {
+      Loggers.error('enterAcceptedCall: no call model (id=$targetId rid=$rid)');
       _joined = false;
+      subtitle.value = LKey.ringing.tr;
+      _poll = Timer.periodic(const Duration(seconds: 2), (_) => _checkStatus());
       return;
     }
 
-    if (rid.isNotEmpty && (current.roomId ?? '').isEmpty) {
-      current = CallRequestModel(
-        id: current.id,
-        callerId: current.callerId,
-        calleeId: current.calleeId,
-        coinsCost: current.coinsCost,
-        userLevel: current.userLevel,
-        status: 'accepted',
-        roomId: rid,
-        respondedAt: current.respondedAt,
-        endedAt: current.endedAt,
-        createdAt: current.createdAt,
-        caller: current.caller,
-        callee: current.callee,
-      );
-    } else if (current.status != 'accepted' && rid.isNotEmpty) {
-      current = CallRequestModel(
-        id: current.id,
-        callerId: current.callerId,
-        calleeId: current.calleeId,
-        coinsCost: current.coinsCost,
-        userLevel: current.userLevel,
-        status: 'accepted',
-        roomId: rid.isNotEmpty ? rid : current.roomId,
-        respondedAt: current.respondedAt,
-        endedAt: current.endedAt,
-        createdAt: current.createdAt,
-        caller: current.caller,
-        callee: current.callee,
-      );
+    if (rid.isNotEmpty && (current.roomId ?? '').trim().isEmpty) {
+      current = current.copyWith(status: 'accepted', roomId: rid);
+    } else if (!current.isAccepted && rid.isNotEmpty) {
+      current = current.copyWith(status: 'accepted', roomId: rid);
+    } else if (!current.isAccepted &&
+        (current.roomId ?? '').trim().isNotEmpty) {
+      current = current.copyWith(status: 'accepted');
     }
 
-    if ((current.roomId ?? '').isEmpty) {
+    if ((current.roomId ?? '').trim().isEmpty) {
+      Loggers.error('enterAcceptedCall: empty room_id for ${current.id}');
       _joined = false;
-      subtitle.value = LKey.callFailed.tr;
+      subtitle.value = isMatch ? 'Match fallido' : LKey.callFailed.tr;
       return;
     }
 
     call = current;
-    Get.off(() => VideoCallScreen(call: current!));
+    final live = LivestreamScreenController.activeInstance;
+    if (live != null) {
+      try {
+        await live.pauseLiveKitForCall();
+      } catch (_) {}
+      Get.off(() => VideoCallScreen(
+            call: current!,
+            resumeLiveOnHangup: true,
+            isMatchPreview: isMatch,
+            matchFreeSeconds: matchFreeSeconds,
+          ));
+    } else {
+      Get.off(() => VideoCallScreen(
+            call: current!,
+            isMatchPreview: isMatch,
+            matchFreeSeconds: matchFreeSeconds,
+          ));
+    }
   }
 
   Future<void> _startRingback() async {
@@ -341,9 +444,14 @@ class OutgoingCallController extends BaseController {
       return;
     }
 
-    subtitle.value = LKey.calling.tr;
+    subtitle.value = isMatch ? 'Match…' : LKey.calling.tr;
     try {
-      call = await CallService.instance.create(userId: userId);
+      call = await CallService.instance.create(
+        userId: userId,
+        isMatch: isMatch,
+        matchSeconds: isMatch ? matchFreeSeconds : null,
+        coinsCost: cost > 0 ? cost : null,
+      );
       final me = SessionManager.instance.getUser();
       if (me != null && cost > 0) {
         me.removeCoinFromWallet(cost);
@@ -351,11 +459,22 @@ class OutgoingCallController extends BaseController {
       }
       subtitle.value = LKey.ringing.tr;
       await _startRingback();
-      _poll = Timer.periodic(const Duration(seconds: 1), (_) => _checkStatus());
+      _poll = Timer.periodic(const Duration(seconds: 2), (_) => _checkStatus());
       _timeout = Timer(const Duration(seconds: 45), () async {
         if (_joined || _closing) return;
+        // Última chance: puede que ya esté accepted y el poll falló.
+        try {
+          final id = call?.id;
+          if (id != null) {
+            final fresh = await CallService.instance.status(id);
+            if (fresh.isAccepted && (fresh.roomId ?? '').isNotEmpty) {
+              await _enterAcceptedCall(updated: fresh);
+              return;
+            }
+          }
+        } catch (_) {}
         await _stopRingback();
-        subtitle.value = LKey.callNoAnswer.tr;
+        subtitle.value = isMatch ? 'Sin respuesta' : LKey.callNoAnswer.tr;
         await _cancelRemote();
         await Future.delayed(const Duration(milliseconds: 900));
         await cancelAndClose(skipCancelApi: true);
@@ -364,7 +483,7 @@ class OutgoingCallController extends BaseController {
       await _stopRingback();
       final msg = e.toString().replaceFirst('Exception: ', '');
       errorText.value = msg;
-      subtitle.value = LKey.callFailed.tr;
+      subtitle.value = isMatch ? 'Match fallido' : LKey.callFailed.tr;
       if (msg.toLowerCase().contains('insufficient') ||
           msg.toLowerCase().contains('coin')) {
         CoinGate.ensureEnough(cost, message: 'Moneda insuficiente');
@@ -381,7 +500,7 @@ class OutgoingCallController extends BaseController {
     _poll?.cancel();
     _timeout?.cancel();
     await _stopRingback();
-    subtitle.value = LKey.callRejected.tr;
+    subtitle.value = isMatch ? 'Match rechazado' : LKey.callRejected.tr;
     final me = SessionManager.instance.getUser();
     if (me != null && cost > 0) {
       me.coinWallet = (me.coinWallet ?? 0) + cost;
@@ -393,27 +512,31 @@ class OutgoingCallController extends BaseController {
 
   Future<void> _checkStatus() async {
     final id = call?.id;
-    if (id == null || _joined || _closing) return;
+    if (id == null || _joined || _closing || _checkBusy) return;
+    _checkBusy = true;
     try {
-      final inbox = await CallService.instance.inbox();
       CallRequestModel? updated;
-      for (final e in [...inbox.sent, ...inbox.received]) {
-        if (e.id == id) {
-          updated = e;
-          break;
+      try {
+        updated = await CallService.instance.status(id);
+      } catch (_) {
+        final inbox = await CallService.instance.inbox();
+        for (final e in [...inbox.sent, ...inbox.received]) {
+          if (e.id == id) {
+            updated = e;
+            break;
+          }
         }
       }
       if (updated == null) return;
-      final current = updated;
-      call = current;
-      final status = (current.status ?? '').toLowerCase().trim();
+      call = updated;
+      final status = (updated.status ?? '').toLowerCase().trim();
 
-      if (current.isAccepted && (current.roomId ?? '').isNotEmpty) {
-        await _enterAcceptedCall(updated: current);
+      if (updated.isAccepted && (updated.roomId ?? '').isNotEmpty) {
+        await _enterAcceptedCall(updated: updated);
         return;
       }
 
-      if (status == 'rejected' || current.isRejected) {
+      if (status == 'rejected' || updated.isRejected) {
         await _onRejected();
         return;
       }
@@ -424,12 +547,14 @@ class OutgoingCallController extends BaseController {
         _poll?.cancel();
         _timeout?.cancel();
         await _stopRingback();
-        subtitle.value = LKey.callCancelled.tr;
+        subtitle.value = isMatch ? 'Match cancelado' : LKey.callCancelled.tr;
         await Future.delayed(const Duration(milliseconds: 800));
         await cancelAndClose(skipCancelApi: true);
       }
-    } catch (_) {
-      // silencioso; el próximo tick reintenta
+    } catch (e) {
+      Loggers.error('outgoing poll: $e');
+    } finally {
+      _checkBusy = false;
     }
   }
 

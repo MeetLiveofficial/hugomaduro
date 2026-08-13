@@ -78,7 +78,10 @@ class LiveStreamSearchScreen extends StatelessWidget {
                 const Spacer(),
                 _RightControls(controller: controller),
                 const SizedBox(height: 8),
-                if (!kIsWeb) _PreLiveFiltersBar(controller: controller),
+                if (!kIsWeb &&
+                    LiveStreamSearchScreenController
+                        .kPreLiveBeautyFiltersEnabled)
+                  _PreLiveFiltersBar(controller: controller),
                 _BottomBar(
                   controller: controller,
                   displayName: displayName,
@@ -133,24 +136,25 @@ class _StudioBackdrop extends StatelessWidget {
             WebCameraPreview(
               viewType: controller.beautyPipeline.camera.webViewType!,
             ),
-            Positioned(
-              left: 12,
-              right: 12,
-              top: 100,
-              child: Material(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  child: Text(
-                    'Web: preview de cámara + belleza por shader. '
-                    'GPUPixel nativo = Android/iOS.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+            if (LiveStreamSearchScreenController.kPreLiveBeautyFiltersEnabled)
+              Positioned(
+                left: 12,
+                right: 12,
+                top: 100,
+                child: Material(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    child: Text(
+                      'Web: preview de cámara + belleza por shader. '
+                      'GPUPixel nativo = Android/iOS.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
                   ),
                 ),
               ),
-            ),
             Positioned(
               left: 16,
               bottom: 200,
@@ -208,53 +212,77 @@ class _StudioBackdrop extends StatelessWidget {
         bg = const ColoredBox(color: Color(0xFF1A1A1A));
       }
 
+      final loading = controller.cameraPreviewLoading.value;
+
       return Stack(
         fit: StackFit.expand,
         children: [
           bg,
           const ColoredBox(color: Color(0x66000000)),
           Center(
-            child: GestureDetector(
-              onTap: controller.startBeautyCameraPreview,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black.withValues(alpha: 0.45),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: const Icon(Icons.videocam_rounded,
-                        color: Colors.white70, size: 36),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    LKey.goLive.tr,
-                    style: TextStyleCustom.outFitSemiBold600(
-                      color: Colors.white,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Text(
-                      kIsWeb
-                          ? 'Toca para abrir la cámara (permiso del navegador)'
-                          : 'Abriendo belleza GPUPixel…',
-                      textAlign: TextAlign.center,
-                      style: TextStyleCustom.outFitRegular400(
-                        color: Colors.white70,
-                        fontSize: 13,
+            child: loading
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: CircularProgressIndicator(
+                          color: Colors.white70,
+                          strokeWidth: 2.5,
+                        ),
                       ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Abriendo cámara…',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  )
+                : GestureDetector(
+                    onTap: controller.startBeautyCameraPreview,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black.withValues(alpha: 0.45),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: const Icon(Icons.videocam_rounded,
+                              color: Colors.white70, size: 36),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          LKey.goLive.tr,
+                          style: TextStyleCustom.outFitSemiBold600(
+                            color: Colors.white,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
+                          child: Text(
+                            kIsWeb
+                                ? 'Toca para abrir la cámara (permiso del navegador)'
+                                : 'Toca para abrir la cámara',
+                            textAlign: TextAlign.center,
+                            style: TextStyleCustom.outFitRegular400(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
           ),
         ],
       );
@@ -383,16 +411,18 @@ class _RightControls extends StatelessWidget {
     return Align(
       alignment: Alignment.centerRight,
       child: Padding(
-        padding: const EdgeInsets.only(right: 14),
+        padding: const EdgeInsets.only(right: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CustomBorderRoundIcon(
-              widget: const Icon(Icons.face_retouching_natural,
-                  color: Colors.white, size: 22),
-              onTap: controller.openPreLiveBeauty,
-            ),
-            const SizedBox(height: 14),
+            if (LiveStreamSearchScreenController.kPreLiveBeautyFiltersEnabled) ...[
+              CustomBorderRoundIcon(
+                widget: const Icon(Icons.face_retouching_natural,
+                    color: Colors.white, size: 22),
+                onTap: controller.openPreLiveBeauty,
+              ),
+              const SizedBox(height: 14),
+            ],
             CustomBorderRoundIcon(
               widget: const Icon(Icons.image_outlined,
                   color: Colors.white, size: 22),

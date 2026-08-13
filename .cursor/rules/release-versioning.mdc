@@ -1,0 +1,15 @@
+---
+description: En cada release APK/IPA, subir versión y reportarla al usuario
+alwaysApply: true
+---
+
+# Versionado en releases
+
+Cuando el usuario pida **compilar release**, **APK**, **AAB**, **IPA** o similar:
+
+1. **Antes de compilar**, incrementar la versión:
+   - `android/app/build.gradle`: `versionCode` (+1) y `versionName` (patch o minor según el cambio).
+   - `pubspec.yaml`: `version: X.Y.Z+BUILD` alineado (`Z` = name, `BUILD` = versionCode).
+2. **Informar al usuario** la versión nueva en el mensaje (ej. «Release **1.1.10** (build 20)»).
+3. No reutilizar `versionCode` ya publicado en Play Store.
+4. Si solo pide hot reload / debug run, **no** subir versión.

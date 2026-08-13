@@ -2,26 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/incoming_call_screen.dart';
-import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 
-/// Muestra la llamada entrante sobre LIVE: panel inferior = 50% de altura.
+/// Overlay de llamada entrante: always half-sheet (no fullscreen).
 class LiveIncomingCallOverlay {
   LiveIncomingCallOverlay._();
 
   static bool _opening = false;
 
-  static Future<void> show(CallRequestModel call) async {
+  /// `true` si se presentó el diálogo (o ya estaba abierto el mismo call).
+  static Future<bool> show(CallRequestModel call) async {
     final id = call.id;
-    if (id == null) return;
-    if (LivestreamScreenController.activeInstance == null) return;
+    if (id == null) return false;
 
     final tag = 'incoming_$id';
-    if (Get.isRegistered<IncomingCallController>(tag: tag)) return;
-    if (_opening) return;
-    if (Get.isDialogOpen == true) return;
+    if (Get.isRegistered<IncomingCallController>(tag: tag)) return true;
+    if (_opening) return false;
+    if (Get.isDialogOpen == true) return false;
+    if (OutgoingCallController.activeInstance != null) return false;
+    if (Get.currentRoute.contains('VideoCall') ||
+        Get.currentRoute.contains('OutgoingCall')) {
+      return false;
+    }
 
     final ctx = Get.overlayContext ?? Get.context;
-    if (ctx == null) return;
+    if (ctx == null) return false;
 
     _opening = true;
     try {
@@ -29,7 +34,7 @@ class LiveIncomingCallOverlay {
         context: ctx,
         barrierDismissible: false,
         barrierLabel: 'incoming_call',
-        barrierColor: Colors.black38,
+        barrierColor: Colors.black54,
         useRootNavigator: true,
         pageBuilder: (context, animation, secondaryAnimation) {
           return IncomingCallScreen(call: call, asDialog: true);
@@ -42,6 +47,7 @@ class LiveIncomingCallOverlay {
           return SlideTransition(position: offset, child: child);
         },
       );
+      return true;
     } finally {
       _opening = false;
     }

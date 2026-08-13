@@ -13,6 +13,7 @@ import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/incoming_call_screen.dart';
+import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -29,7 +30,7 @@ class CallsListController extends BaseController {
   void onInit() {
     super.onInit();
     refreshInbox();
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 6), (_) {
       refreshInbox(silent: true);
     });
   }
@@ -73,7 +74,10 @@ class CallsListController extends BaseController {
 
   Future<void> answer(CallRequestModel item) async {
     if (item.id == null) return;
-    Get.to(() => IncomingCallScreen(call: item));
+    final opened = await LiveIncomingCallOverlay.show(item);
+    if (!opened) {
+      Get.to(() => IncomingCallScreen(call: item, asDialog: true));
+    }
   }
 
   Future<void> reject(CallRequestModel item) async {
@@ -170,7 +174,9 @@ class CallsListView extends StatelessWidget {
                                 color: textDarkGrey(context), fontSize: 14),
                           ),
                           Text(
-                            '${incoming ? LKey.incomingCall.tr : LKey.outgoingCall.tr} · ${item.status} · ${item.coinsCost} ${LKey.coins.tr}',
+                            item.isMatchSession
+                                ? 'Match · ${item.status} · ${item.coinsCost} ${LKey.coins.tr}'
+                                : '${incoming ? LKey.incomingCall.tr : LKey.outgoingCall.tr} · ${item.status} · ${item.coinsCost} ${LKey.coins.tr}',
                             style: TextStyleCustom.outFitRegular400(
                                 color: textLightGrey(context), fontSize: 12),
                           ),

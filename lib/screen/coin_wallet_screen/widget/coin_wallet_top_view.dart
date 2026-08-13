@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
@@ -23,6 +24,7 @@ class CoinWalletTopView extends StatelessWidget {
     final currency = settings?.currency ?? '\$';
     final coinValue = settings?.coinValue ?? 0;
     final withdrawalOn = settings?.isWithdrawalOn == 1;
+    final canWithdraw = withdrawalOn && AppRole.canWithdraw();
 
     return Column(
       children: [
@@ -116,7 +118,7 @@ class CoinWalletTopView extends StatelessWidget {
                   fontSize: 13,
                 ),
               ),
-              if (withdrawalOn) ...[
+              if (canWithdraw) ...[
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextButtonCustom(

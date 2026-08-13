@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:livekit_client/livekit_client.dart';
@@ -81,18 +82,36 @@ class LiveKitCallLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primaryRemote = remotes.isNotEmpty ? remotes.first : null;
+    // En Web, VideoTrackRenderer (HtmlElementView) se pinta ENCIMA de Flutter
+    // y tapa botones/cronómetro. En emulador a veces el SurfaceView hace lo mismo.
+    final allowRenderer = !kIsWeb;
+    final remoteHasVideo =
+        allowRenderer && firstVideoTrackOf(primaryRemote) != null;
+    final localHasVideo = allowRenderer && firstVideoTrackOf(local) != null;
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (primaryRemote != null)
-          LiveKitParticipantVideo(participant: primaryRemote)
+        if (remoteHasVideo)
+          LiveKitParticipantVideo(
+            participant: primaryRemote,
+            forcePortraitUpright: false,
+          )
         else
-          Center(
-            child: Text(
-              statusText ?? 'Waiting…',
-              style: const TextStyle(color: Colors.white70),
-              textAlign: TextAlign.center,
+          ColoredBox(
+            color: const Color(0xFF140E18),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  statusText ??
+                      (kIsWeb
+                          ? 'Llamada activa. El video va por la APP, no por el navegador.'
+                          : 'Esperando video…'),
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
           ),
         Positioned(
@@ -102,15 +121,23 @@ class LiveKitCallLayout extends StatelessWidget {
           height: 160,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: LiveKitParticipantVideo(
-              participant: local,
-              mirror: true,
-              placeholder: Container(color: Colors.black54),
-            ),
+            child: localHasVideo
+                ? LiveKitParticipantVideo(
+                    participant: local,
+                    mirror: true,
+                    forcePortraitUpright: false,
+                    placeholder: const ColoredBox(color: Colors.black54),
+                  )
+                : const ColoredBox(
+                    color: Colors.black54,
+                    child: Center(
+                      child: Icon(Icons.person, color: Colors.white38, size: 36),
+                    ),
+                  ),
           ),
         ),
         // Remotos adicionales en franja inferior
-        if (remotes.length > 1)
+        if (allowRenderer && remotes.length > 1)
           Positioned(
             left: 8,
             right: 8,

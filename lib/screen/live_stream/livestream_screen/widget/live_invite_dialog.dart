@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
@@ -70,7 +71,7 @@ class LiveInviteDialog extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              '$name te invita a su LIVE',
+              '$name ${LKey.invitesYouToLive.tr}',
               textAlign: TextAlign.center,
               style: TextStyleCustom.unboundedSemiBold600(
                 color: textDarkGrey(context),
@@ -96,14 +97,14 @@ class LiveInviteDialog extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Get.back(),
-                    child: const Text('Más tarde'),
+                    child: Text(LKey.later.tr),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: _join,
-                    child: const Text('Unirse'),
+                    child: Text(LKey.join.tr),
                   ),
                 ),
               ],

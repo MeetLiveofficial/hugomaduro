@@ -16,6 +16,7 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/livestream/livestream_user_state.dart';
@@ -23,6 +24,7 @@ import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/screen/deepar/deepar.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/screen/face_filters/services/deep_ar_service.dart';
@@ -66,6 +68,12 @@ class LiveStreamSearchScreenController extends BaseController {
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxBool inviteLoading = false.obs;
 
+  /// 6 slots de regalos incentivados (posición + mensaje ≤120).
+  final RxList<LiveGiftIncentive> giftIncentiveSlots = List.generate(
+    6,
+    (i) => LiveGiftIncentive(position: i),
+  ).obs;
+
   /// Preview estable (camera plugin + shader). Dueño de cámara por defecto.
   final FaceFilterPipeline beautyPipeline =
       FaceFilterPipeline(maxInferenceFps: 15, defaultBeautyIntensity: 0);
@@ -77,7 +85,8 @@ class LiveStreamSearchScreenController extends BaseController {
   final DeepArCameraController deepAr = DeepArCameraController();
   final GlobalKey beautyPreviewKey = GlobalKey();
   final RxBool cameraPreviewActive = false.obs;
-  final RxBool deepArPreviewActive = false.obs;
+  /// True mientras se pide permiso / inicia el preview de cámara.
+  final RxBool cameraPreviewLoading = false.obs;
   final Rx<FaceFilterId> selectedFilterId = FaceFilterId.none.obs;
   final Rxn<int> selectedDeepArFilterId = Rxn<int>();
 
@@ -87,6 +96,10 @@ class LiveStreamSearchScreenController extends BaseController {
   /// GPUPixel Camera2 estabilizado (GL thread + init async).
   /// Si vuelve el kill nativo, poner en false.
   static const bool kGpuPixelCameraEnabled = true;
+
+  /// TEMPORAL: ocultar carrusel Soft/Natural/… y panel de belleza en Go Live.
+  /// Poner en `true` para reactivar filtros.
+  static const bool kPreLiveBeautyFiltersEnabled = false;
 
   @override
   void onInit() {
@@ -100,15 +113,23 @@ class LiveStreamSearchScreenController extends BaseController {
           DeviceOrientation.portraitUp,
         ]);
       }
-      beautyOn.value = true;
-      selectedFilterId.value = FaceFilterId.beautySoft;
-      await startBeautyCameraPreview();
-      _applyGpuPixelLook(FaceFilterId.beautySoft);
+      if (kPreLiveBeautyFiltersEnabled) {
+        beautyOn.value = true;
+        selectedFilterId.value = FaceFilterId.beautySoft;
+        await startBeautyCameraPreview();
+        _applyGpuPixelLook(FaceFilterId.beautySoft);
+      } else {
+        beautyOn.value = false;
+        selectedFilterId.value = FaceFilterId.none;
+        await startBeautyCameraPreview();
+        _applyGpuPixelLook(FaceFilterId.none);
+      }
     });
   }
 
   /// Tap en look (carrusel pre-live).
   Future<void> onPreLiveFilterTap(FaceFilterId id) async {
+    if (!kPreLiveBeautyFiltersEnabled) return;
     await startBeautyCameraPreview();
     selectedFilterId.value = id;
     beautyOn.value = id != FaceFilterId.none;
@@ -180,6 +201,7 @@ class LiveStreamSearchScreenController extends BaseController {
   }
 
   Future<void> openPreLiveBeauty() async {
+    if (!kPreLiveBeautyFiltersEnabled) return;
     await startBeautyCameraPreview();
     await _syncBeauty();
     await openLiveFiltersSheet(
@@ -275,15 +297,17 @@ class LiveStreamSearchScreenController extends BaseController {
       ignoreSafeArea: false,
     );
     if (ok == true) {
-      final snapBeautyOn =
-          beautyOn.value || selectedFilterId.value != FaceFilterId.none;
+      final snapBeautyOn = kPreLiveBeautyFiltersEnabled &&
+          (beautyOn.value || selectedFilterId.value != FaceFilterId.none);
       final snapWhiten = whiten.value;
       final snapRosy = rosy.value;
       final snapSmooth = smooth.value;
       final snapSharpen = sharpen.value;
       final snapSlim = slimFace.value;
       final snapEye = bigEye.value;
-      final snapFilter = selectedFilterId.value;
+      final snapFilter = kPreLiveBeautyFiltersEnabled
+          ? selectedFilterId.value
+          : FaceFilterId.none;
 
       // Liberar GPUPixel/cámara antes de LiveKit (Camera2 debe cerrarse del todo).
       await stopBeautyCameraPreview();
@@ -309,7 +333,18 @@ class LiveStreamSearchScreenController extends BaseController {
         (gpuPixelPreviewActive.value || beautyPipeline.isReady)) {
       return;
     }
+    if (cameraPreviewLoading.value) return;
 
+    cameraPreviewLoading.value = true;
+    try {
+      await _startBeautyCameraPreviewBody(preferFaceBetter: preferFaceBetter);
+    } finally {
+      cameraPreviewLoading.value = false;
+    }
+  }
+
+  Future<void> _startBeautyCameraPreviewBody(
+      {bool preferFaceBetter = false}) async {
     // Web: cámara + shader Flutter.
     if (kIsWeb) {
       try {
@@ -318,8 +353,14 @@ class LiveStreamSearchScreenController extends BaseController {
         cameraPreviewActive.value = ok;
         gpuPixelPreviewActive.value = false;
         if (ok) {
-          beautyOn.value = true;
-          await _syncBeauty();
+          if (kPreLiveBeautyFiltersEnabled) {
+            beautyOn.value = true;
+            await _syncBeauty();
+          } else {
+            beautyOn.value = false;
+            selectedFilterId.value = FaceFilterId.none;
+            await _syncBeauty();
+          }
         } else {
           final detail = beautyPipeline.camera.lastError;
           showSnackBar(
@@ -361,7 +402,12 @@ class LiveStreamSearchScreenController extends BaseController {
           if (id != null && gpuPixel.hasTexture) {
             gpuPixelPreviewActive.value = true;
             cameraPreviewActive.value = true;
-            beautyOn.value = true;
+            if (kPreLiveBeautyFiltersEnabled) {
+              beautyOn.value = true;
+            } else {
+              beautyOn.value = false;
+              selectedFilterId.value = FaceFilterId.none;
+            }
             await _syncBeauty();
             return;
           }
@@ -378,7 +424,12 @@ class LiveStreamSearchScreenController extends BaseController {
       cameraPreviewActive.value = ok;
       if (ok) {
         await beautyPipeline.beauty.load();
-        beautyOn.value = true;
+        if (kPreLiveBeautyFiltersEnabled) {
+          beautyOn.value = true;
+        } else {
+          beautyOn.value = false;
+          selectedFilterId.value = FaceFilterId.none;
+        }
         await _syncBeauty();
       } else {
         showSnackBar('No se pudo abrir la cámara para el preview');
@@ -507,6 +558,47 @@ class LiveStreamSearchScreenController extends BaseController {
     coverImageUploaded.value = null;
   }
 
+  List<LiveGiftIncentive> get configuredGiftIncentives => giftIncentiveSlots
+      .where((e) => e.isConfigured)
+      .map((e) => e.copyWith(message: e.trimmedMessage))
+      .toList();
+
+  void updateGiftIncentiveMessage(int position, String message) {
+    if (position < 0 || position >= giftIncentiveSlots.length) return;
+    final clipped =
+        message.length > 120 ? message.substring(0, 120) : message;
+    giftIncentiveSlots[position].message = clipped;
+  }
+
+  void clearGiftIncentiveSlot(int position) {
+    if (position < 0 || position >= giftIncentiveSlots.length) return;
+    giftIncentiveSlots[position] = LiveGiftIncentive(position: position);
+    giftIncentiveSlots.refresh();
+  }
+
+  Future<void> pickGiftForIncentiveSlot(int position) async {
+    if (position < 0 || position >= giftIncentiveSlots.length) return;
+    final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
+    if (gifts.isEmpty) {
+      showSnackBar('No hay regalos en el catálogo');
+      return;
+    }
+    final selected = await Get.bottomSheet<Gift>(
+      _GiftPickerSheet(gifts: gifts),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+    if (selected == null || selected.id == null) return;
+    final prev = giftIncentiveSlots[position];
+    giftIncentiveSlots[position] = prev.copyWith(
+      giftId: selected.id,
+      coinPrice: selected.coinPrice,
+      image: selected.image,
+      message: prev.message,
+    );
+    giftIncentiveSlots.refresh();
+  }
+
   Future<void> _startLive(
     User user, {
     required bool beautyOn,
@@ -576,6 +668,7 @@ class LiveStreamSearchScreenController extends BaseController {
           coverImage: coverPath,
           coHostIds: coHosts,
           isRestrictToJoin: 0,
+          giftIncentives: configuredGiftIncentives,
         );
       } else {
         stream = user.livestream(
@@ -586,6 +679,7 @@ class LiveStreamSearchScreenController extends BaseController {
           isDummyLive: 0,
           coHostIds: coHosts,
         );
+        stream.giftIncentives = configuredGiftIncentives;
         final hostState = user.streamState(
           stateType: LivestreamUserType.host,
           time: now,
@@ -775,6 +869,45 @@ class _StartLiveSheet extends StatelessWidget {
               ),
             );
           }),
+          const SizedBox(height: 12),
+          Text(
+            'Regalos incentivados (6)',
+            style: TextStyleCustom.outFitSemiBold600(
+              color: textDarkGrey(context),
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Elige regalos y un mensaje (máx. 120). Se mostrarán a los clientes.',
+            style: TextStyleCustom.outFitRegular400(
+              color: textLightGrey(context),
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Obx(() {
+            final slots = controller.giftIncentiveSlots;
+            return SizedBox(
+              height: 148,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: slots.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final slot = slots[index];
+                  return _IncentiveSlotCard(
+                    slot: slot,
+                    onPickGift: () =>
+                        controller.pickGiftForIncentiveSlot(index),
+                    onClear: () => controller.clearGiftIncentiveSlot(index),
+                    onMessageChanged: (v) =>
+                        controller.updateGiftIncentiveMessage(index, v),
+                  );
+                },
+              ),
+            );
+          }),
         ] else ...[
           const SizedBox(height: 6),
           Text(
@@ -854,35 +987,23 @@ class _StartLiveSheet extends StatelessWidget {
 
     final sheetBody = SafeArea(
       top: false,
-      child: keyboardOpen
-          ? SizedBox(
-              height: maxWithKeyboard,
-              child: Column(
-                children: [
-                  header,
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      child: formBody,
-                    ),
-                  ),
-                  startButton,
-                ],
+      child: SizedBox(
+        height: maxWithKeyboard,
+        child: Column(
+          children: [
+            header,
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: formBody,
               ),
-            )
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                header,
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: formBody,
-                ),
-                startButton,
-              ],
             ),
+            startButton,
+          ],
+        ),
+      ),
     );
 
     return AnimatedPadding(
@@ -901,6 +1022,225 @@ class _StartLiveSheet extends StatelessWidget {
             child: sheetBody,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _IncentiveSlotCard extends StatelessWidget {
+  final LiveGiftIncentive slot;
+  final VoidCallback onPickGift;
+  final VoidCallback onClear;
+  final ValueChanged<String> onMessageChanged;
+
+  const _IncentiveSlotCard({
+    required this.slot,
+    required this.onPickGift,
+    required this.onClear,
+    required this.onMessageChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 132,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: bgGrey(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: InkWell(
+                    onTap: onPickGift,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: slot.isConfigured
+                          ? GiftMedia(
+                              path: slot.image,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.contain,
+                              muted: true,
+                              looping: true,
+                              placeholder: const Icon(Icons.card_giftcard),
+                            )
+                          : Icon(Icons.add,
+                              color: textLightGrey(context), size: 28),
+                    ),
+                  ),
+                ),
+                if (slot.isConfigured)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: InkWell(
+                      onTap: onClear,
+                      child: const CircleAvatar(
+                        radius: 10,
+                        backgroundColor: Colors.black54,
+                        child: Icon(Icons.close, size: 12, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  left: 4,
+                  bottom: 4,
+                  child: Text(
+                    '#${slot.position + 1}',
+                    style: TextStyleCustom.outFitMedium500(
+                      fontSize: 10,
+                      color: textLightGrey(context),
+                    ),
+                  ),
+                ),
+                if (slot.isConfigured && (slot.coinPrice ?? 0) > 0)
+                  Positioned(
+                    right: 4,
+                    bottom: 4,
+                    child: Text(
+                      '${slot.coinPrice}',
+                      style: TextStyleCustom.outFitMedium500(
+                        fontSize: 10,
+                        color: ColorRes.themeAccentSolid,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 34,
+            child: TextFormField(
+              key: ValueKey('inc_msg_${slot.position}_${slot.giftId ?? 0}'),
+              initialValue: slot.message,
+              maxLength: 120,
+              onChanged: onMessageChanged,
+              style: TextStyleCustom.outFitRegular400(fontSize: 11),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Mensaje',
+                counterText: '',
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GiftPickerSheet extends StatelessWidget {
+  final List<Gift> gifts;
+
+  const _GiftPickerSheet({required this.gifts});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.sizeOf(context).height * 0.55,
+      decoration: BoxDecoration(
+        color: whitePure(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: bgGrey(context),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Elegir regalo',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: textDarkGrey(context),
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: Get.back,
+                  icon: Icon(Icons.close, color: textLightGrey(context)),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 0.78,
+              ),
+              itemCount: gifts.length,
+              itemBuilder: (context, index) {
+                final g = gifts[index];
+                return InkWell(
+                  onTap: () => Get.back(result: g),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: bgGrey(context),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.black12),
+                    ),
+                    padding: const EdgeInsets.all(6),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: GiftMedia(
+                            path: g.image,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.contain,
+                            muted: true,
+                            looping: true,
+                            placeholder: const Icon(Icons.card_giftcard),
+                          ),
+                        ),
+                        Text(
+                          '${g.coinPrice ?? 0}',
+                          style: TextStyleCustom.outFitMedium500(
+                            color: ColorRes.themeAccentSolid,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

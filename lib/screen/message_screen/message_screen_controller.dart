@@ -117,7 +117,7 @@ class MessageScreenController extends BaseController {
       }
       await _refreshThreads();
       _pollTimer?.cancel();
-      _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
         _refreshThreads(silent: true);
       });
     } catch (e) {

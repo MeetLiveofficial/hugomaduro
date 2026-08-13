@@ -209,6 +209,7 @@ class UserService {
       String? appLanguage,
       bool? showMyFollowing,
       bool? receiveMessage,
+      bool? matchEnabled,
       bool? notifyPostLike,
       bool? notifyPostComment,
       bool? notifyFollow,
@@ -244,6 +245,8 @@ class UserService {
           if (isVerify != null) Params.isVerify: isVerify,
           if (receiveMessage != null)
             Params.receiveMessage: receiveMessage ? 1 : 0,
+          if (matchEnabled != null)
+            Params.matchEnabled: matchEnabled ? 1 : 0,
           if (showMyFollowing != null)
             Params.showMyFollowing: showMyFollowing ? 1 : 0,
           if (notifyPostLike != null)
@@ -317,6 +320,36 @@ class UserService {
           if (lastItemId != null) Params.lastItemId: lastItemId,
           Params.limit: limit,
           if (keyWord.isNotEmpty) Params.keyword: keyWord,
+        },
+        fromJson: UsersModel.fromJson);
+    return model.data ?? [];
+  }
+
+  /// Explorar: solo streamers, filtros país / idioma / keyword / presencia.
+  Future<List<User>> exploreStreamers({
+    int? lastItemId,
+    int? offset,
+    String keyWord = '',
+    String? country,
+    String? countryCode,
+    String? appLanguage,
+    String presence = 'all',
+    required int limit,
+  }) async {
+    UsersModel model = await ApiService.instance.call(
+        url: WebService.user.exploreStreamers,
+        param: {
+          if (offset != null) Params.offset: offset,
+          if (offset == null && lastItemId != null)
+            Params.lastItemId: lastItemId,
+          Params.limit: limit,
+          if (keyWord.isNotEmpty) Params.keyword: keyWord,
+          if ((country ?? '').trim().isNotEmpty) Params.country: country,
+          if ((countryCode ?? '').trim().isNotEmpty)
+            Params.countryCode: countryCode,
+          if ((appLanguage ?? '').trim().isNotEmpty)
+            Params.appLanguage: appLanguage,
+          if (presence.trim().isNotEmpty) Params.presence: presence.trim(),
         },
         fromJson: UsersModel.fromJson);
     return model.data ?? [];

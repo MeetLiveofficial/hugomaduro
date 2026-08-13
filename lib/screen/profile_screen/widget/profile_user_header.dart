@@ -12,7 +12,6 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
-import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/level_screen/level_screen.dart';
 import 'package:krimson/screen/privilege_screen/privilege_hub_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
@@ -337,7 +336,7 @@ class ProfileUserHeader extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 14),
-            // SVIP / Dressing / Honor: solo streamers en su propio perfil.
+            // SVIP: solo streamers en su propio perfil.
             if (isMe && AppRole.isStreamer(user)) ...[
               InkWell(
                 onTap: () => Get.to(() => const PrivilegeHubScreen()),
@@ -380,33 +379,6 @@ class ProfileUserHeader extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _PrivilegeMini(
-                      title: LKey.dressingCenter.tr,
-                      onTap: () =>
-                          Get.to(() => const DressingCenterScreen()),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _PrivilegeMini(
-                      title: LKey.myLevel.tr,
-                      onTap: () => Get.to(
-                          () => LevelScreen(userLevels: user.getLevel)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _PrivilegeMini(
-                      title: LKey.honorWall.tr,
-                      onTap: () => Get.to(() => const LeaderboardScreen()),
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 14),
             ],
@@ -590,40 +562,6 @@ class _Avatar extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PrivilegeMini extends StatelessWidget {
-  final String title;
-  final VoidCallback onTap;
-
-  const _PrivilegeMini({required this.title, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
-        decoration: BoxDecoration(
-          color: ColorRes.bgLightGrey,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: ColorRes.bgGrey),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          title,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyleCustom.outFitSemiBold600(
-            color: ColorRes.textDarkGrey,
-            fontSize: 11,
-          ),
-        ),
       ),
     );
   }

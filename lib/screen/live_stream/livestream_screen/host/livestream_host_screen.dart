@@ -121,6 +121,32 @@ class LivestreamHostScreen extends StatelessWidget {
                         ),
                       );
                     }
+                    // Cámara activándose: loading en lugar de pantalla negra.
+                    if (lk.cameraEnabled.value) {
+                      return const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: CircularProgressIndicator(
+                                color: Colors.white70,
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                            SizedBox(height: 14),
+                            Text(
+                              'Cargando cámara…',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
                     // Conectado pero sin track: permiso denegado o cámara ocupada.
                     return Center(
                       child: Padding(

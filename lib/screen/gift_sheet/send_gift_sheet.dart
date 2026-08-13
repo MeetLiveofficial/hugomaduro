@@ -101,12 +101,76 @@ class SendGiftSheet extends StatelessWidget {
             Text(LKey.coinsYouHave.tr,
                 style: TextStyleCustom.outFitRegular400(
                     fontSize: 15, color: textLightGrey(context))),
-            const SizedBox(height: 10),
+            Obx(() {
+              final cats = controller.categories;
+              if (cats.isEmpty) return const SizedBox(height: 10);
+              return Column(
+                children: [
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 34,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: cats.length + 1,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final isAll = index == 0;
+                        final catId = isAll ? 0 : (cats[index - 1].id ?? 0);
+                        final label = isAll
+                            ? LKey.all.tr
+                            : (cats[index - 1].name ?? '');
+                        final selected =
+                            controller.selectedCategoryId.value == catId;
+                        return GestureDetector(
+                          onTap: () => controller.selectCategory(catId),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              gradient: selected
+                                  ? StyleRes.themeGradient
+                                  : null,
+                              color: selected
+                                  ? null
+                                  : bgLightGrey(context),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              label,
+                              style: TextStyleCustom.outFitMedium500(
+                                fontSize: 13,
+                                color: selected
+                                    ? whitePure(context)
+                                    : textDarkGrey(context),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              );
+            }),
             Expanded(child: Obx(
               () {
-                List<Gift> gifts = controller.settings.value?.gifts ?? [];
+                final gifts = controller.visibleGifts;
+                if (gifts.isEmpty) {
+                  return Center(
+                    child: Text(
+                      LKey.noData.tr,
+                      style: TextStyleCustom.outFitRegular400(
+                          color: textLightGrey(context)),
+                    ),
+                  );
+                }
                 return GridView.builder(
-                  itemCount: gifts.length,
+                  controller: controller.scrollController,
+                  itemCount: gifts.length + (controller.hasMore.value ? 1 : 0),
                   padding: const EdgeInsets.symmetric(horizontal: 11),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 4,
@@ -114,6 +178,15 @@ class SendGiftSheet extends StatelessWidget {
                       crossAxisSpacing: 5,
                       mainAxisSpacing: 5),
                   itemBuilder: (context, index) {
+                    if (index >= gifts.length) {
+                      return const Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    }
                     Gift gift = gifts[index];
                     return InkWell(
                       onTap: () => controller.onGiftTap(gift, context),
@@ -133,6 +206,8 @@ class SendGiftSheet extends StatelessWidget {
                               width: 65,
                               height: 65,
                               fit: BoxFit.contain,
+                              muted: true,
+                              looping: true,
                               placeholder: Image.asset(
                                 AssetRes.icGift,
                                 width: 65,

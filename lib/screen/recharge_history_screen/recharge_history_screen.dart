@@ -70,7 +70,9 @@ class RechargeHistoryScreen extends StatelessWidget {
                                           ? 'Admin'
                                           : item.source == 'crypto'
                                               ? 'Crypto (NOWPayments)'
-                                              : 'In-app purchase'),
+                                              : item.source == 'wompi'
+                                                  ? 'Tarjeta (Wompi)'
+                                                  : 'In-app purchase'),
                                   style: TextStyleCustom.outFitRegular400(
                                     color: textLightGrey(context),
                                     fontSize: 12,
@@ -121,8 +123,8 @@ class RechargeHistoryController extends BaseController {
     if (isLoading.value) return;
     isLoading.value = true;
     try {
-      // Intenta acreditar pagos crypto pendientes antes de listar
       await GiftWalletService.instance.syncPendingCryptoPayments();
+      await GiftWalletService.instance.syncPendingWompiPayments();
       final list = await GiftWalletService.instance.fetchMyRecharges();
       items.assignAll(list);
       final user = await UserService.instance.fetchUserDetails(

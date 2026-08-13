@@ -154,15 +154,18 @@ class FirebaseNotificationManager {
       } else if (type == 'call_request') {
         showNotification(message, isCall: true);
         _refreshCallsBadge();
-        // Solo overlay si está en LIVE; si no, solo notificación + pestaña CALL.
-        if (LivestreamScreenController.activeInstance != null) {
-          _openIncomingCallFromPush(message.data);
-        }
+        // App en foreground: siempre mostrar UI de llamada entrante.
+        _openIncomingCallFromPush(message.data);
         return;
       } else if (type == 'call_rejected') {
         showNotification(message, isCall: true);
         final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
         OutgoingCallController.handleRemoteRejected(id);
+        return;
+      } else if (type == 'call_cancelled') {
+        final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+        IncomingCallController.handleRemoteCancelled(id);
+        _refreshCallsBadge();
         return;
       } else if (type == 'call_accepted') {
         showNotification(message, isCall: true);
@@ -261,6 +264,11 @@ class FirebaseNotificationManager {
     if (dataType == 'call_rejected') {
       final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
       OutgoingCallController.handleRemoteRejected(id);
+      return;
+    }
+    if (dataType == 'call_cancelled') {
+      final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+      IncomingCallController.handleRemoteCancelled(id);
       return;
     }
     if (dataType == 'call_accepted') {
@@ -363,16 +371,11 @@ class FirebaseNotificationManager {
           .toList();
       if (pending.isEmpty) return;
       final call = pending.first;
-      final onLive = LivestreamScreenController.activeInstance != null;
+      final opened = await LiveIncomingCallOverlay.show(call);
+      if (opened) return;
 
-      if (onLive) {
-        await LiveIncomingCallOverlay.show(call);
-        return;
-      }
-
-      // Fuera de LIVE: solo abrir UI si el usuario tocó la notificación.
+      // Fallback: half-sheet también vía Get.to (sin pantalla completa).
       if (!forceOpen) return;
-
       if (Get.isRegistered<DashboardScreenController>()) {
         final dash = Get.find<DashboardScreenController>();
         dash.selectedPageIndex.value = DashboardScreenController.tabChat;
@@ -380,7 +383,12 @@ class FirebaseNotificationManager {
       if (Get.isRegistered<MessageScreenController>()) {
         Get.find<MessageScreenController>().openCallsTab();
       }
-      Get.to(() => IncomingCallScreen(call: call));
+      Get.to(
+        () => IncomingCallScreen(call: call, asDialog: true),
+        opaque: false,
+        fullscreenDialog: true,
+        transition: Transition.downToUp,
+      );
     } catch (e) {
       Loggers.error('open incoming call from push: $e');
     }

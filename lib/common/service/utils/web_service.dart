@@ -48,11 +48,14 @@ class _Privilege {
 
 class _Call {
   String create = "${apiURL}call/create";
+  String findMatch = "${apiURL}call/findMatch";
   String inbox = "${apiURL}call/inbox";
+  String status = "${apiURL}call/status";
   String accept = "${apiURL}call/accept";
   String reject = "${apiURL}call/reject";
   String cancel = "${apiURL}call/cancel";
   String end = "${apiURL}call/end";
+  String extendMatch = "${apiURL}call/extendMatch";
   String workStats = "${apiURL}call/workStats";
   String updateCallPrice = "${apiURL}call/updateCallPrice";
 }
@@ -122,6 +125,9 @@ class _GiftWallet {
   String createCryptoPayment = "${apiURL}misc/createCryptoPayment";
   String checkCryptoPayment = "${apiURL}misc/checkCryptoPayment";
   String syncPendingCryptoPayments = "${apiURL}misc/syncPendingCryptoPayments";
+  String createWompiPayment = "${apiURL}misc/createWompiPayment";
+  String checkWompiPayment = "${apiURL}misc/checkWompiPayment";
+  String syncPendingWompiPayments = "${apiURL}misc/syncPendingWompiPayments";
 }
 
 class _User {
@@ -139,6 +145,7 @@ class _User {
   String editeUserLink = "${apiURL}user/editeUserLink";
   String deleteUserLink = "${apiURL}user/deleteUserLink";
   String searchUsers = "${apiURL}user/searchUsers";
+  String exploreStreamers = "${apiURL}user/exploreStreamers";
   String fetchMyFollowers = "${apiURL}user/fetchMyFollowers";
   String fetchUserFollowers = "${apiURL}user/fetchUserFollowers";
   String fetchUserFollowings = "${apiURL}user/fetchUserFollowings";

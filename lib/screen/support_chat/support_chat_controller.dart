@@ -41,7 +41,7 @@ class SupportChatController extends BaseController {
         await SupportService.instance.markRead(ticketId: ticket.value?.id);
       }
       _pollTimer?.cancel();
-      _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
         _refreshMessages(silent: true);
       });
     } catch (e) {

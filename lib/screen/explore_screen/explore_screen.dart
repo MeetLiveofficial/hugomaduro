@@ -1,415 +1,802 @@
-import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:get/get.dart';
-import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
-import 'package:krimson/common/service/api/post_service.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/widget/custom_image.dart';
-import 'package:krimson/common/widget/gradient_text.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/my_refresh_indicator.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
-import 'package:krimson/model/post_story/hashtag_model.dart';
-import 'package:krimson/model/post_story/post/explore_page_model.dart';
-import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/general/countries_model.dart';
+import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/explore_screen/explore_screen_controller.dart';
-import 'package:krimson/screen/search_screen/search_screen.dart';
-import 'package:krimson/utilities/asset_res.dart';
-import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
+/// Explorar: clientes ven streamers (chat/llamar); streamers ven clientes (solo chat).
 class ExploreScreen extends StatelessWidget {
   const ExploreScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(ExploreScreenController());
+    final viewerIsStreamer = AppRole.isStreamer();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SearchScreenTopView(controller: controller),
+        _ExploreHeader(
+          controller: controller,
+          viewerIsStreamer: viewerIsStreamer,
+        ),
         Expanded(
-          child: Obx(() {
-            final isLoading = controller.isLoading.value;
-            final exploreData = controller.explorePageData.value;
-            final hasData = exploreData?.highPostHashtags?.isNotEmpty ?? false;
+          child: Stack(
+            children: [
+              Obx(() {
+                final isLoading = controller.isLoading.value;
+                final list = controller.streamers;
+                final hasData = list.isNotEmpty;
 
-            return MyRefreshIndicator(
-              onRefresh: controller.fetchExplorePageData,
-              child: isLoading && exploreData == null
-                  ? const LoaderWidget()
-                  : NoDataView(
-                      showShow: !isLoading && !hasData,
-                      title: LKey.searchPageEmptyTitle.tr,
-                      description: LKey.searchPageEmptyDescription.tr,
-                      child: SearchScreenGridView(
-                          postList: exploreData?.highPostHashtags ?? [],
-                          controller: controller),
-                    ),
-            );
-          }),
+                return MyRefreshIndicator(
+                  onRefresh: controller.refreshList,
+                  child: isLoading && !hasData
+                      ? const LoaderWidget()
+                      : NoDataView(
+                          showShow: !isLoading && !hasData,
+                          title: LKey.searchPageEmptyTitle.tr,
+                          description: viewerIsStreamer
+                              ? 'No hay clientes con estos filtros'
+                              : 'No hay streamers con estos filtros',
+                          child: GridView.builder(
+                            controller: controller.scrollController,
+                            padding: const EdgeInsets.fromLTRB(10, 4, 10, 24),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 8,
+                              crossAxisSpacing: 8,
+                              childAspectRatio: 0.72,
+                            ),
+                            itemCount: list.length +
+                                (controller.isLoadingMore.value ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index >= list.length) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                );
+                              }
+                              final user = list[index];
+                              return _StreamerExploreCard(
+                                user: user,
+                                showCallButton: !viewerIsStreamer,
+                                onTap: () => controller.openProfile(user),
+                                onCall: () => controller.startCall(user),
+                                onMessage: () => controller.openChat(user),
+                              );
+                            },
+                          ),
+                        ),
+                );
+              }),
+            ],
+          ),
         ),
       ],
     );
   }
 }
 
-class SearchScreenTopView extends StatelessWidget {
+class _ExploreHeader extends StatelessWidget {
   final ExploreScreenController controller;
+  final bool viewerIsStreamer;
 
-  const SearchScreenTopView({super.key, required this.controller});
+  const _ExploreHeader({
+    required this.controller,
+    required this.viewerIsStreamer,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: scaffoldBackgroundColor(context),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Column(
-        children: [
-          _buildSearchBar(context),
-          _buildHashtagList(),
-        ],
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            TextField(
+              controller: controller.searchController,
+              onChanged: controller.onSearchChanged,
+              style: TextStyleCustom.outFitRegular400(
+                fontSize: 15,
+                color: textDarkGrey(context),
+              ),
+              decoration: InputDecoration(
+                hintText: viewerIsStreamer
+                    ? 'Buscar clientes…'
+                    : 'Buscar streamers…',
+                hintStyle: TextStyleCustom.outFitLight300(
+                  fontSize: 15,
+                  color: textLightGrey(context),
+                ),
+                prefixIcon: Icon(Icons.search,
+                    color: textLightGrey(context), size: 20),
+                suffixIcon: Obx(() {
+                  final hasFilter =
+                      controller.selectedCountryCode.value != null ||
+                          controller.selectedLanguageCode.value != null ||
+                          controller.presenceFilter.value != 'all' ||
+                          controller.searchText.value.trim().isNotEmpty;
+                  if (!hasFilter) return const SizedBox.shrink();
+                  return IconButton(
+                    tooltip: 'Limpiar',
+                    onPressed: controller.clearFilters,
+                    icon: Icon(Icons.close,
+                        size: 18, color: textLightGrey(context)),
+                  );
+                }),
+                filled: true,
+                fillColor: bgMediumGrey(context),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Obx(() {
+              final presence = controller.presenceFilter.value;
+              // Streamers exploran clientes: no aplica "En vivo".
+              if (viewerIsStreamer) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _PresenceChip(
+                        label: 'Todos',
+                        active: presence == 'all',
+                        onTap: () => controller.selectPresence('all'),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _PresenceChip(
+                        label: 'Activos',
+                        active: presence == 'active',
+                        accent: const Color(0xFF22C55E),
+                        icon: Icons.circle,
+                        onTap: () => controller.selectPresence('active'),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: _PresenceChip(
+                      label: 'Todos',
+                      active: presence == 'all',
+                      onTap: () => controller.selectPresence('all'),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _PresenceChip(
+                      label: 'En vivo',
+                      active: presence == 'live',
+                      accent: ColorRes.themeAccentSolid,
+                      icon: Icons.videocam,
+                      onTap: () => controller.selectPresence('live'),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _PresenceChip(
+                      label: 'Activos',
+                      active: presence == 'active',
+                      accent: const Color(0xFF22C55E),
+                      icon: Icons.circle,
+                      onTap: () => controller.selectPresence('active'),
+                    ),
+                  ),
+                ],
+              );
+            }),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Obx(() => _FilterChipButton(
+                        label: controller.selectedCountryName.value ?? 'País',
+                        active: controller.selectedCountryCode.value != null,
+                        icon: Icons.public,
+                        onTap: () => _pickCountry(context, controller),
+                      )),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Obx(() {
+                    final code = controller.selectedLanguageCode.value;
+                    var label = 'Idioma';
+                    if (code != null) {
+                      final lang = controller.languages
+                          .firstWhereOrNull((l) => l.code == code);
+                      label = (lang?.localizedTitle ??
+                              lang?.title ??
+                              code)
+                          .toString();
+                    }
+                    return _FilterChipButton(
+                      label: label,
+                      active: code != null,
+                      icon: Icons.translate,
+                      onTap: () => _pickLanguage(context, controller),
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildSearchBar(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: Row(
+Future<void> _pickCountry(
+    BuildContext context, ExploreScreenController c) async {
+  final q = TextEditingController();
+  final filtered = <Country>[].obs;
+  filtered.assignAll(c.countries);
+
+  final result = await Get.bottomSheet<Object>(
+    Container(
+      height: Get.height * 0.72,
+      decoration: BoxDecoration(
+        color: scaffoldBackgroundColor(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
         children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => Get.to(() => const SearchScreen()),
-              child: Container(
-                height: 35,
-                margin: const EdgeInsets.symmetric(horizontal: 15),
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: ShapeDecoration(
-                  shape: SmoothRectangleBorder(
-                    borderRadius: SmoothBorderRadius(cornerRadius: 7),
-                    side: BorderSide(color: bgGrey(context)),
+          const SizedBox(height: 10),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: bgGrey(context),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Filtrar por país',
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: textDarkGrey(context),
+                      fontSize: 16,
+                    ),
                   ),
-                  color: bgMediumGrey(context),
                 ),
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  '${LKey.posts.tr}, ${LKey.reels.tr}, ${LKey.users.tr}...',
-                  style: TextStyleCustom.outFitLight300(
-                    fontSize: 15,
-                    color: textLightGrey(context),
-                  ),
+                TextButton(
+                  onPressed: () => Get.back(result: '__clear__'),
+                  child: const Text('Todos'),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: q,
+              onChanged: (v) {
+                final t = v.trim().toLowerCase();
+                if (t.isEmpty) {
+                  filtered.assignAll(c.countries);
+                } else {
+                  filtered.assignAll(c.countries.where((e) =>
+                      e.countryName.toLowerCase().contains(t) ||
+                      e.countryCode.toLowerCase().contains(t)));
+                }
+              },
+              decoration: InputDecoration(
+                hintText: LKey.searchCountry.tr,
+                prefixIcon: const Icon(Icons.search, size: 20),
+                filled: true,
+                fillColor: bgMediumGrey(context),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Obx(() => ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final country = filtered[i];
+                    final active =
+                        c.selectedCountryCode.value == country.countryCode;
+                    return ListTile(
+                      dense: true,
+                      title: Text(country.countryName),
+                      trailing: active
+                          ? const Icon(Icons.check,
+                              color: ColorRes.themeAccentSolid)
+                          : null,
+                      onTap: () => Get.back(result: country),
+                    );
+                  },
+                )),
+          ),
         ],
       ),
-    );
-  }
+    ),
+    isScrollControlled: true,
+  );
 
-  Widget _buildHashtagList() {
-    return Obx(
-      () => SearchScreenHashTagView(
-        hashtags: controller.explorePageData.value?.hashtags ?? [],
-        controller: controller,
-      ),
-    );
+  if (result == '__clear__') {
+    c.selectCountry(null);
+  } else if (result is Country) {
+    c.selectCountry(result);
   }
 }
 
-class SearchScreenHashTagView extends StatelessWidget {
-  final List<Hashtag> hashtags;
-  final ExploreScreenController controller;
-
-  const SearchScreenHashTagView({
-    super.key,
-    required this.hashtags,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 35,
-      margin: const EdgeInsets.only(top: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        itemCount: hashtags.length,
-        itemBuilder: (context, index) =>
-            _buildHashtagItem(context, hashtags[index]),
-      ),
-    );
-  }
-
-  Widget _buildHashtagItem(BuildContext context, Hashtag hashtag) {
-    return InkWell(
-      onTap: () => controller.onExploreTap(hashtag.hashtag ?? ''),
-      child: FittedBox(
-        child: Container(
-          height: 35,
-          margin: const EdgeInsets.symmetric(horizontal: 3.5),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: ShapeDecoration(
-            shape: SmoothRectangleBorder(
-              borderRadius:
-                  SmoothBorderRadius(cornerRadius: 7, cornerSmoothing: 1),
-              side: BorderSide(color: bgGrey(context)),
-            ),
-            color: bgMediumGrey(context),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            '#${hashtag.hashtag}',
-            style: TextStyleCustom.outFitRegular400(
-              color: textLightGrey(context),
-              fontSize: 15,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class SearchScreenGridView extends StatelessWidget {
-  final List<HighPostHashtags> postList;
-  final ExploreScreenController controller;
-
-  const SearchScreenGridView({
-    super.key,
-    required this.postList,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: postList.length,
-      padding: EdgeInsets.zero,
-      itemBuilder: (context, index) {
-        final highPostHashtags = postList[index];
-        final posts = _preparePostList(highPostHashtags);
-        if (postList.isEmpty) {
-          return const SizedBox();
-        }
-
-        return Column(
-          children: [
-            if (posts.isNotEmpty) _buildHashtagHeader(context, highPostHashtags),
-            _buildPostGrid(context, posts),
-          ],
-        );
-      },
-    );
-  }
-
-  List<Post> _preparePostList(HighPostHashtags highPostHashtags) {
-    // Explore: solo Posts y Reels (imagen / texto / reel / video).
-    final posts = List<Post>.from(highPostHashtags.postList ?? []).where((p) {
-      switch (p.postType) {
-        case PostType.image:
-        case PostType.text:
-        case PostType.reel:
-        case PostType.video:
-          return true;
-        case PostType.none:
-          return false;
-      }
-    }).toList();
-
-    if (posts.length >= 5) {
-      final reelPostIndex =
-          posts.indexWhere((p) => p.postType == PostType.reel);
-      if (reelPostIndex != -1) {
-        final reelPost = posts.removeAt(reelPostIndex);
-        posts.insert(2, reelPost);
-      }
-    }
-    return posts;
-  }
-
-  Widget _buildHashtagHeader(
-      BuildContext context, HighPostHashtags highPostHashtags) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(left: 10.0, right: 10, top: 12, bottom: 12),
-      child: Row(
-        children: [
-          _buildHashtagIcon(context),
-          const SizedBox(width: 10),
-          _buildHashtagInfo(highPostHashtags, context),
-          _buildExploreButton(highPostHashtags, context),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHashtagIcon(BuildContext context) {
-    return Container(
-      height: 38,
-      width: 38,
-      alignment: Alignment.center,
+Future<void> _pickLanguage(
+    BuildContext context, ExploreScreenController c) async {
+  final result = await Get.bottomSheet<Object>(
+    Container(
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: themeAccentSolid(context).withValues(alpha: .2),
-          width: 1.5,
+        color: scaffoldBackgroundColor(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: bgGrey(context),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Filtrar por idioma',
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: textDarkGrey(context),
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Get.back(result: '__clear__'),
+                    child: const Text('Todos'),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: c.languages.length,
+                itemBuilder: (_, i) {
+                  final lang = c.languages[i];
+                  final active = c.selectedLanguageCode.value == lang.code;
+                  final title =
+                      (lang.localizedTitle ?? lang.title ?? lang.code ?? '')
+                          .toString();
+                  return ListTile(
+                    dense: true,
+                    title: Text(title),
+                    subtitle: Text(lang.code ?? ''),
+                    trailing: active
+                        ? const Icon(Icons.check,
+                            color: ColorRes.themeAccentSolid)
+                        : null,
+                    onTap: () => Get.back(result: lang),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
-      child: GradientText(
-        '#',
-        gradient: StyleRes.themeGradient,
-        style: TextStyleCustom.outFitMedium500(fontSize: 22),
-      ),
-    );
+    ),
+    isScrollControlled: true,
+  );
+
+  if (result == '__clear__') {
+    c.selectLanguage(null);
+  } else if (result is Language) {
+    c.selectLanguage(result);
   }
+}
 
-  Widget _buildHashtagInfo(
-      HighPostHashtags highPostHashtags, BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            highPostHashtags.hashtag ?? '',
-            style: TextStyleCustom.unboundedSemiBold600(
-              color: textDarkGrey(context),
-            ),
-          ),
-          Text(
-            '${(highPostHashtags.postList?.length ?? 0).numberFormat} ${LKey.posts.tr}',
-            style: TextStyleCustom.outFitLight300(
-              color: textLightGrey(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class _FilterChipButton extends StatelessWidget {
+  final String label;
+  final bool active;
+  final IconData icon;
+  final VoidCallback onTap;
 
-  Widget _buildExploreButton(
-      HighPostHashtags highPostHashtags, BuildContext context) {
-    return InkWell(
-      onTap: () => controller.onExploreTap(highPostHashtags.hashtag),
-      child: Row(
-        children: [
-          Text(
-            LKey.explore.tr,
-            style: TextStyleCustom.outFitLight300(
-              color: textLightGrey(context),
-            ),
-          ),
-          Image.asset(
-            AssetRes.icRightArrow,
-            color: textLightGrey(context),
-            height: 20,
-          ),
-        ],
-      ),
-    );
-  }
+  const _FilterChipButton({
+    required this.label,
+    required this.active,
+    required this.icon,
+    required this.onTap,
+  });
 
-  Widget _buildPostGrid(BuildContext context, List<Post> posts) {
-    final count = posts.length.clamp(0, 5);
-    if (count == 0) return const SizedBox.shrink();
-
-    // Altura estable del bloque (2 filas de celdas) ⇒ no “colapsa” al fallar media.
-    final width = MediaQuery.sizeOf(context).width;
-    final cell = (width - 3) / 3; // 2 gaps * 1.5
-    final gridHeight = cell * 2 + 1.5;
-
-    return SizedBox(
-      height: gridHeight,
-      width: width,
-      child: GridView.builder(
-        primary: false,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: count,
-        padding: EdgeInsets.zero,
-        gridDelegate: SliverQuiltedGridDelegate(
-          crossAxisCount: 3,
-          mainAxisSpacing: 1.5,
-          crossAxisSpacing: 1.5,
-          repeatPattern: QuiltedGridRepeatPattern.same,
-          pattern: _getGridPattern(count),
-        ),
-        itemBuilder: (context, index) => _buildPostItem(context, posts[index]),
-      ),
-    );
-  }
-
-  List<QuiltedGridTile> _getGridPattern(int postCount) {
-    // Patrones que siempre llenan el área 3×2 sin huecos.
-    switch (postCount) {
-      case 1:
-        return const [QuiltedGridTile(2, 3)];
-      case 2:
-        return const [
-          QuiltedGridTile(2, 2),
-          QuiltedGridTile(2, 1),
-        ];
-      case 3:
-        return const [
-          QuiltedGridTile(2, 1),
-          QuiltedGridTile(2, 1),
-          QuiltedGridTile(2, 1),
-        ];
-      case 4:
-        return const [
-          QuiltedGridTile(2, 1),
-          QuiltedGridTile(2, 1),
-          QuiltedGridTile(1, 1),
-          QuiltedGridTile(1, 1),
-        ];
-      default:
-        // 5 — layout Instagram explore
-        return const [
-          QuiltedGridTile(1, 1),
-          QuiltedGridTile(1, 1),
-          QuiltedGridTile(2, 1),
-          QuiltedGridTile(1, 1),
-          QuiltedGridTile(1, 1),
-        ];
-    }
-  }
-
-  Widget _buildPostItem(BuildContext context, Post post) {
-    final image =
-        (post.postType == PostType.image && (post.images?.isNotEmpty ?? false)
-                ? post.images!.first.image
-                : post.thumbnail)
-            ?.addBaseURL();
-
+  @override
+  Widget build(BuildContext context) {
     return Material(
-      color: bgGrey(context),
+      color: active
+          ? ColorRes.themeAccentSolid.withValues(alpha: 0.15)
+          : bgMediumGrey(context),
+      borderRadius: BorderRadius.circular(10),
       child: InkWell(
-        onTap: () => controller.onPostTap(post),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Row(
+            children: [
+              Icon(icon,
+                  size: 16,
+                  color: active
+                      ? ColorRes.themeAccentSolid
+                      : textLightGrey(context)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyleCustom.outFitMedium500(
+                    fontSize: 13,
+                    color: active
+                        ? ColorRes.themeAccentSolid
+                        : textDarkGrey(context),
+                  ),
+                ),
+              ),
+              Icon(Icons.expand_more,
+                  size: 18, color: textLightGrey(context)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StreamerExploreCard extends StatelessWidget {
+  final User user;
+  final bool showCallButton;
+  final VoidCallback onTap;
+  final VoidCallback onCall;
+  final VoidCallback onMessage;
+
+  const _StreamerExploreCard({
+    required this.user,
+    required this.showCallButton,
+    required this.onTap,
+    required this.onCall,
+    required this.onMessage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = user.fullname ?? user.username ?? 'User';
+    final subtitle = (user.username ?? '').isNotEmpty
+        ? '@${user.username}'
+        : (user.country ?? user.appLanguage ?? '');
+    final photo = (user.profilePhoto ?? '').trim().addBaseURL();
+    final canCall = showCallButton && AppRole.canReceivePaidCalls(user);
+    final isLive = user.isLive == 1;
+    final isActive = !isLive && user.isActive == 1;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            CustomImage(
-              size: const Size(double.infinity, double.infinity),
-              radius: 0,
-              image: image,
-              fit: BoxFit.cover,
-              isShowPlaceHolder: true,
-            ),
-            if (post.postType == PostType.reel || post.postType == PostType.video)
-              const Positioned(
-                right: 6,
-                top: 6,
-                child: Icon(Icons.play_circle_fill,
-                    color: Colors.white70, size: 18),
+            if (photo.isNotEmpty)
+              CustomImage(
+                size: const Size(400, 600),
+                image: photo,
+                fit: BoxFit.cover,
+                radius: 0,
+                isShowPlaceHolder: true,
+                fullName: name,
+              )
+            else
+              ColoredBox(
+                color: ColorRes.surfaceDeep,
+                child: Center(
+                  child: CustomImage(
+                    size: const Size(72, 72),
+                    fullName: name,
+                    radius: 40,
+                  ),
+                ),
               ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.transparent,
+                    Color(0xE6000000),
+                  ],
+                  stops: [0, 0.35, 1],
+                ),
+              ),
+            ),
+            if (isLive)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: ColorRes.themeAccentSolid,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.videocam, color: Colors.white, size: 11),
+                      const SizedBox(width: 3),
+                      Text(
+                        'LIVE',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (isActive)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF166534),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF4ADE80),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Activo',
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if ((user.country ?? '').isNotEmpty ||
+                (user.countryCode ?? '').isNotEmpty)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    (user.countryCode ?? user.country ?? '').toUpperCase(),
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 10,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white70,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _CardActionButton(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          label: 'Chat',
+                          onTap: onMessage,
+                          color: showCallButton
+                              ? Colors.white24
+                              : ColorRes.themeAccentSolid,
+                        ),
+                      ),
+                      if (showCallButton) ...[
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _CardActionButton(
+                            icon: Icons.videocam_rounded,
+                            label: 'Llamar',
+                            onTap: canCall ? onCall : null,
+                            color: canCall
+                                ? ColorRes.themeAccentSolid
+                                : Colors.white12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PresenceChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  final Color? accent;
+  final IconData? icon;
+
+  const _PresenceChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.accent,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accent ?? textDarkGrey(context);
+    return Material(
+      color: active
+          ? (accent ?? ColorRes.themeAccentSolid).withValues(alpha: 0.18)
+          : bgMediumGrey(context),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: icon == Icons.circle ? 8 : 14,
+                  color: active ? color : textLightGrey(context),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: active ? color : textDarkGrey(context),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CardActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final Color color;
+
+  const _CardActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: Colors.white),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyleCustom.outFitMedium500(
+                  color: Colors.white,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

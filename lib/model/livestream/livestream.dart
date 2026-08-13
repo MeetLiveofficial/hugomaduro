@@ -16,6 +16,7 @@ class Livestream {
   String? roomID;
   int? likeCount;
   List<LiveGiftSender>? giftSenders;
+  List<LiveGiftIncentive>? giftIncentives;
   int? hostId;
   List<int>? coHostIds;
   AppUser? hostUser;
@@ -37,6 +38,7 @@ class Livestream {
       this.hostViewID,
       this.roomID,
       this.likeCount,
+      this.giftIncentives,
       this.hostId,
       this.coHostIds,
       this.createdAt,
@@ -78,6 +80,15 @@ class Livestream {
         );
       }).toList();
     }
+    final rawIncentives = json['gift_incentives'];
+    if (rawIncentives is List) {
+      giftIncentives = rawIncentives
+          .whereType<Map>()
+          .map((e) => LiveGiftIncentive.fromJson(Map<String, dynamic>.from(e)))
+          .where((e) => (e.giftId ?? 0) > 0)
+          .toList()
+        ..sort((a, b) => a.position.compareTo(b.position));
+    }
     hostId = json['host_id'];
     final coHosts = json['co-host_ids'];
     coHostIds = coHosts is List
@@ -116,6 +127,10 @@ class Livestream {
     data['battle_linked_room_id'] = battleLinkedRoomId;
     data['battle_primary_room_id'] = battlePrimaryRoomId;
     data['battle_duration'] = battleDuration;
+    if (giftIncentives != null) {
+      data['gift_incentives'] =
+          giftIncentives!.map((e) => e.toJson()).toList();
+    }
     return data;
   }
 
@@ -180,5 +195,79 @@ enum BattleType {
     final v = value?.toUpperCase();
     return BattleType.values.firstWhereOrNull((e) => e.value == v) ??
         BattleType.initiate;
+  }
+}
+
+/// Slot de incentivo de regalo configurado por la streamer (máx. 6).
+class LiveGiftIncentive {
+  int position;
+  int? giftId;
+  String message;
+  int? coinPrice;
+  String? image;
+
+  LiveGiftIncentive({
+    this.position = 0,
+    this.giftId,
+    this.message = '',
+    this.coinPrice,
+    this.image,
+  });
+
+  bool get isConfigured => (giftId ?? 0) > 0;
+
+  String get trimmedMessage {
+    final m = message.trim();
+    if (m.length <= 120) return m;
+    return m.substring(0, 120);
+  }
+
+  /// Texto para chat/boost: "{mensaje} (coins)" — el icono va aparte en UI.
+  String get boostLabel {
+    final msg =
+        trimmedMessage.isEmpty ? '¡Regálame!' : trimmedMessage;
+    final coins = coinPrice ?? 0;
+    return '$msg ($coins)';
+  }
+
+  factory LiveGiftIncentive.fromJson(Map<String, dynamic> json) {
+    return LiveGiftIncentive(
+      position: json['position'] is num
+          ? (json['position'] as num).toInt()
+          : int.tryParse('${json['position'] ?? 0}') ?? 0,
+      giftId: json['gift_id'] is num
+          ? (json['gift_id'] as num).toInt()
+          : int.tryParse('${json['gift_id'] ?? json['giftId'] ?? ''}'),
+      message: (json['message'] ?? '').toString(),
+      coinPrice: json['coin_price'] is num
+          ? (json['coin_price'] as num).toInt()
+          : int.tryParse('${json['coin_price'] ?? json['coinPrice'] ?? ''}'),
+      image: json['image']?.toString() ?? json['gift_image']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'position': position,
+        'gift_id': giftId,
+        'message': trimmedMessage,
+        if (coinPrice != null) 'coin_price': coinPrice,
+        if (image != null) 'image': image,
+      };
+
+  LiveGiftIncentive copyWith({
+    int? position,
+    int? giftId,
+    String? message,
+    int? coinPrice,
+    String? image,
+    bool clearGift = false,
+  }) {
+    return LiveGiftIncentive(
+      position: position ?? this.position,
+      giftId: clearGift ? null : (giftId ?? this.giftId),
+      message: message ?? this.message,
+      coinPrice: clearGift ? null : (coinPrice ?? this.coinPrice),
+      image: clearGift ? null : (image ?? this.image),
+    );
   }
 }

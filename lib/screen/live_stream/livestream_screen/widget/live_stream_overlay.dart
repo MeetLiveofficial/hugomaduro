@@ -10,7 +10,27 @@ import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/level_avatar_style.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
+
+String _liveJoinLabel(LiveChatMessage message) {
+  if (message.isSvip || (message.userLevel ?? 0) >= 8) {
+    return LKey.arrivedInStyle.tr;
+  }
+  if ((message.userLevel ?? 0) >= 4) {
+    return LKey.joinedShort.tr;
+  }
+  return LKey.joinedTheLive.tr;
+}
+
+String _liveGiftLabel(LiveChatMessage message) {
+  final coins = message.giftCoins;
+  final base = LKey.sentAGift.tr;
+  if (coins != null && coins > 0) {
+    return '$base · $coins ${LKey.coins.tr}';
+  }
+  return base;
+}
 
 /// Overlay LIVE: host/viewers arriba; título + chat/Private/Like/Gift abajo.
 class LiveStreamOverlay extends StatelessWidget {
@@ -56,6 +76,14 @@ class LiveStreamOverlay extends StatelessWidget {
               return Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: _FollowBanner(message: banner),
+              );
+            }),
+            Obx(() {
+              final banner = controller.joinBanner.value;
+              if (banner == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: _JoinLevelBanner(message: banner),
               );
             }),
             Obx(() {
@@ -152,6 +180,8 @@ class LiveStreamOverlay extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+            if (!controller.isHost)
+              _GiftIncentiveSlider(controller: controller),
             _ComposerRow(
               controller: controller,
               showHostControls: showHostControls,
@@ -192,7 +222,7 @@ class _BattleResultCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              result.isDraw ? 'EMPATE' : 'RESULTADO PK',
+              result.isDraw ? LKey.pkDraw.tr : LKey.pkResult.tr,
               style: TextStyleCustom.outFitBold700(
                 color: result.isDraw
                     ? Colors.amber
@@ -220,7 +250,7 @@ class _BattleResultCard extends StatelessWidget {
               ),
             ] else ...[
               Text(
-                'GANÓ',
+                LKey.pkWon.tr,
                 style: TextStyleCustom.outFitMedium500(
                   color: Colors.white54,
                   fontSize: 12,
@@ -236,7 +266,7 @@ class _BattleResultCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '${result.winnerCoins} monedas',
+                '${result.winnerCoins} ${LKey.coins.tr}',
                 style: TextStyleCustom.outFitRegular400(
                   color: const Color(0xFFFFD56B),
                   fontSize: 13,
@@ -244,7 +274,7 @@ class _BattleResultCard extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'PERDIÓ',
+                LKey.pkLost.tr,
                 style: TextStyleCustom.outFitMedium500(
                   color: Colors.white54,
                   fontSize: 12,
@@ -260,7 +290,7 @@ class _BattleResultCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '${result.loserCoins} monedas',
+                '${result.loserCoins} ${LKey.coins.tr}',
                 style: TextStyleCustom.outFitRegular400(
                   color: Colors.white54,
                   fontSize: 12,
@@ -293,7 +323,7 @@ class _FollowBanner extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '${message.userName} te sigue',
+                '${message.userName} ${LKey.isFollowingYou.tr}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyleCustom.outFitMedium500(
@@ -303,6 +333,104 @@ class _FollowBanner extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JoinLevelBanner extends StatelessWidget {
+  final LiveChatMessage message;
+
+  const _JoinLevelBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final level = message.userLevel ?? 1;
+    final svip = message.isSvip;
+    final gradient = LevelAvatarStyle.ringGradient(level, svip: svip);
+    final badge = svip ? LKey.svip.tr : 'Lv. $level';
+    final subtitle = _liveJoinLabel(message);
+
+    return Material(
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              gradient.colors.first.withValues(alpha: 0.95),
+              gradient.colors.last.withValues(alpha: 0.88),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: gradient.colors.last.withValues(alpha: 0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: Colors.white,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      message.userName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyleCustom.outFitMedium500(
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyleCustom.outFitRegular400(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                svip || level >= 8
+                    ? Icons.auto_awesome_rounded
+                    : Icons.waving_hand_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -319,8 +447,8 @@ class _BattleWaitingBanner extends StatelessWidget {
     return Obx(() {
       final name = controller.battleOpponentName.value;
       final label = name.isEmpty
-          ? 'Esperando respuesta a la batalla…'
-          : 'Esperando a $name…';
+          ? LKey.waitingBattleResponse.tr
+          : LKey.waitingForUser.trParams({'name': name});
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -346,7 +474,7 @@ class _BattleWaitingBanner extends StatelessWidget {
               ),
             ),
             Text(
-              'BATALLA',
+              LKey.battle.tr.toUpperCase(),
               style: TextStyleCustom.outFitSemiBold600(
                 color: ColorRes.themeAccentSolid,
                 fontSize: 11,
@@ -376,63 +504,13 @@ class _PausedBadge extends StatelessWidget {
           const Icon(Icons.pause_circle_filled, color: Colors.white, size: 22),
           const SizedBox(width: 8),
           Text(
-            'PAUSADO',
+            LKey.paused.tr,
             style: TextStyleCustom.outFitMedium500(
               color: Colors.white,
               fontSize: 13,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Regalos: icono limpio + punto rojo (sin número grande).
-class _GiftIconBtn extends StatelessWidget {
-  final bool hasGifts;
-  final VoidCallback onTap;
-
-  const _GiftIconBtn({required this.hasGifts, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: 'Regalos',
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.45),
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: SizedBox(
-            width: 40,
-            height: 40,
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.card_giftcard_outlined,
-                    color: Colors.white, size: 20),
-                if (hasGifts)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: ColorRes.themeAccentSolid,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white24, width: 0.8),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -598,7 +676,7 @@ class _TopBar extends StatelessWidget {
                                           color: ColorRes.themeAccentSolid),
                                       const SizedBox(width: 3),
                                       Text(
-                                        'Unirse',
+                                        LKey.follow.tr,
                                         style: TextStyleCustom
                                             .outFitSemiBold600(
                                           color: ColorRes.themeAccentSolid,
@@ -652,6 +730,7 @@ class _LiveStatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final battle = controller.isBattleRunning.value;
+      final inCall = controller.hostInCall.value;
       final elapsed = controller.liveElapsedSeconds.value;
       final mm = (elapsed ~/ 60).toString().padLeft(2, '0');
       final ss = (elapsed % 60).toString().padLeft(2, '0');
@@ -659,6 +738,10 @@ class _LiveStatusChip extends StatelessWidget {
       final timeLabel = hh > 0
           ? '${hh.toString().padLeft(2, '0')}:$mm:$ss'
           : '$mm:$ss';
+      final statusLabel = inCall ? LKey.inCall.tr : (battle ? 'PK' : 'LIVE');
+      final statusColor = inCall
+          ? const Color(0xFFE67E22)
+          : ColorRes.themeAccentSolid;
       return Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -666,11 +749,11 @@ class _LiveStatusChip extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
             decoration: BoxDecoration(
-              color: ColorRes.themeAccentSolid,
+              color: statusColor,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              battle ? 'PK' : 'LIVE',
+              statusLabel,
               style: TextStyleCustom.outFitSemiBold600(
                 color: Colors.white,
                 fontSize: 10,
@@ -925,6 +1008,7 @@ class _ChatBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final canReply =
         message.type == 'text' || message.type == 'gif' || message.type == 'gift';
+    final isGiftBoost = message.type == 'gift_boost';
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -933,7 +1017,13 @@ class _ChatBubble extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: canReply ? () => controller.setReplyTo(message) : null,
+          onTap: isGiftBoost && !controller.isHost
+              ? () => controller.sendGiftDirectly(
+                    giftId: message.giftId,
+                    giftImage: message.giftImage,
+                    coinPrice: message.giftCoins,
+                  )
+              : (canReply ? () => controller.setReplyTo(message) : null),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Column(
@@ -943,12 +1033,45 @@ class _ChatBubble extends StatelessWidget {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => controller.openChatUserProfile(message),
-                  child: Text(
-                    message.userName,
-                    style: TextStyleCustom.outFitMedium500(
-                      color: ColorRes.themeAccentSolid,
-                      fontSize: 11,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          message.userName,
+                          style: TextStyleCustom.outFitMedium500(
+                            color: ColorRes.themeAccentSolid,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                      if (message.type == 'join' &&
+                          (message.userLevel ?? 0) > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LevelAvatarStyle.ringGradient(
+                              message.userLevel ?? 1,
+                              svip: message.isSvip,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            message.isSvip
+                                ? LKey.svip.tr
+                                : 'Lv.${message.userLevel}',
+                            style: TextStyleCustom.outFitMedium500(
+                              color: Colors.white,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 if (message.isReply) ...[
@@ -967,7 +1090,7 @@ class _ChatBubble extends StatelessWidget {
                 const SizedBox(height: 2),
                 if (message.type == 'follow')
                   Text(
-                    message.text ?? 'te sigue',
+                    '${LKey.isFollowingYou.tr}',
                     style: TextStyleCustom.outFitMedium500(
                       color: Colors.white,
                       fontSize: 13,
@@ -975,11 +1098,51 @@ class _ChatBubble extends StatelessWidget {
                   )
                 else if (message.type == 'join')
                   Text(
-                    message.text ?? 'entró al LIVE',
+                    _liveJoinLabel(message),
                     style: TextStyleCustom.outFitMedium500(
                       color: Colors.white.withValues(alpha: 0.92),
                       fontSize: 13,
                     ),
+                  )
+                else if (message.type == 'call_invite')
+                  Text(
+                    '📞 ${LKey.invitesToPrivateCall.tr}'
+                    '${message.giftCoins != null && message.giftCoins! > 0 ? ' · ${message.giftCoins} ${LKey.coins.tr}' : ''}',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: ColorRes.accentPeach,
+                      fontSize: 13,
+                    ),
+                  )
+                else if (message.type == 'gift_boost')
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          message.text ?? LKey.sendMeGifts.tr,
+                          style: TextStyleCustom.outFitMedium500(
+                            color: ColorRes.accentPeach,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GiftMedia(
+                        path: (message.giftImage ?? '').isNotEmpty
+                            ? message.giftImage
+                            : controller.resolveGiftImage(message.giftId),
+                        width: 28,
+                        height: 28,
+                        fit: BoxFit.contain,
+                        muted: true,
+                        looping: true,
+                        placeholder: const Icon(
+                          Icons.card_giftcard,
+                          color: ColorRes.accentPeach,
+                          size: 22,
+                        ),
+                      ),
+                    ],
                   )
                 else if (message.type == 'gif' &&
                     (message.gifUrl ?? '').isNotEmpty)
@@ -1011,6 +1174,8 @@ class _ChatBubble extends StatelessWidget {
                           width: 36,
                           height: 36,
                           fit: BoxFit.contain,
+                          muted: true,
+                          looping: true,
                           placeholder: const Icon(
                             Icons.card_giftcard,
                             color: Colors.white70,
@@ -1020,8 +1185,7 @@ class _ChatBubble extends StatelessWidget {
                       ),
                       Flexible(
                         child: Text(
-                          'sent a gift'
-                          '${message.giftCoins != null && message.giftCoins! > 0 ? ' · ${message.giftCoins} coins' : ''}',
+                          _liveGiftLabel(message),
                           style: TextStyleCustom.outFitRegular400(
                             color: Colors.white,
                             fontSize: 13,
@@ -1031,12 +1195,27 @@ class _ChatBubble extends StatelessWidget {
                     ],
                   )
                 else
-                  Text(
-                    message.text ?? '',
-                    style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white,
-                      fontSize: 13,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        message.displayText,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (message.isTranslated) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          message.originalText ?? '',
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white54,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
               ],
             ),
@@ -1193,6 +1372,134 @@ class _TitleDescription extends StatelessWidget {
   }
 }
 
+class _GiftIncentiveSlider extends StatelessWidget {
+  final LivestreamScreenController controller;
+
+  const _GiftIncentiveSlider({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final sendingId = controller.sendingGiftId.value;
+      final count = controller.giftIncentives.length;
+      if (count <= 0) return const SizedBox.shrink();
+      final slots = controller.giftIncentives
+          .where((e) => e.isConfigured)
+          .toList(growable: false);
+      if (slots.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: SizedBox(
+          height: 56,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            itemCount: slots.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            itemBuilder: (context, index) {
+              final slot = slots[index];
+              final msg = slot.trimmedMessage;
+              final sending = sendingId != null && sendingId == slot.giftId;
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    if (controller.isHost) return;
+                    if (controller.sendingGiftId.value != null) return;
+                    controller.sendIncentiveGift(slot);
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 108,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: sending
+                            ? ColorRes.themeAccentSolid
+                            : Colors.white24,
+                      ),
+                    ),
+                    child: Stack(
+                      children: [
+                        Row(
+                          children: [
+                            IgnorePointer(
+                              child: GiftMedia(
+                                path: slot.image,
+                                width: 32,
+                                height: 32,
+                                fit: BoxFit.contain,
+                                muted: true,
+                                looping: true,
+                                placeholder: const Icon(
+                                  Icons.card_giftcard,
+                                  color: ColorRes.accentPeach,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    msg.isEmpty ? LKey.giftMe.tr : msg,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyleCustom.outFitMedium500(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  Text(
+                                    '(${slot.coinPrice ?? 0})',
+                                    style: TextStyleCustom.outFitRegular400(
+                                      color: ColorRes.accentPeach,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (sending)
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.45),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: ColorRes.themeAccentSolid,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
+  }
+}
+
 class _ComposerRow extends StatelessWidget {
   final LivestreamScreenController controller;
   final bool showHostControls;
@@ -1204,8 +1511,6 @@ class _ComposerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // El carrusel de filtros vive solo en pre-LIVE. Dentro del LIVE se
-    // oculta: el look ya quedó elegido antes de "Go Live" (sheet en panel).
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1226,8 +1531,8 @@ class _ComposerRow extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Respondiendo a ${reply.userName}'
-                        '${(reply.text ?? '').isNotEmpty ? ': ${reply.text}' : ''}',
+                        '${LKey.replyingTo.tr} ${reply.userName}'
+                        '${reply.displayText.isNotEmpty ? ': ${reply.displayText}' : ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyleCustom.outFitRegular400(
@@ -1248,179 +1553,351 @@ class _ComposerRow extends StatelessWidget {
             ),
           );
         }),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Container(
-                height: 40,
-                padding: const EdgeInsets.only(left: 14, right: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Obx(() {
-                        final reply = controller.replyingTo.value;
-                        return TextField(
-                          controller: controller.commentController,
-                          style: TextStyleCustom.outFitRegular400(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                          cursorColor: ColorRes.themeAccentSolid,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: controller.sendComment,
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                                vertical: 10),
-                            hintText: reply != null
-                                ? 'Responder a ${reply.userName}…'
-                                : 'Di Hola',
-                            hintStyle: TextStyleCustom.outFitRegular400(
-                              color: Colors.white54,
-                              fontSize: 14,
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: () => controller
-                            .sendComment(controller.commentController.text),
-                        icon: const Icon(Icons.send_rounded,
-                            color: ColorRes.themeAccentSolid, size: 20),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Acciones fijas, misma altura/eje que el input (sin FittedBox).
-            if (showHostControls) ...[
-              const SizedBox(width: 6),
-              Obx(() => _GiftIconBtn(
-                    hasGifts: controller.giftSenders.isNotEmpty,
-                    onTap: controller.openGiftSendersSheet,
-                  )),
-              const SizedBox(width: 6),
-              _LiveIconBtn(
-                icon: Icons.task_alt_rounded,
-                tooltip: LKey.tasks.tr,
-                onTap: controller.openLiveTasksSheet,
-              ),
-              const SizedBox(width: 6),
-              Obx(() {
-                final battleOn = controller.isBattleRunning.value ||
-                    controller.isBattleWaiting.value;
-                return _LiveIconBtn(
-                  icon: battleOn
-                      ? Icons.flag_rounded
-                      : Icons.sports_kabaddi_rounded,
-                  tooltip: battleOn ? 'Fin batalla' : 'Batalla',
-                  accent: !battleOn,
-                  danger: battleOn,
-                  onTap: controller.openBattle,
-                );
-              }),
-              const SizedBox(width: 6),
-              Obx(() {
-                final paused = controller.isStreamPaused.value;
-                final muted = controller.liveKit == null
-                    ? controller.isLiveAudioMuted.value
-                    : !(controller.liveKit!.microphoneEnabled.value);
-                final battleOn = controller.isBattleRunning.value ||
-                    controller.isBattleWaiting.value;
-                final qualityText = controller.liveKit == null
-                    ? 'Baja'
-                    : switch (controller.liveKit!.qualityProfile.value) {
-                        LiveKitQualityProfile.low => 'Baja',
-                        LiveKitQualityProfile.medium => 'Media',
-                        LiveKitQualityProfile.high => 'Alta',
-                      };
-                return _LiveIconBtn(
-                  icon: Icons.tune_rounded,
-                  tooltip: 'Options',
-                  onTap: () => openLiveHostOptionsMenu(
-                    onInvite: controller.openInvite,
-                    onBattle: controller.openBattle,
-                    onQuality: controller.openQualitySheet,
-                    onPause: controller.togglePauseLive,
-                    onMic: controller.toggleLiveAudioMute,
-                    onCamera: controller.liveKit?.toggleCamera,
-                    qualityLabel: qualityText,
-                    battleRunning: battleOn,
-                    paused: paused,
-                    muted: muted,
-                    cameraOn: controller.liveKit?.cameraEnabled.value,
-                  ),
-                );
-              }),
-              // Sin X abajo: el host ya tiene el de la barra superior.
-            ],
-            if (!controller.isHost) ...[
-              const SizedBox(width: 6),
-              _CircleBtn(
-                icon: Icons.high_quality_rounded,
-                onTap: controller.openQualitySheet,
-              ),
-              const SizedBox(width: 6),
-              Material(
-                color: ColorRes.themeAccentSolid,
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: controller.openPrivateCall,
-                  child: const SizedBox(
-                    height: 40,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
+        Obx(() {
+          final expanded = controller.chatComposerExpanded.value ||
+              controller.replyingTo.value != null;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (expanded)
+                Expanded(child: _ExpandedChatField(controller: controller))
+              else
+                _DiHolaChip(onTap: controller.expandChatComposer),
+              if (!expanded) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.call, color: Colors.white, size: 16),
-                          SizedBox(width: 4),
-                          Text(
-                            'Private',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          if (showHostControls) ..._hostActions(controller),
+                          if (!controller.isHost)
+                            ..._audienceActions(controller),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Obx(() => _CircleBtn(
-                    icon: Icons.favorite,
-                    onTap: controller.isLiking.value
-                        ? null
-                        : controller.sendLike,
-                  )),
-              const SizedBox(width: 6),
-              _CircleBtn(
-                icon: Icons.card_giftcard_outlined,
-                onTap: controller.openGiftSheet,
-              ),
-              // Sin X abajo: la audiencia ya tiene el de la barra superior.
+              ] else ...[
+                const SizedBox(width: 6),
+                _CircleBtn(
+                  icon: Icons.keyboard_hide_rounded,
+                  onTap: controller.collapseChatComposer,
+                ),
+              ],
             ],
-          ],
-        ),
+          );
+        }),
       ],
     );
+  }
+
+  List<Widget> _hostActions(LivestreamScreenController c) {
+    return [
+      _BadgeIconBtn(
+        icon: Icons.card_giftcard_rounded,
+        tooltip: LKey.boostGifts.tr,
+        accent: true,
+        onTap: c.openGiftBoostSheet,
+      ),
+      const SizedBox(width: 6),
+      _BadgeIconBtn(
+        icon: Icons.call_rounded,
+        tooltip: LKey.inviteToCall.tr,
+        accent: true,
+        onTap: c.inviteAudienceToCall,
+      ),
+      const SizedBox(width: 6),
+      Obx(() => _BadgeIconBtn(
+            icon: Icons.chat_bubble_outline_rounded,
+            tooltip: LKey.chats.tr,
+            badge: c.unreadChatCount.value,
+            onTap: c.openUnreadChatsSheet,
+          )),
+      const SizedBox(width: 6),
+      _LiveIconBtn(
+        icon: Icons.task_alt_rounded,
+        tooltip: LKey.tasks.tr,
+        onTap: c.openLiveTasksSheet,
+      ),
+      const SizedBox(width: 6),
+      Obx(() {
+        final battleOn =
+            c.isBattleRunning.value || c.isBattleWaiting.value;
+        return _LiveIconBtn(
+          icon: battleOn
+              ? Icons.flag_rounded
+              : Icons.sports_kabaddi_rounded,
+          tooltip: battleOn ? LKey.endBattle.tr : LKey.battle.tr,
+          accent: !battleOn,
+          danger: battleOn,
+          onTap: c.openBattle,
+        );
+      }),
+      const SizedBox(width: 6),
+      Obx(() {
+        final paused = c.isStreamPaused.value;
+        final muted = c.liveKit == null
+            ? c.isLiveAudioMuted.value
+            : !(c.liveKit!.microphoneEnabled.value);
+        final qualityText = c.liveKit == null
+            ? LKey.qualityLow.tr
+            : switch (c.liveKit!.qualityProfile.value) {
+                LiveKitQualityProfile.low => LKey.qualityLow.tr,
+                LiveKitQualityProfile.medium => LKey.qualityMedium.tr,
+                LiveKitQualityProfile.high => LKey.qualityHigh.tr,
+              };
+        final hasReceivedGifts = c.giftSenders.isNotEmpty;
+        return _LiveIconBtn(
+          icon: Icons.tune_rounded,
+          tooltip: LKey.options.tr,
+          onTap: () => openLiveHostOptionsMenu(
+            onInvite: c.openInvite,
+            onQuality: c.openQualitySheet,
+            onPause: c.togglePauseLive,
+            onMic: c.toggleLiveAudioMute,
+            onCamera: c.liveKit?.toggleCamera,
+            onGiftSenders: c.openGiftSendersSheet,
+            giftSendersSubtitle: hasReceivedGifts
+                ? LKey.seeGiftSenders.tr
+                : LKey.noGiftsYet.tr,
+            qualityLabel: qualityText,
+            paused: paused,
+            muted: muted,
+            cameraOn: c.liveKit?.cameraEnabled.value,
+          ),
+        );
+      }),
+    ];
+  }
+
+  List<Widget> _audienceActions(LivestreamScreenController c) {
+    return [
+      Obx(() => _BadgeIconBtn(
+            icon: Icons.chat_bubble_outline_rounded,
+            tooltip: LKey.chats.tr,
+            badge: c.unreadChatCount.value,
+            onTap: c.openUnreadChatsSheet,
+          )),
+      const SizedBox(width: 6),
+      _CircleBtn(
+        icon: Icons.high_quality_rounded,
+        onTap: c.openQualitySheet,
+      ),
+      const SizedBox(width: 6),
+      Material(
+        color: ColorRes.themeAccentSolid,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: c.openPrivateCall,
+          child: SizedBox(
+            height: 40,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.call, color: Colors.white, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    LKey.privateCall.tr,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 6),
+      Obx(() => _CircleBtn(
+            icon: Icons.favorite,
+            onTap: c.isLiking.value ? null : c.sendLike,
+          )),
+      const SizedBox(width: 6),
+      _CircleBtn(
+        icon: Icons.card_giftcard_outlined,
+        onTap: c.openGiftSheet,
+      ),
+    ];
+  }
+}
+
+class _DiHolaChip extends StatelessWidget {
+  const _DiHolaChip({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.45),
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: SizedBox(
+          height: 40,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.chat_bubble_outline_rounded,
+                    color: Colors.white70, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  LKey.sayHello.tr,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpandedChatField extends StatelessWidget {
+  const _ExpandedChatField({required this.controller});
+
+  final LivestreamScreenController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.only(left: 14, right: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Obx(() {
+              final reply = controller.replyingTo.value;
+              return TextField(
+                controller: controller.commentController,
+                focusNode: controller.commentFocusNode,
+                autofocus: true,
+                style: TextStyleCustom.outFitRegular400(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+                cursorColor: ColorRes.themeAccentSolid,
+                textInputAction: TextInputAction.send,
+                onSubmitted: controller.sendComment,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  hintText: reply != null
+                      ? '${LKey.reply.tr} ${reply.userName}…'
+                      : LKey.sayHello.tr,
+                  hintStyle: TextStyleCustom.outFitRegular400(
+                    color: Colors.white54,
+                    fontSize: 14,
+                  ),
+                ),
+              );
+            }),
+          ),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              onPressed: () =>
+                  controller.sendComment(controller.commentController.text),
+              icon: const Icon(Icons.send_rounded,
+                  color: ColorRes.themeAccentSolid, size: 20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BadgeIconBtn extends StatelessWidget {
+  const _BadgeIconBtn({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+    this.badge = 0,
+    this.accent = false,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final String? tooltip;
+  final int badge;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final btn = Material(
+      color: accent
+          ? ColorRes.themeAccentSolid.withValues(alpha: 0.9)
+          : Colors.black.withValues(alpha: 0.45),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+                  if (badge > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    height: 14,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: ColorRes.themeAccentSolid,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.black54, width: 1),
+                    ),
+                    child: Text(
+                      badge > 99 ? '99+' : '$badge',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if ((tooltip ?? '').isEmpty) return btn;
+    return Tooltip(message: tooltip!, child: btn);
   }
 }
 

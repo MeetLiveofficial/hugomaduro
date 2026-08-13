@@ -13,6 +13,7 @@ class Params {
   static const String mobileCountryCode = 'mobile_country_code';
   static const String showMyFollowing = 'show_my_following';
   static const String receiveMessage = 'receive_message';
+  static const String matchEnabled = 'match_enabled';
   static const String isVerify = 'is_verify';
   static const String url = 'url';
   static const String title = 'title';
@@ -43,6 +44,8 @@ class Params {
   static const String keyword = 'keyword';
   static const String limit = 'limit';
   static const String lastItemId = 'last_item_id';
+  static const String offset = 'offset';
+  static const String presence = 'presence';
   static const String categoryId = 'category_id';
   static const String file = 'file';
   static const String filePath = 'filePath';

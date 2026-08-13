@@ -157,4 +157,52 @@ class GiftWalletService {
     }
     return 0;
   }
+
+  /// Crea checkout Wompi (tarjeta / PSE / Nequi).
+  Future<Map<String, dynamic>> createWompiPayment(
+      {required int coinPackageId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.createWompiPayment,
+      fromJson: (j) => j,
+      param: {Params.coinPackageId: coinPackageId},
+    );
+    if (json['status'] == true && json['data'] is Map) {
+      return {
+        'ok': true,
+        'data': Map<String, dynamic>.from(json['data'] as Map),
+      };
+    }
+    return {
+      'ok': false,
+      'message': (json['message'] ?? 'No se pudo iniciar el pago con tarjeta')
+          .toString(),
+    };
+  }
+
+  Future<Map<String, dynamic>?> checkWompiPayment(
+      {required String orderId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.checkWompiPayment,
+      fromJson: (j) => j,
+      param: {Params.orderId: orderId},
+    );
+    if (json['status'] != true) return null;
+    final data = json['data'];
+    if (data is! Map) return null;
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<int> syncPendingWompiPayments() async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.syncPendingWompiPayments,
+      fromJson: (j) => j,
+      param: {},
+    );
+    if (json['status'] != true) return 0;
+    final data = json['data'];
+    if (data is Map && data['credited_count'] != null) {
+      return int.tryParse('${data['credited_count']}') ?? 0;
+    }
+    return 0;
+  }
 }

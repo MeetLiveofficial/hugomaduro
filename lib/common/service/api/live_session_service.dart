@@ -3,6 +3,7 @@ import 'package:krimson/common/service/utils/web_service.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/livestream/livestream_user_state.dart';
+import 'dart:convert';
 
 class LiveSessionPayload {
   LiveSessionPayload({required this.session, required this.participants});
@@ -40,6 +41,7 @@ class LiveSessionService {
     String? coverImage,
     List<int> coHostIds = const [],
     int isRestrictToJoin = 0,
+    List<LiveGiftIncentive> giftIncentives = const [],
   }) async {
     final json = await ApiService.instance.call(
       url: WebService.live.start,
@@ -50,6 +52,11 @@ class LiveSessionService {
         'is_restrict_to_join': isRestrictToJoin,
         'co_host_ids': coHostIds.join(','),
         'type': 'LIVESTREAM',
+        if (giftIncentives.isNotEmpty)
+          'gift_incentives': jsonEncode(giftIncentives
+              .where((e) => e.isConfigured)
+              .map((e) => e.toJson())
+              .toList()),
       },
       fromJson: (j) => j,
     );

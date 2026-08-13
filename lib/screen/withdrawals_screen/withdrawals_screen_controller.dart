@@ -54,6 +54,15 @@ class WithdrawalsScreenController extends BaseController {
   @override
   void onInit() {
     super.onInit();
+    if (!AppRole.canWithdraw()) {
+      Future.microtask(() {
+        if (Get.isOverlaysOpen || Get.key.currentState?.canPop() == true) {
+          Get.back();
+        }
+        showSnackBar('Los clientes no pueden solicitar retiros');
+      });
+      return;
+    }
     _fetchWithdrawals();
   }
 

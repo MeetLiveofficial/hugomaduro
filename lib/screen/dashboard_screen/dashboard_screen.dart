@@ -10,6 +10,8 @@ import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart
 import 'package:krimson/screen/explore_screen/explore_screen.dart';
 import 'package:krimson/screen/home_screen/unified_home_screen.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen.dart';
+import 'package:krimson/screen/match_screen/match_screen.dart';
+import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/message_screen/message_screen.dart';
 import 'package:krimson/screen/profile_screen/client_profile_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen.dart';
@@ -20,10 +22,44 @@ import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   final User? myUser;
 
   const DashboardScreen({super.key, this.myUser});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  late final List<IndexedStackChild> _pages;
+  late final bool _isClient;
+  User? get myUser => widget.myUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _isClient = AppRole.isClient(widget.myUser);
+    _pages = [
+      IndexedStackChild(
+          child: UnifiedHomeScreen(myUser: widget.myUser), preload: true),
+      IndexedStackChild(child: const ExploreScreen(), preload: true),
+      IndexedStackChild(
+          child: _isClient
+              ? const MatchScreen()
+              : const LiveStreamSearchScreen(),
+          preload: false),
+      IndexedStackChild(child: const MessageScreen(), preload: true),
+      IndexedStackChild(
+          child: _isClient
+              ? ClientProfileScreen(user: widget.myUser)
+              : ProfileScreen(
+                  isDashBoard: true,
+                  user: widget.myUser,
+                  isTopBarVisible: false),
+          preload: true),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,37 +71,21 @@ class DashboardScreen extends StatelessWidget {
               DashboardScreenController.tabHome &&
           (controller.homeTabMode.value == HomeTabMode.reels ||
               controller.homeTabMode.value == HomeTabMode.live);
+      final hideBannerMatch = _isClient && onLiveTab;
       return Scaffold(
         backgroundColor: ColorRes.bgLightGrey,
         extendBody: true,
-        // En Go Live el teclado no debe empujar el layout (rompe el diseño).
+        // En Go Live / Match el teclado no debe empujar el layout.
         resizeToAvoidBottomInset: !onLiveTab,
         body: Column(
           children: [
             Expanded(
               child: ProsteIndexedStack(
                 index: controller.selectedPageIndex.value,
-                children: [
-                  IndexedStackChild(
-                      child: UnifiedHomeScreen(myUser: myUser), preload: true),
-                  IndexedStackChild(
-                      child: const ExploreScreen(), preload: true),
-                  IndexedStackChild(
-                      child: const LiveStreamSearchScreen(), preload: false),
-                  IndexedStackChild(
-                      child: const MessageScreen(), preload: true),
-                  IndexedStackChild(
-                      child: AppRole.isClient(myUser)
-                          ? ClientProfileScreen(user: myUser)
-                          : ProfileScreen(
-                              isDashBoard: true,
-                              user: myUser,
-                              isTopBarVisible: false),
-                      preload: true)
-                ],
+                children: _pages,
               ),
             ),
-            if (!hideBanner) const BannerAdsCustom(),
+            if (!hideBanner && !hideBannerMatch) const BannerAdsCustom(),
           ],
         ),
         bottomNavigationBar: _buildBottomNavigationBar(context, controller),
@@ -92,13 +112,14 @@ class DashboardScreen extends StatelessWidget {
         items.add(_buildWorkNavItem());
       }
       for (var i = 0; i < controller.bottomIconList.length; i++) {
+        // Cliente: Match en el centro (sustituye Go Live).
         if (AppRole.isClient(roleUser) &&
             i == DashboardScreenController.tabLive) {
+          items.add(_buildMatchNavItem(controller));
           continue;
         }
         if (AppRole.isStreamer(roleUser) &&
-            (i == DashboardScreenController.tabHome ||
-                i == DashboardScreenController.tabExplore)) {
+            i == DashboardScreenController.tabHome) {
           continue;
         }
         items.add(_buildBottomNavItem(controller, i));
@@ -161,23 +182,31 @@ class DashboardScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Center(
-                child: Container(
-                  height: 56,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: _navBarBg,
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width - 20,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: items,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Container(
+                      height: 56,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: _navBarBg,
+                        borderRadius: BorderRadius.circular(32),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: items,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -254,6 +283,65 @@ class DashboardScreen extends StatelessWidget {
         color: Colors.white,
       ),
     );
+  }
+
+  /// Cliente: Match — círculo rojo llamativo (siempre destacado, no pill “activo”).
+  Widget _buildMatchNavItem(DashboardScreenController controller) {
+    // Registrar ya el controller para que Obx siempre lea un .obs
+    // (si no, GetX muestra error y desborda la barra).
+    final matchCtrl = Get.isRegistered<MatchScreenController>()
+        ? Get.find<MatchScreenController>()
+        : Get.put(MatchScreenController());
+    return Obx(() {
+      final busy = matchCtrl.isMatching.value;
+      const matchRed = ColorRes.coralRed;
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => controller.onChanged(DashboardScreenController.tabLive),
+        child: SizedBox(
+          width: 58,
+          height: 56,
+          child: Center(
+            child: Container(
+              width: 46,
+              height: 46,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: matchRed,
+                boxShadow: [
+                  BoxShadow(
+                    color: matchRed.withValues(alpha: 0.55),
+                    blurRadius: 14,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 3),
+                  ),
+                  BoxShadow(
+                    color: matchRed.withValues(alpha: 0.35),
+                    blurRadius: 22,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: busy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.favorite_rounded,
+                      size: 24,
+                      color: Colors.white,
+                    ),
+            ),
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildBottomNavItem(

@@ -95,11 +95,16 @@ class Setting {
   List<CoinPackage>? coinPackages;
   List<RedeemGateway>? redeemGateways;
   List<Gift>? gifts;
+  List<GiftCategory>? giftCategories;
   List<MusicCategory>? musicCategories;
   List<UserLevel>? userLevels;
   List<DummyLive>? dummyLives;
   List<ReportReason>? reportReason;
   List<DeepARFilters>? deepARFilters;
+  /// Segundos de preview Match P2P (cliente).
+  int matchFreeSeconds;
+  bool wompiEnabled;
+  bool nowpaymentsEnabled;
 
   Setting({
     this.id,
@@ -161,11 +166,15 @@ class Setting {
     this.coinPackages,
     this.redeemGateways,
     this.gifts,
+    this.giftCategories,
     this.musicCategories,
     this.userLevels,
     this.dummyLives,
     this.reportReason,
     this.deepARFilters,
+    this.matchFreeSeconds = 30,
+    this.wompiEnabled = true,
+    this.nowpaymentsEnabled = true,
   });
 
   factory Setting.fromJson(Map<String, dynamic> json) => Setting(
@@ -256,6 +265,19 @@ class Setting {
                 }
                 return Gift();
               })),
+        giftCategories: json["giftCategories"] == null
+            ? []
+            : List<GiftCategory>.from(
+                ((json["giftCategories"] is List)
+                        ? json["giftCategories"] as List
+                        : const [])
+                    .map((x) {
+                  if (x is GiftCategory) return x;
+                  if (x is Map) {
+                    return GiftCategory.fromJson(Map<String, dynamic>.from(x));
+                  }
+                  return GiftCategory();
+                })),
         musicCategories: json["musicCategories"] == null
             ? []
             : List<MusicCategory>.from(
@@ -276,6 +298,9 @@ class Setting {
             ? []
             : List<DeepARFilters>.from(
                 json["deepARFilters"]?.map((x) => DeepARFilters.fromJson(x))),
+        matchFreeSeconds: _asInt(json["match_free_seconds"]) ?? 30,
+        wompiEnabled: (_asInt(json["wompi_enabled"]) ?? 1) != 0,
+        nowpaymentsEnabled: (_asInt(json["nowpayments_enabled"]) ?? 1) != 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -348,6 +373,9 @@ class Setting {
         "gifts": gifts == null
             ? []
             : List<dynamic>.from(gifts!.map((x) => x.toJson())),
+        "giftCategories": giftCategories == null
+            ? []
+            : List<dynamic>.from(giftCategories!.map((x) => x.toJson())),
         "musicCategories": musicCategories == null
             ? []
             : List<dynamic>.from(musicCategories!.map((x) => x.toJson())),
@@ -363,6 +391,9 @@ class Setting {
         "deepARFilters": deepARFilters == null
             ? []
             : List<dynamic>.from(deepARFilters!.map((x) => x.toJson())),
+        "match_free_seconds": matchFreeSeconds,
+        "wompi_enabled": wompiEnabled,
+        "nowpayments_enabled": nowpaymentsEnabled,
       };
 
   static int? _asInt(dynamic v) {
@@ -482,15 +513,17 @@ class DummyLive {
 
 class Gift {
   int? id;
+  int? categoryId;
   int? coinPrice;
   String? image;
-  /// 1 = ocupa toda la pantalla; 0 = tamaño original (180).
+  /// 1 = ocupa el 100% de la pantalla; 0 = tamaño original (180).
   int isFullscreen;
   DateTime? createdAt;
   DateTime? updatedAt;
 
   Gift({
     this.id,
+    this.categoryId,
     this.coinPrice,
     this.image,
     this.isFullscreen = 0,
@@ -500,6 +533,8 @@ class Gift {
 
   factory Gift.fromJson(Map<String, dynamic> json) => Gift(
         id: Setting._asInt(json["id"]),
+        categoryId: Setting._asInt(json["category_id"]) ??
+            Setting._asInt(json["categoryId"]),
         coinPrice: Setting._asInt(json["coin_price"]) ??
             Setting._asInt(json["coinPrice"]),
         image: json["image"]?.toString(),
@@ -516,6 +551,7 @@ class Gift {
 
   Map<String, dynamic> toJson() => {
         "id": id,
+        "category_id": categoryId,
         "coin_price": coinPrice,
         "image": image,
         "is_fullscreen": isFullscreen,
@@ -524,6 +560,31 @@ class Gift {
       };
 
   bool get fullscreen => isFullscreen == 1;
+}
+
+class GiftCategory {
+  int? id;
+  String? name;
+  int? sortOrder;
+
+  GiftCategory({
+    this.id,
+    this.name,
+    this.sortOrder,
+  });
+
+  factory GiftCategory.fromJson(Map<String, dynamic> json) => GiftCategory(
+        id: Setting._asInt(json["id"]),
+        name: json["name"]?.toString(),
+        sortOrder: Setting._asInt(json["sort_order"]) ??
+            Setting._asInt(json["sortOrder"]),
+      );
+
+  Map<String, dynamic> toJson() => {
+        "id": id,
+        "name": name,
+        "sort_order": sortOrder,
+      };
 }
 
 class Language {
@@ -757,6 +818,7 @@ class UserLevel {
   int isSvipLevel;
   int unlockDressing;
   int showOnHonorWall;
+  String? entranceVideo;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -772,6 +834,7 @@ class UserLevel {
     this.isSvipLevel = 0,
     this.unlockDressing = 0,
     this.showOnHonorWall = 0,
+    this.entranceVideo,
     this.createdAt,
     this.updatedAt,
   });
@@ -802,6 +865,7 @@ class UserLevel {
         showOnHonorWall: json["show_on_honor_wall"] is num
             ? (json["show_on_honor_wall"] as num).toInt()
             : int.tryParse('${json["show_on_honor_wall"] ?? 0}') ?? 0,
+        entranceVideo: json["entrance_video"]?.toString(),
         createdAt: json["created_at"] == null
             ? null
             : DateTime.tryParse(json["created_at"].toString()),
@@ -847,6 +911,7 @@ class UserLevel {
         "is_svip_level": isSvipLevel,
         "unlock_dressing": unlockDressing,
         "show_on_honor_wall": showOnHonorWall,
+        "entrance_video": entranceVideo,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };
