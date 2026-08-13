@@ -103,6 +103,8 @@ class Setting {
   List<DeepARFilters>? deepARFilters;
   /// Segundos de preview Match P2P (cliente).
   int matchFreeSeconds;
+  bool wompiEnabled;
+  bool nowpaymentsEnabled;
 
   Setting({
     this.id,
@@ -171,6 +173,8 @@ class Setting {
     this.reportReason,
     this.deepARFilters,
     this.matchFreeSeconds = 30,
+    this.wompiEnabled = true,
+    this.nowpaymentsEnabled = true,
   });
 
   factory Setting.fromJson(Map<String, dynamic> json) => Setting(
@@ -295,6 +299,8 @@ class Setting {
             : List<DeepARFilters>.from(
                 json["deepARFilters"]?.map((x) => DeepARFilters.fromJson(x))),
         matchFreeSeconds: _asInt(json["match_free_seconds"]) ?? 30,
+        wompiEnabled: (_asInt(json["wompi_enabled"]) ?? 1) != 0,
+        nowpaymentsEnabled: (_asInt(json["nowpayments_enabled"]) ?? 1) != 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -386,6 +392,8 @@ class Setting {
             ? []
             : List<dynamic>.from(deepARFilters!.map((x) => x.toJson())),
         "match_free_seconds": matchFreeSeconds,
+        "wompi_enabled": wompiEnabled,
+        "nowpayments_enabled": nowpaymentsEnabled,
       };
 
   static int? _asInt(dynamic v) {

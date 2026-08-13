@@ -105,11 +105,7 @@ class CoinWalletScreenController extends BaseController {
   }
 
   void onPurchase(CoinPlan offer) {
-    if (offer.canPurchaseViaStore) {
-      _showPaymentMethodSheet(offer);
-      return;
-    }
-    onPurchaseCrypto(offer);
+    _showPaymentMethodSheet(offer);
   }
 
   void _showPaymentMethodSheet(CoinPlan offer) {
@@ -156,24 +152,50 @@ class CoinWalletScreenController extends BaseController {
                 ),
               ),
               const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.phone_android),
-                title: const Text('App Store / Play Store'),
-                subtitle: const Text('Compra in-app'),
-                onTap: () {
-                  Get.back();
-                  onPurchaseStore(offer);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.currency_bitcoin),
-                title: const Text('Criptomonedas'),
-                subtitle: const Text('USDT, BTC y más (NOWPayments)'),
-                onTap: () {
-                  Get.back();
-                  onPurchaseCrypto(offer);
-                },
-              ),
+              if (settings?.wompiEnabled != false)
+                ListTile(
+                  leading: const Icon(Icons.credit_card),
+                  title: const Text('Tarjeta / PSE / Nequi'),
+                  subtitle: const Text('Wompi · Colombia'),
+                  onTap: () {
+                    Get.back();
+                    onPurchaseWompi(offer);
+                  },
+                ),
+              if (settings?.nowpaymentsEnabled != false)
+                ListTile(
+                  leading: const Icon(Icons.currency_bitcoin),
+                  title: const Text('Criptomonedas'),
+                  subtitle: const Text('USDT y más (NOWPayments)'),
+                  onTap: () {
+                    Get.back();
+                    onPurchaseCrypto(offer);
+                  },
+                ),
+              if (offer.canPurchaseViaStore)
+                ListTile(
+                  leading: const Icon(Icons.phone_android),
+                  title: const Text('App Store / Play Store'),
+                  subtitle: const Text('Compra in-app'),
+                  onTap: () {
+                    Get.back();
+                    onPurchaseStore(offer);
+                  },
+                ),
+              if (settings?.wompiEnabled == false &&
+                  settings?.nowpaymentsEnabled == false &&
+                  !offer.canPurchaseViaStore)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'No hay métodos de pago disponibles.',
+                    textAlign: TextAlign.center,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: textLightGrey(Get.context!),
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -259,13 +281,57 @@ class CoinWalletScreenController extends BaseController {
       return;
     }
 
-    await _showCryptoPendingDialog(orderId);
+    await _showPaymentPendingDialog(orderId, _PaymentKind.crypto);
   }
 
-  Future<void> _showCryptoPendingDialog(String orderId) async {
+  Future<void> onPurchaseWompi(CoinPlan offer) async {
+    if (offer.coinPackageId < 1) {
+      showSnackBar(LKey.somethingWentWrong.tr);
+      return;
+    }
+
+    showLoader(barrierDismissible: false);
+    final result = await GiftWalletService.instance
+        .createWompiPayment(coinPackageId: offer.coinPackageId);
+    stopLoader();
+
+    if (result['ok'] != true) {
+      showSnackBar(
+        (result['message'] ??
+                'No se pudo iniciar el pago con tarjeta. Intenta de nuevo.')
+            .toString(),
+      );
+      return;
+    }
+
+    final created = result['data'] as Map<String, dynamic>?;
+    if (created == null) {
+      showSnackBar('No se pudo iniciar el pago con tarjeta. Intenta de nuevo.');
+      return;
+    }
+
+    final invoiceUrl = (created['invoice_url'] ?? '').toString();
+    final orderId = (created['order_id'] ?? '').toString();
+    if (invoiceUrl.isEmpty || orderId.isEmpty) {
+      showSnackBar(LKey.somethingWentWrong.tr);
+      return;
+    }
+
+    final launched = await invoiceUrl.lunchUrl;
+    if (launched.status != true) {
+      showSnackBar('No se pudo abrir la página de pago.');
+      return;
+    }
+
+    await _showPaymentPendingDialog(orderId, _PaymentKind.wompi);
+  }
+
+  Future<void> _showPaymentPendingDialog(
+      String orderId, _PaymentKind kind) async {
     await Get.dialog(
-      _CryptoPaymentPendingDialog(
+      _PaymentPendingDialog(
         orderId: orderId,
+        kind: kind,
         onFinished: (user) {
           if (user != null) {
             myUser.value = user;
@@ -278,22 +344,24 @@ class CoinWalletScreenController extends BaseController {
   }
 }
 
-class _CryptoPaymentPendingDialog extends StatefulWidget {
+enum _PaymentKind { crypto, wompi }
+
+class _PaymentPendingDialog extends StatefulWidget {
   final String orderId;
+  final _PaymentKind kind;
   final void Function(User? user) onFinished;
 
-  const _CryptoPaymentPendingDialog({
+  const _PaymentPendingDialog({
     required this.orderId,
+    required this.kind,
     required this.onFinished,
   });
 
   @override
-  State<_CryptoPaymentPendingDialog> createState() =>
-      _CryptoPaymentPendingDialogState();
+  State<_PaymentPendingDialog> createState() => _PaymentPendingDialogState();
 }
 
-class _CryptoPaymentPendingDialogState
-    extends State<_CryptoPaymentPendingDialog> {
+class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
   Timer? _timer;
   String _status = 'pending';
   bool _checking = false;
@@ -316,21 +384,29 @@ class _CryptoPaymentPendingDialogState
     if (_checking) return;
     _checking = true;
     try {
-      final data = await GiftWalletService.instance
-          .checkCryptoPayment(orderId: widget.orderId);
+      final data = widget.kind == _PaymentKind.wompi
+          ? await GiftWalletService.instance
+              .checkWompiPayment(orderId: widget.orderId)
+          : await GiftWalletService.instance
+              .checkCryptoPayment(orderId: widget.orderId);
       if (!mounted || data == null) return;
 
       final status = (data['status'] ?? 'pending').toString();
+      final isWompi = widget.kind == _PaymentKind.wompi;
       setState(() {
         _status = status;
         if (status == 'confirming') {
-          _message = 'Confirmando en blockchain…';
+          _message = isWompi
+              ? 'Confirmando el pago…'
+              : 'Confirmando en blockchain…';
         } else if (status == 'partially_paid') {
           _message = 'Pago parcial detectado. Completa el monto.';
         } else if (status == 'failed' || status == 'expired') {
           _message = 'El pago no se completó.';
         } else {
-          _message = 'Esperando tu pago en crypto…';
+          _message = isWompi
+              ? 'Esperando tu pago con tarjeta…'
+              : 'Esperando tu pago en crypto…';
         }
       });
 
@@ -373,7 +449,11 @@ class _CryptoPaymentPendingDialogState
 
     return AlertDialog(
       title: Text(
-        failed ? 'Pago no completado' : 'Pago crypto en curso',
+        failed
+            ? 'Pago no completado'
+            : (widget.kind == _PaymentKind.wompi
+                ? 'Pago con tarjeta en curso'
+                : 'Pago crypto en curso'),
         style: TextStyleCustom.outFitMedium500(
           color: textDarkGrey(context),
           fontSize: 16,
