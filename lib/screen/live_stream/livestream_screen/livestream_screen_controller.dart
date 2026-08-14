@@ -103,6 +103,7 @@ class LivestreamScreenController extends BaseController {
   final BeautyShaderController beautyShader = BeautyShaderController();
   /// Motor nativo GPUPixel (preview/params). En LIVE la cámara la tiene LiveKit.
   final GpuPixelController gpuPixel = GpuPixelController();
+  bool get useDeepAr => DeepArService.instance.isConfigured;
   final RxSet<int> invitedIds = <int>{}.obs;
   final RxList<User> inviteCandidates = <User>[].obs;
   final RxBool inviteLoading = false.obs;

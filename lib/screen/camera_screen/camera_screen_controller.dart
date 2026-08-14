@@ -19,7 +19,6 @@ import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/color_filter_screen/widget/color_filtered.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/screen/face_filters/services/baked_preview_capture.dart';
-import 'package:krimson/screen/face_filters/services/deep_ar_service.dart';
 import 'package:krimson/screen/face_filters/services/face_camera_service.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_catalog_store.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_pipeline.dart';
@@ -61,9 +60,6 @@ class CameraScreenController extends BaseController
   FaceCameraService get cameraService => filterPipeline.camera;
   FaceMeshEngine get meshEngine => filterPipeline.mesh;
   FaceFilterCatalogStore get filterCatalog => FaceFilterCatalogStore.instance;
-  DeepArService get deepAr => DeepArService.instance;
-  bool get useDeepAr => deepAr.isConfigured;
-
   bool get useDeepAr => DeepArRuntime.useDeepAr();
   bool get isCaptureReady => isCameraReady.value;
   CameraController? get cameraController => cameraService.controller;
@@ -480,7 +476,12 @@ class CameraScreenController extends BaseController
   }
 
   Future<void> onDeepArFilterSelected(DeepARFilters? filter) async {
-    await deepAr.switchFilter(filter);
+    selectedDeepArFilterId.value = filter?.id;
+    if (filter == null) {
+      await deepAr.clearEffect();
+    } else {
+      await deepAr.switchFilter(filter);
+    }
   }
 
   Future<void> _handleReel(MediaFile file, {bool isCameraFile = false}) async {
@@ -545,15 +546,6 @@ class CameraScreenController extends BaseController
       );
     } else {
       filterPipeline.beauty.setLook(look);
-    }
-  }
-
-  Future<void> onDeepArFilterSelected(DeepARFilters? filter) async {
-    selectedDeepArFilterId.value = filter?.id;
-    if (filter == null) {
-      await deepAr.clearEffect();
-    } else {
-      await deepAr.applyFilter(filter);
     }
   }
 

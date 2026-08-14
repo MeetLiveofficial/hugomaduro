@@ -235,15 +235,31 @@ class BeautyFiltered extends StatelessWidget {
         Widget layered = child;
 
         // Tone ligero (sin blur a pantalla completa: oscurecía y ensuciaba).
-        try {
-          layered = ColorFiltered(
-            colorFilter: ColorFilter.matrix(
-              _toneMatrix(
-                mode: mode,
-                intensity: (intensity * 0.45 + 0.12 * whiten + 0.08 * rosy)
-                    .clamp(0.0, 0.55),
-                sharpen: sharpen,
+        layered = ColorFiltered(
+          colorFilter: ColorFilter.matrix(
+            _toneMatrix(
+              mode: mode,
+              intensity: (intensity * 0.45 + 0.12 * whiten + 0.08 * rosy)
+                  .clamp(0.0, 0.55),
+              sharpen: sharpen,
+              whiten: whiten,
+              rosy: rosy,
+            ),
+          ),
+          child: layered,
+        );
+
+        // Soft blur (fallback sin GPUPixel; debe notarse al mover sliders).
+        final smoothSigma = (0.4 + 3.2 * intensity + 1.5 * whiten).clamp(0.0, 4.0);
+        if (smoothSigma > 0.35) {
+          layered = ClipRect(
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(
+                sigmaX: smoothSigma,
+                sigmaY: smoothSigma,
+                tileMode: TileMode.decal,
               ),
+              child: layered,
             ),
           );
         }
@@ -329,19 +345,6 @@ class BeautyFiltered extends StatelessWidget {
               ),
           ],
         );
-        if (smoothSigma > 0.35) {
-          layered = ClipRect(
-            child: ImageFiltered(
-              imageFilter: ui.ImageFilter.blur(
-                sigmaX: smoothSigma,
-                sigmaY: smoothSigma,
-                tileMode: TileMode.decal,
-              ),
-              child: layered,
-            ),
-          );
-        }
-        return layered;
       },
     );
   }
@@ -367,11 +370,15 @@ class BeautyFiltered extends StatelessWidget {
     required double mode,
     required double intensity,
     double sharpen = 0,
+    double whiten = 0,
+    double rosy = 0,
   }) {
     double r = 1, g = 1, b = 1;
     double ro = 0, go = 0, bo = 0;
     final sh = sharpen.clamp(0.0, 1.0);
     final i = intensity.clamp(0.0, 1.0);
+    final w = whiten.clamp(0.0, 1.0);
+    final ry = rosy.clamp(0.0, 1.0);
 
     if (mode > 4.5) {
       // Beauty HD — lift neutro (R≈G≈B)
