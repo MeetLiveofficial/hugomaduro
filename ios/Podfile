@@ -64,15 +64,10 @@ post_install do |installer|
         unless Array(config.build_settings['FRAMEWORK_SEARCH_PATHS']).join(' ').include?('Frameworks')
           config.build_settings['FRAMEWORK_SEARCH_PATHS'] << fw
         end
-        dylib = '$(PODS_TARGET_SRCROOT)/Frameworks/gpupixel.framework/gpupixel'
         ld = config.build_settings['OTHER_LDFLAGS']
         ld = ld.is_a?(Array) ? ld.dup : [ld || '$(inherited)']
-        flat = ld.flatten.join(' ')
-        unless flat.include?('gpupixel')
-          ld << '-framework' << 'gpupixel' << '-lc++'
-        end
-        unless flat.include?('gpupixel.framework/gpupixel')
-          ld << dylib
+        unless ld.flatten.join(' ').include?('gpupixel')
+          ld << '-framework' << 'gpupixel'
         end
         config.build_settings['OTHER_LDFLAGS'] = ld
       end

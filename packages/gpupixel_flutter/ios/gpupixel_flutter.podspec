@@ -2,7 +2,8 @@
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html
 #
 # Linking pattern mirrors deepar_flutter_plus (preserve_paths + xcconfig OTHER_LDFLAGS).
-# Also pass the dylib by path so a bad FRAMEWORK_SEARCH_PATHS cannot drop the link.
+# Do not set the same CLANG_CXX_* keys in both s.xcconfig and pod_target_xcconfig —
+# CocoaPods concatenates them into invalid flags like `-stdlib=libc++ libc++`.
 #
 Pod::Spec.new do |s|
   s.name             = 'gpupixel_flutter'
@@ -22,15 +23,10 @@ Pod::Spec.new do |s|
   s.frameworks = 'AVFoundation', 'CoreMedia', 'CoreVideo', 'OpenGLES', 'UIKit', 'Foundation'
   s.libraries = 'c++'
 
-  gpupixel_dylib = '"$(PODS_TARGET_SRCROOT)/Frameworks/gpupixel.framework/gpupixel"'
-  link_flags = "$(inherited) -framework gpupixel -lc++ #{gpupixel_dylib}"
-
-  # Same shape as deepar_flutter_plus: force the vendored dylib onto the link line.
+  # Force the vendored dylib onto the link line (deepar_flutter_plus style).
   s.xcconfig = {
-    'OTHER_LDFLAGS' => "-framework gpupixel -lc++ #{gpupixel_dylib}",
+    'OTHER_LDFLAGS' => '-framework gpupixel',
     'FRAMEWORK_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/Frameworks"',
-    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
-    'CLANG_CXX_LIBRARY' => 'libc++',
   }
 
   s.pod_target_xcconfig = {
@@ -39,12 +35,12 @@ Pod::Spec.new do |s|
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
     'CLANG_CXX_LIBRARY' => 'libc++',
     'FRAMEWORK_SEARCH_PATHS' => '$(inherited) "$(PODS_TARGET_SRCROOT)/Frameworks"',
-    'OTHER_LDFLAGS' => link_flags,
+    'OTHER_LDFLAGS' => '$(inherited) -framework gpupixel',
   }
 
   s.user_target_xcconfig = {
     'FRAMEWORK_SEARCH_PATHS' => '$(inherited) "$(PODS_ROOT)/../.symlinks/plugins/gpupixel_flutter/ios/Frameworks"',
-    'OTHER_LDFLAGS' => '$(inherited) -framework gpupixel -lc++',
+    'OTHER_LDFLAGS' => '$(inherited) -framework gpupixel',
   }
 
   s.swift_version = '5.0'
