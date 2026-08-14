@@ -30,7 +30,6 @@ import 'package:krimson/screen/music_sheet/music_sheet.dart';
 import 'package:krimson/screen/selected_music_sheet/selected_music_sheet.dart';
 import 'package:krimson/screen/selected_music_sheet/selected_music_sheet_controller.dart';
 import 'package:krimson/utilities/app_res.dart';
-import 'package:krimson/model/general/settings_model.dart';
 
 class CameraScreenController extends BaseController
     with GetSingleTickerProviderStateMixin {

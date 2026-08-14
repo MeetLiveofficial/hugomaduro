@@ -27,7 +27,6 @@ import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/screen/deepar/deepar.dart';
 import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
-import 'package:krimson/screen/face_filters/services/deep_ar_service.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_catalog_store.dart';
 import 'package:krimson/screen/face_filters/services/face_filter_pipeline.dart';
 import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
