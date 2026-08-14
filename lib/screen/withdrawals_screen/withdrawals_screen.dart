@@ -220,11 +220,21 @@ class _WithdrawInfoCard extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              Text(
-                controller.walletCoins.numberFormat,
-                style: TextStyleCustom.unboundedSemiBold600(
-                  color: Colors.white,
-                  fontSize: 24,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    controller.walletCoins.fullNumberFormat,
+                    maxLines: 1,
+                    style: TextStyleCustom.unboundedSemiBold600(
+                      color: Colors.white,
+                      fontSize: 24,
+                    ).copyWith(
+                      height: 1.4,
+                      leadingDistribution: TextLeadingDistribution.even,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),

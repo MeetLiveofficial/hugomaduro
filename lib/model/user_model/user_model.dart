@@ -119,7 +119,9 @@ class User {
       this.canReceiveCalls = 0,
       this.canGoLive = 0,
       this.appRole,
-      this.levelBenefits = const []});
+      this.levelBenefits = const [],
+      this.equippedFrame,
+      this.equippedBadge});
 
   User copyWith({
     int? id,
@@ -188,6 +190,8 @@ class User {
     int? canGoLive,
     String? appRole,
     List<String>? levelBenefits,
+    Map<String, dynamic>? equippedFrame,
+    Map<String, dynamic>? equippedBadge,
   }) =>
       User(
         id: id ?? this.id,
@@ -255,6 +259,8 @@ class User {
         canGoLive: canGoLive ?? this.canGoLive,
         appRole: appRole ?? this.appRole,
         levelBenefits: levelBenefits ?? this.levelBenefits,
+        equippedFrame: equippedFrame ?? this.equippedFrame,
+        equippedBadge: equippedBadge ?? this.equippedBadge,
       );
 
   static num? _asNum(dynamic v) {
@@ -366,6 +372,12 @@ class User {
         stories?.add(s);
       });
     }
+    if (json['equipped_frame'] is Map) {
+      equippedFrame = Map<String, dynamic>.from(json['equipped_frame']);
+    }
+    if (json['equipped_badge'] is Map) {
+      equippedBadge = Map<String, dynamic>.from(json['equipped_badge']);
+    }
   }
 
   int? id;
@@ -450,6 +462,18 @@ class User {
   int isLive = 0;
   String? liveRoomId;
   int isActive = 0;
+  Map<String, dynamic>? equippedFrame;
+  Map<String, dynamic>? equippedBadge;
+
+  String? get equippedFrameImage {
+    final v = equippedFrame?['image']?.toString().trim();
+    return (v == null || v.isEmpty) ? null : v;
+  }
+
+  String? get equippedBadgeImage {
+    final v = equippedBadge?['image']?.toString().trim();
+    return (v == null || v.isEmpty) ? null : v;
+  }
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -519,6 +543,8 @@ class User {
     map['is_live'] = isLive;
     map['live_room_id'] = liveRoomId;
     map['is_active'] = isActive;
+    map['equipped_frame'] = equippedFrame;
+    map['equipped_badge'] = equippedBadge;
     map["following_ids"] = followingIds;
     if (token != null) {
       map['token'] = token?.toJson();

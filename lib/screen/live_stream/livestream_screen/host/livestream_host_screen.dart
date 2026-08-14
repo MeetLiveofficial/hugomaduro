@@ -105,6 +105,7 @@ class LivestreamHostScreen extends StatelessWidget {
                   final connected = lk?.isConnected.value == true;
                   final connecting = lk?.isConnecting.value == true;
                   lk?.mediaRevision.value;
+                  c.pausedForCall.value;
                   if (connected && lk != null) {
                     if (c.isBattleRunning.value) {
                       return LiveBattleSplitView(controller: c);
@@ -189,13 +190,18 @@ class LivestreamHostScreen extends StatelessWidget {
                       ),
                     );
                   }
+                  if (c.pausedForCall.value) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      c.ensureLiveKitAfterCallIfNeeded();
+                    });
+                  }
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (connecting)
+                          if (connecting || c.pausedForCall.value)
                             const Padding(
                               padding: EdgeInsets.only(bottom: 16),
                               child: CircularProgressIndicator(
@@ -205,7 +211,9 @@ class LivestreamHostScreen extends StatelessWidget {
                             ),
                           Text(
                             c.statusMessage.value.isEmpty
-                                ? 'You are live'
+                                ? (c.pausedForCall.value
+                                    ? 'Reconectando LIVE…'
+                                    : 'You are live')
                                 : c.statusMessage.value,
                             textAlign: TextAlign.center,
                             style: TextStyleCustom.outFitRegular400(
@@ -213,7 +221,7 @@ class LivestreamHostScreen extends StatelessWidget {
                               fontSize: 14,
                             ),
                           ),
-                          if (!connecting) ...[
+                          if (!connecting && !c.pausedForCall.value) ...[
                             const SizedBox(height: 16),
                             TextButton.icon(
                               onPressed: c.retryLiveConnection,

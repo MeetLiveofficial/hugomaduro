@@ -7,6 +7,7 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/privilege_service.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/framed_avatar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
@@ -126,8 +127,7 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                               icon: AssetRes.icVideoRequest,
                               title: LKey.myLevel.tr,
                               subtitle:
-                                  '${LKey.level.tr} ${user?['level_number'] ?? 1}'
-                                  '${(user?['level_title'] ?? '').toString().isNotEmpty ? ' · ${user?['level_title']}' : ''}',
+                                  '${LKey.level.tr} ${user?['level_number'] ?? 1}',
                               onTap: () {
                                 final me = SessionManager.instance.getUser();
                                 Get.to(() =>
@@ -314,9 +314,9 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                         child: GridView.builder(
                           padding: const EdgeInsets.all(12),
                           gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
-                                  mainAxisExtent: 170,
+                                  mainAxisExtent: 190,
                                   crossAxisSpacing: 10,
                                   mainAxisSpacing: 10),
                           itemCount: items.length,
@@ -336,23 +336,7 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                               ),
                               child: Column(
                                 children: [
-                                  Container(
-                                    height: 64,
-                                    width: 64,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: _parseColor(item.colorHex),
-                                          width: 4),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      (item.type ?? 'f')[0].toUpperCase(),
-                                      style: TextStyleCustom.outFitBold700(
-                                          color: textDarkGrey(context),
-                                          fontSize: 18),
-                                    ),
-                                  ),
+                                  _DressingPreview(item: item, parseColor: _parseColor),
                                   const SizedBox(height: 8),
                                   Text(item.title ?? '',
                                       maxLines: 1,
@@ -395,6 +379,45 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                       ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DressingPreview extends StatelessWidget {
+  const _DressingPreview({required this.item, required this.parseColor});
+
+  final DressingItemModel item;
+  final Color Function(String?) parseColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = (item.image ?? '').trim();
+    if (image.isNotEmpty) {
+      final me = SessionManager.instance.getUser();
+      final isFrame = item.type == 'frame';
+      return FramedAvatar.fitted(
+        size: 72,
+        image: me?.profilePhoto,
+        fullName: me?.fullname ?? me?.username,
+        frameImage: isFrame ? image : null,
+        badgeImage: isFrame ? null : image,
+        photoRatio: 0.62,
+        photoOnTop: false,
+      );
+    }
+    return Container(
+      height: 64,
+      width: 64,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: parseColor(item.colorHex), width: 4),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        (item.type ?? 'f')[0].toUpperCase(),
+        style: TextStyleCustom.outFitBold700(
+            color: textDarkGrey(context), fontSize: 18),
       ),
     );
   }

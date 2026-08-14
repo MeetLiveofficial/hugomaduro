@@ -21,7 +21,6 @@ class CoinWalletTopView extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<CoinWalletScreenController>();
     final settings = SessionManager.instance.getSettings();
-    final currency = settings?.currency ?? '\$';
     final coinValue = settings?.coinValue ?? 0;
     final withdrawalOn = settings?.isWithdrawalOn == 1;
     final canWithdraw = withdrawalOn && AppRole.canWithdraw();
@@ -32,7 +31,7 @@ class CoinWalletTopView extends StatelessWidget {
         Container(
           width: double.infinity,
           margin: const EdgeInsets.fromLTRB(15, 6, 15, 0),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
             gradient: StyleRes.themeGradient,
             borderRadius: BorderRadius.circular(12),
@@ -51,27 +50,40 @@ class CoinWalletTopView extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Image.asset(AssetRes.icCoin, height: 20, width: 20),
                     const SizedBox(width: 6),
-                    Text(
-                      balance.numberFormat,
-                      style: TextStyleCustom.unboundedSemiBold600(
-                        color: whitePure(context),
-                        fontSize: 22,
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          balance.fullNumberFormat,
+                          maxLines: 1,
+                          style: TextStyleCustom.unboundedSemiBold600(
+                            color: whitePure(context),
+                            fontSize: 22,
+                          ).copyWith(
+                            height: 1.4,
+                            leadingDistribution: TextLeadingDistribution.even,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '$currency${estimated.toStringAsFixed(2)}',
-                  style: TextStyleCustom.outFitLight300(
-                    color: whitePure(context).withValues(alpha: 0.85),
-                    fontSize: 12,
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    estimated.fullCurrencyFormat,
+                    maxLines: 1,
+                    style: TextStyleCustom.outFitLight300(
+                      color: whitePure(context).withValues(alpha: 0.85),
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
@@ -86,17 +98,17 @@ class CoinWalletTopView extends StatelessWidget {
               children: [
                 _StatChip(
                   label: LKey.collected.tr,
-                  value: (user?.coinCollectedLifetime ?? 0).numberFormat,
+                  value: (user?.coinCollectedLifetime ?? 0).fullNumberFormat,
                 ),
                 const SizedBox(width: 6),
                 _StatChip(
                   label: LKey.gifted.tr,
-                  value: (user?.coinGiftedLifetime ?? 0).numberFormat,
+                  value: (user?.coinGiftedLifetime ?? 0).fullNumberFormat,
                 ),
                 const SizedBox(width: 6),
                 _StatChip(
                   label: LKey.purchased.tr,
-                  value: (user?.coinPurchasedLifetime ?? 0).numberFormat,
+                  value: (user?.coinPurchasedLifetime ?? 0).fullNumberFormat,
                 ),
               ],
             );
@@ -158,11 +170,18 @@ class _StatChip extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Text(
-              value,
-              style: TextStyleCustom.unboundedMedium500(
-                color: textDarkGrey(context),
-                fontSize: 12,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: TextStyleCustom.unboundedMedium500(
+                  color: textDarkGrey(context),
+                  fontSize: 12,
+                ).copyWith(
+                  height: 1.4,
+                  leadingDistribution: TextLeadingDistribution.even,
+                ),
               ),
             ),
             const SizedBox(height: 1),

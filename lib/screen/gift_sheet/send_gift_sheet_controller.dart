@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/gift_media_cache.dart';
@@ -141,6 +142,9 @@ class SendGiftSheetController extends BaseController {
   }
 
   Future<void> sendGift(Gift gift, BuildContext context) async {
+    if (giftType == GiftType.none && !AppRole.canSendGifts()) {
+      return;
+    }
     final giftId = gift.id?.toInt() ?? -1;
 
     var coinPrice = gift.coinPrice ?? 0;
@@ -212,6 +216,9 @@ class GiftManager {
       BattleView battleViewType = BattleView.red,
       List<AppUser> streamUsers = const [],
       required Function(GiftManager giftManager) onCompletion}) async {
+    if (giftType == GiftType.none && !AppRole.canSendGifts()) {
+      return;
+    }
     if (Get.isRegistered<SendGiftSheetController>()) {
       Get.delete<SendGiftSheetController>(force: true);
     }

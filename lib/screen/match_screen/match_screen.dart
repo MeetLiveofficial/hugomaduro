@@ -1,13 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/livekit_room_controller.dart';
+import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
-/// Vista Match (Cliente): radar de búsqueda + modos Random / Goddess.
+/// Vista Match: radar de búsqueda + modos Random / Goddess.
+/// [asTab]: embebido en la barra del cliente. Sin tab, muestra atrás (Ajustes streamer).
 class MatchScreen extends StatelessWidget {
-  const MatchScreen({super.key});
+  final bool asTab;
+
+  const MatchScreen({super.key, this.asTab = false});
 
   @override
   Widget build(BuildContext context) {
@@ -17,18 +24,17 @@ class MatchScreen extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const _MatchBackdrop(),
+          _MatchBackdrop(controller: c),
           SafeArea(
             child: Padding(
-              // Espacio para la bottom nav flotante.
-              padding: const EdgeInsets.only(bottom: 72),
+              padding: EdgeInsets.only(bottom: asTab ? 72 : 16),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final radar = (constraints.maxHeight * 0.36)
                       .clamp(150.0, 240.0);
                   return Column(
                     children: [
-                      _TopBar(controller: c),
+                      _TopBar(controller: c, showBack: !asTab),
                       Expanded(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -37,13 +43,19 @@ class MatchScreen extends StatelessWidget {
                             SizedBox(height: radar < 180 ? 10 : 14),
                             Obx(() {
                               final busy = c.isMatching.value;
+                              final waiting = AppRole.isStreamer();
+                              final text = waiting
+                                  ? (c.waitCameraOn.value
+                                      ? 'Esperando Match…'
+                                      : 'Activando cámara…')
+                                  : (busy
+                                      ? 'Buscando coincidencia…'
+                                      : 'Haga clic para hacer coincidir');
                               return Padding(
                                 padding:
                                     const EdgeInsets.symmetric(horizontal: 24),
                                 child: Text(
-                                  busy
-                                      ? 'Buscando coincidencia…'
-                                      : 'Haga clic para hacer coincidir',
+                                  text,
                                   textAlign: TextAlign.center,
                                   style: TextStyleCustom.outFitMedium500(
                                     color: Colors.white,
@@ -55,8 +67,6 @@ class MatchScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      _MembershipBanner(controller: c),
-                      const SizedBox(height: 10),
                       _ModeRow(controller: c),
                       const SizedBox(height: 4),
                     ],
@@ -72,26 +82,17 @@ class MatchScreen extends StatelessWidget {
 }
 
 class _MatchBackdrop extends StatelessWidget {
-  const _MatchBackdrop();
+  const _MatchBackdrop({required this.controller});
+
+  final MatchScreenController controller;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF2A1A28),
-                Color(0xFF1A1220),
-                Color(0xFF120E18),
-              ],
-            ),
-          ),
-        ),
+        const _MatchGradient(),
+        if (AppRole.isStreamer()) _StreamerWaitCamera(controller: controller),
         // Halo suave detrás del radar.
         Align(
           alignment: const Alignment(0, -0.15),
@@ -133,10 +134,61 @@ class _MatchBackdrop extends StatelessWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
+class _MatchGradient extends StatelessWidget {
+  const _MatchGradient();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF2A1A28),
+            Color(0xFF1A1220),
+            Color(0xFF120E18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StreamerWaitCamera extends StatelessWidget {
+  const _StreamerWaitCamera({required this.controller});
+
   final MatchScreenController controller;
 
-  const _TopBar({required this.controller});
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      controller.waitCameraOn.value;
+      if (!Get.isRegistered<LiveKitRoomController>(
+          tag: MatchScreenController.waitLkTag)) {
+        return const SizedBox.shrink();
+      }
+      final lk =
+          Get.find<LiveKitRoomController>(tag: MatchScreenController.waitLkTag);
+      lk.mediaRevision.value;
+      final local = lk.localParticipant.value;
+      if (kIsWeb || firstVideoTrackOf(local) == null) {
+        return const SizedBox.shrink();
+      }
+      return LiveKitParticipantVideo(
+        participant: local,
+        mirror: true,
+        forcePortraitUpright: false,
+      );
+    });
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  final MatchScreenController controller;
+  final bool showBack;
+
+  const _TopBar({required this.controller, this.showBack = false});
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +196,14 @@ class _TopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
       child: Row(
         children: [
+          if (showBack) ...[
+            IconButton(
+              onPressed: Get.back,
+              icon: const Icon(Icons.arrow_back_ios_new,
+                  color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 4),
+          ],
           _ChipButton(
             onTap: controller.openWallet,
             child: Row(
@@ -151,13 +211,13 @@ class _TopBar extends StatelessWidget {
               children: [
                 Image.asset(AssetRes.icStar, width: 16, height: 16),
                 const SizedBox(width: 6),
-                Text(
-                  '${controller.walletCoins}',
-                  style: TextStyleCustom.outFitSemiBold600(
-                    color: Colors.white,
-                    fontSize: 13,
-                  ),
-                ),
+                Obx(() => Text(
+                      '${controller.coins.value}',
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                    )),
               ],
             ),
           ),
@@ -171,7 +231,7 @@ class _TopBar extends StatelessWidget {
                 Image.asset(AssetRes.icPro, width: 16, height: 16),
                 const SizedBox(width: 6),
                 Text(
-                  'Membership',
+                  'Membresía',
                   style: TextStyleCustom.outFitMedium500(
                     color: const Color(0xFFE8D48B),
                     fontSize: 12,
@@ -324,54 +384,6 @@ class _RadarPainter extends CustomPainter {
       oldDelegate.progress != progress || oldDelegate.accent != accent;
 }
 
-class _MembershipBanner extends StatelessWidget {
-  final MatchScreenController controller;
-
-  const _MembershipBanner({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: controller.openMembership,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0x66D4AF37)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(AssetRes.icPro, width: 18, height: 18),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    controller.isPlusMember
-                        ? 'Membership activa'
-                        : 'Membership  ★  ${controller.membershipHintCost}/match',
-                    textAlign: TextAlign.center,
-                    style: TextStyleCustom.outFitMedium500(
-                      color: const Color(0xFFE8D48B),
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ModeRow extends StatelessWidget {
   final MatchScreenController controller;
 
@@ -383,27 +395,32 @@ class _ModeRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Obx(() {
         final selected = controller.mode.value;
+        final seekingClients = AppRole.isStreamer();
         return Row(
           children: [
             Expanded(
               child: _ModeCard(
                 title: 'Random',
-                cost: controller.randomHintCost,
+                subtitle: seekingClients
+                    ? 'Cualquier cliente'
+                    : 'Cualquier streamer',
                 selected: selected == MatchSearchMode.random,
                 premium: false,
                 onTap: () => controller.selectMode(MatchSearchMode.random),
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ModeCard(
-                title: 'Goddess',
-                cost: controller.goddessHintCost,
-                selected: selected == MatchSearchMode.goddess,
-                premium: true,
-                onTap: () => controller.selectMode(MatchSearchMode.goddess),
+            if (!seekingClients) ...[
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ModeCard(
+                  title: 'Goddess',
+                  subtitle: 'Las mejor valoradas',
+                  selected: selected == MatchSearchMode.goddess,
+                  premium: true,
+                  onTap: () => controller.selectMode(MatchSearchMode.goddess),
+                ),
               ),
-            ),
+            ],
           ],
         );
       }),
@@ -413,14 +430,14 @@ class _ModeRow extends StatelessWidget {
 
 class _ModeCard extends StatelessWidget {
   final String title;
-  final int cost;
+  final String subtitle;
   final bool selected;
   final bool premium;
   final VoidCallback onTap;
 
   const _ModeCard({
     required this.title,
-    required this.cost,
+    required this.subtitle,
     required this.selected,
     required this.premium,
     required this.onTap,
@@ -472,19 +489,12 @@ class _ModeCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Image.asset(AssetRes.icStar,
-                                width: 12, height: 12),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$cost/match',
-                              style: TextStyleCustom.outFitRegular400(
-                                color: const Color(0xFFE8D48B),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
+                        Text(
+                          subtitle,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: const Color(0xFFE8D48B),
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),

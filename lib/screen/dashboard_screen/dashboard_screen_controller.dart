@@ -164,7 +164,36 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     }
     // LIVE ya tiene su propio poll de llamadas.
     if (LivestreamScreenController.activeInstance != null) return;
-    if (OutgoingCallController.activeInstance != null) return;
+    final outgoing = OutgoingCallController.activeInstance;
+    if (outgoing != null) {
+      if (!outgoing.isMatch) return;
+      _incomingCallPollBusy = true;
+      try {
+        final inbox = await CallService.instance.inbox();
+        final peerId = outgoing.callee.id;
+        for (final item in [...inbox.received, ...inbox.sent]) {
+          if (!item.isMatchSession) continue;
+          if (item.callerId != peerId && item.calleeId != peerId) continue;
+          if (item.isAccepted && (item.roomId ?? '').trim().isNotEmpty) {
+            OutgoingCallController.handleRemoteAccepted(
+              callRequestId: item.id,
+              roomId: item.roomId,
+              call: item,
+            );
+            break;
+          }
+          if (item.isPending) {
+            OutgoingCallController.handleCrossedMatch(item);
+            break;
+          }
+        }
+      } catch (e) {
+        Loggers.error('dashboard crossed match poll: $e');
+      } finally {
+        _incomingCallPollBusy = false;
+      }
+      return;
+    }
     if (Get.currentRoute.contains('VideoCall') ||
         Get.currentRoute.contains('OutgoingCall') ||
         Get.currentRoute.contains('IncomingCall')) {

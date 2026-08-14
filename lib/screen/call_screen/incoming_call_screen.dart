@@ -31,7 +31,8 @@ class IncomingCallScreen extends StatelessWidget {
     final tag = 'incoming_${call.id}';
     final controller = Get.isRegistered<IncomingCallController>(tag: tag)
         ? Get.find<IncomingCallController>(tag: tag)
-        : Get.put(IncomingCallController(call), tag: tag);
+        : Get.put(IncomingCallController(call, asDialog: asDialog), tag: tag);
+    controller.asDialog = asDialog;
     final peer = call.caller;
 
     if (asDialog) {
@@ -316,9 +317,10 @@ class _CircleAction extends StatelessWidget {
 }
 
 class IncomingCallController extends GetxController {
-  IncomingCallController(this.call);
+  IncomingCallController(this.call, {this.asDialog = false});
 
   CallRequestModel call;
+  bool asDialog;
   final RxnString errorText = RxnString();
   bool _busy = false;
   bool _closed = false;
@@ -337,6 +339,28 @@ class IncomingCallController extends GetxController {
   /// Cierra cualquier incoming abierto (p. ej. ya no está pending en inbox).
   static void dismissIfOpen(int callRequestId) {
     handleRemoteCancelled(callRequestId);
+  }
+
+  /// Cierra el overlay aunque esté en accept/busy (colgar / call_ended).
+  static void forceDismiss(int? callRequestId) {
+    if (callRequestId == null) return;
+    final tag = 'incoming_$callRequestId';
+    if (!Get.isRegistered<IncomingCallController>(tag: tag)) return;
+    final c = Get.find<IncomingCallController>(tag: tag);
+    if (c._closed) {
+      try {
+        Get.delete<IncomingCallController>(tag: tag, force: true);
+      } catch (_) {}
+      return;
+    }
+    c._closed = true;
+    c._busy = false;
+    c._statusPoll?.cancel();
+    unawaited(c._stopRingtone());
+    c._closeIncomingUi();
+    try {
+      Get.delete<IncomingCallController>(tag: tag, force: true);
+    } catch (_) {}
   }
 
   @override
@@ -411,15 +435,28 @@ class IncomingCallController extends GetxController {
   }
 
   void _closeIncomingUi() {
-    final ctx = Get.overlayContext ?? Get.context;
-    if (ctx != null) {
-      final nav = Navigator.of(ctx, rootNavigator: true);
-      if (nav.canPop()) {
-        nav.pop();
+    if (Get.currentRoute.contains('VideoCall')) {
+      return;
+    }
+    try {
+      if (Get.isDialogOpen == true) {
+        Get.back();
         return;
       }
-    }
-    if (Get.isDialogOpen == true || Get.key.currentState?.canPop() == true) {
+    } catch (_) {}
+    try {
+      if (asDialog) {
+        final ctx = Get.overlayContext ?? Get.context;
+        if (ctx != null) {
+          final nav = Navigator.of(ctx, rootNavigator: true);
+          if (nav.canPop()) {
+            nav.pop();
+            return;
+          }
+        }
+      }
+    } catch (_) {}
+    if (Get.key.currentState?.canPop() == true) {
       Get.back();
     }
   }
@@ -443,22 +480,24 @@ class IncomingCallController extends GetxController {
       _closeIncomingUi();
       await Future.delayed(const Duration(milliseconds: 80));
       if (keepLive) {
-        Get.to(() => VideoCallScreen(
-              call: updated,
-              resumeLiveOnHangup: true,
-              isMatchPreview: updated.isMatchSession,
-              matchFreeSeconds: updated.matchSeconds > 0
-                  ? updated.matchSeconds
-                  : 30,
-            ));
+        try {
+          await Future<void>.delayed(const Duration(milliseconds: 600));
+        } catch (_) {}
+      }
+      final screen = VideoCallScreen(
+        call: updated,
+        resumeLiveOnHangup: keepLive,
+        isMatchPreview: updated.isMatchSession,
+        matchFreeSeconds: updated.matchSeconds > 0
+            ? updated.matchSeconds
+            : 30,
+      );
+      // Overlay/dialog: Get.to para no reemplazar el Dashboard.
+      // Fullscreen IncomingCall: Get.off reemplaza esa ruta.
+      if (asDialog || keepLive) {
+        Get.to(() => screen);
       } else {
-        Get.off(() => VideoCallScreen(
-              call: updated,
-              isMatchPreview: updated.isMatchSession,
-              matchFreeSeconds: updated.matchSeconds > 0
-                  ? updated.matchSeconds
-                  : 30,
-            ));
+        Get.off(() => screen);
       }
     } catch (e) {
       errorText.value = e.toString().replaceFirst('Exception: ', '');

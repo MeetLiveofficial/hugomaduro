@@ -105,7 +105,7 @@ class ChatConversationUserCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            active ? 'ACTIVE' : 'INACTIVE',
+                            active ? 'Activa' : 'Inactiva',
                             style: TextStyleCustom.outFitMedium500(
                               fontSize: 10,
                               color: active

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -44,8 +45,13 @@ extension StringExtention on String {
     }
 
     try {
-      bool result =
-          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      bool result = await launchUrl(
+        Uri.parse(url),
+        mode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
+        webOnlyWindowName: kIsWeb ? '_blank' : null,
+      );
       return StatusModel(status: result, message: 'Success');
     } on PlatformException catch (e) {
       Loggers.error(e);
@@ -57,8 +63,13 @@ extension StringExtention on String {
     String url = this;
 
     try {
-      bool result =
-          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      bool result = await launchUrl(
+        Uri.parse(url),
+        mode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
+        webOnlyWindowName: kIsWeb ? '_blank' : null,
+      );
       return StatusModel(status: result, message: 'Success');
     } on PlatformException catch (e) {
       Loggers.error(e);

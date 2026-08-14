@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
-/// Sheet: streamer recomendada por Match → llamar o deslizar al siguiente.
+/// Sheet: streamer recomendada por Match → tarjeta tipo Explore + Llamar.
 class MatchRecommendSheet {
   MatchRecommendSheet._();
+
+  static void dismissIfOpen() {
+    try {
+      if (Get.isBottomSheetOpen == true) {
+        Get.back();
+      }
+    } catch (_) {}
+  }
 
   static Future<void> show(
     MatchRecommendation match, {
@@ -39,44 +50,84 @@ class _MatchRecommendBody extends StatefulWidget {
 }
 
 class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
-  late MatchRecommendation _match;
-  final List<int> _seenIds = [];
+  late List<User> _users;
+  int _index = 0;
   bool _loadingNext = false;
   double _dragDx = 0;
+  late final String? _appLanguage;
+  late final int _matchSeconds;
 
   static const double _swipeThreshold = 96;
+
+  User get _user => _users[_index];
 
   @override
   void initState() {
     super.initState();
-    _match = widget.initial;
-    final id = _match.user.id;
-    if (id != null && id > 0) _seenIds.add(id);
+    _users = List<User>.from(widget.initial.users);
+    if (_users.isEmpty) {
+      _users = [widget.initial.user];
+    }
+    _appLanguage = widget.initial.appLanguage;
+    _matchSeconds = widget.initial.matchFreeSeconds > 0
+        ? widget.initial.matchFreeSeconds
+        : 30;
   }
 
   Future<void> _loadNext() async {
     if (_loadingNext) return;
+    if (_index + 1 < _users.length) {
+      setState(() {
+        _index += 1;
+        _dragDx = 0;
+      });
+      return;
+    }
     setState(() {
       _loadingNext = true;
       _dragDx = 0;
     });
     try {
+      final seen = _users
+          .map((u) => u.id ?? 0)
+          .where((id) => id > 0)
+          .toList();
       final next = await CallService.instance.findMatch(
-        appLanguage: _match.appLanguage,
+        appLanguage: _appLanguage,
         mode: widget.mode,
-        excludeUserIds: List<int>.from(_seenIds),
+        excludeUserIds: seen,
       );
-      final nextId = next.user.id;
-      if (nextId != null && nextId > 0) {
-        _seenIds.add(nextId);
-      }
+      final extra = next.users.where((u) {
+        final id = u.id;
+        if (id == null || id <= 0) return false;
+        return _users.every((e) => e.id != id);
+      }).toList();
       if (!mounted) return;
-      setState(() => _match = next);
+      if (extra.isEmpty) {
+        Get.snackbar(
+          'Match',
+          AppRole.isStreamer()
+              ? 'No hay más clientes en Match ahora'
+              : 'No hay más streamers en Match ahora',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.black87,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 2),
+        );
+        return;
+      }
+      setState(() {
+        _users.addAll(extra);
+        _index += 1;
+      });
     } catch (_) {
       if (!mounted) return;
       Get.snackbar(
         'Match',
-        'No hay más streamers disponibles ahora',
+        AppRole.isStreamer()
+            ? 'No hay más clientes en Match ahora'
+            : 'No hay más streamers en Match ahora',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.black87,
         colorText: Colors.white,
@@ -90,7 +141,7 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
 
   void _onHorizontalDragUpdate(DragUpdateDetails d) {
     if (_loadingNext) return;
-    setState(() => _dragDx = (_dragDx + d.delta.dx).clamp(-160.0, 160.0));
+    setState(() => _dragDx = (_dragDx + d.delta.dx).clamp(-180.0, 180.0));
   }
 
   void _onHorizontalDragEnd(DragEndDetails d) {
@@ -106,202 +157,249 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
   }
 
   void _call() {
-    final user = _match.user;
-    final seconds =
-        _match.matchFreeSeconds > 0 ? _match.matchFreeSeconds : 30;
+    final user = _user;
+    final cost = widget.initial.matchInitialCoins > 0
+        ? widget.initial.matchInitialCoins
+        : widget.initial.callCost;
+    if (cost > 0 &&
+        !CoinGate.ensureEnough(
+          cost,
+          message: 'Necesitas $cost coins para el Match',
+        )) {
+      return;
+    }
     Get.back();
     Get.to(
       () => OutgoingCallScreen(
         callee: user,
-        cost: 0,
+        cost: cost,
         isMatch: true,
-        matchFreeSeconds: seconds,
+        matchFreeSeconds: _matchSeconds,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = _match.user;
-    final name = (user.fullname ?? user.username ?? 'Streamer').trim();
-    final lang = (_match.appLanguage ?? user.appLanguage ?? '').trim();
-    final seconds =
-        _match.matchFreeSeconds > 0 ? _match.matchFreeSeconds : 30;
-    final tilt = (_dragDx / 220).clamp(-0.12, 0.12);
+    final size = MediaQuery.sizeOf(context);
+    final cardH = (size.height * 0.68).clamp(420.0, 560.0);
+    final tilt = (_dragDx / 240).clamp(-0.10, 0.10);
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1224),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: ColorRes.mauve.withValues(alpha: 0.45),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: ColorRes.mauve.withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 84),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Match encontrado',
-              style: TextStyleCustom.outFitMedium500(
-                color: Colors.white,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Desliza para el siguiente',
-              style: TextStyleCustom.outFitRegular400(
-                color: Colors.white54,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 14),
+            const Spacer(),
             GestureDetector(
               onHorizontalDragUpdate: _onHorizontalDragUpdate,
               onHorizontalDragEnd: _onHorizontalDragEnd,
               child: AnimatedContainer(
                 duration: _loadingNext
                     ? Duration.zero
-                    : const Duration(milliseconds: 120),
+                    : const Duration(milliseconds: 140),
                 transform: Matrix4.identity()
                   ..translateByDouble(_dragDx, 0, 0, 1)
                   ..rotateZ(tilt),
                 transformAlignment: Alignment.center,
                 child: Opacity(
-                  opacity: _loadingNext ? 0.55 : 1,
-                  child: Column(
-                    children: [
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CustomImage(
-                            size: const Size(88, 88),
-                            image: user.profilePhoto?.addBaseURL(),
-                            fullName: name,
-                            radius: 44,
-                            strokeWidth: 2,
-                            strokeColor: ColorRes.themeAccentSolid,
-                          ),
-                          if (_loadingNext)
-                            const SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                color: Colors.white,
-                              ),
-                            ),
-                          if (!_loadingNext && _dragDx.abs() > 28)
-                            Positioned(
-                              left: _dragDx < 0 ? 0 : null,
-                              right: _dragDx > 0 ? 0 : null,
-                              child: Icon(
-                                _dragDx < 0
-                                    ? Icons.keyboard_arrow_left_rounded
-                                    : Icons.keyboard_arrow_right_rounded,
-                                color: ColorRes.themeAccentSolid
-                                    .withValues(alpha: 0.9),
-                                size: 28,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white,
-                          fontSize: 18,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        lang.isEmpty
-                            ? 'Preview gratis · $seconds s'
-                            : 'Idioma: $lang · Preview gratis $seconds s',
-                        style: TextStyleCustom.outFitRegular400(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
+                  opacity: _loadingNext ? 0.7 : 1,
+                  child: SizedBox(
+                    height: cardH,
+                    width: double.infinity,
+                    child: _MatchProfileCard(
+                      key: ValueKey(_user.id ?? _index),
+                      user: _user,
+                      loading: _loadingNext,
+                      onCall: _loadingNext ? null : _call,
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            Row(
+            const SizedBox(height: 12),
+            Text(
+              'Desliza para el siguiente',
+              style: TextStyleCustom.outFitRegular400(
+                color: Colors.white54,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchProfileCard extends StatelessWidget {
+  final User user;
+  final bool loading;
+  final VoidCallback? onCall;
+
+  const _MatchProfileCard({
+    super.key,
+    required this.user,
+    required this.loading,
+    required this.onCall,
+  });
+
+  static String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2 &&
+        parts[0].isNotEmpty &&
+        parts[1].isNotEmpty) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    final compact = name.replaceAll(RegExp(r'\s+'), '');
+    if (compact.length >= 2) return compact.substring(0, 2).toUpperCase();
+    if (compact.isNotEmpty) return compact[0].toUpperCase();
+    return '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (user.fullname ?? user.username ?? 'Streamer').trim();
+    final handle = (user.username ?? '').trim();
+    final photo = (user.profilePhoto ?? '').trim().addBaseURL();
+    final country = (user.country ?? '').trim();
+    final countryLabel = country.isNotEmpty
+        ? country.toUpperCase()
+        : (user.countryCode ?? '').trim().toUpperCase();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF8B6AA8),
+                  Color(0xFF4A3270),
+                  Color(0xFF1C1228),
+                ],
+              ),
+            ),
+          ),
+          if (photo.isNotEmpty)
+            CustomImage(
+              size: const Size(400, 700),
+              image: photo,
+              fit: BoxFit.cover,
+              radius: 0,
+              isShowPlaceHolder: true,
+              fullName: name,
+            )
+          else
+            Center(
+              child: Text(
+                _initials(name),
+                style: TextStyleCustom.outFitRegular400(
+                  color: Colors.white.withValues(alpha: 0.28),
+                  fontSize: 88,
+                ),
+              ),
+            ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x33000000),
+                  Colors.transparent,
+                  Color(0xF2140E1C),
+                ],
+                stops: [0, 0.38, 1],
+              ),
+            ),
+          ),
+          if (countryLabel.isNotEmpty)
+            Positioned(
+              top: 14,
+              left: 14,
+              child: _Pill(
+                child: Text(
+                  countryLabel,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: Colors.white,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ),
+          Positioned(
+            top: 14,
+            right: 14,
+            child: _Pill(
+              color: const Color(0xE6166534),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF4ADE80),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'En Match',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _loadingNext ? null : Get.back,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white70,
-                      side: const BorderSide(color: Colors.white24),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    child: Text(
-                      'Cancelar',
-                      style: TextStyleCustom.outFitMedium500(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: Colors.white,
+                    fontSize: 22,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Material(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: _loadingNext ? null : _loadNext,
-                    child: const SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: Icon(
-                        Icons.swipe_rounded,
-                        color: Colors.white70,
-                        size: 22,
-                      ),
+                if (handle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    handle.startsWith('@') ? handle : '@$handle',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white70,
+                      fontSize: 14,
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
+                ],
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
                   child: ElevatedButton.icon(
-                    onPressed: _loadingNext ? null : _call,
+                    onPressed: onCall,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ColorRes.themeAccentSolid,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     icon: const Icon(Icons.videocam_rounded, size: 18),
@@ -309,16 +407,52 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
                       'Llamar',
                       style: TextStyleCustom.outFitMedium500(
                         color: Colors.white,
-                        fontSize: 14,
+                        fontSize: 16,
                       ),
                     ),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          if (loading)
+            const ColoredBox(
+              color: Color(0x66000000),
+              child: Center(
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  final Widget child;
+  final Color color;
+
+  const _Pill({
+    required this.child,
+    this.color = const Color(0x99000000),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: child,
     );
   }
 }

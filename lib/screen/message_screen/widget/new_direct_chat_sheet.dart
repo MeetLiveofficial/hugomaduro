@@ -199,8 +199,8 @@ class _NewDirectChatSheetState extends State<_NewDirectChatSheet> {
                             ),
                             child: Text(
                               (user.isActive == 1 || user.isLive == 1)
-                                  ? 'ACTIVE'
-                                  : 'INACTIVE',
+                                  ? 'Activa'
+                                  : 'Inactiva',
                               style: TextStyleCustom.outFitMedium500(
                                 fontSize: 10,
                                 color: (user.isActive == 1 || user.isLive == 1)

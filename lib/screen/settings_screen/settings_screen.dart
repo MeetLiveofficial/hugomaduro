@@ -9,6 +9,7 @@ import 'package:krimson/common/widget/custom_toggle.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/blocked_user_screen/blocked_user_screen.dart';
+import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen.dart';
 import 'package:krimson/screen/edit_profile_screen/edit_profile_screen.dart';
 import 'package:krimson/screen/privilege_screen/privilege_hub_screen.dart';
@@ -96,6 +97,14 @@ class SettingsScreen extends StatelessWidget {
                   title: LKey.coinWallet,
                   onTap: () {
                     Get.to(() => const CoinWalletScreen());
+                  },
+                ),
+              if (AppRole.isStreamer())
+                SettingIconTextWithArrow(
+                  icon: AssetRes.icHeart,
+                  title: 'Match',
+                  onTap: () {
+                    Get.to(() => const MatchScreen());
                   },
                 ),
               if (AppRole.canAccessTasks())

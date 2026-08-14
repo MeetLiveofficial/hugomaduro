@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
-import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/content_protection.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/share_manager.dart';
-import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/framed_avatar.dart';
 import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
+import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -17,11 +17,13 @@ import 'package:krimson/screen/privilege_screen/privilege_hub_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/user_link_sheet.dart';
+import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/settings_screen/settings_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
-import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
+import 'package:krimson/screen/work_screen/work_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/language_display.dart';
 import 'package:krimson/utilities/level_avatar_style.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -127,6 +129,15 @@ class ProfileUserHeader extends StatelessWidget {
               username: user.fullname ?? user.username,
               isVerify: user.isVerify,
               fontSize: 16,
+              child: (user.equippedBadgeImage ?? '').isEmpty
+                  ? null
+                  : GiftMedia(
+                      path: user.equippedBadgeImage,
+                      width: 20,
+                      height: 20,
+                      fit: BoxFit.contain,
+                      placeholder: const SizedBox.shrink(),
+                    ),
             ),
             const SizedBox(height: 6),
             Wrap(
@@ -179,7 +190,7 @@ class ProfileUserHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        isPresent ? 'ACTIVE' : 'INACTIVE',
+                        isPresent ? 'Activa' : 'Inactiva',
                         style: TextStyleCustom.outFitMedium500(
                           color: isPresent
                               ? const Color(0xFF15803D)
@@ -238,8 +249,7 @@ class ProfileUserHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}'
-                        '${(user.levelTitle ?? user.getLevel.title)?.isNotEmpty == true ? ' · ${user.levelTitle ?? user.getLevel.title}' : ''}',
+                        '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}',
                         style: TextStyleCustom.outFitMedium500(
                           color: themeAccentSolid(context),
                           fontSize: 12,
@@ -472,8 +482,6 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLive = user.isLive == 1;
-    final isClient = AppRole.isClient(user);
-    final useLevelRing = isClient && !isLive && !hasStories;
 
     return InkWell(
       onTap: onTap,
@@ -481,38 +489,13 @@ class _Avatar extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: isLive
-                  ? const LinearGradient(
-                      colors: [Color(0xFFFF003F), Color(0xFFFF6B8A)],
-                    )
-                  : useLevelRing
-                      ? LevelAvatarStyle.forUser(user)
-                      : (hasStories ? StyleRes.themeGradient : null),
-              border: (!isLive && !hasStories && !useLevelRing)
-                  ? Border.all(color: bgGrey(context), width: 1.5)
-                  : null,
-              boxShadow: useLevelRing
-                  ? [
-                      BoxShadow(
-                        color: LevelAvatarStyle.forUser(user)
-                            .colors
-                            .last
-                            .withValues(alpha: 0.35),
-                        blurRadius: 10,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: CustomImage(
-              size: const Size(82, 82),
-              image: user.profilePhoto?.addBaseURL(),
-              fullName: user.fullname,
-              strokeWidth: (isLive || hasStories || useLevelRing) ? 2 : 0,
-              strokeColor: scaffoldBackgroundColor(context),
+          FramedAvatar.fromUser(
+            user,
+            size: 124,
+            ring: (child) => LevelAvatarRing(
+              user: user,
+              padding: 3,
+              child: child,
             ),
           ),
           if (isLive)
@@ -539,23 +522,23 @@ class _Avatar extends StatelessWidget {
               ),
             ),
           Positioned(
-            right: 2,
-            bottom: isLive ? 14 : 4,
+            right: 6,
+            bottom: isLive ? 22 : 18,
             child: Builder(
               builder: (context) {
                 final isMe = user.id == SessionManager.instance.getUserID();
                 final isPresent =
                     isMe || user.isActive == 1 || user.isLive == 1;
                 return Container(
-                  width: 14,
-                  height: 14,
+                  width: 16,
+                  height: 16,
                   decoration: BoxDecoration(
                     color: isPresent
-                        ? const Color(0xFF22C55E)
+                        ? const Color(0xFFFF6B6B)
                         : const Color(0xFF9CA3AF),
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: scaffoldBackgroundColor(context), width: 2),
+                        color: scaffoldBackgroundColor(context), width: 2.5),
                   ),
                 );
               },
@@ -582,11 +565,18 @@ class _StatColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Column(
       children: [
-        Text(
-          value.numberFormat,
-          style: TextStyleCustom.unboundedSemiBold600(
-            color: textDarkGrey(context),
-            fontSize: 15,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value.numberFormat,
+            maxLines: 1,
+            style: TextStyleCustom.unboundedSemiBold600(
+              color: textDarkGrey(context),
+              fontSize: 15,
+            ).copyWith(
+              height: 1.4,
+              leadingDistribution: TextLeadingDistribution.even,
+            ),
           ),
         ),
         const SizedBox(height: 2),
@@ -630,20 +620,6 @@ class _ActionButtons extends StatelessWidget {
       final canPublish = AppRole.canPublish(user);
       return Column(
         children: [
-          // Streamers ganan (retiros); no recargan. Clientes usan ClientProfileScreen.
-          if (canPublish) ...[
-            TextButtonCustom(
-              onTap: () => Get.to(() => const WithdrawalsScreen()),
-              title: LKey.withdrawals.tr,
-              backgroundColor: ColorRes.bgGrey,
-              titleColor: ColorRes.textDarkGrey,
-              btnHeight: 42,
-              fontSize: 15,
-              horizontalMargin: 0,
-              margin: EdgeInsets.zero,
-            ),
-            const SizedBox(height: 8),
-          ],
           Row(
             children: [
               if (canPublish)
@@ -675,6 +651,25 @@ class _ActionButtons extends StatelessWidget {
                     margin: EdgeInsets.zero,
                   ),
                 ),
+              if (AppRole.isStreamer(user)) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButtonCustom(
+                    onTap: () => Get.to(() => const MatchScreen()),
+                    title: 'Match',
+                    backgroundColor: ColorRes.coralRed,
+                    titleColor: whitePure(context),
+                    btnHeight: 42,
+                    fontSize: 15,
+                    horizontalMargin: 0,
+                    margin: EdgeInsets.zero,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _WorkIconAction(
+                  onTap: () => Get.to(() => const WorkScreen()),
+                ),
+              ],
               if (ContentProtection.canShare) ...[
                 const SizedBox(width: 8),
                 _IconAction(
@@ -818,13 +813,41 @@ class _IconAction extends StatelessWidget {
   }
 }
 
+class _WorkIconAction extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _WorkIconAction({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 42,
+        width: 42,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: bgGrey(context),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          Icons.work_outline_rounded,
+          size: 22,
+          color: textDarkGrey(context),
+        ),
+      ),
+    );
+  }
+}
+
 /// Pills de idioma / país para el header de perfil.
 List<(String, Color)> _profileTagLabels(User user, {required bool isMe}) {
   final tags = <(String, Color)>[];
   // En el propio perfil, el locale de sesión es la fuente de verdad (Settings).
   final code = isMe ? SessionManager.instance.getLang() : user.appLanguage;
-  final lang = _languageDisplayName(code);
-  if (lang != null) {
+  final lang = LanguageDisplay.name(code);
+  if (lang.isNotEmpty) {
     tags.add((lang, const Color(0xFF60A5FA)));
   }
   final country = (user.country ?? '').trim();
@@ -832,35 +855,4 @@ List<(String, Color)> _profileTagLabels(User user, {required bool isMe}) {
     tags.add((country, const Color(0xFFA78BFA)));
   }
   return tags;
-}
-
-String? _languageDisplayName(String? code) {
-  if (code == null || code.trim().isEmpty) return null;
-  final c = code.trim().toLowerCase().split(RegExp(r'[_-]')).first;
-
-  final fromSettings = SessionManager.instance
-      .getActiveLanguages()
-      .firstWhereOrNull((l) => (l.code ?? '').toLowerCase() == c);
-  if (fromSettings != null) {
-    final title =
-        (fromSettings.localizedTitle ?? fromSettings.title ?? '').trim();
-    if (title.isNotEmpty) return title;
-  }
-
-  const map = {
-    'es': 'Español',
-    'en': 'English',
-    'pt': 'Português',
-    'fr': 'Français',
-    'de': 'Deutsch',
-    'it': 'Italiano',
-    'ar': 'العربية',
-    'hi': 'हिन्दी',
-    'zh': '中文',
-    'ja': '日本語',
-    'ko': '한국어',
-    'ru': 'Русский',
-    'uk': 'Українська',
-  };
-  return map[c] ?? c.toUpperCase();
 }

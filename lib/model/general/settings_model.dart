@@ -103,6 +103,9 @@ class Setting {
   List<DeepARFilters>? deepARFilters;
   /// Segundos de preview Match P2P (cliente).
   int matchFreeSeconds;
+  int matchInitialCoins;
+  int matchGraceSeconds;
+  List<MatchTier> matchTiers;
   bool wompiEnabled;
   bool nowpaymentsEnabled;
 
@@ -173,11 +176,18 @@ class Setting {
     this.reportReason,
     this.deepARFilters,
     this.matchFreeSeconds = 30,
+    this.matchInitialCoins = 0,
+    this.matchGraceSeconds = 40,
+    List<MatchTier>? matchTiers,
     this.wompiEnabled = true,
     this.nowpaymentsEnabled = true,
-  });
+  }) : matchTiers = matchTiers ?? MatchTier.defaults;
 
-  factory Setting.fromJson(Map<String, dynamic> json) => Setting(
+  factory Setting.fromJson(Map<String, dynamic> json) {
+    final cfg = json["match_config"] is Map
+        ? Map<String, dynamic>.from(json["match_config"] as Map)
+        : <String, dynamic>{};
+    return Setting(
         id: _asInt(json["id"]),
         appName: json["app_name"]?.toString(),
         currency: json["currency"]?.toString(),
@@ -298,10 +308,20 @@ class Setting {
             ? []
             : List<DeepARFilters>.from(
                 json["deepARFilters"]?.map((x) => DeepARFilters.fromJson(x))),
-        matchFreeSeconds: _asInt(json["match_free_seconds"]) ?? 30,
+        matchFreeSeconds: _asInt(json["match_free_seconds"]) ??
+            _asInt(cfg["initial_seconds"]) ??
+            30,
+        matchInitialCoins: _asInt(json["match_initial_coins"]) ??
+            _asInt(cfg["initial_coins"]) ??
+            0,
+        matchGraceSeconds: _asInt(json["match_grace_seconds"]) ??
+            _asInt(cfg["grace_seconds"]) ??
+            40,
+        matchTiers: MatchTier.listFrom(cfg["tiers"] ?? json["match_tiers"]),
         wompiEnabled: (_asInt(json["wompi_enabled"]) ?? 1) != 0,
         nowpaymentsEnabled: (_asInt(json["nowpayments_enabled"]) ?? 1) != 0,
       );
+  }
 
   Map<String, dynamic> toJson() => {
         "id": id,
@@ -392,6 +412,9 @@ class Setting {
             ? []
             : List<dynamic>.from(deepARFilters!.map((x) => x.toJson())),
         "match_free_seconds": matchFreeSeconds,
+        "match_initial_coins": matchInitialCoins,
+        "match_grace_seconds": matchGraceSeconds,
+        "match_tiers": matchTiers.map((t) => t.toJson()).toList(),
         "wompi_enabled": wompiEnabled,
         "nowpayments_enabled": nowpaymentsEnabled,
       };
@@ -408,6 +431,49 @@ class Setting {
     if (v is double) return v;
     if (v is num) return v.toDouble();
     return double.tryParse('$v');
+  }
+}
+
+class MatchTier {
+  const MatchTier({
+    required this.tier,
+    required this.seconds,
+    required this.coins,
+  });
+
+  final int tier;
+  final int seconds;
+  final int coins;
+
+  int get minutes => (seconds / 60).round().clamp(1, 180);
+
+  static const List<MatchTier> defaults = [
+    MatchTier(tier: 1, seconds: 300, coins: 150),
+    MatchTier(tier: 2, seconds: 480, coins: 250),
+    MatchTier(tier: 3, seconds: 780, coins: 400),
+  ];
+
+  factory MatchTier.fromJson(Map<String, dynamic> json) => MatchTier(
+        tier: Setting._asInt(json['tier']) ?? 1,
+        seconds: Setting._asInt(json['seconds']) ?? 300,
+        coins: Setting._asInt(json['coins']) ?? 150,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'tier': tier,
+        'seconds': seconds,
+        'coins': coins,
+      };
+
+  static List<MatchTier> listFrom(dynamic raw) {
+    if (raw is! List || raw.isEmpty) return List<MatchTier>.from(defaults);
+    final out = <MatchTier>[];
+    for (final e in raw) {
+      if (e is Map) {
+        out.add(MatchTier.fromJson(Map<String, dynamic>.from(e)));
+      }
+    }
+    return out.isEmpty ? List<MatchTier>.from(defaults) : out;
   }
 }
 

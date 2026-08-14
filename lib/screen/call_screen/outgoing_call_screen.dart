@@ -275,13 +275,44 @@ class OutgoingCallController extends BaseController {
     if (callRequestId != null &&
         c.call?.id != null &&
         c.call!.id != callRequestId) {
-      return;
+      // Match cruzado: el id aceptado es el del otro pending.
+      if (!c.isMatch) return;
     }
     unawaited(c._enterAcceptedCall(
       updated: call,
       roomId: roomId,
       callRequestId: callRequestId,
     ));
+  }
+
+  /// El otro también pulsó Llamar (pending cruzado).
+  static void handleCrossedMatch(CallRequestModel incoming) {
+    final c = activeInstance;
+    if (c == null || c._closing || c._joined || !c.isMatch) return;
+    final peerId = c.callee.id;
+    if (incoming.callerId != peerId && incoming.calleeId != peerId) return;
+    unawaited(c._onCrossedMatch(incoming));
+  }
+
+  Future<void> _onCrossedMatch(CallRequestModel incoming) async {
+    if (_joined || _closing) return;
+    if (incoming.isAccepted && (incoming.roomId ?? '').trim().isNotEmpty) {
+      await _enterAcceptedCall(updated: incoming);
+      return;
+    }
+    if (!incoming.isPending || incoming.id == null) return;
+    try {
+      final accepted = await CallService.instance.accept(incoming.id!);
+      final mine = call?.id;
+      if (mine != null && mine != incoming.id) {
+        try {
+          await CallService.instance.cancel(mine);
+        } catch (_) {}
+      }
+      await _enterAcceptedCall(updated: accepted);
+    } catch (e) {
+      Loggers.error('crossed match accept: $e');
+    }
   }
 
   Future<void> _enterAcceptedCall({
@@ -400,6 +431,7 @@ class OutgoingCallController extends BaseController {
       try {
         await live.pauseLiveKitForCall();
       } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: 600));
       Get.off(() => VideoCallScreen(
             call: current!,
             resumeLiveOnHangup: true,
@@ -420,7 +452,8 @@ class OutgoingCallController extends BaseController {
       await _ringback.setAsset(AssetRes.callSoft);
       await _ringback.setLoopMode(LoopMode.one);
       await _ringback.setVolume(0.4);
-      await _ringback.play();
+      // LoopMode.one: play() no completa; no await para no bloquear el poll.
+      unawaited(_ringback.play());
     } catch (e) {
       Loggers.error('outgoing ringback: $e');
     }
@@ -457,9 +490,20 @@ class OutgoingCallController extends BaseController {
         me.removeCoinFromWallet(cost);
         SessionManager.instance.setUser(me);
       }
+      if (call != null &&
+          call!.isAccepted &&
+          (call!.roomId ?? '').trim().isNotEmpty) {
+        await _enterAcceptedCall(updated: call);
+        return;
+      }
       subtitle.value = LKey.ringing.tr;
-      await _startRingback();
-      _poll = Timer.periodic(const Duration(seconds: 2), (_) => _checkStatus());
+      unawaited(_startRingback());
+      _poll?.cancel();
+      _poll = Timer.periodic(const Duration(seconds: 2), (_) {
+        unawaited(_checkStatus());
+      });
+      unawaited(_checkStatus());
+      _timeout?.cancel();
       _timeout = Timer(const Duration(seconds: 45), () async {
         if (_joined || _closing) return;
         // Última chance: puede que ya esté accepted y el poll falló.
@@ -484,6 +528,11 @@ class OutgoingCallController extends BaseController {
       final msg = e.toString().replaceFirst('Exception: ', '');
       errorText.value = msg;
       subtitle.value = isMatch ? 'Match fallido' : LKey.callFailed.tr;
+      if (msg.toLowerCase().contains('peer left') ||
+          msg.toLowerCase().contains('join match')) {
+        errorText.value = 'El otro usuario ya no está en Match';
+        subtitle.value = 'El otro usuario ya no está en Match';
+      }
       if (msg.toLowerCase().contains('insufficient') ||
           msg.toLowerCase().contains('coin')) {
         CoinGate.ensureEnough(cost, message: 'Moneda insuficiente');
@@ -539,6 +588,26 @@ class OutgoingCallController extends BaseController {
       if (status == 'rejected' || updated.isRejected) {
         await _onRejected();
         return;
+      }
+
+      if (isMatch) {
+        try {
+          final inbox = await CallService.instance.inbox();
+          final peerId = callee.id;
+          for (final e in [...inbox.received, ...inbox.sent]) {
+            if (!e.isMatchSession) continue;
+            if (e.callerId != peerId && e.calleeId != peerId) continue;
+            if (e.id != null && e.id == id) continue;
+            if (e.isAccepted && (e.roomId ?? '').trim().isNotEmpty) {
+              await _enterAcceptedCall(updated: e);
+              return;
+            }
+            if (e.isPending && e.calleeId == SessionManager.instance.getUserID()) {
+              await _onCrossedMatch(e);
+              return;
+            }
+          }
+        } catch (_) {}
       }
 
       if (status == 'cancelled' ||

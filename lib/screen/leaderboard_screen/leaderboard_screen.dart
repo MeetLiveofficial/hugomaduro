@@ -7,8 +7,10 @@ import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/service/api/privilege_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/framed_avatar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
+import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/leaderboard_screen/leaderboard_screen_controller.dart';
 import 'package:krimson/screen/home_screen/widget/home_mode_switcher.dart';
@@ -37,19 +39,11 @@ class LeaderboardScreen extends StatelessWidget {
             child: Column(
               children: [
                 _Header(asTab: asTab),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 _TypeTabs(controller: controller),
-                const SizedBox(height: 8),
-                Obx(() => Text(
-                      '${LKey.endsIn.tr} ${controller.countdown.value}',
-                      style: TextStyleCustom.outFitMedium500(
-                        color: _Epic.gold.withValues(alpha: 0.9),
-                        fontSize: 12,
-                      ),
-                    )),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 _PeriodFilters(controller: controller),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Expanded(
                   child: Obx(() {
                     if (controller.isLoading.value &&
@@ -74,13 +68,13 @@ class LeaderboardScreen extends StatelessWidget {
                         SliverToBoxAdapter(
                           child: _PodiumStage(users: controller.users),
                         ),
-                        const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                        const SliverToBoxAdapter(child: SizedBox(height: 14)),
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
+                          padding: const EdgeInsets.fromLTRB(14, 0, 14, 88),
                           sliver: SliverList.separated(
                             itemCount: rest,
                             separatorBuilder: (_, __) =>
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 6),
                             itemBuilder: (context, index) {
                               return _RankRow(
                                 entry: controller.users[index + 3],
@@ -107,13 +101,12 @@ class LeaderboardScreen extends StatelessWidget {
 }
 
 abstract final class _Epic {
-  static const voidBg = Color(0xFF07030A);
+  static const voidBg = Color(0xFF0A0714);
   static const gold = Color(0xFFFFD56B);
   static const crimson = Color(0xFFE53935);
   static const crimsonDeep = Color(0xFF8B0000);
-  static const tabDark = Color(0xFF241428);
   static const tabText = Color(0xFFB71C1C);
-  static const periodOff = Color(0xFF2A1630);
+  static const periodOff = Color(0xFF1C1428);
 
   static const place1 = [Color(0xFFFF3B3B), Color(0xFF8B0000)];
   static const place2 = [Color(0xFF4FA3FF), Color(0xFF153A8C)];
@@ -220,32 +213,27 @@ class _TypeTabs extends StatelessWidget {
     return Obx(() {
       final tab = controller.tab.value;
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Container(
-          padding: const EdgeInsets.all(3),
+          height: 34,
+          padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: const Color(0xFF120814),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: _Epic.gold.withValues(alpha: 0.4)),
-            boxShadow: [
-              BoxShadow(
-                color: _Epic.gold.withValues(alpha: 0.2),
-                blurRadius: 16,
-              ),
-            ],
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _Epic.gold.withValues(alpha: 0.35)),
           ),
           child: Row(
             children: [
               Expanded(
                 child: _TypeChip(
-                  label: LKey.clientsRanking.tr,
+                  label: 'Envían',
                   selected: tab == LeaderboardTab.clients,
                   onTap: () => controller.setTab(LeaderboardTab.clients),
                 ),
               ),
               Expanded(
                 child: _TypeChip(
-                  label: LKey.streamersRanking.tr,
+                  label: 'Reciben',
                   selected: tab == LeaderboardTab.streamers,
                   onTap: () => controller.setTab(LeaderboardTab.streamers),
                 ),
@@ -274,27 +262,16 @@ class _TypeChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+        duration: const Duration(milliseconds: 180),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
                   colors: [Color(0xFFFFF9FF), Color(0xFFE9D4F8)],
                 )
               : null,
-          color: selected ? null : _Epic.tabDark,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: _Epic.crimson.withValues(alpha: 0.4),
-                    blurRadius: 12,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          color: selected ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
@@ -305,7 +282,7 @@ class _TypeChip extends StatelessWidget {
               ? TextStyleCustom.outFitBold700(
                   color: _Epic.tabText, fontSize: 12)
               : TextStyleCustom.outFitMedium500(
-                  color: Colors.white, fontSize: 12),
+                  color: Colors.white70, fontSize: 12),
         ),
       ),
     );
@@ -326,27 +303,32 @@ class _PeriodFilters extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: _PeriodChip(
-                label: LKey.today.tr,
-                selected: p == LeaderboardPeriod.today,
-                onTap: () => controller.setPeriod(LeaderboardPeriod.today),
+              child: Text(
+                '${LKey.endsIn.tr} ${controller.countdown.value}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyleCustom.outFitMedium500(
+                  color: _Epic.gold.withValues(alpha: 0.9),
+                  fontSize: 11,
+                ),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _PeriodChip(
-                label: LKey.thisWeek.tr,
-                selected: p == LeaderboardPeriod.week,
-                onTap: () => controller.setPeriod(LeaderboardPeriod.week),
-              ),
+            _PeriodChip(
+              label: 'Hoy',
+              selected: p == LeaderboardPeriod.today,
+              onTap: () => controller.setPeriod(LeaderboardPeriod.today),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _PeriodChip(
-                label: LKey.thisMonth.tr,
-                selected: p == LeaderboardPeriod.month,
-                onTap: () => controller.setPeriod(LeaderboardPeriod.month),
-              ),
+            const SizedBox(width: 6),
+            _PeriodChip(
+              label: 'Semana',
+              selected: p == LeaderboardPeriod.week,
+              onTap: () => controller.setPeriod(LeaderboardPeriod.week),
+            ),
+            const SizedBox(width: 6),
+            _PeriodChip(
+              label: 'Mes',
+              selected: p == LeaderboardPeriod.month,
+              onTap: () => controller.setPeriod(LeaderboardPeriod.month),
             ),
           ],
         ),
@@ -371,8 +353,8 @@ class _PeriodChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
@@ -380,38 +362,19 @@ class _PeriodChip extends StatelessWidget {
                 )
               : null,
           color: selected ? null : _Epic.periodOff,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
-                ? _Epic.gold.withValues(alpha: 0.75)
-                : Colors.white.withValues(alpha: 0.08),
+                ? _Epic.gold.withValues(alpha: 0.8)
+                : Colors.white.withValues(alpha: 0.1),
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: _Epic.crimson.withValues(alpha: 0.55),
-                    blurRadius: 14,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : null,
         ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyleCustom.outFitMedium500(
-                color: Colors.white,
-                fontSize: 12,
-              ),
-            ),
-            Icon(
-              Icons.arrow_drop_down,
-              color: selected ? _Epic.gold : _Epic.crimson,
-              size: 16,
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyleCustom.outFitMedium500(
+            color: Colors.white,
+            fontSize: 11,
+          ),
         ),
       ),
     );
@@ -440,235 +403,107 @@ class _ArenaPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Base void → royal crimson
-    final base = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(w * 0.5, 0),
-        Offset(w * 0.5, h),
-        const [
-          Color(0xFF3A0A28),
-          Color(0xFF1A0618),
-          Color(0xFF0A040C),
-          Color(0xFF050208),
-        ],
-        const [0, 0.28, 0.62, 1],
-      );
-    canvas.drawRect(Offset.zero & size, base);
-
-    // Ceiling vignette glow
     canvas.drawRect(
-      Rect.fromLTWH(0, 0, w, h * 0.45),
-      Paint()
-        ..shader = ui.Gradient.radial(
-          Offset(w * 0.5, h * 0.08),
-          w * 0.75,
-          [
-            _Epic.gold.withValues(alpha: 0.22),
-            const Color(0x66C62828),
-            const Color(0x00000000),
-          ],
-          const [0, 0.35, 1],
-        ),
-    );
-
-    // Heavy curtains (left / right)
-    _drawCurtain(canvas, size, left: true);
-    _drawCurtain(canvas, size, left: false);
-
-    // Golden pillars
-    _drawPillar(canvas, size, x: w * 0.06);
-    _drawPillar(canvas, size, x: w * 0.94);
-
-    // Triple golden arches
-    for (final t in [0.0, 0.08, 0.16]) {
-      final path = Path()
-        ..moveTo(w * (0.05 + t * 0.3), h * (0.42 + t * 0.4))
-        ..quadraticBezierTo(
-          w * 0.5,
-          h * (-0.02 + t * 0.15),
-          w * (0.95 - t * 0.3),
-          h * (0.42 + t * 0.4),
-        );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.4 - t * 6
-          ..color = _Epic.gold.withValues(alpha: 0.5 - t)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
-      );
-    }
-
-    // Ornate filigree bar under arches
-    final barY = h * 0.18;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(
-            center: Offset(w * 0.5, barY), width: w * 0.55, height: 4),
-        const Radius.circular(2),
-      ),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(w * 0.22, barY),
-          Offset(w * 0.78, barY),
-          [
-            _Epic.gold.withValues(alpha: 0),
-            _Epic.gold.withValues(alpha: 0.75),
-            _Epic.gold.withValues(alpha: 0),
-          ],
-        ),
-    );
-
-    // Central spotlight beam
-    final beam = Path()
-      ..moveTo(w * 0.44, 0)
-      ..lineTo(w * 0.56, 0)
-      ..lineTo(w * 0.78, h * 0.55)
-      ..lineTo(w * 0.22, h * 0.55)
-      ..close();
-    canvas.drawPath(
-      beam,
+      Offset.zero & size,
       Paint()
         ..shader = ui.Gradient.linear(
           Offset(w * 0.5, 0),
-          Offset(w * 0.5, h * 0.55),
-          [
-            _Epic.gold.withValues(alpha: 0.28),
-            _Epic.gold.withValues(alpha: 0.08),
-            _Epic.gold.withValues(alpha: 0),
+          Offset(w * 0.5, h),
+          const [
+            Color(0xFF161022),
+            Color(0xFF0E0A18),
+            Color(0xFF09060F),
+            Color(0xFF07050C),
           ],
+          const [0, 0.28, 0.62, 1],
         ),
     );
 
-    // Side soft beams
-    for (final cx in [0.28, 0.72]) {
-      final p = Path()
-        ..moveTo(w * (cx - 0.03), 0)
-        ..lineTo(w * (cx + 0.03), 0)
-        ..lineTo(w * (cx + 0.12), h * 0.5)
-        ..lineTo(w * (cx - 0.12), h * 0.5)
-        ..close();
-      canvas.drawPath(
-        p,
-        Paint()
-          ..shader = ui.Gradient.linear(
-            Offset(w * cx, 0),
-            Offset(w * cx, h * 0.5),
-            [
-              Colors.white.withValues(alpha: 0.08),
-              Colors.transparent,
-            ],
-          ),
-      );
-    }
+    // Soft gold moon glow (top center)
+    canvas.drawCircle(
+      Offset(w * 0.5, h * 0.02),
+      w * 0.55,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          Offset(w * 0.5, h * 0.02),
+          w * 0.55,
+          [
+            _Epic.gold.withValues(alpha: 0.16),
+            const Color(0x33C9A227),
+            const Color(0x00000000),
+          ],
+          const [0, 0.4, 1],
+        ),
+    );
 
-    // Embers / floating sparks
-    final rng = math.Random(42);
-    for (var i = 0; i < 48; i++) {
+    // Side dusk
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0, h * 0.4),
+          Offset(w, h * 0.4),
+          [
+            const Color(0x66000000),
+            const Color(0x00000000),
+            const Color(0x00000000),
+            const Color(0x66000000),
+          ],
+          const [0, 0.22, 0.78, 1],
+        ),
+    );
+
+    // Stars
+    final rng = math.Random(7);
+    for (var i = 0; i < 70; i++) {
       final px = rng.nextDouble() * w;
-      final py = rng.nextDouble() * h * 0.7;
-      final r = 0.6 + rng.nextDouble() * 1.8;
-      final a = 0.15 + rng.nextDouble() * 0.55;
+      final py = rng.nextDouble() * h * 0.72;
+      final r = 0.4 + rng.nextDouble() * 1.4;
       canvas.drawCircle(
         Offset(px, py),
         r,
         Paint()
-          ..color = (i.isEven ? _Epic.gold : const Color(0xFFFF8A50))
-              .withValues(alpha: a)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+          ..color = (i % 5 == 0 ? _Epic.gold : Colors.white)
+              .withValues(alpha: 0.12 + rng.nextDouble() * 0.4)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
       );
     }
 
-    // Stage floor glow
+    // Thin gold horizon under podium
+    final hy = h * 0.34;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(w * 0.5, hy), width: w * 0.62, height: 1.6),
+        const Radius.circular(2),
+      ),
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(w * 0.18, hy),
+          Offset(w * 0.82, hy),
+          [
+            _Epic.gold.withValues(alpha: 0),
+            _Epic.gold.withValues(alpha: 0.45),
+            _Epic.gold.withValues(alpha: 0),
+          ],
+        ),
+    );
+
+    // Floor ellipse
     canvas.drawOval(
       Rect.fromCenter(
-        center: Offset(w * 0.5, h * 0.52),
-        width: w * 1.1,
-        height: h * 0.18,
+        center: Offset(w * 0.5, h * 0.38),
+        width: w * 0.86,
+        height: h * 0.1,
       ),
       Paint()
         ..shader = ui.Gradient.radial(
-          Offset(w * 0.5, h * 0.52),
-          w * 0.55,
+          Offset(w * 0.5, h * 0.38),
+          w * 0.42,
           [
-            _Epic.gold.withValues(alpha: 0.2),
-            _Epic.crimson.withValues(alpha: 0.08),
+            _Epic.gold.withValues(alpha: 0.12),
             Colors.transparent,
           ],
         ),
-    );
-  }
-
-  void _drawCurtain(Canvas canvas, Size size, {required bool left}) {
-    final w = size.width;
-    final h = size.height;
-    final folds = 5;
-    for (var i = 0; i < folds; i++) {
-      final t = i / folds;
-      final x0 = left ? w * (0.0 + t * 0.18) : w * (1.0 - t * 0.18);
-      final x1 = left ? w * (0.04 + t * 0.18) : w * (0.96 - t * 0.18);
-      final path = Path()
-        ..moveTo(x0, 0)
-        ..quadraticBezierTo(
-          (x0 + x1) / 2 + (left ? 8 : -8),
-          h * 0.25,
-          x0,
-          h * 0.55,
-        )
-        ..lineTo(x1, h * 0.58)
-        ..quadraticBezierTo(
-          (x0 + x1) / 2 + (left ? 10 : -10),
-          h * 0.25,
-          x1,
-          0,
-        )
-        ..close();
-      canvas.drawPath(
-        path,
-        Paint()
-          ..shader = ui.Gradient.linear(
-            Offset(x0, 0),
-            Offset(x1, h * 0.5),
-            [
-              Color.lerp(
-                const Color(0xFF8B1018),
-                const Color(0xFF4A0810),
-                t,
-              )!
-                  .withValues(alpha: 0.75 - t * 0.35),
-              const Color(0x004A0810),
-            ],
-          ),
-      );
-    }
-  }
-
-  void _drawPillar(Canvas canvas, Size size, {required double x}) {
-    final h = size.height;
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset(x, h * 0.28), width: 8, height: h * 0.5),
-      const Radius.circular(4),
-    );
-    canvas.drawRRect(
-      rect,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(x, 0),
-          Offset(x, h * 0.55),
-          [
-            _Epic.gold.withValues(alpha: 0.85),
-            _Epic.gold.withValues(alpha: 0.35),
-            _Epic.gold.withValues(alpha: 0.05),
-          ],
-        ),
-    );
-    // Capital
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(x, h * 0.06), width: 18, height: 10),
-        const Radius.circular(3),
-      ),
-      Paint()..color = _Epic.gold.withValues(alpha: 0.7),
     );
   }
 
@@ -702,17 +537,17 @@ class _PodiumStage extends StatelessWidget {
 
     // Altura justa al card #1 (el más alto): sin hueco vacío arriba ni
     // recorte de las banners de score que se solapaban con el ranking 4+.
-    const figure1 = 108.0;
-    const figureArea1 = figure1 + 22;
+    const figure1 = 120.0;
+    const figureArea1 = figure1 + 36;
     const badgeH = 22.0;
     const bannerH = 86.0;
     const cardH = figureArea1 + 4 + badgeH + 6 + bannerH;
-    const stageH = cardH + 8;
+    const stageH = cardH + 16;
 
     return SizedBox(
       height: stageH,
       child: Stack(
-        clipBehavior: Clip.hardEdge,
+        clipBehavior: Clip.none,
         children: [
           const Positioned.fill(
             child: CustomPaint(painter: _PodiumFloorPainter()),
@@ -728,7 +563,7 @@ class _PodiumStage extends StatelessWidget {
                     place: 2,
                     colors: _Epic.place2,
                     accent: const Color(0xFF7EB6FF),
-                    figureSize: 86,
+                    figureSize: 96,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -749,7 +584,7 @@ class _PodiumStage extends StatelessWidget {
                     place: 3,
                     colors: _Epic.place3,
                     accent: const Color(0xFFC9A0FF),
-                    figureSize: 86,
+                    figureSize: 96,
                   ),
                 ),
               ],
@@ -837,7 +672,7 @@ class _ChampionCard extends StatelessWidget {
     }
 
     // Figura + badge + banner con alturas fijas → #2/#3 siempre al mismo nivel
-    final figureAreaH = elevated ? figureSize + 22 : figureSize + 10;
+    final figureAreaH = elevated ? figureSize + 36 : figureSize + 18;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -848,7 +683,7 @@ class _ChampionCard extends StatelessWidget {
           width: double.infinity,
           child: Stack(
             alignment: Alignment.bottomCenter,
-            clipBehavior: Clip.hardEdge,
+            clipBehavior: Clip.none,
             children: [
               Align(
                 alignment: Alignment.center,
@@ -1126,84 +961,98 @@ class _RankFigure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!showFrame || place > 3) {
-      // Slot fijo + clip: evita que el avatar se desplace fuera del anillo
+    // Podio TOP 1/2/3: siempre los marcos de ranking (ic_rank_frame),
+    // nunca los del Dressing Center.
+    if (showFrame && place <= 3) {
+      final ratio = _avatarRatio(place);
+      final avatarSize = size * ratio;
+      final offset = _avatarOffset(place, size);
+      final ring = _ringColor(place);
+
       return SizedBox(
         width: size,
         height: size,
-        child: Center(
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: _Epic.gold.withValues(alpha: 0.7),
-                width: 1.5,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            Transform.translate(
+              offset: offset,
+              child: Container(
+                width: avatarSize,
+                height: avatarSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: ring, width: place == 1 ? 2.2 : 1.8),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: CustomImage(
+                  size: Size(avatarSize, avatarSize),
+                  image: entry.profilePhoto?.addBaseURL(),
+                  fullName: entry.displayName,
+                  strokeWidth: 0,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: CustomImage(
-              size: Size(size, size),
-              image: entry.profilePhoto?.addBaseURL(),
-              fullName: entry.displayName,
-              strokeWidth: 0,
-              fit: BoxFit.cover,
+            IgnorePointer(
+              child: ShineSweep.masked(
+                child: Image.asset(
+                  frameFor(place),
+                  width: size,
+                  height: size,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                  gaplessPlayback: true,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       );
     }
 
-    final ratio = _avatarRatio(place);
-    final avatarSize = size * ratio;
-    final offset = _avatarOffset(place, size);
-    final ring = _ringColor(place);
+    final dressingFrame = (entry.frameImage ?? '').trim();
+    if (dressingFrame.isNotEmpty) {
+      return FramedAvatar.fitted(
+        size: size,
+        image: entry.profilePhoto,
+        fullName: entry.displayName,
+        frameImage: dressingFrame,
+        badgeImage: entry.badgeImage,
+        photoRatio: 0.62,
+        photoOnTop: false,
+      );
+    }
 
     return SizedBox(
       width: size,
       height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.hardEdge,
-        children: [
-          Transform.translate(
-            offset: offset,
-            child: Container(
-              width: avatarSize,
-              height: avatarSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: ring, width: place == 1 ? 2.2 : 1.8),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: CustomImage(
-                size: Size(avatarSize, avatarSize),
-                image: entry.profilePhoto?.addBaseURL(),
-                fullName: entry.displayName,
-                strokeWidth: 0,
-                fit: BoxFit.cover,
-              ),
+      child: Center(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: _Epic.gold.withValues(alpha: 0.7),
+              width: 1.5,
             ),
           ),
-          IgnorePointer(
-            child: Image.asset(
-              frameFor(place),
-              width: size,
-              height: size,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-              gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
+          clipBehavior: Clip.antiAlias,
+          child: CustomImage(
+            size: Size(size, size),
+            image: entry.profilePhoto?.addBaseURL(),
+            fullName: entry.displayName,
+            strokeWidth: 0,
+            fit: BoxFit.cover,
           ),
-        ],
+        ),
       ),
     );
   }
 }
-
-// ───────────────────────────────────────────── List rows (arena cards)
 
 class _RankRow extends StatelessWidget {
   const _RankRow({required this.entry});
@@ -1214,23 +1063,15 @@ class _RankRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final place = entry.rank ?? 4;
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [
-            Color(0xFF3A1A14),
-            Color(0xFF5A2A18),
-            Color(0xFF3A1A14),
-          ],
-        ),
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0x99161024),
         border: Border.all(
-          color: _Epic.gold.withValues(alpha: 0.5),
-          width: 1.2,
+          color: Colors.white.withValues(alpha: 0.08),
+          width: 0.8,
         ),
       ),
       child: Row(
@@ -1251,7 +1092,7 @@ class _RankRow extends StatelessWidget {
           _RankFigure(
             entry: entry,
             place: place,
-            size: 42,
+            size: 34,
             showFrame: false,
           ),
           const SizedBox(width: 10),
@@ -1266,7 +1107,7 @@ class _RankRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyleCustom.outFitMedium500(
                     color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1312,17 +1153,17 @@ class _MyRankBar extends StatelessWidget {
     final ranked = me.rank != null && me.rank! > 0;
     return Container(
       padding: EdgeInsets.fromLTRB(
-        16,
-        10,
-        16,
-        10 + MediaQuery.paddingOf(context).bottom,
+        14,
+        6,
+        14,
+        6 + MediaQuery.paddingOf(context).bottom,
       ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF3A2210), Color(0xFF1A1008)],
+          colors: [Color(0xFF1A1428), Color(0xFF0E0A16)],
         ),
         border: Border(
-          top: BorderSide(color: _Epic.gold.withValues(alpha: 0.55), width: 1.4),
+          top: BorderSide(color: _Epic.gold.withValues(alpha: 0.4), width: 1),
         ),
         boxShadow: [
           BoxShadow(
@@ -1337,7 +1178,7 @@ class _MyRankBar extends StatelessWidget {
           _RankFigure(
             entry: me,
             place: me.rank ?? 4,
-            size: 46,
+            size: 36,
             showFrame: (me.rank ?? 99) <= 3,
           ),
           const SizedBox(width: 10),

@@ -15,9 +15,11 @@ import android.media.Image
 import android.media.ImageReader
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Build
 import android.util.Log
 import android.util.Size
 import android.view.Surface
+import android.view.WindowManager
 import com.pixpark.gpupixel.FaceDetector
 import com.pixpark.gpupixel.GPUPixel
 import com.pixpark.gpupixel.GPUPixelFilter
@@ -217,11 +219,9 @@ class GpuPixelEngine(private val context: Context) {
             characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 90
         val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
         val front = facing == CameraCharacteristics.LENS_FACING_FRONT
-        val rotDegrees = when (sensorOrientation) {
-            90 -> if (front) 270 else 90
-            270 -> if (front) 90 else 270
-            else -> sensorOrientation
-        }
+        // Fórmula Camera2: frontal (sensor + display) % 360; trasera (sensor - display).
+        // El mapa 90→270 / 270→90 dejaba el selfie de cabeza en móviles reales.
+        val rotDegrees = computePreviewRotation(sensorOrientation, front)
 
         imageReader!!.setOnImageAvailableListener({ reader ->
             if (!acceptFrames || !glReady || stopping || released) {
@@ -470,6 +470,35 @@ class GpuPixelEngine(private val context: Context) {
             Log.w(TAG, "draw texture: ${e.message}")
         } finally {
             drawBmp.recycle()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun currentDisplayRotation(): Int {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                context.display?.rotation ?: Surface.ROTATION_0
+            } else {
+                val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                wm.defaultDisplay.rotation
+            }
+        } catch (_: Exception) {
+            Surface.ROTATION_0
+        }
+    }
+
+    private fun computePreviewRotation(sensorOrientation: Int, front: Boolean): Int {
+        val deviceDegrees = when (currentDisplayRotation()) {
+            Surface.ROTATION_0 -> 0
+            Surface.ROTATION_90 -> 90
+            Surface.ROTATION_180 -> 180
+            Surface.ROTATION_270 -> 270
+            else -> 0
+        }
+        return if (front) {
+            (sensorOrientation + deviceDegrees) % 360
+        } else {
+            (sensorOrientation - deviceDegrees + 360) % 360
         }
     }
 

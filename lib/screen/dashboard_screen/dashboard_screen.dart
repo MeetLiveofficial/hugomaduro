@@ -15,8 +15,6 @@ import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/message_screen/message_screen.dart';
 import 'package:krimson/screen/profile_screen/client_profile_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen.dart';
-import 'package:krimson/screen/work_screen/work_screen.dart';
-import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -46,7 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       IndexedStackChild(child: const ExploreScreen(), preload: true),
       IndexedStackChild(
           child: _isClient
-              ? const MatchScreen()
+              ? const MatchScreen(asTab: true)
               : const LiveStreamSearchScreen(),
           preload: false),
       IndexedStackChild(child: const MessageScreen(), preload: true),
@@ -105,12 +103,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final roleUser = SessionManager.instance.getUser() ?? controller.user;
 
       final items = <Widget>[];
-      if (AppRole.isStreamer(roleUser)) {
-        if (AppRole.canAccessHomeFeed(roleUser)) {
-          items.add(_buildHomeFeedNavItem(controller));
-        }
-        items.add(_buildWorkNavItem());
-      }
       for (var i = 0; i < controller.bottomIconList.length; i++) {
         // Cliente: Match en el centro (sustituye Go Live).
         if (AppRole.isClient(roleUser) &&
@@ -123,6 +115,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           continue;
         }
         items.add(_buildBottomNavItem(controller, i));
+        if (AppRole.isStreamer(roleUser) &&
+            i == DashboardScreenController.tabLive) {
+          items.add(_buildStreamerMatchNavItem());
+        }
       }
 
       return Column(
@@ -256,31 +252,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Streamer: acceso a LIVE | REELS | POSTS (tab Home).
-  Widget _buildHomeFeedNavItem(DashboardScreenController controller) {
-    return Obx(() {
-      final selected =
-          controller.selectedPageIndex.value == DashboardScreenController.tabHome;
-      return _navHitTarget(
-        selected: selected,
-        onTap: () {
-          controller.setHomeTabMode(HomeTabMode.live);
-          controller.onChanged(DashboardScreenController.tabHome);
-        },
-        child: _navAssetIcon(AssetRes.icReel),
-      );
-    });
-  }
-
-  /// Trabajo (stats streamer).
-  Widget _buildWorkNavItem() {
-    return _navHitTarget(
-      selected: false,
-      onTap: () => Get.to(() => const WorkScreen()),
-      child: const Icon(
-        Icons.work_outline_rounded,
-        size: 26,
-        color: Colors.white,
+  /// Streamer: Match con clientes (abre pantalla, no sustituye Go Live).
+  Widget _buildStreamerMatchNavItem() {
+    const matchRed = ColorRes.coralRed;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Get.to(() => const MatchScreen()),
+      child: SizedBox(
+        width: 58,
+        height: 56,
+        child: Center(
+          child: Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: matchRed,
+              boxShadow: [
+                BoxShadow(
+                  color: matchRed.withValues(alpha: 0.55),
+                  blurRadius: 14,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 3),
+                ),
+                BoxShadow(
+                  color: matchRed.withValues(alpha: 0.35),
+                  blurRadius: 22,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.favorite_rounded,
+              size: 24,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }

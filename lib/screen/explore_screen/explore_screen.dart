@@ -782,17 +782,21 @@ class _CardActionButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7),
+          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 14, color: Colors.white),
               const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyleCustom.outFitMedium500(
-                  color: Colors.white,
-                  fontSize: 11,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: Colors.white,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],

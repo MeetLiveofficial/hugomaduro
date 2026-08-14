@@ -88,6 +88,10 @@ class LivestreamScreenController extends BaseController {
   final RxBool isEnding = false.obs;
   final RxBool mediaReady = false.obs;
   final RxString statusMessage = ''.obs;
+  /// Cliente/host salió a videollamada: hay que reconectar LiveKit al colgar.
+  final RxBool pausedForCall = false.obs;
+  bool _resumingAfterCall = false;
+  DateTime? _lastResumeAfterCallAt;
 
   final RxBool beautyOn = false.obs;
   final RxDouble whiten = 50.0.obs;
@@ -1156,6 +1160,7 @@ class LivestreamScreenController extends BaseController {
       _dataSub?.cancel();
       _dataSub = liveKit!.onDataReceived.listen(_onLiveData);
       if (liveKit!.isConnected.value) {
+        pausedForCall.value = false;
         statusMessage.value = '';
       }
     } catch (e) {
@@ -2087,6 +2092,7 @@ class LivestreamScreenController extends BaseController {
           host: hostApp,
           cost: cost,
           onConfirm: () {
+            Get.back();
             Get.to(() => OutgoingCallScreen(callee: hostUser, cost: cost));
           },
         ),
@@ -2415,54 +2421,117 @@ class LivestreamScreenController extends BaseController {
   /// Libera cámara/mic del LIVE sin salir de la sesión (para videollamada).
   Future<void> pauseLiveKitForCall() async {
     hostInCall.value = true;
+    pausedForCall.value = true;
     try {
       await liveKit?.disconnect(silent: true);
     } catch (e) {
       Loggers.error('pauseLiveKitForCall: $e');
     } finally {
       statusMessage.value = '';
+      update();
     }
   }
 
   /// Reconecta al LIVE tras colgar la videollamada.
   Future<void> resumeLiveKitAfterCall() async {
+    if (_resumingAfterCall) return;
+    _resumingAfterCall = true;
     hostInCall.value = false;
-    statusMessage.value = '';
-    if (isDummy || liveKit == null) {
-      update();
-      return;
-    }
-    final me = SessionManager.instance.getUser();
-    if (me == null) return;
+    pausedForCall.value = true;
+    statusMessage.value = isHost ? 'Reconectando LIVE…' : 'Reconectando…';
+    update();
     try {
-      if (liveKit!.isConnected.value) {
-        await liveKit!.setCameraEnabled(shouldPublishAv);
-        await liveKit!.setMicrophoneEnabled(shouldPublishAv);
+      if (isDummy) {
+        pausedForCall.value = false;
         statusMessage.value = '';
         update();
         return;
       }
-      statusMessage.value = isHost ? 'Reconectando LIVE…' : 'Reconectando…';
-      await liveKit!.connect(
-        roomName: avRoomId,
-        identity: '${me.id}',
-        name: me.fullname ?? me.username ?? 'user',
-        publishCamera: shouldPublishAv,
-        publishMicrophone: shouldPublishAv,
-        wsUrl: liveKitWsUrl,
-        forceReconnect: true,
-      );
-      _connectedLiveKitRoom = avRoomId;
-      if (isHost) {
-        await applyBeauty();
+      final me = SessionManager.instance.getUser();
+      if (me == null) {
+        statusMessage.value = 'Sin video. Toca Reintentar.';
+        update();
+        return;
       }
-      statusMessage.value = '';
+
+      Future<void> join() async {
+        if (liveKit == null) {
+          await _joinLiveKit();
+          return;
+        }
+        try {
+          await liveKit!.disconnect(silent: true);
+        } catch (_) {}
+        liveKit!.isConnecting.value = false;
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await liveKit!.connect(
+          roomName: avRoomId,
+          identity: '${me.id}',
+          name: me.fullname ?? me.username ?? 'user',
+          publishCamera: shouldPublishAv,
+          publishMicrophone: shouldPublishAv,
+          wsUrl: liveKitWsUrl,
+          forceReconnect: true,
+        );
+        _connectedLiveKitRoom = avRoomId;
+        _dataSub?.cancel();
+        _dataSub = liveKit!.onDataReceived.listen(_onLiveData);
+        if (isHost) {
+          await applyBeauty();
+        }
+      }
+
+      try {
+        await join();
+      } catch (e) {
+        Loggers.error('resumeLiveKitAfterCall first try: $e');
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        await join();
+      }
+
+      // El host puede tardar un poco en volver a publicar.
+      if (!isHost && liveKit != null) {
+        for (var i = 0; i < 10; i++) {
+          if (liveKit!.isConnected.value &&
+              liveKit!.remoteParticipants.isNotEmpty) {
+            break;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        }
+      }
+
+      if (liveKit?.isConnected.value == true) {
+        pausedForCall.value = false;
+        statusMessage.value = '';
+      } else {
+        statusMessage.value = 'Sin video. Toca Reintentar.';
+      }
       update();
     } catch (e) {
       Loggers.error('resumeLiveKitAfterCall: $e');
       statusMessage.value = 'Sin video. Toca Reintentar.';
       update();
+    } finally {
+      _resumingAfterCall = false;
+      _lastResumeAfterCallAt = DateTime.now();
     }
+  }
+
+  /// Si el LIVE volvió a verse tras una llamada y el video no está, reconecta.
+  Future<void> ensureLiveKitAfterCallIfNeeded() async {
+    if (!pausedForCall.value || _resumingAfterCall || isEnding.value) return;
+    if (liveKit?.isConnected.value == true) {
+      pausedForCall.value = false;
+      if (statusMessage.value.isNotEmpty) statusMessage.value = '';
+      update();
+      return;
+    }
+    final last = _lastResumeAfterCallAt;
+    if (last != null &&
+        DateTime.now().difference(last) < const Duration(seconds: 3)) {
+      return;
+    }
+    await resumeLiveKitAfterCall();
   }
 
   Future<void> sendGif(String gifUrl) async {

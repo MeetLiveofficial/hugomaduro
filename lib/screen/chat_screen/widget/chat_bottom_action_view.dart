@@ -3,6 +3,7 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/enum/chat_enum.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/widget/custom_divider.dart';
 import 'package:krimson/common/widget/gradient_text.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -53,7 +54,8 @@ class ChatBottomActionView extends StatelessWidget {
                     onChatActionTap: controller.onChatActionTap,
                     onSendTextMessage: controller.onSendTextMessage,
                     actions: ChatAction.getChatActions(
-                        isGiphyEnabled: controller.setting?.gifSupport == 1)),
+                        isGiphyEnabled: controller.setting?.gifSupport == 1,
+                        includeGift: AppRole.canSendGifts())),
                 AudioWavesContainer(controller: controller)
               ]);
             }

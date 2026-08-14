@@ -13,8 +13,8 @@ import 'package:krimson/common/service/navigation/navigate_with_controller.dart'
 import 'package:krimson/model/general/countries_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
-import 'package:krimson/screen/call_screen/match_recommend_sheet.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
+import 'package:krimson/screen/match_screen/match_preview_screen.dart';
 import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card.dart';
 import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/asset_res.dart';
@@ -215,27 +215,44 @@ class ExploreScreenController extends BaseController {
     Get.to(() => OutgoingCallScreen(callee: user, cost: cost));
   }
 
-  /// Match: busca streamer del mismo idioma y recomienda llamada.
+  /// Match: el cliente paga entrada y ve preview en vivo; el streamer espera en Match.
   Future<void> startMatch() async {
     if (AppRole.isStreamer()) {
-      showSnackBar('Match solo está disponible para clientes');
+      showSnackBar('Entra a Match para abrir tu cámara y esperar clientes');
       return;
     }
     if (isMatching.value) return;
     isMatching.value = true;
     try {
+      await CallService.instance.joinMatch();
+      final cost =
+          SessionManager.instance.getSettings()?.matchInitialCoins ?? 0;
+      if (cost > 0 &&
+          !CoinGate.ensureEnough(
+            cost,
+            message: 'Necesitas $cost coins para ver streamers en Match',
+          )) {
+        return;
+      }
+      final unlock = await CallService.instance.unlockMatch();
       final me = SessionManager.instance.getUser();
+      if (me != null) {
+        me.coinWallet = unlock.coinWallet;
+        SessionManager.instance.setUser(me);
+      }
       final lang = (selectedLanguageCode.value ?? me?.appLanguage ?? '')
           .trim()
           .toLowerCase();
       final match = await CallService.instance.findMatch(
         appLanguage: lang.isEmpty ? null : lang,
       );
-      await MatchRecommendSheet.show(match);
+      await Get.to(() => MatchPreviewScreen(initial: match));
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
-      if (msg.toLowerCase().contains('no match')) {
-        showSnackBar('No hay usuarios disponibles con tu idioma ahora');
+      if (msg.toLowerCase().contains('insufficient')) {
+        CoinGate.ensureEnough(999999, message: 'Monedas insuficientes');
+      } else if (msg.toLowerCase().contains('no match')) {
+        showSnackBar('No hay streamers en Match ahora');
       } else {
         showSnackBar(msg);
       }

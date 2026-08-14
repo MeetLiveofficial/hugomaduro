@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
-/// LIVE o Ranking | REELS | POSTS dentro del tab Home.
-/// Streamer: Ranking (sin discovery de Lives). Cliente: LIVE.
+/// LIVE | REELS | POSTS dentro del tab Home.
 class HomeModeSwitcher extends StatelessWidget {
   const HomeModeSwitcher({super.key});
 
@@ -16,15 +14,14 @@ class HomeModeSwitcher extends StatelessWidget {
     final dash = Get.find<DashboardScreenController>();
     const active = Colors.white;
     final inactive = Colors.white.withValues(alpha: 0.72);
-    final firstLabel =
-        AppRole.isStreamer() ? LKey.leaderboard.tr : 'LIVE';
+    const firstLabel = 'LIVE';
 
     return Obx(() {
       final mode = dash.homeTabMode.value;
       final onHome =
           dash.selectedPageIndex.value == DashboardScreenController.tabHome;
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
           gradient: StyleRes.themeGradient,
           borderRadius: BorderRadius.circular(22),
