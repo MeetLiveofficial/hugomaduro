@@ -1,0 +1,15 @@
+---
+description: Enruta preguntas a Composer 2.5 Fast y código a Grok 4.6 High Fast
+alwaysApply: true
+---
+
+# Enrutado de modelos
+
+Si este chat es el agente padre y puedes lanzar subagentes:
+
+- **Pregunta, explicación o plan** (sin tocar archivos) → subagente `ask-fast` (`composer-2.5-fast`).
+- **Implementar, editar, refactorizar o corregir código** → subagente `code-grok` (`cursor-grok-4.6-xhigh-fast`).
+
+No pases otro `model` al Task. No uses GPT u otros modelos en esos subagentes.
+
+Si el usuario escribe `usa ask-fast` o `usa code-grok`, obedece esa instrucción.
