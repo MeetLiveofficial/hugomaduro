@@ -14,6 +14,7 @@ class FullNameWithBlueTick extends StatelessWidget {
   final CrossAxisAlignment? crossAxisAlignment;
   final TextStyle? style;
   final int? isVerify;
+  final int? isVip;
   final VoidCallback? onTap;
   final double opacity;
 
@@ -29,6 +30,7 @@ class FullNameWithBlueTick extends StatelessWidget {
       this.icon,
       this.style,
       this.isVerify = 0,
+      this.isVip = 0,
       this.onTap,
       this.opacity = 1});
 
@@ -60,6 +62,13 @@ class FullNameWithBlueTick extends StatelessWidget {
               icon ?? AssetRes.icBlueTick,
               height: iconSize ?? 15,
             ),
+          if (isVip == 1) ...[
+            const SizedBox(width: 4),
+            Text(
+              '👑',
+              style: TextStyle(fontSize: (iconSize ?? 15) - 1),
+            ),
+          ],
           const SizedBox(width: 6),
           if (child != null) child!
         ],

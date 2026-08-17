@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/framed_avatar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -107,11 +107,13 @@ class _Header extends StatelessWidget {
               icon: const Icon(Icons.arrow_back_ios_new,
                   color: Colors.white, size: 18),
             ),
-            CustomImage(
-              size: const Size(42, 42),
+            FramedAvatar.fitted(
+              size: 72,
               image: data.user.profilePhoto,
               fullName: data.user.fullname,
-              radius: 21,
+              localFrame: AssetRes.streamerBadgeForGrade(grade),
+              photoRatio: 0.48,
+              photoOnTop: false,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -242,14 +244,34 @@ class _GradeProgress extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             for (final g in grades)
-              Text(
-                g,
-                style: TextStyleCustom.outFitSemiBold600(
-                  color: g == current
-                      ? WorkScreen._yellow
-                      : Colors.white.withValues(alpha: 0.45),
-                  fontSize: 12,
-                ),
+              Column(
+                children: [
+                  Image.asset(
+                    AssetRes.streamerBadgeForGrade(g) ?? AssetRes.streamerBadgeNew,
+                    width: g == current ? 36 : 26,
+                    height: g == current ? 36 : 26,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Text(
+                      g,
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: g == current
+                            ? WorkScreen._yellow
+                            : Colors.white.withValues(alpha: 0.45),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    g,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: g == current
+                          ? WorkScreen._yellow
+                          : Colors.white.withValues(alpha: 0.45),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ),
           ],
         ),

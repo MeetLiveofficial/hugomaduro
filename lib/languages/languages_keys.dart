@@ -748,6 +748,9 @@ class LKey {
   static const String privateCall = "Private";
   static const String giftNotAvailable = "Gift not available";
   static const String insufficientCoins = "Insufficient coins";
+  static const String freeMatchesUsed =
+      "¡Ya utilizaste tus 2 Match gratis de hoy! Recarga monedas y continúa la diversión.";
+  static const String vipBadge = "VIP";
   static const String invitesToPrivateCall = "invites you to a private call";
   static const String boostGifts = "Boost gifts";
   static const String inviteToCall = "Invite to call";

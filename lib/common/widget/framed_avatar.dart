@@ -75,21 +75,39 @@ class FramedAvatar extends StatelessWidget {
   }) {
     final dressing = (user.equippedFrameImage ?? '').trim();
     final badge = (user.equippedBadgeImage ?? '').trim();
-    // Si el “badge” del admin es un marco ornamental (p. ej. Marco SVIP
-    // mal tipado) y no hay frame, úsalo alrededor de la foto.
-    final surround = dressing.isNotEmpty ? dressing : badge;
+    final localGrade = dressing.isEmpty
+        ? AssetRes.streamerBadgeForGrade(user.effectiveStreamerGrade)
+        : null;
+    final surround = dressing.isNotEmpty ? dressing : '';
     final cornerBadge = dressing.isNotEmpty ? badge : '';
-    if (surround.isNotEmpty) {
+    if (surround.isNotEmpty || (localGrade ?? '').isNotEmpty) {
+      final gradeKey = (user.equippedFrame?['unlock_grade'] ??
+              user.effectiveStreamerGrade)
+          ?.toString();
+      final isGradeFrame = localGrade != null ||
+          (user.equippedFrame?['unlock_grade']
+                  ?.toString()
+                  .trim()
+                  .isNotEmpty ??
+              false) ||
+          (user.equippedFrame?['slug']?.toString().startsWith('streamer_') ??
+              false);
+      final ratio = isGradeFrame
+          ? AssetRes.streamerBadgePhotoRatio(gradeKey)
+          : user.framePhotoRatio;
+      // size = diámetro total del widget (alas incluidas). No inflar.
+      final totalSize = size > 96 ? 88.0 : size;
       return FramedAvatar.fitted(
         key: key,
-        size: size,
+        size: totalSize,
         image: user.profilePhoto,
         fullName: user.fullname ?? user.username,
-        frameImage: surround,
+        frameImage: surround.isEmpty ? null : surround,
+        localFrame: localGrade,
         badgeImage: cornerBadge.isEmpty ? null : cornerBadge,
         onTap: onTap,
         glowColor: glowColor,
-        photoRatio: 0.62,
+        photoRatio: ratio,
         photoOnTop: false,
       );
     }
@@ -152,6 +170,10 @@ class FramedAvatar extends StatelessWidget {
       strokeColor: strokeColor,
       fit: BoxFit.cover,
     );
+
+    if (hasChrome) {
+      photo = ClipOval(child: photo);
+    }
 
     if (!hasChrome && ring != null) {
       photo = ring!(photo);
