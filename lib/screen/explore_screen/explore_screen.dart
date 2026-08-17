@@ -125,8 +125,8 @@ class _ExploreHeader extends StatelessWidget {
                   fontSize: 15,
                   color: textLightGrey(context),
                 ),
-                prefixIcon: Icon(Icons.search,
-                    color: textLightGrey(context), size: 20),
+                prefixIcon: const Icon(Icons.search,
+                    color: ColorRes.crimson, size: 20),
                 suffixIcon: Obx(() {
                   final hasFilter =
                       controller.selectedCountryCode.value != null ||

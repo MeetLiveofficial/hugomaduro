@@ -44,7 +44,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
         color: fieldBg,
         shape: SmoothRectangleBorder(
           borderRadius: SmoothBorderRadius(cornerRadius: 8, cornerSmoothing: 1),
-          side: const BorderSide(color: ColorRes.bgGrey, width: 1),
+          side: const BorderSide(color: ColorRes.menuBorder, width: 1),
         ),
       ),
       alignment: Alignment.center,
@@ -56,7 +56,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
               AssetRes.icDownArrow_1,
               width: 23,
               height: 20,
-              color: ColorRes.textDarkGrey,
+              color: ColorRes.crimson,
             )),
         dropdownColor: ColorRes.whitePure,
         style: TextStyleCustom.outFitRegular400(
@@ -77,7 +77,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
               getTitle(item),
               style: TextStyleCustom.outFitRegular400(
                 color: selected
-                    ? ColorRes.coralRed
+                    ? ColorRes.crimson
                     : ColorRes.textDarkGrey,
                 fontSize: 15,
               ),

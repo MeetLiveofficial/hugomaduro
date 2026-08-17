@@ -61,9 +61,9 @@ class MessageScreen extends StatelessWidget {
                       IconButton(
                         tooltip: LKey.newChat.tr,
                         onPressed: openNewDirectChatSheet,
-                        icon: Icon(
+                        icon: const Icon(
                           Icons.edit_square,
-                          color: textDarkGrey(context),
+                          color: ColorRes.crimson,
                           size: 22,
                         ),
                       ),

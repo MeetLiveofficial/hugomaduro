@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
@@ -27,9 +28,14 @@ class HomeModeSwitcher extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFF6347).withValues(alpha: 0.28),
-              blurRadius: 12,
+              color: ColorRes.crimson.withValues(alpha: 0.38),
+              blurRadius: 14,
               offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: ColorRes.mlPurple.withValues(alpha: 0.22),
+              blurRadius: 18,
+              offset: const Offset(0, 2),
             ),
           ],
         ),

@@ -14,6 +14,7 @@ import 'package:krimson/screen/gpupixel/gpupixel.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Estudio LIVE: portada = imagen elegida; preview beauty = cámara (temporal).
@@ -417,20 +418,20 @@ class _RightControls extends StatelessWidget {
             if (LiveStreamSearchScreenController.kPreLiveBeautyFiltersEnabled) ...[
               CustomBorderRoundIcon(
                 widget: const Icon(Icons.face_retouching_natural,
-                    color: Colors.white, size: 22),
+                    color: ColorRes.roseMuted, size: 22),
                 onTap: controller.openPreLiveBeauty,
               ),
               const SizedBox(height: 14),
             ],
             CustomBorderRoundIcon(
               widget: const Icon(Icons.image_outlined,
-                  color: Colors.white, size: 22),
+                  color: ColorRes.crimson, size: 22),
               onTap: controller.pickLiveCover,
             ),
             const SizedBox(height: 14),
             CustomBorderRoundIcon(
               widget:
-                  const Icon(Icons.group_add, color: Colors.white, size: 22),
+                  const Icon(Icons.group_add, color: ColorRes.mlPurple, size: 22),
               onTap: controller.openPreLiveInvite,
             ),
           ],
@@ -528,26 +529,39 @@ class _BottomBar extends StatelessWidget {
             // Siempre visible en esta pantalla (solo streamers llegan aquí).
             // El permiso canGoLive se valida en onTapGoLive con mensaje claro.
             Material(
-              color: ColorRes.themeAccentSolid,
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(28),
               child: InkWell(
                 borderRadius: BorderRadius.circular(28),
                 onTap: controller.onTapGoLive,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const LiveTvIcon(size: 22, color: Colors.white),
-                      const SizedBox(width: 10),
-                      Text(
-                        LKey.startLive.tr,
-                        style: TextStyleCustom.outFitSemiBold600(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    gradient: StyleRes.themeGradient,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ColorRes.crimson.withValues(alpha: 0.45),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
                       ),
                     ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const LiveTvIcon(size: 22, color: Colors.white),
+                        const SizedBox(width: 10),
+                        Text(
+                          LKey.startLive.tr,
+                          style: TextStyleCustom.outFitSemiBold600(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

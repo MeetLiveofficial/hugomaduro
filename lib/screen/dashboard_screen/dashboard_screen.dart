@@ -91,8 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  static const Color _navBarBg = Color(0xFF1C1C1E);
-  static const Color _navActivePill = ColorRes.themeAccentSolid;
+  static const Color _navBarBg = ColorRes.carbon;
 
   Widget _buildBottomNavigationBar(
       BuildContext context, DashboardScreenController controller) {
@@ -215,6 +214,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _navHitTarget({
     required bool selected,
+    required Color accent,
     required VoidCallback onTap,
     required Widget child,
   }) {
@@ -232,10 +232,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             height: selected ? 34 : 36,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: selected ? _navActivePill : Colors.transparent,
+              gradient: selected ? StyleRes.themeGradient : null,
+              color: selected ? null : Colors.transparent,
               borderRadius: BorderRadius.circular(20),
-              border: selected
-                  ? Border.all(color: Colors.white.withValues(alpha: 0.35))
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.55),
+                        blurRadius: 12,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
                   : null,
             ),
             child: child,
@@ -245,16 +252,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _navAssetIcon(String asset, {double size = 26}) {
+  Widget _navAssetIcon(String asset, {required Color color, double size = 26}) {
     return ColorFiltered(
-      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+      colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
       child: Image.asset(asset, height: size, width: size),
     );
   }
 
   /// Streamer: Match con clientes (abre pantalla, no sustituye Go Live).
   Widget _buildStreamerMatchNavItem() {
-    const matchRed = ColorRes.coralRed;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => Get.to(() => const MatchScreen()),
@@ -268,16 +274,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: matchRed,
+              gradient: StyleRes.themeGradient,
               boxShadow: [
                 BoxShadow(
-                  color: matchRed.withValues(alpha: 0.55),
+                  color: ColorRes.crimson.withValues(alpha: 0.55),
                   blurRadius: 14,
                   spreadRadius: 1,
                   offset: const Offset(0, 3),
                 ),
                 BoxShadow(
-                  color: matchRed.withValues(alpha: 0.35),
+                  color: ColorRes.mlPurple.withValues(alpha: 0.4),
                   blurRadius: 22,
                   spreadRadius: 2,
                 ),
@@ -303,7 +309,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : Get.put(MatchScreenController());
     return Obx(() {
       final busy = matchCtrl.isMatching.value;
-      const matchRed = ColorRes.coralRed;
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => controller.onChanged(DashboardScreenController.tabLive),
@@ -317,16 +322,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: matchRed,
+                gradient: StyleRes.themeGradient,
                 boxShadow: [
                   BoxShadow(
-                    color: matchRed.withValues(alpha: 0.55),
+                    color: ColorRes.crimson.withValues(alpha: 0.55),
                     blurRadius: 14,
                     spreadRadius: 1,
                     offset: const Offset(0, 3),
                   ),
                   BoxShadow(
-                    color: matchRed.withValues(alpha: 0.35),
+                    color: ColorRes.mlPurple.withValues(alpha: 0.4),
                     blurRadius: 22,
                     spreadRadius: 2,
                   ),
@@ -358,9 +363,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Obx(() {
       final isSelected = controller.selectedPageIndex.value == index;
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
+      final accent = ColorRes.navIconColors[
+          index.clamp(0, ColorRes.navIconColors.length - 1)];
+      final iconColor = isSelected
+          ? Colors.white
+          : accent.withValues(alpha: 0.85);
 
       return _navHitTarget(
         selected: isSelected,
+        accent: accent,
         onTap: () => controller.onChanged(index),
         child: AnimatedScale(
           scale: scaleValue,
@@ -370,9 +381,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             alignment: Alignment.center,
             children: [
               if (index == DashboardScreenController.tabLive)
-                const LiveTvIcon(size: 26, color: Colors.white)
+                LiveTvIcon(size: 26, color: iconColor)
               else
-                _navAssetIcon(controller.bottomIconList[index]),
+                _navAssetIcon(
+                  controller.bottomIconList[index],
+                  color: iconColor,
+                ),
               if (index == DashboardScreenController.tabChat)
                 _buildUnreadDot(controller),
             ],

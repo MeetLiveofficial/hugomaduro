@@ -1,6 +1,8 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -40,7 +42,7 @@ class CustomTabSwitcher extends StatelessWidget {
           shape: SmoothRectangleBorder(
               borderRadius:
                   SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
-              side: BorderSide(color: bgGrey(context))),
+              side: BorderSide(color: ColorRes.menuBorder),
         ),
         padding: const EdgeInsets.all(4),
         child: Stack(
@@ -63,7 +65,7 @@ class CustomTabSwitcher extends StatelessWidget {
                         borderRadius: SmoothBorderRadius(
                             cornerRadius: 10 - 2, cornerSmoothing: 1),
                       ),
-                      color: whitePure(context),
+                      gradient: StyleRes.themeGradient,
                     ),
                   ),
                 );
@@ -91,7 +93,7 @@ class CustomTabSwitcher extends StatelessWidget {
                                   color: !isSelected
                                       ? textLightGrey(context)
                                       : (selectedFontColor ??
-                                          textDarkGrey(context)),
+                                          ColorRes.whitePure),
                                   fontSize: 15),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

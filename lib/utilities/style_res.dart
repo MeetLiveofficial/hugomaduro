@@ -6,26 +6,30 @@ import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 class StyleRes {
-  /// Warm Sunrise: Soft Salmon → Coral Red.
+  /// Logo Meet&Live: Coral → Magenta → Purple.
   static Gradient themeGradient = const LinearGradient(
     colors: [
-      ColorRes.softSalmon,
-      ColorRes.coralRed,
+      ColorRes.themeGradient1,
+      ColorRes.themeGradientMid,
+      ColorRes.themeGradient2,
     ],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
+    stops: [0.0, 0.48, 1.0],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
 
   static Gradient themeGradientVertical = const LinearGradient(
     colors: [
-      ColorRes.softSalmon,
-      ColorRes.coralRed,
+      ColorRes.themeGradient1,
+      ColorRes.themeGradientMid,
+      ColorRes.themeGradient2,
     ],
+    stops: [0.0, 0.48, 1.0],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
-  /// Dusk Violet: Mauve → Deep purple.
+  /// Dusk: Magenta → Purple → Deep violet.
   static Gradient duskGradient = const LinearGradient(
     colors: [
       ColorRes.mauve,
@@ -78,10 +82,11 @@ class StyleRes {
       const Offset(70, 50),
       Offset(width / 2, 0),
       [
-        ColorRes.softSalmon,
-        ColorRes.coralRed,
+        ColorRes.themeGradient1,
+        ColorRes.themeGradientMid,
+        ColorRes.themeGradient2,
       ],
-      [0.0, 1.0],
+      [0.0, 0.48, 1.0],
     );
   }
 }

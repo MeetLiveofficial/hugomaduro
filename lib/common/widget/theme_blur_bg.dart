@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:krimson/utilities/color_res.dart';
 
-/// Fondo dark Meet&Live — glows suaves (contraste alto para formularios).
+/// Fondo dark Meet&Live — glows coral / magenta / violet.
 class ThemeBlurBg extends StatelessWidget {
   const ThemeBlurBg({super.key, this.intense = false});
 
-  /// Si true, glows un poco más visibles (splash). Auth usa el default oscuro.
+  /// Si true, glows más visibles (splash). Auth usa el default.
   final bool intense;
 
   @override
   Widget build(BuildContext context) {
-    final glow = intense ? 1.0 : 0.55;
+    final glow = intense ? 1.35 : 0.9;
 
     return Container(
       height: double.infinity,
       width: double.infinity,
-      color: const Color(0xFF0A080C),
+      color: ColorRes.obsidian,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -23,25 +23,27 @@ class ThemeBlurBg extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: const Alignment(-0.35, -0.75),
-                radius: 1.05,
+                radius: 1.15,
                 colors: [
-                  ColorRes.softSalmon.withValues(alpha: 0.12 * glow),
-                  ColorRes.coralRed.withValues(alpha: 0.06 * glow),
+                  ColorRes.crimsonAlt.withValues(alpha: 0.32 * glow),
+                  ColorRes.crimson.withValues(alpha: 0.16 * glow),
                   Colors.transparent,
                 ],
-                stops: const [0.0, 0.35, 1.0],
+                stops: const [0.0, 0.38, 1.0],
               ),
             ),
           ),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: RadialGradient(
-                center: const Alignment(0.85, 0.2),
-                radius: 0.9,
+                center: const Alignment(0.9, 0.15),
+                radius: 1.0,
                 colors: [
-                  ColorRes.mauve.withValues(alpha: 0.14 * glow),
+                  ColorRes.crimson.withValues(alpha: 0.34 * glow),
+                  ColorRes.mlPurple.withValues(alpha: 0.18 * glow),
                   Colors.transparent,
                 ],
+                stops: const [0.0, 0.45, 1.0],
               ),
             ),
           ),
@@ -49,25 +51,26 @@ class ThemeBlurBg extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: const Alignment(-0.7, 0.95),
-                radius: 0.75,
+                radius: 0.85,
                 colors: [
-                  ColorRes.darkPurple.withValues(alpha: 0.2 * glow),
+                  ColorRes.mlPurple.withValues(alpha: 0.38 * glow),
+                  ColorRes.darkPurple.withValues(alpha: 0.16 * glow),
                   Colors.transparent,
                 ],
+                stops: const [0.0, 0.5, 1.0],
               ),
             ),
           ),
-          // Vignette fuerte: mantiene el centro oscuro para leer el form.
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFF0A080C).withValues(alpha: 0.35),
+                  ColorRes.obsidian.withValues(alpha: 0.28),
                   Colors.transparent,
-                  const Color(0xFF0A080C).withValues(alpha: 0.55),
-                  const Color(0xFF08060A),
+                  ColorRes.obsidian.withValues(alpha: 0.45),
+                  ColorRes.obsidianDeep,
                 ],
                 stops: const [0.0, 0.35, 0.7, 1.0],
               ),
