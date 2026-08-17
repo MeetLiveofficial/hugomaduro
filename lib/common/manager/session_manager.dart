@@ -12,11 +12,36 @@ class SessionManager {
   var conversationId = '';
   RxInt notifyCount = 0.obs;
   RxInt isModerator = 0.obs;
+  /// Usuario de sesión reactivo: el perfil y el wallet leen de aquí.
+  final Rxn<User> userRx = Rxn<User>();
 
   SessionManager() {
     listenNotifyCount();
     listenModerator();
     listenSubscription();
+    listenUser();
+  }
+
+  User? _asUser(dynamic value) {
+    if (value == null) return null;
+    if (value is User) return value;
+    if (value is Map) {
+      try {
+        return User.fromJson(Map<String, dynamic>.from(value));
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  void listenUser() {
+    userRx.value = getUser();
+    storage.listenKey(SessionKeys.user, (value) {
+      final user = _asUser(value);
+      userRx.value = user;
+      isModerator.value = user?.isModerator ?? 0;
+    });
   }
 
   void setAuthToken(Token? token) {
@@ -91,9 +116,8 @@ class SessionManager {
       // Re-create the User object from the modified JSON map
       User newUser = User.fromJson(json);
 
-      // Log the updated user object and store it
-      // Loggers.success(user.toJson());
       storage.write(SessionKeys.user, newUser);
+      userRx.value = newUser;
     }
   }
 

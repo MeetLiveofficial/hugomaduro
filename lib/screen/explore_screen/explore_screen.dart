@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/my_refresh_indicator.dart';
@@ -106,7 +107,7 @@ class _ExploreHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(gradient: StyleRes.themeGradient),
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -114,21 +115,18 @@ class _ExploreHeader extends StatelessWidget {
             TextField(
               controller: controller.searchController,
               onChanged: controller.onSearchChanged,
-              style: TextStyleCustom.outFitRegular400(
+              style: TextStyleCustom.outFitMedium500(
                 fontSize: 15,
                 color: textDarkGrey(context),
               ),
-              decoration: InputDecoration(
-                hintText: viewerIsStreamer
+              decoration: BrandControls.search(
+                hint: viewerIsStreamer
                     ? 'Buscar clientes…'
                     : 'Buscar streamers…',
-                hintStyle: TextStyleCustom.outFitLight300(
-                  fontSize: 15,
-                  color: textLightGrey(context),
-                ),
-                prefixIcon: const Icon(Icons.search,
-                    color: ColorRes.crimson, size: 20),
-                suffixIcon: Obx(() {
+                hintColor: textLightGrey(context),
+                prefix: const Icon(Icons.search,
+                    color: ColorRes.crimson, size: 22),
+                suffix: Obx(() {
                   final hasFilter =
                       controller.selectedCountryCode.value != null ||
                           controller.selectedLanguageCode.value != null ||
@@ -142,14 +140,6 @@ class _ExploreHeader extends StatelessWidget {
                         size: 18, color: ColorRes.crimson),
                   );
                 }),
-                filled: true,
-                fillColor: ColorRes.whitePure,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -160,15 +150,15 @@ class _ExploreHeader extends StatelessWidget {
                 return Row(
                   children: [
                     Expanded(
-                      child: _PresenceChip(
+                      child: BrandSegmentChip(
                         label: 'Todos',
                         active: presence == 'all',
                         onTap: () => controller.selectPresence('all'),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: _PresenceChip(
+                      child: BrandSegmentChip(
                         label: 'Activos',
                         active: presence == 'active',
                         accent: const Color(0xFF22C55E),
@@ -182,15 +172,15 @@ class _ExploreHeader extends StatelessWidget {
               return Row(
                 children: [
                   Expanded(
-                    child: _PresenceChip(
+                    child: BrandSegmentChip(
                       label: 'Todos',
                       active: presence == 'all',
                       onTap: () => controller.selectPresence('all'),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: _PresenceChip(
+                    child: BrandSegmentChip(
                       label: 'En vivo',
                       active: presence == 'live',
                       accent: ColorRes.themeAccentSolid,
@@ -200,7 +190,7 @@ class _ExploreHeader extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: _PresenceChip(
+                    child: BrandSegmentChip(
                       label: 'Activos',
                       active: presence == 'active',
                       accent: const Color(0xFF22C55E),
@@ -215,7 +205,7 @@ class _ExploreHeader extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Obx(() => _FilterChipButton(
+                  child: Obx(() => BrandFilterChip(
                         label: controller.selectedCountryName.value ?? 'País',
                         active: controller.selectedCountryCode.value != null,
                         icon: Icons.public,
@@ -235,7 +225,7 @@ class _ExploreHeader extends StatelessWidget {
                               code)
                           .toString();
                     }
-                    return _FilterChipButton(
+                    return BrandFilterChip(
                       label: label,
                       active: code != null,
                       icon: Icons.translate,
@@ -434,62 +424,6 @@ Future<void> _pickLanguage(
   }
 }
 
-class _FilterChipButton extends StatelessWidget {
-  final String label;
-  final bool active;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _FilterChipButton({
-    required this.label,
-    required this.active,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: active
-          ? ColorRes.themeAccentSolid.withValues(alpha: 0.18)
-          : ColorRes.whitePure,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          child: Row(
-            children: [
-              Icon(icon,
-                  size: 16,
-                  color: active
-                      ? ColorRes.themeAccentSolid
-                      : textLightGrey(context)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyleCustom.outFitMedium500(
-                    fontSize: 13,
-                    color: active
-                        ? ColorRes.themeAccentSolid
-                        : textDarkGrey(context),
-                  ),
-                ),
-              ),
-              Icon(Icons.expand_more,
-                  size: 18, color: textLightGrey(context)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _StreamerExploreCard extends StatelessWidget {
   final User user;
   final bool showCallButton;
@@ -518,8 +452,8 @@ class _StreamerExploreCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -533,13 +467,17 @@ class _StreamerExploreCard extends StatelessWidget {
                 fullName: name,
               )
             else
-              ColoredBox(
-                color: ColorRes.surfaceDeep,
+              DecoratedBox(
+                decoration: BoxDecoration(gradient: StyleRes.themeGradient),
                 child: Center(
-                  child: CustomImage(
-                    size: const Size(72, 72),
-                    fullName: name,
-                    radius: 40,
+                  child: Text(
+                    name.trim().isEmpty
+                        ? 'ML'
+                        : name.trim().substring(0, 1).toUpperCase(),
+                    style: TextStyleCustom.unboundedMedium500(
+                      color: Colors.white,
+                      fontSize: 36,
+                    ),
                   ),
                 ),
               ),
@@ -565,8 +503,14 @@ class _StreamerExploreCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: ColorRes.themeAccentSolid,
+                    gradient: StyleRes.themeGradient,
                     borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ColorRes.crimson.withValues(alpha: 0.35),
+                        blurRadius: 8,
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -627,7 +571,7 @@ class _StreamerExploreCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.black54,
+                    color: ColorRes.darkPurple.withValues(alpha: 0.82),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -669,25 +613,27 @@ class _StreamerExploreCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: _CardActionButton(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          label: 'Chat',
-                          onTap: onMessage,
-                          color: showCallButton
-                              ? Colors.white24
-                              : ColorRes.themeAccentSolid,
-                        ),
+                        child: showCallButton
+                            ? BrandGhostButton(
+                                icon: Icons.chat_bubble_outline_rounded,
+                                title: 'Chat',
+                                onTap: onMessage,
+                              )
+                            : BrandPrimaryButton(
+                                icon: Icons.chat_bubble_outline_rounded,
+                                title: 'Chat',
+                                compact: true,
+                                onTap: onMessage,
+                              ),
                       ),
                       if (showCallButton) ...[
                         const SizedBox(width: 6),
                         Expanded(
-                          child: _CardActionButton(
+                          child: BrandPrimaryButton(
                             icon: Icons.videocam_rounded,
-                            label: 'Llamar',
+                            title: 'Llamar',
+                            compact: true,
                             onTap: canCall ? onCall : null,
-                            color: canCall
-                                ? ColorRes.themeAccentSolid
-                                : Colors.white12,
                           ),
                         ),
                       ],
@@ -697,111 +643,6 @@ class _StreamerExploreCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PresenceChip extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  final Color? accent;
-  final IconData? icon;
-
-  const _PresenceChip({
-    required this.label,
-    required this.active,
-    required this.onTap,
-    this.accent,
-    this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = accent ?? textDarkGrey(context);
-    return Material(
-      color: active
-          ? (accent ?? ColorRes.themeAccentSolid).withValues(alpha: 0.22)
-          : ColorRes.whitePure,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: icon == Icons.circle ? 8 : 14,
-                  color: active ? color : textLightGrey(context),
-                ),
-                const SizedBox(width: 4),
-              ],
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyleCustom.outFitMedium500(
-                    color: active ? color : textDarkGrey(context),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CardActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final Color color;
-
-  const _CardActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 14, color: Colors.white),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyleCustom.outFitMedium500(
-                    color: Colors.white,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

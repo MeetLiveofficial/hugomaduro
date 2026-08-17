@@ -73,17 +73,25 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
         ),
         Container(
           height: widget.height,
-          margin: const EdgeInsets.only(top: 8, bottom: 12),
+          margin: const EdgeInsets.only(top: 8, bottom: 12, left: 16, right: 16),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
               color: widget.isError
                   ? ColorRes.likeRed.withValues(alpha: .1)
-                  : bgLightGrey(context),
-              border: Border.symmetric(
-                horizontal: BorderSide(
-                    color: widget.isError
-                        ? ColorRes.likeRed : Colors.transparent,
-                    width: .5),
-              )),
+                  : ColorRes.whitePure.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: widget.isError
+                    ? ColorRes.likeRed
+                    : ColorRes.roseBorder.withValues(alpha: 0.35),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: ColorRes.crimson.withValues(alpha: 0.07),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]),
           child: TextField(
             controller: widget.controller,
             enabled: widget.enabled,
@@ -96,8 +104,8 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
             // Ensure maxLines is null when expands is true
             minLines: isExpand ? null : 1,
             // Ensure minLines is null when expands is true
-            style: TextStyleCustom.outFitLight300(
-                color: textLightGrey(context), fontSize: 17),
+            style: TextStyleCustom.outFitRegular400(
+                color: textDarkGrey(context), fontSize: 16),
             decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: widget.hintText ?? LKey.enterHere.tr,

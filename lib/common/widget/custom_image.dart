@@ -310,10 +310,9 @@ class ImageErrorWidget extends StatelessWidget {
                 (fullName?[0] ?? AppRes.appName[0]).toUpperCase(),
                 style: TextStyleCustom.unboundedMedium500(
                     fontSize: size.height.isFinite && size.height > 0
-                        ? size.height / 2
+                        ? (size.height / 2.4).clamp(16.0, 36.0)
                         : 20,
-                    color: whitePure(context),
-                    opacity: 0.4),
+                    color: whitePure(context)),
               ),
       ),
     );

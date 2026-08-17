@@ -72,7 +72,7 @@ class MessageScreen extends StatelessWidget {
                   ),
                 ),
                 StoryView(controller: feedController),
-                CustomTabSwitcher(
+        CustomTabSwitcher(
                   items: controller.chatCategories,
                   onTap: (index) {
                     controller.onPageChanged(index);
@@ -90,71 +90,93 @@ class MessageScreen extends StatelessWidget {
                     2: _MessageTabBadge(
                         count: controller.dashboardController.callsUnReadCount),
                   },
-                  margin: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                  backgroundColor: ColorRes.whitePure.withValues(alpha: 0.92),
                 ),
               ],
             ),
           ),
         ),
-        CustomSearchTextField(
-          controller: controller.searchController,
-          onChanged: controller.onSearchChanged,
-          suffixIcon: IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-            onPressed: openNewDirectChatSheet,
-            icon: Icon(
-              Icons.person_add_alt_1_rounded,
-              size: 20,
-              color: themeAccentSolid(context),
-            ),
-          ),
-        ),
         Expanded(
-          child: Obx(() {
-            if (controller.chatError.value != null) {
-              return Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        controller.chatError.value!,
-                        textAlign: TextAlign.center,
-                        style: TextStyleCustom.outFitRegular400(
-                          color: textLightGrey(context),
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton.icon(
-                        onPressed: openNewDirectChatSheet,
-                        icon: const Icon(Icons.chat_bubble_outline),
-                        label: Text(LKey.newChat.tr),
-                      ),
-                    ],
+          child: Container(
+            decoration: BoxDecoration(
+              color: ColorRes.whitePure.withValues(alpha: 0.96),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(22)),
+              boxShadow: [
+                BoxShadow(
+                  color: ColorRes.crimson.withValues(alpha: 0.12),
+                  blurRadius: 18,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                CustomSearchTextField(
+                  controller: controller.searchController,
+                  onChanged: controller.onSearchChanged,
+                  suffixIcon: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 36, minHeight: 36),
+                    onPressed: openNewDirectChatSheet,
+                    icon: Icon(
+                      Icons.person_add_alt_1_rounded,
+                      size: 20,
+                      color: themeAccentSolid(context),
+                    ),
                   ),
                 ),
-              );
-            }
-            return controller.isLoading.value &&
-                    (controller.selectedChatCategory.value == 0
-                        ? controller.chatsUsers.isEmpty
-                        : controller.selectedChatCategory.value == 1
-                            ? controller.requestsUsers.isEmpty
-                            : false)
-                ? const LoaderWidget()
-                : PageView(
-                    controller: controller.pageController,
-                    onPageChanged: controller.onPageChanged,
-                    children: const [
-                      ChatsListView(),
-                      RequestsListView(),
-                      CallsListView(),
-                    ],
-                  );
-          }),
+                Expanded(
+                  child: Obx(() {
+                    if (controller.chatError.value != null) {
+                      return Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                controller.chatError.value!,
+                                textAlign: TextAlign.center,
+                                style: TextStyleCustom.outFitRegular400(
+                                  color: textLightGrey(context),
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextButton.icon(
+                                onPressed: openNewDirectChatSheet,
+                                icon: const Icon(Icons.chat_bubble_outline),
+                                label: Text(LKey.newChat.tr),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    return controller.isLoading.value &&
+                            (controller.selectedChatCategory.value == 0
+                                ? controller.chatsUsers.isEmpty
+                                : controller.selectedChatCategory.value == 1
+                                    ? controller.requestsUsers.isEmpty
+                                    : false)
+                        ? const LoaderWidget()
+                        : PageView(
+                            controller: controller.pageController,
+                            onPageChanged: controller.onPageChanged,
+                            children: const [
+                              ChatsListView(),
+                              RequestsListView(),
+                              CallsListView(),
+                            ],
+                          );
+                  }),
+                ),
+              ],
+            ),
+          ),
         )
       ],
     );
@@ -178,7 +200,7 @@ class ChatsListView extends StatelessWidget {
         description: LKey.chatListEmptyDescription.tr,
         child: ListView.builder(
           itemCount: itemCount,
-          padding: EdgeInsets.zero,
+          padding: const EdgeInsets.only(bottom: 12),
           itemBuilder: (context, index) {
             if (showSupport && index == 0) {
               return const SupportChatCard();

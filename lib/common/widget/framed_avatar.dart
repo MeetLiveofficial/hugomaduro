@@ -5,6 +5,9 @@ import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Foto circular + marco/insignia del Dressing Center alrededor.
 ///
@@ -27,6 +30,7 @@ class FramedAvatar extends StatelessWidget {
     this.frameExtra = 0.22,
     this.photoOffset = Offset.zero,
     this.photoOnTop = true,
+    this.gradeLabel,
   });
 
   /// [size] = diámetro total (marco incluido).
@@ -43,6 +47,7 @@ class FramedAvatar extends StatelessWidget {
     double photoRatio = 0.62,
     Offset photoOffset = Offset.zero,
     bool photoOnTop = true,
+    String? gradeLabel,
   }) {
     final photoSize = size * photoRatio;
     final extra = (size - photoSize) / 2;
@@ -60,6 +65,7 @@ class FramedAvatar extends StatelessWidget {
       frameExtra: frameExtra,
       photoOffset: photoOffset,
       photoOnTop: photoOnTop,
+      gradeLabel: gradeLabel,
     );
   }
 
@@ -95,8 +101,10 @@ class FramedAvatar extends StatelessWidget {
       final ratio = isGradeFrame
           ? AssetRes.streamerBadgePhotoRatio(gradeKey)
           : user.framePhotoRatio;
-      // size = diámetro total del widget (alas incluidas). No inflar.
-      final totalSize = size > 96 ? 88.0 : size;
+      final totalSize = size.clamp(80.0, 128.0);
+      final label = isGradeFrame
+          ? AssetRes.streamerBadgeLabel(gradeKey)
+          : '';
       return FramedAvatar.fitted(
         key: key,
         size: totalSize,
@@ -109,6 +117,7 @@ class FramedAvatar extends StatelessWidget {
         glowColor: glowColor,
         photoRatio: ratio,
         photoOnTop: false,
+        gradeLabel: label.isEmpty ? null : label,
       );
     }
     return FramedAvatar(
@@ -151,6 +160,7 @@ class FramedAvatar extends StatelessWidget {
   final double frameExtra;
   final Offset photoOffset;
   final bool photoOnTop;
+  final String? gradeLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +182,22 @@ class FramedAvatar extends StatelessWidget {
     );
 
     if (hasChrome) {
-      photo = ClipOval(child: photo);
+      photo = Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: ColorRes.whitePure,
+          boxShadow: [
+            BoxShadow(
+              color: ColorRes.crimson.withValues(alpha: 0.28),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: ClipOval(child: photo),
+      );
     }
 
     if (!hasChrome && ring != null) {
@@ -238,6 +263,39 @@ class FramedAvatar extends StatelessWidget {
     } else {
       stackChildren.add(photo);
       if (chrome != null) stackChildren.add(chrome);
+    }
+
+    final grade = (gradeLabel ?? '').trim();
+    if (grade.isNotEmpty) {
+      stackChildren.add(
+        Positioned(
+          bottom: 0,
+          child: IgnorePointer(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                gradient: StyleRes.themeGradient,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: ColorRes.crimson.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                grade,
+                style: TextStyleCustom.outFitSemiBold600(
+                  color: ColorRes.whitePure,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     if (badge.isNotEmpty) {

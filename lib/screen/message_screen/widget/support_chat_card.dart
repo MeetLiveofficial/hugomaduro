@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/message_screen/message_screen_controller.dart';
 import 'package:krimson/screen/support_chat/support_chat_controller.dart';
@@ -66,20 +67,10 @@ class SupportChatCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: ColorRes.coralRed.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            LKey.supportBadge.tr,
-                            style: TextStyleCustom.outFitMedium500(
-                              fontSize: 10,
-                              color: ColorRes.coralRed,
-                            ),
-                          ),
+                        BrandStatusPill(
+                          label: LKey.supportBadge.tr,
+                          color: const Color(0xFFB91C3A),
+                          solid: true,
                         ),
                       ],
                     ),

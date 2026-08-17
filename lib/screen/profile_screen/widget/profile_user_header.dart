@@ -492,7 +492,7 @@ class _Avatar extends StatelessWidget {
         children: [
           FramedAvatar.fromUser(
             user,
-            size: 88,
+            size: 112,
             ring: (child) => LevelAvatarRing(
               user: user,
               padding: 3,

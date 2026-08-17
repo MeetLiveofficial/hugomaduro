@@ -179,19 +179,36 @@ class AssetRes {
   static double streamerBadgePhotoRatio(String? grade) {
     switch ((grade ?? '').toUpperCase().trim()) {
       case 'NEW':
-        return 0.30;
+        return 0.48;
       case 'D':
       case 'C':
-        return 0.24;
+        return 0.42;
       case 'B':
-        return 0.26;
+        return 0.44;
       case 'A':
-        return 0.32;
+        return 0.50;
       case 'S':
       case 'SS':
-        return 0.36;
+        return 0.52;
       default:
         return 0.62;
+    }
+  }
+
+  static String streamerBadgeLabel(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'D':
+        return 'C';
+      case 'SS':
+        return 'S';
+      case 'NEW':
+      case 'C':
+      case 'B':
+      case 'A':
+      case 'S':
+        return (grade ?? 'NEW').toUpperCase().trim();
+      default:
+        return '';
     }
   }
 }

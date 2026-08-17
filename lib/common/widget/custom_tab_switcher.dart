@@ -34,7 +34,7 @@ class CustomTabSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(
       () => Container(
-        height: 45,
+        height: 48,
         width: double.infinity,
         margin: margin ?? const EdgeInsets.symmetric(vertical: 10),
         decoration: ShapeDecoration(
