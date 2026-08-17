@@ -348,8 +348,9 @@ class _JoinLevelBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final level = message.userLevel ?? 1;
     final svip = message.isSvip;
-    final gradient = LevelAvatarStyle.ringGradient(level, svip: svip);
-    final badge = svip ? LKey.svip.tr : 'Lv. $level';
+    final vip = message.isVip;
+    final gradient = LevelAvatarStyle.ringGradient(level, svip: svip, vip: vip);
+    final badge = vip ? '👑 VIP' : (svip ? LKey.svip.tr : 'Lv. $level');
     final subtitle = _liveJoinLabel(message);
 
     return Material(

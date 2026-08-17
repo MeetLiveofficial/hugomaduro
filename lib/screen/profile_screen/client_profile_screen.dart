@@ -82,7 +82,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       children: [
                         FramedAvatar.fromUser(
                           user,
-                          size: 124,
+                          size: 88,
                           ring: (child) => LevelAvatarRing(
                             user: user,
                             padding: 3.5,

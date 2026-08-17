@@ -128,6 +128,7 @@ class ProfileUserHeader extends StatelessWidget {
             FullNameWithBlueTick(
               username: user.fullname ?? user.username,
               isVerify: user.isVerify,
+              isVip: user.isVip,
               fontSize: 16,
               child: (user.equippedBadgeImage ?? '').isEmpty
                   ? null
@@ -491,7 +492,7 @@ class _Avatar extends StatelessWidget {
         children: [
           FramedAvatar.fromUser(
             user,
-            size: 124,
+            size: 88,
             ring: (child) => LevelAvatarRing(
               user: user,
               padding: 3,

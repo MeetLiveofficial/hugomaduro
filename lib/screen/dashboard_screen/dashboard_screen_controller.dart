@@ -11,6 +11,7 @@ import 'package:krimson/common/controller/ads_controller.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
@@ -129,6 +130,20 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     _startIncomingCallPoll();
     _subscribeFollowUserIds();
     updateDummyUsers();
+    _promptCoinPackagesOnce();
+  }
+
+  static bool _packagesPromptShown = false;
+
+  void _promptCoinPackagesOnce() {
+    if (_packagesPromptShown) return;
+    if (!SessionManager.instance.isLogin()) return;
+    if (AppRole.isStreamer(user)) return;
+    _packagesPromptShown = true;
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (isClosed) return;
+      CoinGate.openCoinShopSheet();
+    });
   }
 
   Timer? _liveInvitePollTimer;

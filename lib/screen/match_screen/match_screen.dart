@@ -207,6 +207,21 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
+          if (!AppRole.isStreamer())
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Obx(() {
+                final used = controller.freeMatchesUsed.value;
+                final quota = controller.freeMatchesQuota.value;
+                return Text(
+                  'Gratis $used/$quota',
+                  style: TextStyleCustom.outFitMedium500(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                );
+              }),
+            ),
           _ChipButton(
             onTap: controller.openMembership,
             borderColor: const Color(0xFFD4AF37),

@@ -150,4 +150,48 @@ class AssetRes {
   static const String icNoInternet = '${icons}ic_no_internet.png';
   static const String icLinkPlaceholder = '${icons}ic_link_placeholder.png';
   static const String icAdd = '${icons}ic_add.png';
+
+  static const String streamerBadgeNew = '${icons}streamer_new.png';
+  static const String streamerBadgeC = '${icons}streamer_c.png';
+  static const String streamerBadgeB = '${icons}streamer_b.png';
+  static const String streamerBadgeA = '${icons}streamer_a.png';
+  static const String streamerBadgeS = '${icons}streamer_s.png';
+
+  static String? streamerBadgeForGrade(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'NEW':
+        return streamerBadgeNew;
+      case 'D':
+      case 'C':
+        return streamerBadgeC;
+      case 'B':
+        return streamerBadgeB;
+      case 'A':
+        return streamerBadgeA;
+      case 'S':
+      case 'SS':
+        return streamerBadgeS;
+      default:
+        return null;
+    }
+  }
+
+  static double streamerBadgePhotoRatio(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'NEW':
+        return 0.30;
+      case 'D':
+      case 'C':
+        return 0.24;
+      case 'B':
+        return 0.26;
+      case 'A':
+        return 0.32;
+      case 'S':
+      case 'SS':
+        return 0.36;
+      default:
+        return 0.62;
+    }
+  }
 }

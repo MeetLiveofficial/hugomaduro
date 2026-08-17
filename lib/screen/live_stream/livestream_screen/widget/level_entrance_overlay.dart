@@ -17,9 +17,10 @@ class LevelEntranceOverlay {
     int? level,
     String? levelTitle,
     bool isSvip = false,
+    bool isVip = false,
   }) {
     final path = (videoPath ?? '').trim();
-    if (path.isEmpty) return;
+    if (path.isEmpty && !isVip) return;
     final ctx = Get.context;
     if (ctx == null) return;
 
@@ -44,6 +45,7 @@ class LevelEntranceOverlay {
           level: level,
           levelTitle: levelTitle,
           isSvip: isSvip,
+          isVip: isVip,
         );
       },
       transitionDuration: const Duration(milliseconds: 80),
@@ -66,6 +68,7 @@ class _LevelEntranceDialog extends StatefulWidget {
     this.level,
     this.levelTitle,
     this.isSvip = false,
+    this.isVip = false,
   });
 
   final String videoPath;
@@ -73,6 +76,7 @@ class _LevelEntranceDialog extends StatefulWidget {
   final int? level;
   final String? levelTitle;
   final bool isSvip;
+  final bool isVip;
 
   @override
   State<_LevelEntranceDialog> createState() => _LevelEntranceDialogState();
@@ -96,7 +100,11 @@ class _LevelEntranceDialogState extends State<_LevelEntranceDialog>
         .chain(CurveTween(curve: Curves.easeOut))
         .animate(_fadeCtrl);
     _fadeCtrl.forward();
-    _safetyTimer = Timer(const Duration(seconds: 45), _dismiss);
+    if (widget.videoPath.trim().isEmpty) {
+      _safetyTimer = Timer(const Duration(seconds: 4), _dismiss);
+    } else {
+      _safetyTimer = Timer(const Duration(seconds: 45), _dismiss);
+    }
   }
 
   void _onVideoReady(Duration duration) {
@@ -136,9 +144,11 @@ class _LevelEntranceDialogState extends State<_LevelEntranceDialog>
     final name = (widget.userName ?? '').trim();
     final level = widget.level ?? 0;
     final title = (widget.levelTitle ?? '').trim();
-    final levelLabel = widget.isSvip
-        ? 'SVIP'
-        : (level > 0 ? 'Lv. $level' : title);
+    final levelLabel = widget.isVip
+        ? '👑 VIP'
+        : (widget.isSvip
+            ? 'SVIP'
+            : (level > 0 ? 'Lv. $level' : title));
 
     return Material(
       type: MaterialType.transparency,
@@ -153,18 +163,50 @@ class _LevelEntranceDialogState extends State<_LevelEntranceDialog>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  GiftMedia(
-                    path: widget.videoPath,
-                    width: w,
-                    height: h,
-                    fit: BoxFit.cover,
-                    muted: false,
-                    looping: false,
-                    onVideoEnded: _onVideoEnded,
-                    onVideoReady: _onVideoReady,
-                    placeholder: const SizedBox.shrink(),
-                  ),
-                  if (name.isNotEmpty || levelLabel.isNotEmpty)
+                  if (widget.videoPath.trim().isNotEmpty)
+                    GiftMedia(
+                      path: widget.videoPath,
+                      width: w,
+                      height: h,
+                      fit: BoxFit.cover,
+                      muted: false,
+                      looping: false,
+                      onVideoEnded: _onVideoEnded,
+                      onVideoReady: _onVideoReady,
+                      placeholder: const SizedBox.shrink(),
+                    )
+                  else if (widget.isVip)
+                    Align(
+                      alignment: Alignment.center,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFFFE082),
+                              Color(0xFFFFC107),
+                              Color(0xFFFF8F00),
+                            ],
+                          ),
+                        ),
+                        child: Text(
+                          name.isEmpty
+                              ? '👑 VIP ha entrado al LIVE'
+                              : '👑 VIP — $name ha entrado al LIVE',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFF3E2723),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (widget.videoPath.trim().isNotEmpty &&
+                      (name.isNotEmpty || levelLabel.isNotEmpty))
                     Positioned(
                       left: 16,
                       right: 16,
