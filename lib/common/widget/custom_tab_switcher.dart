@@ -40,9 +40,10 @@ class CustomTabSwitcher extends StatelessWidget {
         decoration: ShapeDecoration(
           color: backgroundColor ?? bgMediumGrey(context),
           shape: SmoothRectangleBorder(
-              borderRadius:
-                  SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
-              side: BorderSide(color: ColorRes.menuBorder),
+            borderRadius:
+                SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
+            side: const BorderSide(color: ColorRes.menuBorder),
+          ),
         ),
         padding: const EdgeInsets.all(4),
         child: Stack(
@@ -54,7 +55,7 @@ class CustomTabSwitcher extends StatelessWidget {
                   alignment: Alignment(
                     items.length <= 1
                         ? 0
-                        : (selectedIndex * 2 / (items.length - 1)) - 1,
+                        : (selectedIndex.value * 2 / (items.length - 1)) - 1,
                     0,
                   ),
                   duration: const Duration(milliseconds: 300),
