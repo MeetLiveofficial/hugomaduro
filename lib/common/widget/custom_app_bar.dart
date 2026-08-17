@@ -1,5 +1,8 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:krimson/common/widget/custom_back_button.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -28,9 +31,17 @@ class CustomAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final branded = bgColor == null;
+    final onBrand = branded ? ColorRes.whitePure : textDarkGrey(context);
+    final onBrandMuted =
+        branded ? ColorRes.whitePure.withValues(alpha: 0.82) : textLightGrey(context);
+
     return Container(
       width: double.infinity,
-      color: bgColor ?? bgLightGrey(context),
+      decoration: BoxDecoration(
+        color: bgColor,
+        gradient: branded ? StyleRes.themeGradient : null,
+      ),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -42,7 +53,7 @@ class CustomAppBar extends StatelessWidget {
               children: [
                 if (showBack)
                   CustomBackButton(
-                    color: iconColor,
+                    color: iconColor ?? onBrand,
                     width: 18,
                     height: 18,
                     padding: const EdgeInsets.all(15),
@@ -54,19 +65,20 @@ class CustomAppBar extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: titleStyle ?? TextStyleCustom.unboundedMedium500(color: textDarkGrey(context)),
+                        style: titleStyle ??
+                            TextStyleCustom.unboundedMedium500(color: onBrand),
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (isLoading)
                         CupertinoActivityIndicator(
-                          color: textLightGrey(context),
+                          color: onBrandMuted,
                           radius: 8,
                         )
                       else if (subTitle != null)
                         Text(
                           subTitle ?? '',
                           style: TextStyleCustom.outFitLight300(
-                            color: textLightGrey(context),
+                            color: onBrandMuted,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),

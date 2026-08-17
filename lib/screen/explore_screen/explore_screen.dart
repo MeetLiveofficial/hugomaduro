@@ -12,6 +12,7 @@ import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/explore_screen/explore_screen_controller.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -104,7 +105,7 @@ class _ExploreHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: scaffoldBackgroundColor(context),
+      decoration: BoxDecoration(gradient: StyleRes.themeGradient),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: SafeArea(
         bottom: false,
@@ -137,12 +138,12 @@ class _ExploreHeader extends StatelessWidget {
                   return IconButton(
                     tooltip: 'Limpiar',
                     onPressed: controller.clearFilters,
-                    icon: Icon(Icons.close,
-                        size: 18, color: textLightGrey(context)),
+                    icon: const Icon(Icons.close,
+                        size: 18, color: ColorRes.crimson),
                   );
                 }),
                 filled: true,
-                fillColor: bgMediumGrey(context),
+                fillColor: ColorRes.whitePure,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                 border: OutlineInputBorder(
@@ -450,8 +451,8 @@ class _FilterChipButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: active
-          ? ColorRes.themeAccentSolid.withValues(alpha: 0.15)
-          : bgMediumGrey(context),
+          ? ColorRes.themeAccentSolid.withValues(alpha: 0.18)
+          : ColorRes.whitePure,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -722,8 +723,8 @@ class _PresenceChip extends StatelessWidget {
     final color = accent ?? textDarkGrey(context);
     return Material(
       color: active
-          ? (accent ?? ColorRes.themeAccentSolid).withValues(alpha: 0.18)
-          : bgMediumGrey(context),
+          ? (accent ?? ColorRes.themeAccentSolid).withValues(alpha: 0.22)
+          : ColorRes.whitePure,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,

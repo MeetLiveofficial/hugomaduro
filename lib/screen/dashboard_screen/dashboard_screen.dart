@@ -4,6 +4,7 @@ import 'package:proste_indexed_stack/proste_indexed_stack.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/banner_ads_custom.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
@@ -71,19 +72,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
               controller.homeTabMode.value == HomeTabMode.live);
       final hideBannerMatch = _isClient && onLiveTab;
       return Scaffold(
-        backgroundColor: ColorRes.bgLightGrey,
+        backgroundColor: Colors.transparent,
         extendBody: true,
         // En Go Live / Match el teclado no debe empujar el layout.
         resizeToAvoidBottomInset: !onLiveTab,
-        body: Column(
+        body: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
-              child: ProsteIndexedStack(
-                index: controller.selectedPageIndex.value,
-                children: _pages,
-              ),
+            const BrandWashBg(vivid: false),
+            Column(
+              children: [
+                Expanded(
+                  child: ProsteIndexedStack(
+                    index: controller.selectedPageIndex.value,
+                    children: _pages,
+                  ),
+                ),
+                if (!hideBanner && !hideBannerMatch) const BannerAdsCustom(),
+              ],
             ),
-            if (!hideBanner && !hideBannerMatch) const BannerAdsCustom(),
           ],
         ),
         bottomNavigationBar: _buildBottomNavigationBar(context, controller),
@@ -91,7 +98,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  static const Color _navBarBg = ColorRes.carbon;
+  static const Color _navBarBg = ColorRes.whitePure;
 
   Widget _buildBottomNavigationBar(
       BuildContext context, DashboardScreenController controller) {
@@ -191,9 +198,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         borderRadius: BorderRadius.circular(32),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            blurRadius: 16,
+                            color: ColorRes.crimson.withValues(alpha: 0.28),
+                            blurRadius: 18,
                             offset: const Offset(0, 6),
+                          ),
+                          BoxShadow(
+                            color: ColorRes.mlPurple.withValues(alpha: 0.18),
+                            blurRadius: 24,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),

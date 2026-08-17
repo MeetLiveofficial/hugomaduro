@@ -144,7 +144,7 @@ class RegistrationScreen extends StatelessWidget {
             TextButtonCustom(
                 onTap: controller.onCreateAccount,
                 title: LKey.createAccount.tr,
-                backgroundColor: themeAccentSolid(context),
+                gradient: true,
                 horizontalMargin: 20,
                 titleColor: whitePure(context),
                 radius: 25),

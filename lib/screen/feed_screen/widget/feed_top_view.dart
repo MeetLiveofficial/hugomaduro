@@ -7,6 +7,8 @@ import 'package:krimson/screen/feed_screen/feed_screen_controller.dart';
 import 'package:krimson/screen/home_screen/widget/home_mode_switcher.dart';
 import 'package:krimson/screen/notification_screen/notification_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -18,7 +20,7 @@ class FeedTopView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: scaffoldBackgroundColor(context),
+      decoration: BoxDecoration(gradient: StyleRes.themeGradient),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: SafeArea(
         bottom: false,
@@ -54,10 +56,10 @@ class FeedTopView extends StatelessWidget {
                               controller.selectedPostCategory.value.title
                                   .toUpperCase(),
                               style: TextStyleCustom.unboundedBold700(
-                                  color: textDarkGrey(context), fontSize: 15)),
+                                  color: ColorRes.whitePure, fontSize: 15)),
                           const SizedBox(width: 3),
                           Image.asset(AssetRes.icDownArrow,
-                              color: textDarkGrey(context),
+                              color: ColorRes.whitePure,
                               height: 8,
                               width: 8),
                         ],
@@ -77,7 +79,9 @@ class FeedTopView extends StatelessWidget {
                       alignment: Alignment.bottomCenter,
                       children: [
                         Image.asset(AssetRes.icNotification,
-                            width: 24, height: 24),
+                            width: 24,
+                            height: 24,
+                            color: ColorRes.whitePure),
                         Obx(() {
                           int notifyCount =
                               SessionManager.instance.notifyCount.value;

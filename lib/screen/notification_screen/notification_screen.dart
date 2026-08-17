@@ -59,7 +59,7 @@ class _Tabs extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: bgGrey(context),
+          color: Colors.white.withValues(alpha: 0.22),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
@@ -87,7 +87,7 @@ class _Tabs extends StatelessWidget {
           child: Text(
             label,
             style: TextStyleCustom.outFitMedium500(
-              color: active ? textDarkGrey(context) : textLightGrey(context),
+              color: active ? textDarkGrey(context) : Colors.white,
               fontSize: 13,
             ),
           ),

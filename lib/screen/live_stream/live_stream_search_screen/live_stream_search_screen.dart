@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_border_round_icon.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
@@ -31,13 +32,14 @@ class LiveStreamSearchScreen extends StatelessWidget {
     }();
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: false,
       body: Stack(
         fit: StackFit.expand,
         children: [
+          const BrandWashBg(),
           Positioned.fill(child: _StudioBackdrop(controller: controller)),
-          const Positioned(
+          Positioned(
             left: 0,
             right: 0,
             bottom: 0,
@@ -48,13 +50,17 @@ class LiveStreamSearchScreen extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Color(0xF2000000)],
+                    colors: [
+                      Colors.transparent,
+                      ColorRes.mlPurple.withValues(alpha: 0.45),
+                      ColorRes.darkPurple.withValues(alpha: 0.88),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
-          const Positioned(
+          Positioned(
             left: 0,
             right: 0,
             top: 0,
@@ -65,7 +71,10 @@ class LiveStreamSearchScreen extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0x99000000), Colors.transparent],
+                    colors: [
+                      ColorRes.crimson.withValues(alpha: 0.55),
+                      Colors.transparent,
+                    ],
                   ),
                 ),
               ),
@@ -209,7 +218,7 @@ class _StudioBackdrop extends StatelessWidget {
           strokeWidth: 0,
         );
       } else {
-        bg = const ColoredBox(color: Color(0xFF1A1A1A));
+        bg = const BrandWashBg();
       }
 
       final loading = controller.cameraPreviewLoading.value;
@@ -218,7 +227,7 @@ class _StudioBackdrop extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           bg,
-          const ColoredBox(color: Color(0x66000000)),
+          ColoredBox(color: ColorRes.crimson.withValues(alpha: 0.28)),
           Center(
             child: loading
                 ? Column(
@@ -252,8 +261,8 @@ class _StudioBackdrop extends StatelessWidget {
                           height: 72,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.black.withValues(alpha: 0.45),
-                            border: Border.all(color: Colors.white24),
+                            gradient: StyleRes.themeGradient,
+                            border: Border.all(color: Colors.white70),
                           ),
                           child: const Icon(Icons.videocam_rounded,
                               color: Colors.white70, size: 36),

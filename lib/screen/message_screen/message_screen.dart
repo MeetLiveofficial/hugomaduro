@@ -15,6 +15,7 @@ import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card
 import 'package:krimson/screen/message_screen/widget/new_direct_chat_sheet.dart';
 import 'package:krimson/screen/message_screen/widget/support_chat_card.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -38,7 +39,7 @@ class MessageScreen extends StatelessWidget {
     return Column(
       children: [
         Container(
-          color: scaffoldBackgroundColor(context),
+          decoration: BoxDecoration(gradient: StyleRes.themeGradient),
           child: SafeArea(
             minimum: const EdgeInsets.only(top: 15),
             child: Column(
@@ -54,7 +55,7 @@ class MessageScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: TextStyleCustom.unboundedMedium500(
                             fontSize: 15,
-                            color: textDarkGrey(context),
+                            color: ColorRes.whitePure,
                           ),
                         ),
                       ),
@@ -63,7 +64,7 @@ class MessageScreen extends StatelessWidget {
                         onPressed: openNewDirectChatSheet,
                         icon: const Icon(
                           Icons.edit_square,
-                          color: ColorRes.crimson,
+                          color: ColorRes.whitePure,
                           size: 22,
                         ),
                       ),

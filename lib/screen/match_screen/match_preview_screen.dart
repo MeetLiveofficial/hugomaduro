@@ -9,6 +9,7 @@ import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/model/call/call_request_model.dart';
@@ -294,10 +295,11 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF120E18),
+        backgroundColor: Colors.transparent,
         body: Stack(
           fit: StackFit.expand,
           children: [
+            const BrandWashBg(),
             _VideoLayer(lkTag: _lkTag, status: _status),
             const DecoratedBox(
               decoration: BoxDecoration(
@@ -305,9 +307,9 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0x66000000),
+                    Color(0x99E24AB7),
                     Colors.transparent,
-                    Color(0xCC0A0610),
+                    Color(0xCC7A22A8),
                   ],
                 ),
               ),

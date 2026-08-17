@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Vista Match: radar de búsqueda + modos Random / Goddess.
@@ -20,7 +22,7 @@ class MatchScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.put(MatchScreenController());
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1220),
+      backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -91,7 +93,7 @@ class _MatchBackdrop extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const _MatchGradient(),
+        const BrandWashBg(),
         if (AppRole.isStreamer()) _StreamerWaitCamera(controller: controller),
         // Halo suave detrás del radar.
         Align(
@@ -111,7 +113,7 @@ class _MatchBackdrop extends StatelessWidget {
           ),
         ),
         // Viñeta inferior para los controles.
-        const Align(
+        Align(
           alignment: Alignment.bottomCenter,
           child: IgnorePointer(
             child: SizedBox(
@@ -122,7 +124,11 @@ class _MatchBackdrop extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Color(0xCC0A0610)],
+                    colors: [
+                      Colors.transparent,
+                      ColorRes.mlPurple.withValues(alpha: 0.55),
+                      ColorRes.darkPurple.withValues(alpha: 0.82),
+                    ],
                   ),
                 ),
               ),
@@ -130,27 +136,6 @@ class _MatchBackdrop extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _MatchGradient extends StatelessWidget {
-  const _MatchGradient();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF2A1A28),
-            Color(0xFF1A1220),
-            Color(0xFF120E18),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -260,7 +245,7 @@ class _ChipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withValues(alpha: 0.45),
+      color: ColorRes.crimson.withValues(alpha: 0.28),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -311,9 +296,9 @@ class _RadarButton extends StatelessWidget {
                   height: core,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.black.withValues(alpha: 0.35),
+                    gradient: StyleRes.themeGradient,
                     border: Border.all(
-                      color: ColorRes.themeAccentSolid.withValues(alpha: 0.9),
+                      color: Colors.white.withValues(alpha: 0.85),
                       width: 2,
                     ),
                   ),
@@ -446,7 +431,9 @@ class _ModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withValues(alpha: selected ? 0.62 : 0.42),
+      color: selected
+          ? ColorRes.crimson.withValues(alpha: 0.42)
+          : Colors.white.withValues(alpha: 0.16),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,

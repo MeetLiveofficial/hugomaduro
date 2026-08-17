@@ -10,7 +10,7 @@ class ThemeBlurBg extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glow = intense ? 1.35 : 0.9;
+    final glow = intense ? 1.6 : 1.15;
 
     return Container(
       height: double.infinity,
@@ -23,10 +23,10 @@ class ThemeBlurBg extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: const Alignment(-0.35, -0.75),
-                radius: 1.15,
+                radius: 1.2,
                 colors: [
-                  ColorRes.crimsonAlt.withValues(alpha: 0.32 * glow),
-                  ColorRes.crimson.withValues(alpha: 0.16 * glow),
+                  ColorRes.crimsonAlt.withValues(alpha: 0.55 * glow),
+                  ColorRes.crimson.withValues(alpha: 0.28 * glow),
                   Colors.transparent,
                 ],
                 stops: const [0.0, 0.38, 1.0],
@@ -37,10 +37,10 @@ class ThemeBlurBg extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: const Alignment(0.9, 0.15),
-                radius: 1.0,
+                radius: 1.05,
                 colors: [
-                  ColorRes.crimson.withValues(alpha: 0.34 * glow),
-                  ColorRes.mlPurple.withValues(alpha: 0.18 * glow),
+                  ColorRes.crimson.withValues(alpha: 0.5 * glow),
+                  ColorRes.mlPurple.withValues(alpha: 0.28 * glow),
                   Colors.transparent,
                 ],
                 stops: const [0.0, 0.45, 1.0],
@@ -51,13 +51,25 @@ class ThemeBlurBg extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: const Alignment(-0.7, 0.95),
-                radius: 0.85,
+                radius: 0.9,
                 colors: [
-                  ColorRes.mlPurple.withValues(alpha: 0.38 * glow),
-                  ColorRes.darkPurple.withValues(alpha: 0.16 * glow),
+                  ColorRes.mlPurple.withValues(alpha: 0.55 * glow),
+                  ColorRes.darkPurple.withValues(alpha: 0.22 * glow),
                   Colors.transparent,
                 ],
                 stops: const [0.0, 0.5, 1.0],
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.8, -0.6),
+                radius: 0.55,
+                colors: [
+                  const Color(0xFFFFCC66).withValues(alpha: 0.22 * glow),
+                  Colors.transparent,
+                ],
               ),
             ),
           ),

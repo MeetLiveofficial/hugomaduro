@@ -2,6 +2,7 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/widget/custom_divider.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/screen/home_screen/home_screen_controller.dart';
 import 'package:krimson/screen/home_screen/widget/home_mode_switcher.dart';
 import 'package:krimson/screen/reels_screen/reels_screen.dart';
@@ -18,9 +19,10 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(HomeScreenController());
     return Scaffold(
-      backgroundColor: blackPure(context),
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          const Positioned.fill(child: BrandWashBg()),
           ReelsScreen(
             pageType: ReelPageType.home,
             reels: controller.reels,

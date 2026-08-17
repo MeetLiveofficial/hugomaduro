@@ -103,7 +103,7 @@ class LoginScreen extends StatelessWidget {
                               title: LKey.logIn.tr,
                               btnHeight: 50,
                               horizontalMargin: 0,
-                              backgroundColor: ColorRes.mauve,
+                              gradient: true,
                               titleColor: ColorRes.whitePure,
                               radius: 25)
                         ],

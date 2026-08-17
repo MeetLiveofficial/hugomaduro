@@ -98,9 +98,9 @@ class ColorRes {
   static const Color blueFollow = mauve;
   static const Color battleProgressColor = mauve;
 
-  static const Color bgLightGrey = Color(0xFFFFF4F9);
-  static const Color bgGrey = Color(0xFFF6E4EE);
-  static const Color bgMediumGrey = Color(0xFFFDF0F6);
+  static const Color bgLightGrey = Color(0xFFFFD6EC);
+  static const Color bgGrey = Color(0xFFF5C6E4);
+  static const Color bgMediumGrey = Color(0xFFFFEAF5);
   static const Color disabledGrey = Color(0xFFC4B0BC);
 
   /// Iconos de la barra inferior (uno por tab).

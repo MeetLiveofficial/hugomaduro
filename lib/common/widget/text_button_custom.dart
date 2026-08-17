@@ -1,6 +1,7 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -18,6 +19,7 @@ class TextButtonCustom extends StatelessWidget {
   final double? radius;
   final BorderSide? borderSide;
   final Widget? child;
+  final bool gradient;
 
   const TextButtonCustom(
       {super.key,
@@ -33,7 +35,8 @@ class TextButtonCustom extends StatelessWidget {
       this.borderSide,
       this.btnWidth,
       this.margin,
-      this.child});
+      this.child,
+      this.gradient = false});
 
   @override
   Widget build(BuildContext context) {
@@ -52,14 +55,15 @@ class TextButtonCustom extends StatelessWidget {
                   borderRadius: SmoothBorderRadius(
                       cornerRadius: radius ?? 10, cornerSmoothing: 1),
                   side: borderSide ?? BorderSide.none),
-              color: backgroundColor ?? whitePure(context)),
+              gradient: gradient ? StyleRes.themeGradient : null,
+              color: gradient ? null : (backgroundColor ?? whitePure(context))),
           child: child ??
               Text(
                 title.capitalize ?? '',
-            style: TextStyleCustom.outFitRegular400(
-                color: titleColor ?? textDarkGrey(context),
-                fontSize: fontSize ?? 17),
-          ),
+                style: TextStyleCustom.outFitRegular400(
+                    color: titleColor ?? textDarkGrey(context),
+                    fontSize: fontSize ?? 17),
+              ),
         ),
       ),
     );
