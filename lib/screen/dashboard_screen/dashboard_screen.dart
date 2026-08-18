@@ -6,6 +6,7 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/banner_ads_custom.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
+import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/explore_screen/explore_screen.dart';
@@ -184,36 +185,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.sizeOf(context).width - 20,
+                child: Container(
+                  height: 58,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: _navBarBg,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ColorRes.crimson.withValues(alpha: 0.22),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Container(
-                      height: 56,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: _navBarBg,
-                        borderRadius: BorderRadius.circular(32),
-                        boxShadow: [
-                          BoxShadow(
-                            color: ColorRes.crimson.withValues(alpha: 0.28),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                          BoxShadow(
-                            color: ColorRes.mlPurple.withValues(alpha: 0.18),
-                            blurRadius: 24,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: items,
-                      ),
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: items,
                   ),
                 ),
               ),
@@ -234,30 +222,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: SizedBox(
-        width: 48,
-        height: 56,
+        width: 46,
+        height: 58,
         child: Center(
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
-            width: selected ? 44 : 36,
-            height: selected ? 34 : 36,
+            width: selected ? 42 : 32,
+            height: selected ? 42 : 32,
             alignment: Alignment.center,
             decoration: BoxDecoration(
+              shape: BoxShape.circle,
               gradient: selected ? StyleRes.themeGradient : null,
-              color: selected ? null : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.transparent,
               boxShadow: selected
                   ? [
                       BoxShadow(
-                        color: accent.withValues(alpha: 0.55),
-                        blurRadius: 12,
-                        offset: const Offset(0, 3),
+                        color: accent.withValues(alpha: 0.72),
+                        blurRadius: 16,
+                        spreadRadius: 1,
                       ),
                     ]
-                  : null,
+                  : const [],
             ),
-            child: child,
+            child: selected
+                ? ClipOval(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Center(child: child),
+                        const IgnorePointer(child: ShineSweep()),
+                      ],
+                    ),
+                  )
+                : child,
           ),
         ),
       ),
@@ -276,36 +274,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => Get.to(() => const MatchScreen()),
-      child: SizedBox(
-        width: 58,
-        height: 56,
+      child: const SizedBox(
+        width: 46,
+        height: 58,
         child: Center(
-          child: Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: StyleRes.themeGradient,
-              boxShadow: [
-                BoxShadow(
-                  color: ColorRes.crimson.withValues(alpha: 0.55),
-                  blurRadius: 14,
-                  spreadRadius: 1,
-                  offset: const Offset(0, 3),
-                ),
-                BoxShadow(
-                  color: ColorRes.mlPurple.withValues(alpha: 0.4),
-                  blurRadius: 22,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.favorite_rounded,
-              size: 24,
-              color: Colors.white,
-            ),
+          child: Icon(
+            Icons.favorite_rounded,
+            size: 26,
+            color: ColorRes.crimson,
           ),
         ),
       ),
@@ -321,51 +297,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : Get.put(MatchScreenController());
     return Obx(() {
       final busy = matchCtrl.isMatching.value;
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      final selected = controller.selectedPageIndex.value ==
+          DashboardScreenController.tabLive;
+      return _navHitTarget(
+        selected: selected,
+        accent: ColorRes.crimson,
         onTap: () => controller.onChanged(DashboardScreenController.tabLive),
-        child: SizedBox(
-          width: 58,
-          height: 56,
-          child: Center(
-            child: Container(
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: StyleRes.themeGradient,
-                boxShadow: [
-                  BoxShadow(
-                    color: ColorRes.crimson.withValues(alpha: 0.55),
-                    blurRadius: 14,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 3),
-                  ),
-                  BoxShadow(
-                    color: ColorRes.mlPurple.withValues(alpha: 0.4),
-                    blurRadius: 22,
-                    spreadRadius: 2,
-                  ),
-                ],
+        child: busy
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: selected ? Colors.white : ColorRes.crimson,
+                ),
+              )
+            : Icon(
+                Icons.favorite_rounded,
+                size: 24,
+                color: selected ? Colors.white : ColorRes.crimson,
               ),
-              child: busy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.favorite_rounded,
-                      size: 24,
-                      color: Colors.white,
-                    ),
-            ),
-          ),
-        ),
       );
     });
   }
@@ -377,9 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
       final accent = ColorRes.navIconColors[
           index.clamp(0, ColorRes.navIconColors.length - 1)];
-      final iconColor = isSelected
-          ? Colors.white
-          : accent.withValues(alpha: 0.85);
+      final iconColor = isSelected ? ColorRes.whitePure : accent;
 
       return _navHitTarget(
         selected: isSelected,

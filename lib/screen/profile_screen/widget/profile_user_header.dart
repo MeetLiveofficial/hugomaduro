@@ -70,10 +70,13 @@ class ProfileUserHeader extends StatelessWidget {
       final hasStories = stories.isNotEmpty;
       final links = user.links ?? [];
 
+      final tags = _profileTagLabels(user, isMe: isMe);
+      final bio = (user.bio ?? '').trim();
+      final handle = (user.username ?? '').trim();
+
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -89,132 +92,158 @@ class ProfileUserHeader extends StatelessWidget {
                     }
                   },
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Clientes no publican: no mostrar Posts/Likes de creador.
-                      if (AppRole.isStreamer(user)) ...[
-                        _StatColumn(
-                          value: controller.posts.length,
-                          label: LKey.posts.tr,
-                        ),
-                        _StatColumn(
-                          value: user.totalPostLikesCount ?? 0,
-                          label: LKey.likes.tr,
-                        ),
-                      ],
-                      _StatColumn(
-                        value: (user.followerCount ?? 0).toInt(),
-                        label: LKey.followers.tr,
-                        onTap: () => controller.openFollowList(
-                          FollowListType.followers,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FullNameWithBlueTick(
+                              username: user.fullname ?? user.username,
+                              isVerify: user.isVerify,
+                              isVip: user.isVip,
+                              fontSize: 15,
+                              style: TextStyleCustom.unboundedMedium500(
+                                color: textDarkGrey(context),
+                                fontSize: 15,
+                              ).copyWith(height: 1.2),
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              child: (user.equippedBadgeImage ?? '').isEmpty
+                                  ? null
+                                  : GiftMedia(
+                                      path: user.equippedBadgeImage,
+                                      width: 18,
+                                      height: 18,
+                                      fit: BoxFit.contain,
+                                      placeholder: const SizedBox.shrink(),
+                                    ),
+                            ),
+                          ),
+                          if (isMe)
+                            _HeaderEditButton(
+                              onTap: () => Get.to(
+                                () => SettingsScreen(
+                                  onUpdateUser: controller.onUpdateUser,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      _StatColumn(
-                        value: (user.followingCount ?? 0).toInt(),
-                        label: LKey.following.tr,
-                        onTap: () => controller.openFollowList(
-                          FollowListType.following,
+                      if (handle.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            '@$handle',
+                            style: TextStyleCustom.outFitRegular400(
+                              color: textLightGrey(context),
+                              fontSize: 13,
+                            ),
+                          ),
                         ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (user.isLive == 1 && AppRole.isStreamer(user))
+                            InkWell(
+                              onTap: () => controller.openUserLiveIfAny(),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: ColorRes.themeAccentSolid,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  'LIVE',
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Container(
+                            key: const ValueKey('presence_badge'),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isPresent
+                                  ? const Color(0xFF22C55E)
+                                      .withValues(alpha: 0.15)
+                                  : const Color(0xFF9CA3AF)
+                                      .withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: isPresent
+                                        ? const Color(0xFF22C55E)
+                                        : const Color(0xFF9CA3AF),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  isPresent ? 'Activa' : 'Inactiva',
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: isPresent
+                                        ? const Color(0xFF15803D)
+                                        : const Color(0xFF6B7280),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            FullNameWithBlueTick(
-              username: user.fullname ?? user.username,
-              isVerify: user.isVerify,
-              fontSize: 16,
-              child: (user.equippedBadgeImage ?? '').isEmpty
-                  ? null
-                  : GiftMedia(
-                      path: user.equippedBadgeImage,
-                      width: 20,
-                      height: 20,
-                      fit: BoxFit.contain,
-                      placeholder: const SizedBox.shrink(),
-                    ),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (user.isLive == 1 && AppRole.isStreamer(user))
-                  InkWell(
-                    onTap: () => controller.openUserLiveIfAny(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: ColorRes.themeAccentSolid,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'LIVE',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ),
-                // Siempre visible: ACTIVE o INACTIVE (nunca se oculta).
-                Container(
-                  key: const ValueKey('presence_badge'),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isPresent
-                        ? const Color(0xFF22C55E).withValues(alpha: 0.15)
-                        : const Color(0xFF9CA3AF).withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: isPresent
-                              ? const Color(0xFF22C55E)
-                              : const Color(0xFF9CA3AF),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        isPresent ? 'Activa' : 'Inactiva',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: isPresent
-                              ? const Color(0xFF15803D)
-                              : const Color(0xFF6B7280),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
+            const SizedBox(height: 10),
+            _StatsRow(controller: controller, user: user),
+            const SizedBox(height: 8),
+            if (bio.isNotEmpty)
+              Text(
+                bio,
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitRegular400(
+                  color: textDarkGrey(context),
+                  fontSize: 14,
                 ),
-              ],
-            ),
-            // Tags idioma / país (pills).
-            if (_profileTagLabels(user, isMe: isMe).isNotEmpty)
+              )
+            else if (isMe)
+              _GhostPill(
+                icon: Icons.add,
+                label: 'Añade descripción',
+                onTap: () => Get.to(
+                  () => SettingsScreen(onUpdateUser: controller.onUpdateUser),
+                ),
+              ),
+            if (tags.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: 10),
                 child: Wrap(
+                  alignment: WrapAlignment.center,
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final tag in _profileTagLabels(user, isMe: isMe))
+                    for (final tag in tags)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: tag.$2,
                           borderRadius: BorderRadius.circular(20),
@@ -231,89 +260,46 @@ class ProfileUserHeader extends StatelessWidget {
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: 8),
               child: Wrap(
+                alignment: WrapAlignment.center,
                 spacing: 6,
                 runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   InkWell(
                     onTap: () =>
                         Get.to(() => LevelScreen(userLevels: user.getLevel)),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color:
-                            themeAccentSolid(context).withValues(alpha: .12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: themeAccentSolid(context),
-                          fontSize: 12,
-                        ),
-                      ),
+                    child: _SoftPill(
+                      label:
+                          '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}',
+                      color: themeAccentSolid(context),
                     ),
                   ),
                   if (isMe && AppRole.canAccessTasks())
                     InkWell(
                       onTap: () async {
                         await Get.to(() => const TasksScreen());
-                        // Refresca saldo tras reclamaciones / auto-claim en Tasks.
                         await controller.fetchUserDetail();
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: ColorRes.brandMagenta.withValues(alpha: .12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${LKey.withdrawalPoints.tr}: ${user.withdrawalPoints ?? 0}',
-                          style: TextStyleCustom.outFitMedium500(
-                            color: ColorRes.brandMagenta,
-                            fontSize: 12,
-                          ),
-                        ),
+                      child: _SoftPill(
+                        label:
+                            '${LKey.withdrawalPoints.tr}: ${user.withdrawalPoints ?? 0}',
+                        color: ColorRes.brandMagenta,
                       ),
                     ),
                 ],
               ),
             ),
-            if ((user.username ?? '').isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  '@${user.username}',
-                  style: TextStyleCustom.outFitRegular400(
-                    color: textLightGrey(context),
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            if ((user.bio ?? '').trim().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  user.bio!,
-                  style: TextStyleCustom.outFitRegular400(
-                    color: textDarkGrey(context),
-                    fontSize: 14,
-                  ),
-                ),
-              ),
             if (links.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: 10),
                 child: InkWell(
                   onTap: () => Get.bottomSheet(
                     UserLinkSheet(links: links),
                     isScrollControlled: true,
                   ),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Image.asset(
@@ -345,19 +331,18 @@ class ProfileUserHeader extends StatelessWidget {
                   ),
                 ),
               ),
-            const SizedBox(height: 14),
-            // SVIP: solo streamers en su propio perfil.
+            const SizedBox(height: 10),
             if (isMe && AppRole.isStreamer(user)) ...[
               InkWell(
                 onTap: () => Get.to(() => const PrivilegeHubScreen()),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(20),
                 child: Container(
                   width: double.infinity,
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     gradient: StyleRes.themeGradient,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(22),
                     boxShadow: [
                       BoxShadow(
                         color: ColorRes.brandMagenta.withValues(alpha: 0.35),
@@ -384,7 +369,7 @@ class ProfileUserHeader extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      Icon(Icons.workspace_premium,
+                      const Icon(Icons.workspace_premium,
                           color: ColorRes.whitePure, size: 18),
                     ],
                   ),
@@ -468,6 +453,155 @@ class ProfileVideoCallFab extends StatelessWidget {
   }
 }
 
+class _StatsRow extends StatelessWidget {
+  final ProfileScreenController controller;
+  final User user;
+
+  const _StatsRow({required this.controller, required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Widget>[];
+    void addStat(_StatColumn stat) {
+      if (items.isNotEmpty) {
+        items.add(
+          Container(
+            width: 1,
+            height: 28,
+            color: textLightGrey(context).withValues(alpha: 0.28),
+          ),
+        );
+      }
+      items.add(Expanded(child: stat));
+    }
+
+    if (AppRole.isStreamer(user)) {
+      addStat(_StatColumn(
+        value: controller.posts.length,
+        label: LKey.posts.tr,
+      ));
+      addStat(_StatColumn(
+        value: user.totalPostLikesCount ?? 0,
+        label: LKey.likes.tr,
+      ));
+    }
+    addStat(_StatColumn(
+      value: (user.followerCount ?? 0).toInt(),
+      label: LKey.followers.tr,
+      onTap: () => controller.openFollowList(FollowListType.followers),
+    ));
+    addStat(_StatColumn(
+      value: (user.followingCount ?? 0).toInt(),
+      label: LKey.following.tr,
+      onTap: () => controller.openFollowList(FollowListType.following),
+    ));
+
+    return Row(children: items);
+  }
+}
+
+class _HeaderEditButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _HeaderEditButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        height: 34,
+        width: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: StyleRes.themeGradient,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: ColorRes.crimson.withValues(alpha: 0.28),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Image.asset(
+          AssetRes.icEdit,
+          height: 16,
+          width: 16,
+          color: ColorRes.whitePure,
+        ),
+      ),
+    );
+  }
+}
+
+class _GhostPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _GhostPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: bgGrey(context),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: textDarkGrey(context)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyleCustom.outFitMedium500(
+                color: textDarkGrey(context),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SoftPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _SoftPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyleCustom.outFitMedium500(
+          color: color,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
 class _Avatar extends StatelessWidget {
   final User user;
   final bool hasStories;
@@ -491,7 +625,8 @@ class _Avatar extends StatelessWidget {
         children: [
           FramedAvatar.fromUser(
             user,
-            size: 124,
+            size: 96,
+            compact: true,
             ring: (child) => LevelAvatarRing(
               user: user,
               padding: 3,
@@ -522,23 +657,23 @@ class _Avatar extends StatelessWidget {
               ),
             ),
           Positioned(
-            right: 6,
-            bottom: isLive ? 22 : 18,
+            right: 14,
+            bottom: 22,
             child: Builder(
               builder: (context) {
                 final isMe = user.id == SessionManager.instance.getUserID();
                 final isPresent =
                     isMe || user.isActive == 1 || user.isLive == 1;
                 return Container(
-                  width: 16,
-                  height: 16,
+                  width: 14,
+                  height: 14,
                   decoration: BoxDecoration(
                     color: isPresent
                         ? const Color(0xFFFF6B6B)
                         : const Color(0xFF9CA3AF),
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: scaffoldBackgroundColor(context), width: 2.5),
+                        color: scaffoldBackgroundColor(context), width: 2),
                   ),
                 );
               },
@@ -572,14 +707,14 @@ class _StatColumn extends StatelessWidget {
             maxLines: 1,
             style: TextStyleCustom.unboundedSemiBold600(
               color: textDarkGrey(context),
-              fontSize: 15,
+              fontSize: 17,
             ).copyWith(
-              height: 1.4,
+              height: 1.2,
               leadingDistribution: TextLeadingDistribution.even,
             ),
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           label,
           style: TextStyleCustom.outFitRegular400(
@@ -629,8 +764,9 @@ class _ActionButtons extends StatelessWidget {
                     title: LKey.publish.tr,
                     backgroundColor: themeAccentSolid(context),
                     titleColor: whitePure(context),
-                    btnHeight: 42,
+                    btnHeight: 36,
                     fontSize: 15,
+                    radius: 22,
                     horizontalMargin: 0,
                     margin: EdgeInsets.zero,
                   ),
@@ -645,8 +781,9 @@ class _ActionButtons extends StatelessWidget {
                     title: LKey.settings.tr,
                     backgroundColor: themeAccentSolid(context),
                     titleColor: whitePure(context),
-                    btnHeight: 42,
+                    btnHeight: 36,
                     fontSize: 15,
+                    radius: 22,
                     horizontalMargin: 0,
                     margin: EdgeInsets.zero,
                   ),
@@ -659,8 +796,9 @@ class _ActionButtons extends StatelessWidget {
                     title: 'Match',
                     backgroundColor: ColorRes.coralRed,
                     titleColor: whitePure(context),
-                    btnHeight: 42,
+                    btnHeight: 36,
                     fontSize: 15,
+                    radius: 22,
                     horizontalMargin: 0,
                     margin: EdgeInsets.zero,
                   ),
@@ -680,13 +818,6 @@ class _ActionButtons extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(width: 8),
-              _IconAction(
-                icon: AssetRes.icEdit,
-                onTap: () => Get.to(
-                  () => SettingsScreen(onUpdateUser: controller.onUpdateUser),
-                ),
-              ),
             ],
           ),
         ],
@@ -704,13 +835,14 @@ class _ActionButtons extends StatelessWidget {
               backgroundColor: following
                   ? ColorRes.bgGrey
                   : ColorRes.brandMagenta,
-              titleColor: following
-                  ? ColorRes.textDarkGrey
-                  : ColorRes.whitePure,
-              btnHeight: 42,
-              fontSize: 15,
-              horizontalMargin: 0,
-              margin: EdgeInsets.zero,
+                    titleColor: following
+                        ? ColorRes.textDarkGrey
+                        : ColorRes.whitePure,
+                    btnHeight: 36,
+                    fontSize: 15,
+                    radius: 22,
+                    horizontalMargin: 0,
+                    margin: EdgeInsets.zero,
             );
           }),
         ),
@@ -721,8 +853,9 @@ class _ActionButtons extends StatelessWidget {
             title: LKey.message.tr,
             backgroundColor: bgGrey(context),
             titleColor: textDarkGrey(context),
-            btnHeight: 42,
+            btnHeight: 36,
             fontSize: 15,
+            radius: 22,
             horizontalMargin: 0,
             margin: EdgeInsets.zero,
           ),
@@ -793,20 +926,27 @@ class _IconAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(21),
       child: Container(
-        height: 42,
-        width: 42,
+        height: 36,
+        width: 36,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: bgGrey(context),
-          borderRadius: BorderRadius.circular(10),
+          gradient: StyleRes.themeGradient,
+          borderRadius: BorderRadius.circular(21),
+          boxShadow: [
+            BoxShadow(
+              color: ColorRes.crimson.withValues(alpha: 0.28),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Image.asset(
           icon,
           height: 20,
           width: 20,
-          color: textDarkGrey(context),
+          color: ColorRes.whitePure,
         ),
       ),
     );
@@ -822,19 +962,26 @@ class _WorkIconAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(21),
       child: Container(
-        height: 42,
-        width: 42,
+        height: 36,
+        width: 36,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: bgGrey(context),
-          borderRadius: BorderRadius.circular(10),
+          gradient: StyleRes.themeGradient,
+          borderRadius: BorderRadius.circular(21),
+          boxShadow: [
+            BoxShadow(
+              color: ColorRes.crimson.withValues(alpha: 0.28),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Icon(
+        child: const Icon(
           Icons.work_outline_rounded,
           size: 22,
-          color: textDarkGrey(context),
+          color: ColorRes.whitePure,
         ),
       ),
     );

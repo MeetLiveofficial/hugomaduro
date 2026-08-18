@@ -414,13 +414,16 @@ class LivestreamScreenController extends BaseController {
     final levelNum = me.levelNumber ?? level.level ?? 1;
     final levelTitle = (me.levelTitle ?? level.title ?? '').trim();
     final isSvip = level.isSvipLevel == 1;
+    final isVip = me.isVipActive;
     // Video desde el nivel del usuario o catálogo settings (LV 5/6, etc.).
     final entranceVideo =
         (_entranceVideoForLevelNumber(levelNum) ?? (level.entranceVideo ?? ''))
             .trim();
-    final joinText = isSvip || levelNum >= 8
-        ? LKey.arrivedInStyle.tr
-        : (levelNum >= 4 ? LKey.joinedShort.tr : LKey.joinedTheLive.tr);
+    final joinText = isVip
+        ? '👑 VIP ha entrado al LIVE'
+        : (isSvip || levelNum >= 8
+            ? LKey.arrivedInStyle.tr
+            : (levelNum >= 4 ? LKey.joinedShort.tr : LKey.joinedTheLive.tr));
     final msg = LiveChatMessage(
       id: clientId,
       userId: me.id!,
@@ -429,8 +432,9 @@ class LivestreamScreenController extends BaseController {
       text: joinText,
       entranceVideo: entranceVideo.isEmpty ? null : entranceVideo,
       userLevel: levelNum,
-      levelTitle: levelTitle.isEmpty ? null : levelTitle,
+      levelTitle: isVip ? 'VIP' : (levelTitle.isEmpty ? null : levelTitle),
       isSvip: isSvip,
+      isVip: isVip,
     );
     _appendChatMessage(msg);
     try {
@@ -441,7 +445,7 @@ class LivestreamScreenController extends BaseController {
         clientId: clientId,
         type: 'text',
         text:
-            '👋JOIN|$levelNum|${isSvip ? 1 : 0}|$safeVideo|$name $joinText',
+            '👋JOIN|$levelNum|${isSvip ? 1 : 0}|$safeVideo|$name $joinText|${isVip ? 1 : 0}',
       );
     } catch (_) {}
     try {
@@ -989,7 +993,7 @@ class LivestreamScreenController extends BaseController {
     if (!msg.isNotableJoin) return;
     joinBanner.value = msg;
     _joinBannerTimer?.cancel();
-    final secs = msg.isSvip || (msg.userLevel ?? 0) >= 8 ? 5 : 4;
+    final secs = msg.isVip || msg.isSvip || (msg.userLevel ?? 0) >= 8 ? 5 : 4;
     _joinBannerTimer = Timer(Duration(seconds: secs), () {
       if (joinBanner.value?.id == msg.id) {
         joinBanner.value = null;
@@ -1466,7 +1470,8 @@ class LivestreamScreenController extends BaseController {
       );
     }
     final joinMeta =
-        RegExp(r'JOIN\|(\d+)\|([01])\|([^|]*)\|(.*)').firstMatch(text);
+        RegExp(r'JOIN\|(\d+)\|([01])\|([^|]*)\|(.*?)(?:\|([01]))?$')
+            .firstMatch(text);
     if (joinMeta != null ||
         lower.contains('entró al live') ||
         lower.contains('entro al live') ||
@@ -1478,6 +1483,7 @@ class LivestreamScreenController extends BaseController {
           ? int.tryParse(joinMeta.group(1) ?? '')
           : null;
       final isSvip = joinMeta?.group(2) == '1';
+      final isVip = joinMeta?.group(5) == '1' || msg.isVip;
       var video = (joinMeta?.group(3) ?? '').trim().replaceAll('%7C', '|');
       if (video.isEmpty && levelNum != null) {
         video = _entranceVideoForLevelNumber(levelNum) ?? '';
@@ -1503,8 +1509,9 @@ class LivestreamScreenController extends BaseController {
         text: joinText,
         entranceVideo: video.isEmpty ? null : video,
         userLevel: levelNum ?? msg.userLevel,
-        levelTitle: msg.levelTitle,
+        levelTitle: isVip ? 'VIP' : msg.levelTitle,
         isSvip: isSvip || msg.isSvip,
+        isVip: isVip,
         createdAt: msg.createdAt,
       );
     }
@@ -1539,13 +1546,14 @@ class LivestreamScreenController extends BaseController {
 
     if (msg.type == 'join') {
       final video = _resolveEntranceVideo(msg);
-      if (video != null && video.isNotEmpty) {
+      if ((video != null && video.isNotEmpty) || msg.isVip) {
         LevelEntranceOverlay.show(
           video,
           userName: msg.userName,
           level: msg.userLevel,
-          levelTitle: msg.levelTitle,
+          levelTitle: msg.isVip ? 'VIP' : msg.levelTitle,
           isSvip: msg.isSvip,
+          isVip: msg.isVip,
         );
       }
       _showJoinBanner(msg);

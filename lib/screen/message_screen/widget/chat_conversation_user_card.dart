@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/extensions/list_extension.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
+import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/enum/chat_enum.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -90,29 +91,17 @@ class ChatConversationUserCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyleCustom.outFitMedium500(
                               fontSize: 15,
-                              color: textDarkGrey(context),
+                              color: ColorRes.textDarkGrey,
                             ),
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: active
-                                ? const Color(0xFF22C55E).withValues(alpha: 0.15)
-                                : const Color(0xFF9CA3AF).withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            active ? 'Activa' : 'Inactiva',
-                            style: TextStyleCustom.outFitMedium500(
-                              fontSize: 10,
-                              color: active
-                                  ? const Color(0xFF15803D)
-                                  : const Color(0xFF6B7280),
-                            ),
-                          ),
+                        BrandStatusPill(
+                          label: active ? 'Activa' : 'Inactiva',
+                          color: active
+                              ? const Color(0xFF22C55E)
+                              : const Color(0xFFBFA8B8),
+                          solid: active,
                         ),
                       ],
                     ),
@@ -125,7 +114,7 @@ class ChatConversationUserCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyleCustom.outFitRegular400(
                         fontSize: 13,
-                        color: textLightGrey(context),
+                        color: ColorRes.textLightGrey,
                       ),
                     ),
                   ],

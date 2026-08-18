@@ -1,6 +1,7 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -53,10 +54,17 @@ class TextButtonCustom extends StatelessWidget {
           decoration: ShapeDecoration(
               shape: SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius(
-                      cornerRadius: radius ?? 10, cornerSmoothing: 1),
+                      cornerRadius: radius ?? 14, cornerSmoothing: 1),
                   side: borderSide ?? BorderSide.none),
               gradient: gradient ? StyleRes.themeGradient : null,
-              color: gradient ? null : (backgroundColor ?? whitePure(context))),
+              color: gradient ? null : (backgroundColor ?? whitePure(context)),
+              shadows: [
+                BoxShadow(
+                  color: ColorRes.crimson.withValues(alpha: gradient ? 0.32 : 0.1),
+                  blurRadius: gradient ? 12 : 8,
+                  offset: const Offset(0, 4),
+                ),
+              ]),
           child: child ??
               Text(
                 title.capitalize ?? '',

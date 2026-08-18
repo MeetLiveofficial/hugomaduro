@@ -5,6 +5,9 @@ import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Foto circular + marco/insignia del Dressing Center alrededor.
 ///
@@ -27,6 +30,8 @@ class FramedAvatar extends StatelessWidget {
     this.frameExtra = 0.22,
     this.photoOffset = Offset.zero,
     this.photoOnTop = true,
+    this.gradeLabel,
+    this.compact = false,
   });
 
   /// [size] = diámetro total (marco incluido).
@@ -43,6 +48,8 @@ class FramedAvatar extends StatelessWidget {
     double photoRatio = 0.62,
     Offset photoOffset = Offset.zero,
     bool photoOnTop = true,
+    String? gradeLabel,
+    bool compact = false,
   }) {
     final photoSize = size * photoRatio;
     final extra = (size - photoSize) / 2;
@@ -60,6 +67,8 @@ class FramedAvatar extends StatelessWidget {
       frameExtra: frameExtra,
       photoOffset: photoOffset,
       photoOnTop: photoOnTop,
+      gradeLabel: gradeLabel,
+      compact: compact,
     );
   }
 
@@ -72,25 +81,51 @@ class FramedAvatar extends StatelessWidget {
     Color? strokeColor,
     Widget Function(Widget child)? ring,
     Color? glowColor,
+    bool compact = false,
   }) {
     final dressing = (user.equippedFrameImage ?? '').trim();
     final badge = (user.equippedBadgeImage ?? '').trim();
-    // Si el “badge” del admin es un marco ornamental (p. ej. Marco SVIP
-    // mal tipado) y no hay frame, úsalo alrededor de la foto.
-    final surround = dressing.isNotEmpty ? dressing : badge;
+    final localGrade = dressing.isEmpty
+        ? AssetRes.streamerBadgeForGrade(user.effectiveStreamerGrade)
+        : null;
+    final surround = dressing.isNotEmpty ? dressing : '';
     final cornerBadge = dressing.isNotEmpty ? badge : '';
-    if (surround.isNotEmpty) {
+    if (surround.isNotEmpty || (localGrade ?? '').isNotEmpty) {
+      final gradeKey = (user.equippedFrame?['unlock_grade'] ??
+              user.effectiveStreamerGrade)
+          ?.toString();
+      final isGradeFrame = localGrade != null ||
+          (user.equippedFrame?['unlock_grade']
+                  ?.toString()
+                  .trim()
+                  .isNotEmpty ??
+              false) ||
+          (user.equippedFrame?['slug']?.toString().startsWith('streamer_') ??
+              false);
+      final ratio = isGradeFrame
+          ? AssetRes.streamerBadgePhotoRatio(gradeKey)
+          : user.framePhotoRatio;
+      final totalSize = compact ? 96.0 : size.clamp(80.0, 128.0);
+      final label = isGradeFrame
+          ? AssetRes.streamerBadgeLabel(gradeKey)
+          : '';
       return FramedAvatar.fitted(
         key: key,
-        size: size,
+        size: totalSize,
         image: user.profilePhoto,
         fullName: user.fullname ?? user.username,
-        frameImage: surround,
+        frameImage: surround.isEmpty ? null : surround,
+        localFrame: localGrade,
         badgeImage: cornerBadge.isEmpty ? null : cornerBadge,
         onTap: onTap,
         glowColor: glowColor,
-        photoRatio: 0.62,
+        photoRatio: ratio,
+        photoOffset: isGradeFrame
+            ? AssetRes.streamerBadgePhotoOffset(gradeKey, outer: totalSize)
+            : Offset.zero,
         photoOnTop: false,
+        compact: compact,
+        gradeLabel: label.isEmpty ? null : label,
       );
     }
     return FramedAvatar(
@@ -133,6 +168,8 @@ class FramedAvatar extends StatelessWidget {
   final double frameExtra;
   final Offset photoOffset;
   final bool photoOnTop;
+  final String? gradeLabel;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -143,20 +180,22 @@ class FramedAvatar extends StatelessWidget {
     final extra = hasChrome ? size * frameExtra : 0.0;
     final outer = size + extra * 2;
 
-    Widget photo = CustomImage(
-      size: Size(size, size),
-      image: (image ?? '').addBaseURL(),
+    Widget photo = _fillPhoto(
+      size: size,
+      imageUrl: (image ?? '').addBaseURL(),
       fullName: fullName,
-      radius: size / 2,
+      framed: hasChrome,
       strokeWidth: hasChrome ? 0 : strokeWidth,
       strokeColor: strokeColor,
-      fit: BoxFit.cover,
     );
 
     if (!hasChrome && ring != null) {
       photo = ring!(photo);
     }
 
+    if (hasChrome) {
+      photo = Transform.scale(scale: 1.12, child: photo);
+    }
     if (photoOffset != Offset.zero) {
       photo = Transform.translate(offset: photoOffset, child: photo);
     }
@@ -218,6 +257,8 @@ class FramedAvatar extends StatelessWidget {
       if (chrome != null) stackChildren.add(chrome);
     }
 
+    final grade = (gradeLabel ?? '').trim();
+
     if (badge.isNotEmpty) {
       stackChildren.add(
         Positioned(
@@ -244,7 +285,84 @@ class FramedAvatar extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           clipBehavior: Clip.none,
-          children: stackChildren,
+          children: [
+            ...stackChildren,
+            if (grade.isNotEmpty)
+              Positioned(
+                bottom: extra * 0.35,
+                child: IgnorePointer(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                    decoration: BoxDecoration(
+                      gradient: StyleRes.themeGradient,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: ColorRes.crimson.withValues(alpha: 0.4),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      grade,
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: ColorRes.whitePure,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fillPhoto({
+    required double size,
+    required String imageUrl,
+    String? fullName,
+    required bool framed,
+    required double strokeWidth,
+    Color? strokeColor,
+  }) {
+    if (imageUrl.trim().isEmpty) {
+      return CustomImage(
+        size: Size(size, size),
+        image: imageUrl,
+        fullName: fullName,
+        radius: size / 2,
+        strokeWidth: framed ? 0 : strokeWidth,
+        strokeColor: strokeColor,
+        fit: BoxFit.cover,
+      );
+    }
+
+    return ClipOval(
+      clipBehavior: Clip.hardEdge,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.network(
+          imageUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          gaplessPlayback: true,
+          filterQuality: FilterQuality.medium,
+          webHtmlElementStrategy: WebHtmlElementStrategy.never,
+          errorBuilder: (_, __, ___) => CustomImage(
+            size: Size(size, size),
+            image: imageUrl,
+            fullName: fullName,
+            radius: size / 2,
+            strokeWidth: 0,
+            fit: BoxFit.cover,
+          ),
         ),
       ),
     );

@@ -32,12 +32,25 @@ class ClientProfileScreen extends StatefulWidget {
 
 class _ClientProfileScreenState extends State<ClientProfileScreen> {
   late Rx<User?> userData;
+  Worker? _sessionUserWorker;
 
   @override
   void initState() {
     super.initState();
     userData = (widget.user ?? SessionManager.instance.getUser()).obs;
+    _sessionUserWorker = ever<User?>(SessionManager.instance.userRx, (u) {
+      if (!mounted) return;
+      if (u != null && u.id == SessionManager.instance.getUserID()) {
+        userData.value = u;
+      }
+    });
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    _sessionUserWorker?.dispose();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -52,7 +65,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         userData.value = fresh;
         SessionManager.instance.setUser(fresh);
       }
-    } catch (_) {}
+    } catch (_) {    }
+  }
+
+  Future<void> _openWallet() async {
+    await Get.to(() => const CoinWalletScreen());
+    await _refresh();
   }
 
   @override
@@ -82,7 +100,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       children: [
                         FramedAvatar.fromUser(
                           user,
-                          size: 124,
+                          size: 112,
                           ring: (child) => LevelAvatarRing(
                             user: user,
                             padding: 3.5,
@@ -228,13 +246,13 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 const SizedBox(height: 28),
                 _WalletShineCard(
                   coinsLabel: coins.fullNumberFormat,
-                  onRecharge: () => Get.to(() => const CoinWalletScreen()),
+                  onRecharge: () => _openWallet(),
                 ),
                 const SizedBox(height: 20),
                 _MenuTile(
                   icon: AssetRes.icWallet,
                   title: LKey.coinWallet.tr,
-                  onTap: () => Get.to(() => const CoinWalletScreen()),
+                  onTap: _openWallet,
                 ),
                 _MenuTile(
                   icon: AssetRes.icGift,

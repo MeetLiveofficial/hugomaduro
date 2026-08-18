@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:krimson/common/extensions/common_extension.dart';
-import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
-import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
-import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
-import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/screen/coin_wallet_screen/widget/coin_package_tile.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -45,7 +41,7 @@ class CoinGate {
     return false;
   }
 
-  static void openCoinShopSheet() {
+  static void openCoinShopSheet({String? headline}) {
     if (!Get.isRegistered<CoinWalletScreenController>()) {
       Get.put(CoinWalletScreenController());
     } else {
@@ -57,7 +53,7 @@ class CoinGate {
         (SessionManager.instance.getUser()?.coinWallet ?? 0).toInt();
 
     Get.bottomSheet(
-      _CoinShopSheet(initialCoins: wallet),
+      _CoinShopSheet(initialCoins: wallet, headline: headline),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
     );
@@ -66,8 +62,9 @@ class CoinGate {
 
 class _CoinShopSheet extends StatelessWidget {
   final int initialCoins;
+  final String? headline;
 
-  const _CoinShopSheet({required this.initialCoins});
+  const _CoinShopSheet({required this.initialCoins, this.headline});
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +113,18 @@ class _CoinShopSheet extends StatelessWidget {
                 ],
               ),
             ),
+            if ((headline ?? '').isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  headline!,
+                  textAlign: TextAlign.center,
+                  style: TextStyleCustom.outFitRegular400(
+                    color: textDarkGrey(context),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
             Expanded(
               child: Obx(() {
                 if (controller.isLoading.value &&
@@ -133,62 +142,10 @@ class _CoinShopSheet extends StatelessWidget {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final plan = controller.coinPlans[index];
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: bgLightGrey(context),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            CustomImage(
-                              size: const Size(42, 42),
-                              strokeWidth: 0,
-                              image: (plan.image ?? '').isNotEmpty
-                                  ? plan.image!.addBaseURL()
-                                  : null,
-                              radius: 10,
-                              fit: BoxFit.cover,
-                              isShowPlaceHolder: true,
-                              fullName: '${plan.coin}',
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Image.asset(AssetRes.icCoin,
-                                      height: 16, width: 16),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    plan.coin.numberFormat,
-                                    style: TextStyleCustom.unboundedMedium500(
-                                      color: textDarkGrey(context),
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            TextButtonCustom(
-                              onTap: () => controller.onPurchase(plan),
-                              title: plan.priceString.isEmpty
-                                  ? LKey.purchase.tr
-                                  : plan.priceString,
-                              btnHeight: 32,
-                              horizontalMargin: 0,
-                              margin: EdgeInsets.zero,
-                              fontSize: 12,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 14),
-                              backgroundColor: ColorRes.themeAccentSolid,
-                              titleColor: Colors.white,
-                              radius: 20,
-                            ),
-                          ],
-                        ),
+                      return CoinPackageTile(
+                        plan: plan,
+                        onPurchase: () => controller.onPurchase(plan),
+                        buttonColor: ColorRes.themeAccentSolid,
                       );
                     },
                   ),

@@ -82,10 +82,20 @@ class CoinWalletScreenController extends BaseController {
           (apiPrice == null
               ? ''
               : '$currency${_formatPrice(apiPrice)}');
+      final base = data.coinAmount ?? 0;
+      final pct = data.bonusPercent ?? 0;
+      final bonus = data.bonusCoins ??
+          (pct > 0 ? (base * pct / 100).round() : 0);
+      final total = data.totalCoins ?? (base + bonus);
 
       coinPlans.add(
         CoinPlan(
-          coin: data.coinAmount ?? 0,
+          coin: total,
+          baseCoins: base,
+          bonusCoins: bonus,
+          bonusPercent: pct,
+          name: data.name,
+          slug: data.slug,
           coinPackageId: data.id ?? -1,
           id: matched?.storeProduct.identifier ??
               data.playStoreProductId ??
@@ -144,7 +154,7 @@ class CoinWalletScreenController extends BaseController {
               Text(
                 offer.priceString.isEmpty
                     ? '${offer.coin} monedas'
-                    : '${offer.coin} monedas · ${offer.priceString}',
+                    : '${offer.name ?? ''} · ${offer.coin} monedas · ${offer.priceString}',
                 textAlign: TextAlign.center,
                 style: TextStyleCustom.outFitRegular400(
                   color: textLightGrey(Get.context!),
@@ -539,6 +549,11 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
 
 class CoinPlan {
   final int coin;
+  final int baseCoins;
+  final int bonusCoins;
+  final num bonusPercent;
+  final String? name;
+  final String? slug;
   final int coinPackageId;
   final String id;
   final String priceString;
@@ -550,6 +565,11 @@ class CoinPlan {
     required this.coinPackageId,
     required this.id,
     required this.priceString,
+    this.baseCoins = 0,
+    this.bonusCoins = 0,
+    this.bonusPercent = 0,
+    this.name,
+    this.slug,
     this.image,
     this.canPurchaseViaStore = false,
   });

@@ -36,7 +36,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
               children: [
             // Header estilo referencia Live
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 6),
+              padding: const EdgeInsets.fromLTRB(16, 10, 12, 6),
               child: Row(
                 children: [
                   // Ranking — podio flat (sin círculo / trofeo)

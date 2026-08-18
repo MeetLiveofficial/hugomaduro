@@ -10,6 +10,8 @@ import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
@@ -31,6 +33,8 @@ class MatchScreenController extends BaseController
   final RxBool inMatchPool = false.obs;
   final RxBool waitCameraOn = false.obs;
   final RxInt coins = 0.obs;
+  final RxInt freeMatchesUsed = 0.obs;
+  final RxInt freeMatchesQuota = 2.obs;
 
   late final AnimationController pulseController;
   Worker? _tabWorker;
@@ -43,8 +47,12 @@ class MatchScreenController extends BaseController
   int get walletCoins => coins.value;
 
   void refreshCoins() {
-    coins.value =
-        SessionManager.instance.getUser()?.coinWallet?.toInt() ?? 0;
+    final u = SessionManager.instance.getUser();
+    coins.value = u?.coinWallet?.toInt() ?? 0;
+    freeMatchesUsed.value = u?.dailyFreeMatchesUsed ?? 0;
+    freeMatchesQuota.value = u?.dailyFreeMatchesQuota ??
+        SessionManager.instance.getSettings()?.matchDailyFreeQuota ??
+        2;
   }
 
   bool get isPlusMember =>
@@ -314,12 +322,22 @@ class MatchScreenController extends BaseController
       return;
     }
     if (isMatching.value) return;
+    final meNow = SessionManager.instance.getUser();
+    final remaining = meNow?.dailyFreeMatchesRemaining ?? 2;
+    final wallet = (meNow?.coinWallet ?? 0).toInt();
+    if (remaining <= 0 && wallet <= 0) {
+      CoinGate.openCoinShopSheet(headline: LKey.freeMatchesUsed.tr);
+      return;
+    }
     isMatching.value = true;
     try {
       await joinPool();
+      final remaining =
+          SessionManager.instance.getUser()?.dailyFreeMatchesRemaining ?? 2;
       final cost =
           SessionManager.instance.getSettings()?.matchInitialCoins ?? 0;
-      if (cost > 0 &&
+      if (remaining <= 0 &&
+          cost > 0 &&
           !CoinGate.ensureEnough(
             cost,
             message: 'Necesitas $cost coins para ver streamers en Match',
@@ -347,6 +365,19 @@ class MatchScreenController extends BaseController
             initial: match,
             mode: matchMode,
           ));
+      try {
+        final fresh = await UserService.instance
+            .fetchUserDetails(userId: SessionManager.instance.getUserID());
+        if (fresh != null) {
+          SessionManager.instance.setUser(fresh);
+        }
+      } catch (_) {}
+      refreshCoins();
+      final after = SessionManager.instance.getUser();
+      if ((after?.dailyFreeMatchesRemaining ?? 0) <= 0 &&
+          (after?.coinWallet ?? 0).toInt() <= 0) {
+        CoinGate.openCoinShopSheet(headline: LKey.freeMatchesUsed.tr);
+      }
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
       if (msg.toLowerCase().contains('insufficient')) {

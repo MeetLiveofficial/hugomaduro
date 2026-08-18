@@ -108,6 +108,7 @@ class Setting {
   List<MatchTier> matchTiers;
   bool wompiEnabled;
   bool nowpaymentsEnabled;
+  int matchDailyFreeQuota;
 
   Setting({
     this.id,
@@ -181,6 +182,7 @@ class Setting {
     List<MatchTier>? matchTiers,
     this.wompiEnabled = true,
     this.nowpaymentsEnabled = true,
+    this.matchDailyFreeQuota = 2,
   }) : matchTiers = matchTiers ?? MatchTier.defaults;
 
   factory Setting.fromJson(Map<String, dynamic> json) {
@@ -320,6 +322,9 @@ class Setting {
         matchTiers: MatchTier.listFrom(cfg["tiers"] ?? json["match_tiers"]),
         wompiEnabled: (_asInt(json["wompi_enabled"]) ?? 1) != 0,
         nowpaymentsEnabled: (_asInt(json["nowpayments_enabled"]) ?? 1) != 0,
+        matchDailyFreeQuota: _asInt(json["match_daily_free_quota"]) ??
+            _asInt(cfg["daily_free_quota"]) ??
+            2,
       );
   }
 
@@ -414,6 +419,7 @@ class Setting {
         "match_free_seconds": matchFreeSeconds,
         "match_initial_coins": matchInitialCoins,
         "match_grace_seconds": matchGraceSeconds,
+        "match_daily_free_quota": matchDailyFreeQuota,
         "match_tiers": matchTiers.map((t) => t.toJson()).toList(),
         "wompi_enabled": wompiEnabled,
         "nowpayments_enabled": nowpaymentsEnabled,
@@ -485,6 +491,11 @@ class CoinPackage {
   num? coinPlanPrice;
   String? playStoreProductId;
   String? appstoreProductId;
+  String? name;
+  String? slug;
+  num? bonusPercent;
+  int? bonusCoins;
+  int? totalCoins;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -496,25 +507,42 @@ class CoinPackage {
     this.coinPlanPrice,
     this.playStoreProductId,
     this.appstoreProductId,
+    this.name,
+    this.slug,
+    this.bonusPercent,
+    this.bonusCoins,
+    this.totalCoins,
     this.createdAt,
     this.updatedAt,
   });
 
-  factory CoinPackage.fromJson(Map<String, dynamic> json) => CoinPackage(
-        id: Setting._asInt(json["id"]),
-        image: json["image"],
-        status: Setting._asInt(json["status"]),
-        coinAmount: Setting._asInt(json["coin_amount"]),
-        coinPlanPrice: Setting._asDouble(json["coin_plan_price"]),
-        playStoreProductId: json["playstore_product_id"],
-        appstoreProductId: json["appstore_product_id"],
-        createdAt: json["created_at"] == null
-            ? null
-            : DateTime.parse(json["created_at"]),
-        updatedAt: json["updated_at"] == null
-            ? null
-            : DateTime.parse(json["updated_at"]),
-      );
+  factory CoinPackage.fromJson(Map<String, dynamic> json) {
+    final base = Setting._asInt(json["coin_amount"]) ?? 0;
+    final pct = Setting._asDouble(json["bonus_percent"]) ?? 0;
+    final bonus = Setting._asInt(json["bonus_coins"]) ??
+        (pct > 0 ? (base * pct / 100).round() : 0);
+    final total = Setting._asInt(json["total_coins"]) ?? (base + bonus);
+    return CoinPackage(
+      id: Setting._asInt(json["id"]),
+      image: json["image"],
+      status: Setting._asInt(json["status"]),
+      coinAmount: base,
+      coinPlanPrice: Setting._asDouble(json["coin_plan_price"]),
+      playStoreProductId: json["playstore_product_id"],
+      appstoreProductId: json["appstore_product_id"],
+      name: json["name"]?.toString(),
+      slug: json["slug"]?.toString(),
+      bonusPercent: pct,
+      bonusCoins: bonus,
+      totalCoins: total,
+      createdAt: json["created_at"] == null
+          ? null
+          : DateTime.parse(json["created_at"]),
+      updatedAt: json["updated_at"] == null
+          ? null
+          : DateTime.parse(json["updated_at"]),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         "id": id,
@@ -524,6 +552,11 @@ class CoinPackage {
         "coin_plan_price": coinPlanPrice,
         "playstore_product_id": playStoreProductId,
         "appstore_product_id": appstoreProductId,
+        "name": name,
+        "slug": slug,
+        "bonus_percent": bonusPercent,
+        "bonus_coins": bonusCoins,
+        "total_coins": totalCoins,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };

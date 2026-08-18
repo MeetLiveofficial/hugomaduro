@@ -20,8 +20,21 @@ class LevelAvatarStyle {
     return lvl.isSvipLevel == 1;
   }
 
+  static bool isVip(User? user) => user?.isVipActive == true;
+
   /// Gradiente del anillo por nivel.
-  static LinearGradient ringGradient(int level, {bool svip = false}) {
+  static LinearGradient ringGradient(int level, {bool svip = false, bool vip = false}) {
+    if (vip) {
+      return const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFFFE082),
+          Color(0xFFFFC107),
+          Color(0xFFFF8F00),
+        ],
+      );
+    }
     if (svip || level >= 10) {
       return const LinearGradient(
         begin: Alignment.topLeft,
@@ -69,7 +82,7 @@ class LevelAvatarStyle {
   }
 
   static LinearGradient forUser(User? user) {
-    return ringGradient(levelOf(user), svip: isSvip(user));
+    return ringGradient(levelOf(user), svip: isSvip(user), vip: isVip(user));
   }
 
   static LinearGradient forUserLevel(UserLevel? level) {

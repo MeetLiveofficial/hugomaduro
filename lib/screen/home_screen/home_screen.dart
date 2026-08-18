@@ -125,27 +125,42 @@ class HomeTopCenterWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const HomeModeSwitcher(),
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: controller.onToggleDropDown,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Obx(() => Text(
-                    controller.selectedReelCategory.value.title.toUpperCase(),
-                    style: TextStyleCustom.unboundedBold700(
-                        fontSize: 16, color: whitePure(context)))),
-                const SizedBox(width: 5),
-                Image.asset(AssetRes.icDownArrow,
-                    color: whitePure(context), height: 12, width: 12),
-              ],
-            ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+        child: SizedBox(
+          height: 44,
+          child: Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: InkWell(
+                    onTap: controller.onToggleDropDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Obx(() => Text(
+                              controller.selectedReelCategory.value.title
+                                  .toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyleCustom.unboundedBold700(
+                                  fontSize: 13, color: whitePure(context)))),
+                        ),
+                        const SizedBox(width: 5),
+                        Image.asset(AssetRes.icDownArrow,
+                            color: whitePure(context), height: 10, width: 10),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const HomeModeSwitcher(),
+              const Expanded(child: SizedBox()),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
