@@ -1,3 +1,5 @@
+import 'dart:ui' show Offset;
+
 class AssetRes {
   static const String images = "assets/images/";
   static const String icons = "assets/icons/";
@@ -179,20 +181,57 @@ class AssetRes {
   static double streamerBadgePhotoRatio(String? grade) {
     switch ((grade ?? '').toUpperCase().trim()) {
       case 'NEW':
-        return 0.48;
+        return 0.38;
       case 'D':
       case 'C':
-        return 0.42;
+        return 0.36;
       case 'B':
-        return 0.44;
+        return 0.38;
       case 'A':
-        return 0.50;
+        return 0.43;
       case 'S':
       case 'SS':
-        return 0.52;
+        return 0.45;
       default:
-        return 0.62;
+        return 0.38;
     }
+  }
+
+  static double streamerBadgeHoleDx(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'NEW':
+        return 0.005;
+      case 'B':
+        return -0.010;
+      default:
+        return 0;
+    }
+  }
+
+  static double streamerBadgeHoleDy(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'NEW':
+        return 0.040;
+      case 'D':
+      case 'C':
+        return 0.085;
+      case 'B':
+        return 0.059;
+      case 'A':
+        return 0.069;
+      case 'S':
+      case 'SS':
+        return 0.037;
+      default:
+        return 0.04;
+    }
+  }
+
+  static Offset streamerBadgePhotoOffset(String? grade, {double outer = 120}) {
+    return Offset(
+      outer * streamerBadgeHoleDx(grade),
+      outer * streamerBadgeHoleDy(grade),
+    );
   }
 
   static String streamerBadgeLabel(String? grade) {

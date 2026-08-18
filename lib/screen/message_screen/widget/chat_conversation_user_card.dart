@@ -91,7 +91,7 @@ class ChatConversationUserCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyleCustom.outFitMedium500(
                               fontSize: 15,
-                              color: textDarkGrey(context),
+                              color: ColorRes.textDarkGrey,
                             ),
                           ),
                         ),
@@ -99,9 +99,9 @@ class ChatConversationUserCard extends StatelessWidget {
                         BrandStatusPill(
                           label: active ? 'Activa' : 'Inactiva',
                           color: active
-                              ? const Color(0xFF15803D)
-                              : const Color(0xFF3F3A45),
-                          solid: true,
+                              ? const Color(0xFF22C55E)
+                              : const Color(0xFFBFA8B8),
+                          solid: active,
                         ),
                       ],
                     ),
@@ -114,7 +114,7 @@ class ChatConversationUserCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyleCustom.outFitRegular400(
                         fontSize: 13,
-                        color: textLightGrey(context),
+                        color: ColorRes.textLightGrey,
                       ),
                     ),
                   ],

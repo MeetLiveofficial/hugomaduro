@@ -16,6 +16,7 @@ class CustomTabSwitcher extends StatelessWidget {
   final Map<int, Widget>? badges;
   final EdgeInsets? margin;
   final Color? selectedFontColor;
+  final Color? unselectedFontColor;
   final Color? backgroundColor;
 
   const CustomTabSwitcher(
@@ -28,6 +29,7 @@ class CustomTabSwitcher extends StatelessWidget {
       this.badges,
       this.margin,
       this.selectedFontColor,
+      this.unselectedFontColor,
       this.backgroundColor});
 
   @override
@@ -92,7 +94,8 @@ class CustomTabSwitcher extends StatelessWidget {
                               items[index].tr,
                               style: TextStyleCustom.outFitRegular400(
                                   color: !isSelected
-                                      ? textLightGrey(context)
+                                      ? (unselectedFontColor ??
+                                          textLightGrey(context))
                                       : (selectedFontColor ??
                                           ColorRes.whitePure),
                                   fontSize: 15),

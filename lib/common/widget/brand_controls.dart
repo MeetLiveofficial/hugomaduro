@@ -19,8 +19,9 @@ class BrandControls {
       ),
       boxShadow: [
         BoxShadow(
-          color: ColorRes.crimson.withValues(alpha: selected ? 0.28 : 0.12),
-          blurRadius: selected ? 10 : 8,
+          color: ColorRes.crimson.withValues(alpha: selected ? 0.55 : 0.16),
+          blurRadius: selected ? 14 : 8,
+          spreadRadius: selected ? 0.5 : 0,
           offset: const Offset(0, 3),
         ),
       ],
@@ -92,6 +93,7 @@ class BrandSegmentChip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (icon != null) ...[
                   Icon(
@@ -148,6 +150,7 @@ class BrandFilterChip extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Icon(icon, size: 16, color: fg),
                 const SizedBox(width: 8),

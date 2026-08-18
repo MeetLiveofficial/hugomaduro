@@ -59,7 +59,7 @@ class ExploreScreen extends StatelessWidget {
                               crossAxisCount: 2,
                               mainAxisSpacing: 8,
                               crossAxisSpacing: 8,
-                              childAspectRatio: 0.72,
+                              childAspectRatio: 0.78,
                             ),
                             itemCount: list.length +
                                 (controller.isLoadingMore.value ? 1 : 0),
@@ -105,11 +105,10 @@ class _ExploreHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(gradient: StyleRes.themeGradient),
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-      child: SafeArea(
-        bottom: false,
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
         child: Column(
           children: [
             TextField(
@@ -495,73 +494,69 @@ class _StreamerExploreCard extends StatelessWidget {
                 ),
               ),
             ),
-            if (isLive)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    gradient: StyleRes.themeGradient,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ColorRes.crimson.withValues(alpha: 0.35),
-                        blurRadius: 8,
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isLive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        gradient: StyleRes.themeGradient,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: ColorRes.crimson.withValues(alpha: 0.45),
+                            blurRadius: 10,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.videocam, color: Colors.white, size: 11),
-                      const SizedBox(width: 3),
-                      Text(
-                        'LIVE',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.videocam,
+                              color: Colors.white, size: 11),
+                          const SizedBox(width: 3),
+                          Text(
+                            'LIVE',
+                            style: TextStyleCustom.outFitMedium500(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              )
-            else if (isActive)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF166534),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF4ADE80),
-                          shape: BoxShape.circle,
-                        ),
+                    )
+                  else if (isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6166534),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Activo',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.circle,
+                              color: Color(0xFF4ADE80), size: 8),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Activo',
+                            style: TextStyleCustom.outFitMedium500(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                ],
               ),
+            ),
             if ((user.country ?? '').isNotEmpty ||
                 (user.countryCode ?? '').isNotEmpty)
               Positioned(
@@ -585,59 +580,96 @@ class _StreamerExploreCard extends StatelessWidget {
               ),
             Positioned(
               left: 10,
-              right: 10,
-              bottom: 10,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              right: 6,
+              bottom: 8,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyleCustom.outFitSemiBold600(
-                      color: Colors.white,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: showCallButton
-                            ? BrandGhostButton(
-                                icon: Icons.chat_bubble_outline_rounded,
-                                title: 'Chat',
-                                onTap: onMessage,
-                              )
-                            : BrandPrimaryButton(
-                                icon: Icons.chat_bubble_outline_rounded,
-                                title: 'Chat',
-                                compact: true,
-                                onTap: onMessage,
-                              ),
-                      ),
-                      if (showCallButton) ...[
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: BrandPrimaryButton(
-                            icon: Icons.videocam_rounded,
-                            title: 'Llamar',
-                            compact: true,
-                            onTap: canCall ? onCall : null,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyleCustom.outFitSemiBold600(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white70,
+                            fontSize: 11,
                           ),
                         ),
                       ],
-                    ],
+                    ),
+                  ),
+                  Material(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: const CircleBorder(),
+                    child: PopupMenuButton<String>(
+                      tooltip: 'Opciones',
+                      color: ColorRes.whitePure,
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.more_vert_rounded,
+                          color: Colors.white, size: 20),
+                      onSelected: (value) {
+                        if (value == 'chat') onMessage();
+                        if (value == 'call') onCall();
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'chat',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.chat_bubble_outline_rounded,
+                                  color: ColorRes.textDarkGrey, size: 18),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Chat',
+                                style: TextStyleCustom.outFitMedium500(
+                                  color: ColorRes.textDarkGrey,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (showCallButton)
+                          PopupMenuItem(
+                            value: 'call',
+                            enabled: canCall,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.videocam_rounded,
+                                  color: canCall
+                                      ? ColorRes.crimson
+                                      : ColorRes.disabledGrey,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Llamar',
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: canCall
+                                        ? ColorRes.textDarkGrey
+                                        : ColorRes.disabledGrey,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),

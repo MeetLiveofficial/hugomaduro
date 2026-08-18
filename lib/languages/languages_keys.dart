@@ -59,7 +59,7 @@ class LKey {
   static const String description = "Description";
   static const String submit = "Submit";
   static const String agreeToPolicy =
-      "By proceeding forward, You agree to the,";
+      "By proceeding forward, you agree to the";
   static const String privacyPolicy = "Privacy Policy";
   static const String andText = "and";
   static const String termsOfUse = "Terms of Use";

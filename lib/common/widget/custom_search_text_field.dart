@@ -17,6 +17,9 @@ class CustomSearchTextField extends StatelessWidget {
   final TapRegionCallback? onTapOutside;
   final String? hintText;
   final Widget? suffixIcon;
+  final Color? foregroundColor;
+  final bool readOnly;
+  final bool autofocus;
 
   const CustomSearchTextField(
       {super.key,
@@ -29,10 +32,17 @@ class CustomSearchTextField extends StatelessWidget {
       this.controller,
       this.onTapOutside,
       this.hintText,
-      this.suffixIcon});
+      this.suffixIcon,
+      this.foregroundColor,
+      this.readOnly = false,
+      this.autofocus = false});
 
   @override
   Widget build(BuildContext context) {
+    final fg = foregroundColor ?? textDarkGrey(context);
+    final hint = foregroundColor != null
+        ? foregroundColor!.withValues(alpha: 0.55)
+        : textLightGrey(context);
     return Container(
       margin: margin ?? const EdgeInsets.symmetric(vertical: 7, horizontal: 10),
       decoration: ShapeDecoration(
@@ -40,11 +50,13 @@ class CustomSearchTextField extends StatelessWidget {
             borderRadius:
                 SmoothBorderRadius(cornerRadius: 14, cornerSmoothing: 1),
             side: borderSide ??
-                BorderSide(color: ColorRes.roseBorder.withValues(alpha: 0.32))),
+                BorderSide(
+                    color: (foregroundColor ?? ColorRes.roseBorder)
+                        .withValues(alpha: 0.28))),
         color: backgroundColor ?? ColorRes.whitePure.withValues(alpha: 0.94),
         shadows: [
           BoxShadow(
-            color: ColorRes.crimson.withValues(alpha: 0.1),
+            color: ColorRes.crimson.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -52,6 +64,8 @@ class CustomSearchTextField extends StatelessWidget {
       ),
       child: TextField(
         onTap: onTap,
+        readOnly: readOnly,
+        autofocus: autofocus,
         controller: controller,
         decoration: InputDecoration(
             border: InputBorder.none,
@@ -60,17 +74,18 @@ class CustomSearchTextField extends StatelessWidget {
             contentPadding:
                 const EdgeInsets.only(left: 16, right: 12, top: 12, bottom: 12),
             hintText: hintText ?? LKey.searchHere.tr,
-            hintStyle: TextStyleCustom.outFitLight300(
-                fontSize: 15, color: textLightGrey(context)),
+            hintStyle:
+                TextStyleCustom.outFitLight300(fontSize: 15, color: hint),
             hintFadeDuration: const Duration(milliseconds: 200),
             prefixIcon: Icon(Icons.search_rounded,
-                size: 20, color: ColorRes.crimson.withValues(alpha: 0.85)),
+                size: 20,
+                color: (foregroundColor ?? ColorRes.crimson)
+                    .withValues(alpha: 0.85)),
             prefixIconConstraints: const BoxConstraints(minWidth: 40),
             suffixIconConstraints: const BoxConstraints(),
             suffixIcon: suffixIcon),
         cursorHeight: 16,
-        style: TextStyleCustom.outFitRegular400(
-            fontSize: 15, color: textDarkGrey(context)),
+        style: TextStyleCustom.outFitRegular400(fontSize: 15, color: fg),
         onTapOutside: (event) {
           onTapOutside?.call(event);
           FocusManager.instance.primaryFocus?.unfocus();

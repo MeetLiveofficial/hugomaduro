@@ -62,7 +62,7 @@ class SupportChatCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyleCustom.outFitMedium500(
                               fontSize: 15,
-                              color: textDarkGrey(context),
+                              color: ColorRes.textDarkGrey,
                             ),
                           ),
                         ),
@@ -81,7 +81,7 @@ class SupportChatCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyleCustom.outFitRegular400(
                         fontSize: 13,
-                        color: textLightGrey(context),
+                        color: ColorRes.textLightGrey,
                       ),
                     ),
                   ],

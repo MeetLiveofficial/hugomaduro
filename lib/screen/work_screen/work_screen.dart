@@ -112,8 +112,10 @@ class _Header extends StatelessWidget {
               image: data.user.profilePhoto,
               fullName: data.user.fullname,
               localFrame: AssetRes.streamerBadgeForGrade(grade),
-              photoRatio: 0.48,
+              photoRatio: AssetRes.streamerBadgePhotoRatio(grade),
+              photoOffset: AssetRes.streamerBadgePhotoOffset(grade, outer: 72),
               photoOnTop: false,
+              gradeLabel: AssetRes.streamerBadgeLabel(grade),
             ),
             const SizedBox(width: 10),
             Expanded(

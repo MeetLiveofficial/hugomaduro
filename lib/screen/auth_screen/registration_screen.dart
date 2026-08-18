@@ -23,23 +23,21 @@ class RegistrationScreen extends StatelessWidget {
     final controller = Get.find<AuthScreenController>();
     return Scaffold(
       body: SafeArea(
-        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 10),
             const CustomBackButton(
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 5)),
-            const SizedBox(height: 10),
             Expanded(
                 child: SingleChildScrollView(
               dragStartBehavior: DragStartBehavior.down,
+              padding: const EdgeInsets.only(bottom: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(
-                        left: 20.0, right: 20, top: 40, bottom: 30),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -60,10 +58,12 @@ class RegistrationScreen extends StatelessWidget {
                   TextFieldCustom(
                     controller: controller.fullNameController,
                     title: LKey.fullName.tr,
+                    hintText: LKey.enterFullName.tr,
                   ),
                   TextFieldCustom(
                     controller: controller.emailController,
                     title: LKey.email.tr,
+                    hintText: LKey.enterYourEmail.tr,
                     keyboardType: TextInputType.emailAddress,
                   ),
                   Obx(() => _AuthPickerField(
@@ -130,29 +130,31 @@ class RegistrationScreen extends StatelessWidget {
                   TextFieldCustom(
                     controller: controller.passwordController,
                     title: LKey.password.tr,
+                    hintText: LKey.enterPassword.tr,
                     isPasswordField: true,
                   ),
                   TextFieldCustom(
                     controller: controller.confirmPassController,
                     title: LKey.reTypePassword.tr,
+                    hintText: LKey.enterPassword.tr,
                     isPasswordField: true,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 20),
+                  TextButtonCustom(
+                      onTap: controller.onCreateAccount,
+                      title: LKey.createAccount.tr,
+                      gradient: true,
+                      horizontalMargin: 20,
+                      titleColor: whitePure(context),
+                      radius: 25),
+                  const SizedBox(height: 16),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: PrivacyPolicyText(),
+                  ),
                 ],
               ),
             )),
-            TextButtonCustom(
-                onTap: controller.onCreateAccount,
-                title: LKey.createAccount.tr,
-                gradient: true,
-                horizontalMargin: 20,
-                titleColor: whitePure(context),
-                radius: 25),
-            SizedBox(height: AppBar().preferredSize.height / 1.2),
-            const SafeArea(
-                top: false,
-                maintainBottomViewPadding: true,
-                child: PrivacyPolicyText()),
           ],
         ),
       ),
@@ -371,31 +373,51 @@ class _AuthPickerField extends StatelessWidget {
               style: TextStyleCustom.outFitRegular400(
                   color: textDarkGrey(context), fontSize: 17)),
         ),
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            height: 52,
-            margin: const EdgeInsets.only(top: 8, bottom: 12, left: 0, right: 0),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            alignment: Alignment.centerLeft,
-            decoration: BoxDecoration(
-              color: bgLightGrey(context),
+        Container(
+          height: 52,
+          margin: const EdgeInsets.only(top: 8, bottom: 12, left: 16, right: 16),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: ColorRes.whitePure.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: ColorRes.roseBorder.withValues(alpha: 0.35),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    value,
-                    style: TextStyleCustom.outFitRegular400(
-                      color: isPlaceholder
-                          ? textLightGrey(context)
-                          : textDarkGrey(context),
-                      fontSize: 16,
-                    ),
+            boxShadow: [
+              BoxShadow(
+                color: ColorRes.crimson.withValues(alpha: 0.07),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              child: SizedBox.expand(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: isPlaceholder
+                                ? textLightGrey(context)
+                                : textDarkGrey(context),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Icon(icon, size: 20, color: textLightGrey(context)),
+                    ],
                   ),
                 ),
-                Icon(icon, size: 20, color: textLightGrey(context)),
-              ],
+              ),
             ),
           ),
         ),
