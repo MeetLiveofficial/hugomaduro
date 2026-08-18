@@ -1,5 +1,5 @@
 ---
-description: Enruta preguntas a Composer 2.5 Fast y código a Grok 4.6 High Fast
+description: Enruta preguntas a Composer 2.5 Fast, código a Grok 4.6, y lo complejo a Opus 5 si hay token
 alwaysApply: true
 ---
 
@@ -7,9 +7,18 @@ alwaysApply: true
 
 Si este chat es el agente padre y puedes lanzar subagentes:
 
-- **Pregunta, explicación o plan** (sin tocar archivos) → subagente `ask-fast` (`composer-2.5-fast`).
-- **Implementar, editar, refactorizar o corregir código** → subagente `code-grok` (`cursor-grok-4.6-xhigh-fast`).
+- **Pregunta, explicación o plan** (sin tocar archivos) → `ask-fast` (`composer-2.5-fast`).
+- **Código habitual** (hotfix, UI, cambio local, feature clara) → `code-grok` (`cursor-grok-4.6-xhigh-fast`).
+- **Razonamiento o código complejo** (arquitectura, bug difícil, refactor grande, varios sistemas, trade-offs) → `opus-think` (`claude-opus-5-thinking-high`).
+
+## Fallback de token (Opus)
+
+No hay API de saldo. Trata “token disponible” así:
+
+1. Lanza `opus-think` **una vez**.
+2. Si falla por cuota, billing, modelo no habilitado o no aparece en el catálogo → **no reintentes Opus**. Sigue con `code-grok` y dilo en una frase.
+3. Si el usuario dice que no le queda token de Opus, usa `code-grok` desde el primer intento.
 
 No pases otro `model` al Task. No uses GPT u otros modelos en esos subagentes.
 
-Si el usuario escribe `usa ask-fast` o `usa code-grok`, obedece esa instrucción.
+Si el usuario escribe `usa ask-fast`, `usa code-grok` o `usa opus-think`, obedece esa instrucción.

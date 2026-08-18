@@ -43,6 +43,7 @@ class CustomTabSwitcher extends StatelessWidget {
               borderRadius:
                   SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
               side: BorderSide(color: ColorRes.menuBorder),
+          ),
         ),
         padding: const EdgeInsets.all(4),
         child: Stack(
