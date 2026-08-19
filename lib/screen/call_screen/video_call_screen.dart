@@ -19,6 +19,7 @@ import 'package:krimson/screen/call_screen/match_recharge_dialog.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -34,7 +35,7 @@ class VideoCallScreen extends StatelessWidget {
     required this.call,
     this.resumeLiveOnHangup = false,
     this.isMatchPreview = false,
-    this.matchFreeSeconds = 30,
+    this.matchFreeSeconds = 40,
   });
 
   @override
@@ -254,7 +255,7 @@ class VideoCallController extends BaseController {
     this.call, {
     this.resumeLiveOnHangup = false,
     this.isMatchPreview = false,
-    this.matchFreeSeconds = 30,
+    this.matchFreeSeconds = 40,
   });
 
   final CallRequestModel call;
@@ -472,7 +473,7 @@ class VideoCallController extends BaseController {
     matchCountdownLabel.value = _formatMmSs(0);
     elapsedLabel.value = matchCountdownLabel.value;
     _graceEndsAt ??= DateTime.now().add(Duration(
-      seconds: SessionManager.instance.getSettings()?.matchGraceSeconds ?? 40,
+      seconds: SessionManager.instance.getSettings()?.matchGraceSeconds ?? 10,
     ));
     await _setMatchPaused(true);
 
@@ -495,13 +496,14 @@ class VideoCallController extends BaseController {
         peer: peer,
         callCost: call.coinsCost,
         tiers: settings?.matchTiers,
-        graceSeconds: settings?.matchGraceSeconds ?? 40,
+        graceSeconds: settings?.matchGraceSeconds ?? 10,
         graceEndsAt: _graceEndsAt,
         onExtend: _payAndExtend,
       );
       if (_ending) return;
       if (paid) return;
       await hangUp();
+      showSnackBar('Tiempo agotado. Inicia otro Match para continuar.');
     } finally {
       _extensionPromptOpen = false;
     }
@@ -789,6 +791,7 @@ class VideoCallController extends BaseController {
     await GiftManager.openGiftSheet(
       userId: peerId,
       giftType: GiftType.none,
+      giftSource: 'call',
       streamUsers: [streamUser],
       onCompletion: (gm) {
         GiftManager.showAnimationDialog(gm.gift);
@@ -865,6 +868,9 @@ class VideoCallController extends BaseController {
 
     // Cerrar la UI YA (no esperar a LiveKit/API: ahí se quedaba colgado Match).
     _popCallUi();
+    if (isMatchCall && Get.isRegistered<MatchScreenController>()) {
+      unawaited(Get.find<MatchScreenController>().resumeAfterCall());
+    }
 
     unawaited(() async {
       try {

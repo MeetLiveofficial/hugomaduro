@@ -22,6 +22,7 @@ class DynamicTranslations extends Translations {
     });
     Get.appendTranslations(map);
     ensureLiveFallbacks();
+    ensureTaskFallbacks();
   }
 
   /// Claves nuevas del LIVE aunque el CSV del servidor aún no las tenga.
@@ -34,6 +35,37 @@ class DynamicTranslations extends Translations {
       'ru': _liveRu,
       'uk': _liveUk,
       'zh': _liveZh,
+    };
+    final toAppend = <String, Map<String, String>>{};
+    fallbacks.forEach((lang, map) {
+      final existing = _keys[lang] ?? const <String, String>{};
+      final missing = <String, String>{};
+      map.forEach((k, v) {
+        if (!existing.containsKey(k)) missing[k] = v;
+      });
+      if (missing.isEmpty) return;
+      toAppend[lang] = missing;
+      if (_keys.containsKey(lang)) {
+        _keys[lang]!.addAll(missing);
+      } else {
+        _keys[lang] = Map<String, String>.from(missing);
+      }
+    });
+    if (toAppend.isNotEmpty) {
+      Get.appendTranslations(toAppend);
+    }
+  }
+
+  /// Claves de Tareas aunque el CSV del servidor aún no las tenga.
+  void ensureTaskFallbacks() {
+    final fallbacks = <String, Map<String, String>>{
+      'en': _taskEn,
+      'es': _taskEs,
+      'pt': _taskPt,
+      'ar': _taskEn,
+      'ru': _taskEn,
+      'uk': _taskEn,
+      'zh': _taskEn,
     };
     final toAppend = <String, Map<String, String>>{};
     fallbacks.forEach((lang, map) {
@@ -89,6 +121,33 @@ const _liveEn = <String, String>{
   LKey.options: 'Options',
   LKey.later: 'Later',
   LKey.invitesYouToLive: 'invites you to their LIVE',
+  LKey.continueAsGuest: 'Continue as Guest',
+  LKey.joinToContinue: 'Join to continue',
+  LKey.joinToContinueDescription:
+      'Create an account to match, send messages, make calls, comment and send gifts.',
+  LKey.joinNow: 'Join now',
+  LKey.guestAccountExpires: 'Guest accounts expire in 7 days.',
+  LKey.coinWallet: 'Wallet',
+  LKey.walletHistory: 'Wallet history',
+  LKey.walletIncome: 'income',
+  LKey.walletWithdrawLabel: 'withdraw',
+  LKey.walletGiftFrom: 'Gift from @name',
+  LKey.walletGiftLiveFrom: 'LIVE gift from @name',
+  LKey.walletGiftChatFrom: 'Chat gift from @name',
+  LKey.walletGiftCallFrom: 'Call gift from @name',
+  LKey.walletPrivateCallWith: 'Private Call with @name',
+  LKey.walletMatchWith: 'Match with @name',
+  LKey.walletNoHistory: 'No movements',
+  LKey.walletNoHistoryDesc:
+      'Gifts from LIVE, chat and calls will appear here.',
+  LKey.walletFilterAll: 'All',
+  LKey.walletFilterLive: 'LIVE',
+  LKey.walletFilterChat: 'Chat',
+  LKey.walletFilterCalls: 'Calls',
+  LKey.walletFilterGifts: 'Gifts',
+  LKey.walletRechargeItem: 'Coin recharge',
+  LKey.walletWithdrawItem: 'Withdrawal',
+  LKey.walletExchangeRate: 'Exchange rate: @coins Coins = @currency1',
 };
 
 const _liveEs = <String, String>{
@@ -124,6 +183,33 @@ const _liveEs = <String, String>{
   LKey.options: 'Opciones',
   LKey.later: 'Más tarde',
   LKey.invitesYouToLive: 'te invita a su LIVE',
+  LKey.continueAsGuest: 'Continuar como invitado',
+  LKey.joinToContinue: 'Únete para continuar',
+  LKey.joinToContinueDescription:
+      'Crea una cuenta para hacer match, enviar mensajes, llamar, comentar y enviar regalos.',
+  LKey.joinNow: 'Unirme ahora',
+  LKey.guestAccountExpires: 'Las cuentas de invitado caducan en 7 días.',
+  LKey.coinWallet: 'Monedero',
+  LKey.walletHistory: 'Historial de monedero',
+  LKey.walletIncome: 'ingresos',
+  LKey.walletWithdrawLabel: 'retiros',
+  LKey.walletGiftFrom: 'Regalo de @name',
+  LKey.walletGiftLiveFrom: 'Regalo en LIVE de @name',
+  LKey.walletGiftChatFrom: 'Regalo en chat de @name',
+  LKey.walletGiftCallFrom: 'Regalo en llamada de @name',
+  LKey.walletPrivateCallWith: 'Llamada privada con @name',
+  LKey.walletMatchWith: 'Match con @name',
+  LKey.walletNoHistory: 'Sin movimientos',
+  LKey.walletNoHistoryDesc:
+      'Aquí verás las monedas de LIVE, chat, llamadas y otros regalos.',
+  LKey.walletFilterAll: 'Todos',
+  LKey.walletFilterLive: 'LIVE',
+  LKey.walletFilterChat: 'Chat',
+  LKey.walletFilterCalls: 'Llamadas',
+  LKey.walletFilterGifts: 'Regalos',
+  LKey.walletRechargeItem: 'Recarga de monedas',
+  LKey.walletWithdrawItem: 'Retiro',
+  LKey.walletExchangeRate: 'Tasa de cambio: @coins Coins = @currency1',
 };
 
 const _livePt = <String, String>{
@@ -299,4 +385,57 @@ const _liveZh = <String, String>{
   LKey.options: '选项',
   LKey.later: '稍后',
   LKey.invitesYouToLive: '邀请你进入直播',
+};
+
+const _taskEn = <String, String>{
+  LKey.tasksEndToday: "Today's tasks end in",
+  LKey.liveMinutesLabel: 'LIVE time',
+  LKey.taskCoinsLabel: 'Coins',
+  LKey.goDoTask: 'Go',
+  LKey.goToLiveCategory: 'Go LIVE',
+  LKey.goToMatchCategory: 'Go to Match',
+  LKey.goToChatCategory: 'Go to Chat',
+  LKey.goToProfileCategory: 'Go to Profile',
+  LKey.goToExploreCategory: 'Go to Explore',
+  LKey.goToFeedCategory: 'Create post',
+  LKey.nextTaskUnlocked: 'Next task unlocked',
+  LKey.completeFirstTaskToContinue: 'Complete task 1 to go to this category',
+  LKey.claim: 'Claim',
+  LKey.claimed: 'Claimed',
+};
+
+const _taskEs = <String, String>{
+  LKey.tasksEndToday: 'Las tareas de hoy terminan en',
+  LKey.liveMinutesLabel: 'Tiempo LIVE',
+  LKey.taskCoinsLabel: 'Coins',
+  LKey.goDoTask: 'Ir',
+  LKey.goToLiveCategory: 'Ir a LIVE',
+  LKey.goToMatchCategory: 'Ir a Match',
+  LKey.goToChatCategory: 'Ir a Chat',
+  LKey.goToProfileCategory: 'Ir a Perfil',
+  LKey.goToExploreCategory: 'Ir a Explorar',
+  LKey.goToFeedCategory: 'Crear publicación',
+  LKey.nextTaskUnlocked: 'Siguiente tarea desbloqueada',
+  LKey.completeFirstTaskToContinue:
+      'Completa la Tarea 1 para ir a esta categoría',
+  LKey.claim: 'Reclamar',
+  LKey.claimed: 'Reclamado',
+};
+
+const _taskPt = <String, String>{
+  LKey.tasksEndToday: 'As tarefas de hoje terminam em',
+  LKey.liveMinutesLabel: 'Tempo LIVE',
+  LKey.taskCoinsLabel: 'Coins',
+  LKey.goDoTask: 'Ir',
+  LKey.goToLiveCategory: 'Ir ao LIVE',
+  LKey.goToMatchCategory: 'Ir ao Match',
+  LKey.goToChatCategory: 'Ir ao Chat',
+  LKey.goToProfileCategory: 'Ir ao Perfil',
+  LKey.goToExploreCategory: 'Ir a Explorar',
+  LKey.goToFeedCategory: 'Criar publicação',
+  LKey.nextTaskUnlocked: 'Próxima tarefa desbloqueada',
+  LKey.completeFirstTaskToContinue:
+      'Conclua a Tarefa 1 para ir a esta categoria',
+  LKey.claim: 'Resgatar',
+  LKey.claimed: 'Resgatado',
 };

@@ -14,6 +14,7 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
@@ -80,8 +81,12 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     super.onInit();
     user = SessionManager.instance.getUser() ?? user;
     // Streamer no usa el feed Home: arrancar en Perfil (seguro, sin cámara).
-    if (AppRole.isStreamer(user)) {
+    // Invitado: Perfil activo para invitarle a unirse.
+    if (AppRole.isStreamer(user) || GuestGate.isAnonymous) {
       selectedPageIndex.value = tabProfile;
+    }
+    if (AppRole.isAgency(user)) {
+      selectedPageIndex.value = tabHome;
     }
     SystemChrome.setSystemUIOverlayStyle(
         const SystemUiOverlayStyle(statusBarBrightness: Brightness.light));
@@ -138,7 +143,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   void _promptCoinPackagesOnce() {
     if (_packagesPromptShown) return;
     if (!SessionManager.instance.isLogin()) return;
-    if (AppRole.isStreamer(user)) return;
+    if (AppRole.isStreamer(user) || AppRole.isAgency(user)) return;
     _packagesPromptShown = true;
     Future.delayed(const Duration(milliseconds: 700), () {
       if (isClosed) return;
@@ -155,6 +160,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
 
   /// Poll de invitaciones LIVE (cubre Web/sin FCM real).
   void _startLiveInvitePoll() {
+    if (AppRole.isAgency(user)) return;
     _liveInvitePollTimer?.cancel();
     Future.microtask(_pollLiveInvites);
     _liveInvitePollTimer =
@@ -163,6 +169,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
 
   /// Poll global de llamadas entrantes (badge + overlay; cubre sin FCM / BlueStacks).
   void _startIncomingCallPoll() {
+    if (AppRole.isAgency(user)) return;
     _incomingCallPollTimer?.cancel();
     Future.microtask(_pollIncomingCalls);
     _incomingCallPollTimer = Timer.periodic(
@@ -302,6 +309,13 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   }
 
   onChanged(int index) {
+    if (GuestGate.isAnonymous) {
+      final lockMatch = index == tabLive && AppRole.isClient(user);
+      if (lockMatch || index == tabChat) {
+        GuestGate.showJoinSheet();
+        return;
+      }
+    }
     // Streamer: tabLive = estudio Go Live. Cliente: tabLive = Match.
     final isDarkChrome = index == tabHome &&
         (homeTabMode.value == HomeTabMode.reels ||

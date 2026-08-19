@@ -9,7 +9,6 @@ import 'package:krimson/common/widget/my_refresh_indicator.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/countries_model.dart';
-import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/explore_screen/explore_screen_controller.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -119,16 +118,13 @@ class _ExploreHeader extends StatelessWidget {
                 color: textDarkGrey(context),
               ),
               decoration: BrandControls.search(
-                hint: viewerIsStreamer
-                    ? 'Buscar clientes…'
-                    : 'Buscar streamers…',
+                hint: 'Buscar usuarios',
                 hintColor: textLightGrey(context),
                 prefix: const Icon(Icons.search,
                     color: ColorRes.crimson, size: 22),
                 suffix: Obx(() {
                   final hasFilter =
                       controller.selectedCountryCode.value != null ||
-                          controller.selectedLanguageCode.value != null ||
                           controller.presenceFilter.value != 'all' ||
                           controller.searchText.value.trim().isNotEmpty;
                   if (!hasFilter) return const SizedBox.shrink();
@@ -141,55 +137,36 @@ class _ExploreHeader extends StatelessWidget {
                 }),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Obx(() {
               final presence = controller.presenceFilter.value;
-              // Streamers exploran clientes: no aplica "En vivo".
-              if (viewerIsStreamer) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: BrandSegmentChip(
-                        label: 'Todos',
-                        active: presence == 'all',
-                        onTap: () => controller.selectPresence('all'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: BrandSegmentChip(
-                        label: 'Activos',
-                        active: presence == 'active',
-                        accent: const Color(0xFF22C55E),
-                        icon: Icons.circle,
-                        onTap: () => controller.selectPresence('active'),
-                      ),
-                    ),
-                  ],
-                );
-              }
               return Row(
                 children: [
                   Expanded(
                     child: BrandSegmentChip(
+                      compact: true,
                       label: 'Todos',
                       active: presence == 'all',
                       onTap: () => controller.selectPresence('all'),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: BrandSegmentChip(
-                      label: 'En vivo',
-                      active: presence == 'live',
-                      accent: ColorRes.themeAccentSolid,
-                      icon: Icons.videocam,
-                      onTap: () => controller.selectPresence('live'),
+                  if (!viewerIsStreamer) ...[
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: BrandSegmentChip(
+                        compact: true,
+                        label: 'En vivo',
+                        active: presence == 'live',
+                        accent: ColorRes.themeAccentSolid,
+                        icon: Icons.videocam,
+                        onTap: () => controller.selectPresence('live'),
+                      ),
                     ),
-                  ),
+                  ],
                   const SizedBox(width: 6),
                   Expanded(
                     child: BrandSegmentChip(
+                      compact: true,
                       label: 'Activos',
                       active: presence == 'active',
                       accent: const Color(0xFF22C55E),
@@ -197,43 +174,19 @@ class _ExploreHeader extends StatelessWidget {
                       onTap: () => controller.selectPresence('active'),
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: BrandFilterChip(
+                      compact: true,
+                      label: controller.selectedCountryName.value ?? 'País',
+                      active: controller.selectedCountryCode.value != null,
+                      icon: Icons.public,
+                      onTap: () => _pickCountry(context, controller),
+                    ),
+                  ),
                 ],
               );
             }),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Obx(() => BrandFilterChip(
-                        label: controller.selectedCountryName.value ?? 'País',
-                        active: controller.selectedCountryCode.value != null,
-                        icon: Icons.public,
-                        onTap: () => _pickCountry(context, controller),
-                      )),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Obx(() {
-                    final code = controller.selectedLanguageCode.value;
-                    var label = 'Idioma';
-                    if (code != null) {
-                      final lang = controller.languages
-                          .firstWhereOrNull((l) => l.code == code);
-                      label = (lang?.localizedTitle ??
-                              lang?.title ??
-                              code)
-                          .toString();
-                    }
-                    return BrandFilterChip(
-                      label: label,
-                      active: code != null,
-                      icon: Icons.translate,
-                      onTap: () => _pickLanguage(context, controller),
-                    );
-                  }),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -341,85 +294,6 @@ Future<void> _pickCountry(
     c.selectCountry(null);
   } else if (result is Country) {
     c.selectCountry(result);
-  }
-}
-
-Future<void> _pickLanguage(
-    BuildContext context, ExploreScreenController c) async {
-  final result = await Get.bottomSheet<Object>(
-    Container(
-      decoration: BoxDecoration(
-        color: scaffoldBackgroundColor(context),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: bgGrey(context),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Filtrar por idioma',
-                      style: TextStyleCustom.outFitSemiBold600(
-                        color: textDarkGrey(context),
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Get.back(result: '__clear__'),
-                    child: const Text('Todos'),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: c.languages.length,
-                itemBuilder: (_, i) {
-                  final lang = c.languages[i];
-                  final active = c.selectedLanguageCode.value == lang.code;
-                  final title =
-                      (lang.localizedTitle ?? lang.title ?? lang.code ?? '')
-                          .toString();
-                  return ListTile(
-                    dense: true,
-                    title: Text(title),
-                    subtitle: Text(lang.code ?? ''),
-                    trailing: active
-                        ? const Icon(Icons.check,
-                            color: ColorRes.themeAccentSolid)
-                        : null,
-                    onTap: () => Get.back(result: lang),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    ),
-    isScrollControlled: true,
-  );
-
-  if (result == '__clear__') {
-    c.selectLanguage(null);
-  } else if (result is Language) {
-    c.selectLanguage(result);
   }
 }
 

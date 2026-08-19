@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:proste_indexed_stack/proste_indexed_stack.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/banner_ads_custom.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/agency_screen/agency_dashboard_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/explore_screen/explore_screen.dart';
 import 'package:krimson/screen/home_screen/unified_home_screen.dart';
@@ -64,6 +66,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(DashboardScreenController());
+    if (AppRole.isAgency(widget.myUser ?? SessionManager.instance.getUser())) {
+      return const AgencyDashboardScreen();
+    }
     return Obx(() {
       final onLiveTab = controller.selectedPageIndex.value ==
           DashboardScreenController.tabLive;
@@ -217,7 +222,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Color accent,
     required VoidCallback onTap,
     required Widget child,
+    bool locked = false,
   }) {
+    final showSelected = selected && !locked;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -228,14 +235,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
-            width: selected ? 42 : 32,
-            height: selected ? 42 : 32,
+            width: showSelected ? 42 : 32,
+            height: showSelected ? 42 : 32,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: selected ? StyleRes.themeGradient : null,
+              gradient: showSelected ? StyleRes.themeGradient : null,
               color: Colors.transparent,
-              boxShadow: selected
+              boxShadow: showSelected
                   ? [
                       BoxShadow(
                         color: accent.withValues(alpha: 0.72),
@@ -245,7 +252,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ]
                   : const [],
             ),
-            child: selected
+            child: showSelected
                 ? ClipOval(
                     child: Stack(
                       fit: StackFit.expand,
@@ -299,9 +306,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final busy = matchCtrl.isMatching.value;
       final selected = controller.selectedPageIndex.value ==
           DashboardScreenController.tabLive;
+      final locked = GuestGate.isAnonymous;
       return _navHitTarget(
         selected: selected,
         accent: ColorRes.crimson,
+        locked: locked,
         onTap: () => controller.onChanged(DashboardScreenController.tabLive),
         child: busy
             ? SizedBox(
@@ -309,13 +318,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.2,
-                  color: selected ? Colors.white : ColorRes.crimson,
+                  color: locked
+                      ? ColorRes.disabledGrey
+                      : (selected ? Colors.white : ColorRes.crimson),
                 ),
               )
             : Icon(
                 Icons.favorite_rounded,
                 size: 24,
-                color: selected ? Colors.white : ColorRes.crimson,
+                color: locked
+                    ? ColorRes.disabledGrey
+                    : (selected ? Colors.white : ColorRes.crimson),
               ),
       );
     });
@@ -328,11 +341,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
       final accent = ColorRes.navIconColors[
           index.clamp(0, ColorRes.navIconColors.length - 1)];
-      final iconColor = isSelected ? ColorRes.whitePure : accent;
+      final locked = GuestGate.isAnonymous &&
+          index == DashboardScreenController.tabChat;
+      final iconColor = locked
+          ? ColorRes.disabledGrey
+          : (isSelected ? ColorRes.whitePure : accent);
 
       return _navHitTarget(
         selected: isSelected,
         accent: accent,
+        locked: locked,
         onTap: () => controller.onChanged(index),
         child: AnimatedScale(
           scale: scaleValue,
@@ -348,7 +366,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   controller.bottomIconList[index],
                   color: iconColor,
                 ),
-              if (index == DashboardScreenController.tabChat)
+              if (index == DashboardScreenController.tabChat && !locked)
                 _buildUnreadDot(controller),
             ],
           ),

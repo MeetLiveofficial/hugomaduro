@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
@@ -119,8 +120,19 @@ class LiveGiftBoostSheet extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (g.displayTitle.isNotEmpty)
+                            Text(
+                              g.displayTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyleCustom.outFitRegular400(
+                                color: Colors.white70,
+                                fontSize: 10,
+                              ),
+                            ),
                           Text(
-                            '${g.coinPrice ?? 0}',
+                            '${HostShare.displayCoins(g.coinPrice ?? 0)}',
                             style: TextStyleCustom.outFitMedium500(
                               color: ColorRes.accentPeach,
                               fontSize: 12,

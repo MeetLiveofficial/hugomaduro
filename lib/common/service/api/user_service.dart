@@ -19,7 +19,8 @@ import 'package:krimson/utilities/app_res.dart';
 enum LoginMethod {
   email,
   google,
-  apple;
+  apple,
+  anonymous;
 
   String title() {
     switch (this) {
@@ -29,6 +30,8 @@ enum LoginMethod {
         return 'google';
       case LoginMethod.apple:
         return 'apple';
+      case LoginMethod.anonymous:
+        return 'guest';
     }
   }
 }
@@ -107,10 +110,11 @@ class UserService {
     String? country,
     String? countryCode,
     String? appLanguage,
+    bool keepAuthToken = false,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.registerUser,
-        cancelAuthToken: true,
+        cancelAuthToken: !keepAuthToken,
         param: {
           Params.identity: identity,
           Params.password: password,
@@ -136,6 +140,33 @@ class UserService {
     }
     BaseController.share.showSnackBar(
         model.message ?? 'Registration failed');
+    return null;
+  }
+
+  Future<User?> logInAnonymousUser({
+    String? deviceToken,
+    String? appLanguage,
+  }) async {
+    UserModel model = await ApiService.instance.call(
+        url: WebService.user.logInAnonymousUser,
+        cancelAuthToken: true,
+        param: {
+          Params.deviceToken: deviceToken,
+          Params.device: AppPlatform.isAndroid ? 0 : 1,
+          Params.loginMethod: LoginMethod.anonymous.title(),
+          if (appLanguage != null && appLanguage.isNotEmpty)
+            Params.appLanguage: appLanguage,
+        },
+        fromJson: UserModel.fromJson);
+
+    if (model.status == true && model.data != null) {
+      SessionManager.instance.setUser(model.data);
+      SessionManager.instance.setAuthToken(model.data?.token);
+      SessionManager.instance.setLogin(true);
+      return model.data;
+    }
+    BaseController.share.showSnackBar(
+        model.message ?? 'No se pudo entrar como invitado');
     return null;
   }
 

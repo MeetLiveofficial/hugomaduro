@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
@@ -32,7 +33,7 @@ class OutgoingCallScreen extends StatefulWidget {
     required this.callee,
     required this.cost,
     this.isMatch = false,
-    this.matchFreeSeconds = 30,
+    this.matchFreeSeconds = 40,
   });
 
   @override
@@ -207,7 +208,7 @@ class OutgoingCallController extends BaseController {
     required this.callee,
     required this.cost,
     this.isMatch = false,
-    this.matchFreeSeconds = 30,
+    this.matchFreeSeconds = 40,
   }) : subtitle = (isMatch ? 'Match…' : LKey.calling.tr).obs;
 
   /// Instancia activa para cerrar desde FCM `call_rejected` / `call_accepted`.
@@ -471,6 +472,7 @@ class OutgoingCallController extends BaseController {
   }
 
   Future<void> _startCall() async {
+    if (GuestGate.block()) return;
     final userId = callee.id;
     if (userId == null) {
       errorText.value = 'user not found';

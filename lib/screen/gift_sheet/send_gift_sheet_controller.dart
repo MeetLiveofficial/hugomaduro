@@ -6,6 +6,7 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/gift_media_cache.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/haptic_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -27,6 +28,7 @@ class SendGiftSheetController extends BaseController {
   int? userId;
   List<AppUser> liveUsers;
   GiftType? giftType;
+  String? giftSource;
   LivestreamScreenController? livestreamController;
 
   /// 0 = todas las categorías.
@@ -40,7 +42,8 @@ class SendGiftSheetController extends BaseController {
   int _loadedCount = 0;
   bool _loadingMore = false;
 
-  SendGiftSheetController(this.giftType, this.userId, this.liveUsers);
+  SendGiftSheetController(this.giftType, this.userId, this.liveUsers,
+      {this.giftSource});
 
   @override
   void onInit() {
@@ -171,8 +174,11 @@ class SendGiftSheetController extends BaseController {
           'Invalid coin price: $coinPrice, skipping gift sending.');
     }
     showLoader();
-    final detailed = await GiftWalletService.instance
-        .sendGiftDetailed(giftId: giftId, userId: userId);
+    final detailed = await GiftWalletService.instance.sendGiftDetailed(
+      giftId: giftId,
+      userId: userId,
+      source: resolvedGiftSource,
+    );
     stopLoader();
     if (detailed.ok) {
       // Precio confirmado por API (fuente de verdad).
@@ -201,6 +207,15 @@ class SendGiftSheetController extends BaseController {
       showSnackBar(detailed.message);
     }
   }
+
+  String get resolvedGiftSource {
+    if (giftType == GiftType.livestream || giftType == GiftType.battle) {
+      return 'live';
+    }
+    final source = (giftSource ?? '').trim();
+    if (source.isNotEmpty) return source;
+    return 'gift';
+  }
 }
 
 class GiftManager {
@@ -215,7 +230,9 @@ class GiftManager {
       GiftType giftType = GiftType.none,
       BattleView battleViewType = BattleView.red,
       List<AppUser> streamUsers = const [],
+      String? giftSource,
       required Function(GiftManager giftManager) onCompletion}) async {
+    if (GuestGate.block()) return;
     if (giftType == GiftType.none && !AppRole.canSendGifts()) {
       return;
     }
@@ -228,6 +245,7 @@ class GiftManager {
         giftType: giftType,
         battleViewType: battleViewType,
         streamUsers: streamUsers,
+        giftSource: giftSource,
       ),
       isScrollControlled: true,
     ).then((gift) {

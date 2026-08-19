@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -58,23 +58,13 @@ class MatchScreenController extends BaseController
   bool get isPlusMember =>
       (SessionManager.instance.getUser()?.isVerify ?? 0) == 1;
 
-  /// Hint de costo Random (mínimo de niveles activos).
-  int get randomHintCost {
-    final levels = SessionManager.instance.getSettings()?.userLevels ?? [];
-    final prices = levels
-        .map((e) => e.callRequestCoins)
-        .where((c) => c > 0)
-        .toList();
-    if (prices.isEmpty) return 9;
-    prices.sort();
-    return prices.first;
-  }
+  /// Precio Random (coins van al monedero de la APP).
+  int get randomHintCost =>
+      SessionManager.instance.getSettings()?.matchRandomCoins ?? 50;
 
-  /// Hint Goddess: streamers grado A/S (más alto).
-  int get goddessHintCost {
-    final base = randomHintCost;
-    return base < 30 ? 30 : (base * 3).clamp(30, 9999);
-  }
+  /// Precio Goddess (coins van al monedero de la APP).
+  int get goddessHintCost =>
+      SessionManager.instance.getSettings()?.matchGoddessCoins ?? 150;
 
   int get membershipHintCost {
     final mid = ((randomHintCost + goddessHintCost) / 2).round();
@@ -145,6 +135,9 @@ class MatchScreenController extends BaseController
     if (Get.currentRoute.contains('MatchPreview')) {
       return;
     }
+    if (AppRole.isStreamer()) {
+      return;
+    }
     if (_matchUiVisible) {
       await joinPool();
     } else {
@@ -152,11 +145,20 @@ class MatchScreenController extends BaseController
     }
   }
 
+  Future<void> toggleStreamerMatch() async {
+    if (!AppRole.isStreamer()) return;
+    if (inMatchPool.value) {
+      await leavePool();
+      return;
+    }
+    await joinPool();
+  }
+
   Future<void> joinPool() async {
     if (_joining) return;
     if (Get.currentRoute.contains('VideoCall')) return;
     if (inMatchPool.value) {
-      if (AppRole.isStreamer() && !waitCameraOn.value) {
+      if (AppRole.isStreamer() && !_hasLocalWaitVideo()) {
         _joining = true;
         try {
           await _connectWaitCamera(null);
@@ -202,6 +204,12 @@ class MatchScreenController extends BaseController
     await CallService.instance.leaveMatch();
   }
 
+  bool _hasLocalWaitVideo() {
+    if (!Get.isRegistered<LiveKitRoomController>(tag: waitLkTag)) return false;
+    final lk = Get.find<LiveKitRoomController>(tag: waitLkTag);
+    return firstVideoTrackOf(lk.localParticipant.value) != null;
+  }
+
   Future<void> _connectWaitCamera(String? waitRoom) async {
     final me = SessionManager.instance.getUser();
     final id = me?.id;
@@ -218,11 +226,19 @@ class MatchScreenController extends BaseController
         roomName: room,
         identity: '$id',
         name: me?.fullname ?? me?.username ?? 'streamer',
-        publishCamera: !kIsWeb,
+        publishCamera: true,
         publishMicrophone: false,
         wsUrl: liveKitWsUrl,
+        forceReconnect: lk.isConnected.value &&
+            firstVideoTrackOf(lk.localParticipant.value) == null,
       );
-      waitCameraOn.value = true;
+      var hasTrack = firstVideoTrackOf(lk.localParticipant.value) != null;
+      for (var i = 0; i < 25 && !hasTrack; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        hasTrack = firstVideoTrackOf(lk.localParticipant.value) != null;
+        lk.mediaRevision.value++;
+      }
+      waitCameraOn.value = hasTrack || lk.isConnected.value;
     } catch (e) {
       waitCameraOn.value = false;
       Loggers.error('Match wait camera: $e');
@@ -295,7 +311,7 @@ class MatchScreenController extends BaseController
           call: call,
           isMatchPreview: true,
           matchFreeSeconds:
-              call.matchSeconds > 0 ? call.matchSeconds : 30,
+              call.matchSeconds > 0 ? call.matchSeconds : 40,
         ));
   }
 
@@ -315,18 +331,34 @@ class MatchScreenController extends BaseController
     mode.value = value;
   }
 
-  Future<void> startMatch() async {
+  /// Tras colgar un Match: la streamer vuelve a esperar si el radio sigue activo.
+  Future<void> resumeAfterCall() async {
     if (AppRole.isStreamer()) {
       await joinPool();
-      showSnackBar('Cámara lista. Esperando un cliente…');
+      return;
+    }
+    await _syncPresence();
+  }
+
+  Future<void> startMatch() async {
+    if (GuestGate.block()) return;
+    if (AppRole.isStreamer()) {
+      await toggleStreamerMatch();
       return;
     }
     if (isMatching.value) return;
     final meNow = SessionManager.instance.getUser();
     final remaining = meNow?.dailyFreeMatchesRemaining ?? 2;
-    final wallet = (meNow?.coinWallet ?? 0).toInt();
-    if (remaining <= 0 && wallet <= 0) {
-      CoinGate.openCoinShopSheet(headline: LKey.freeMatchesUsed.tr);
+    final matchMode =
+        mode.value == MatchSearchMode.goddess ? 'goddess' : 'random';
+    final cost =
+        matchMode == 'goddess' ? goddessHintCost : randomHintCost;
+    if (remaining <= 0 &&
+        cost > 0 &&
+        !CoinGate.ensureEnough(
+          cost,
+          message: 'Necesitas $cost coins para buscar Match',
+        )) {
       return;
     }
     isMatching.value = true;
@@ -334,17 +366,15 @@ class MatchScreenController extends BaseController
       await joinPool();
       final remaining =
           SessionManager.instance.getUser()?.dailyFreeMatchesRemaining ?? 2;
-      final cost =
-          SessionManager.instance.getSettings()?.matchInitialCoins ?? 0;
       if (remaining <= 0 &&
           cost > 0 &&
           !CoinGate.ensureEnough(
             cost,
-            message: 'Necesitas $cost coins para ver streamers en Match',
+            message: 'Necesitas $cost coins para buscar Match',
           )) {
         return;
       }
-      final unlock = await CallService.instance.unlockMatch();
+      final unlock = await CallService.instance.unlockMatch(mode: matchMode);
       final me = SessionManager.instance.getUser();
       if (me != null) {
         me.coinWallet = unlock.coinWallet;
@@ -355,8 +385,6 @@ class MatchScreenController extends BaseController
         showSnackBar('Se usaron ${unlock.charged} coins para ver Match');
       }
       final lang = (me?.appLanguage ?? '').trim().toLowerCase();
-      final matchMode =
-          mode.value == MatchSearchMode.goddess ? 'goddess' : 'random';
       final match = await CallService.instance.findMatch(
         appLanguage: lang.isEmpty ? null : lang,
         mode: matchMode,

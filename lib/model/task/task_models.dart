@@ -61,6 +61,7 @@ class TaskListData {
   bool enabled;
   String timezone;
   String periodKey;
+  DateTime? periodEndsAt;
   int withdrawalPoints;
   List<TaskCategoryGroup> categories;
   Map<String, dynamic>? eligibilityPreview;
@@ -71,6 +72,7 @@ class TaskListData {
     required this.enabled,
     required this.timezone,
     required this.periodKey,
+    this.periodEndsAt,
     required this.withdrawalPoints,
     required this.categories,
     this.eligibilityPreview,
@@ -82,6 +84,7 @@ class TaskListData {
         enabled: json['enabled'] != false,
         timezone: json['timezone']?.toString() ?? '',
         periodKey: json['period_key']?.toString() ?? '',
+        periodEndsAt: _asDateTime(json['period_ends_at']),
         withdrawalPoints: _asInt(json['withdrawal_points']),
         categories: (json['categories'] as List? ?? [])
             .whereType<Map>()
@@ -226,4 +229,9 @@ int _asInt(dynamic v, {int fallback = 0}) {
   if (v is int) return v;
   if (v is num) return v.toInt();
   return int.tryParse('$v') ?? fallback;
+}
+
+DateTime? _asDateTime(dynamic v) {
+  if (v == null) return null;
+  return DateTime.tryParse(v.toString())?.toUtc();
 }

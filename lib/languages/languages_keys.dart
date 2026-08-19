@@ -82,6 +82,13 @@ class LKey {
   static const String reTypePassword = "Re-Type Password";
   static const String enterHere = "Enter here..";
   static const String createAccount = "Create Account";
+  static const String continueAsGuest = "Continue as Guest";
+  static const String joinToContinue = "Join to continue";
+  static const String joinToContinueDescription =
+      "Create an account to match, send messages, make calls, comment and send gifts.";
+  static const String joinNow = "Join now";
+  static const String guestAccountExpires =
+      "Guest accounts expire in 7 days.";
   static const String enterFullName = "Enter Full Name";
   static const String livestreams = "LIVESTREAMS";
   static const String searchHere = "Search here..";
@@ -701,6 +708,19 @@ class LKey {
   static const String dailyTasksPending =
       "You have daily tasks pending. Complete them to unlock withdrawals.";
   static const String goToTasks = "Go to Tasks";
+  static const String tasksEndToday = "Today's tasks end in";
+  static const String liveMinutesLabel = "LIVE time";
+  static const String taskCoinsLabel = "Coins";
+  static const String goDoTask = "Go";
+  static const String goToLiveCategory = "Go LIVE";
+  static const String goToMatchCategory = "Go to Match";
+  static const String goToChatCategory = "Go to Chat";
+  static const String goToProfileCategory = "Go to Profile";
+  static const String goToExploreCategory = "Go to Explore";
+  static const String goToFeedCategory = "Create post";
+  static const String nextTaskUnlocked = "Next task unlocked";
+  static const String completeFirstTaskToContinue =
+      "Complete task 1 to go to this category";
 
   // Streamer work dashboard
   static const String work = "Work";
@@ -772,4 +792,24 @@ class LKey {
   static const String options = "Options";
   static const String later = "Later";
   static const String invitesYouToLive = "invites you to their LIVE";
+  static const String walletHistory = "Wallet history";
+  static const String walletIncome = "income";
+  static const String walletWithdrawLabel = "withdraw";
+  static const String walletGiftFrom = "Gift from @name";
+  static const String walletGiftLiveFrom = "LIVE gift from @name";
+  static const String walletGiftChatFrom = "Chat gift from @name";
+  static const String walletGiftCallFrom = "Call gift from @name";
+  static const String walletPrivateCallWith = "Private Call with @name";
+  static const String walletMatchWith = "Match with @name";
+  static const String walletNoHistory = "No movements";
+  static const String walletNoHistoryDesc =
+      "Gifts from LIVE, chat and calls will appear here.";
+  static const String walletFilterAll = "All history";
+  static const String walletFilterLive = "From LIVE";
+  static const String walletFilterChat = "From chat";
+  static const String walletFilterCalls = "From calls";
+  static const String walletFilterGifts = "Other gifts";
+  static const String walletRechargeItem = "Coin recharge";
+  static const String walletWithdrawItem = "Withdrawal";
+  static const String walletExchangeRate = "Exchange rate: @coins Coins = @currency1";
 }

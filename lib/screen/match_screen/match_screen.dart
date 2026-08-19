@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -6,6 +8,7 @@ import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
+import 'package:krimson/screen/match_screen/match_web_video.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
@@ -26,10 +29,10 @@ class MatchScreen extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _MatchBackdrop(controller: c),
+          _MatchBackdrop(),
           SafeArea(
             child: Padding(
-              padding: EdgeInsets.only(bottom: asTab ? 72 : 16),
+              padding: EdgeInsets.only(bottom: asTab ? 12 : 16),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final radar = (constraints.maxHeight * 0.36)
@@ -38,39 +41,50 @@ class MatchScreen extends StatelessWidget {
                     children: [
                       _TopBar(controller: c, showBack: !asTab),
                       Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _RadarButton(controller: c, size: radar),
-                            SizedBox(height: radar < 180 ? 10 : 14),
-                            Obx(() {
-                              final busy = c.isMatching.value;
-                              final waiting = AppRole.isStreamer();
-                              final text = waiting
-                                  ? (c.waitCameraOn.value
-                                      ? 'Esperando Match…'
-                                      : 'Activando cámara…')
-                                  : (busy
-                                      ? 'Buscando coincidencia…'
-                                      : 'Haga clic para hacer coincidir');
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 24),
-                                child: Text(
-                                  text,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyleCustom.outFitMedium500(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                  ),
+                        child: AppRole.isStreamer()
+                            ? Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                    16, 8, 16, 12),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(22),
+                                  child: _StreamerWaitCamera(controller: c),
                                 ),
-                              );
-                            }),
-                          ],
-                        ),
+                              )
+                            : Align(
+                                alignment: const Alignment(0, 0.42),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _RadarButton(controller: c, size: radar),
+                                    SizedBox(height: radar < 180 ? 10 : 14),
+                                    Obx(() {
+                                      final busy = c.isMatching.value;
+                                      final text = busy
+                                          ? 'Buscando coincidencia…'
+                                          : 'Haga clic para hacer coincidir';
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 24),
+                                        child: Text(
+                                          text,
+                                          textAlign: TextAlign.center,
+                                          style:
+                                              TextStyleCustom.outFitMedium500(
+                                            color: Colors.white,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
                       ),
-                      _ModeRow(controller: c),
-                      const SizedBox(height: 4),
+                      if (AppRole.isStreamer())
+                        _StreamerMatchRadio(controller: c)
+                      else
+                        _ModeRow(controller: c),
+                      const SizedBox(height: 10),
                     ],
                   );
                 },
@@ -84,20 +98,42 @@ class MatchScreen extends StatelessWidget {
 }
 
 class _MatchBackdrop extends StatelessWidget {
-  const _MatchBackdrop({required this.controller});
-
-  final MatchScreenController controller;
+  const _MatchBackdrop();
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const BrandWashBg(),
-        if (AppRole.isStreamer()) _StreamerWaitCamera(controller: controller),
+        const ColoredBox(color: ColorRes.obsidianDeep),
+        ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Transform.scale(
+            scale: 1.12,
+            child: Image.asset(
+              AssetRes.matchWomanBg,
+              fit: BoxFit.cover,
+              alignment: const Alignment(0, -0.08),
+              errorBuilder: (_, __, ___) => const BrandWashBg(),
+            ),
+          ),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                ColorRes.obsidianDeep.withValues(alpha: 0.38),
+                ColorRes.mlPurple.withValues(alpha: 0.28),
+                ColorRes.obsidianDeep.withValues(alpha: 0.78),
+              ],
+            ),
+          ),
+        ),
         // Halo suave detrás del radar.
         Align(
-          alignment: const Alignment(0, -0.15),
+          alignment: const Alignment(0, 0.2),
           child: Container(
             width: 320,
             height: 320,
@@ -126,8 +162,8 @@ class _MatchBackdrop extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      ColorRes.mlPurple.withValues(alpha: 0.55),
-                      ColorRes.darkPurple.withValues(alpha: 0.82),
+                      ColorRes.mlPurple.withValues(alpha: 0.45),
+                      ColorRes.darkPurple.withValues(alpha: 0.78),
                     ],
                   ),
                 ),
@@ -151,14 +187,19 @@ class _StreamerWaitCamera extends StatelessWidget {
       controller.waitCameraOn.value;
       if (!Get.isRegistered<LiveKitRoomController>(
           tag: MatchScreenController.waitLkTag)) {
-        return const SizedBox.shrink();
+        return const _CameraPlaceholder();
       }
       final lk =
           Get.find<LiveKitRoomController>(tag: MatchScreenController.waitLkTag);
       lk.mediaRevision.value;
       final local = lk.localParticipant.value;
-      if (kIsWeb || firstVideoTrackOf(local) == null) {
-        return const SizedBox.shrink();
+      if (firstVideoTrackOf(local) == null) {
+        return const _CameraPlaceholder();
+      }
+      if (kIsWeb) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          passThroughMatchVideoClicks();
+        });
       }
       return LiveKitParticipantVideo(
         participant: local,
@@ -166,6 +207,30 @@ class _StreamerWaitCamera extends StatelessWidget {
         forcePortraitUpright: false,
       );
     });
+  }
+}
+
+class _CameraPlaceholder extends StatelessWidget {
+  const _CameraPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Color(0xFF140E18),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videocam_rounded, color: Colors.white54, size: 42),
+            SizedBox(height: 10),
+            Text(
+              'Activando cámara…',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -177,6 +242,20 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (AppRole.isStreamer()) {
+      if (!showBack) return const SizedBox(height: 8);
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(6, 4, 14, 0),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: IconButton(
+            onPressed: Get.back,
+            icon: const Icon(Icons.arrow_back_ios_new,
+                color: Colors.white, size: 18),
+          ),
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
       child: Row(
@@ -207,21 +286,20 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          if (!AppRole.isStreamer())
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Obx(() {
-                final used = controller.freeMatchesUsed.value;
-                final quota = controller.freeMatchesQuota.value;
-                return Text(
-                  'Gratis $used/$quota',
-                  style: TextStyleCustom.outFitMedium500(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
-                );
-              }),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Obx(() {
+              final used = controller.freeMatchesUsed.value;
+              final quota = controller.freeMatchesQuota.value;
+              return Text(
+                'Gratis $used/$quota',
+                style: TextStyleCustom.outFitMedium500(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              );
+            }),
+          ),
           _ChipButton(
             onTap: controller.openMembership,
             borderColor: const Color(0xFFD4AF37),
@@ -384,6 +462,83 @@ class _RadarPainter extends CustomPainter {
       oldDelegate.progress != progress || oldDelegate.accent != accent;
 }
 
+class _StreamerMatchRadio extends StatelessWidget {
+  const _StreamerMatchRadio({required this.controller});
+
+  final MatchScreenController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Obx(() {
+        final on = controller.inMatchPool.value;
+        final camera = controller.waitCameraOn.value;
+        final title = on ? 'Match' : 'Match';
+        final subtitle = on
+            ? (camera ? 'Esperando cliente…' : 'Activando cámara…')
+            : 'Toca para recibir clientes';
+        return Material(
+          color: on
+              ? ColorRes.crimson.withValues(alpha: 0.42)
+              : Colors.white.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: controller.toggleStreamerMatch,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: on
+                      ? ColorRes.themeAccentSolid.withValues(alpha: 0.85)
+                      : Colors.white24,
+                  width: on ? 1.4 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    on
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_off_rounded,
+                    color: on ? ColorRes.themeAccentSolid : Colors.white54,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyleCustom.outFitSemiBold600(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: const Color(0xFFE8D48B),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
 class _ModeRow extends StatelessWidget {
   final MatchScreenController controller;
 
@@ -404,6 +559,7 @@ class _ModeRow extends StatelessWidget {
                 subtitle: seekingClients
                     ? 'Cualquier cliente'
                     : 'Cualquier streamer',
+                coins: seekingClients ? null : controller.randomHintCost,
                 selected: selected == MatchSearchMode.random,
                 premium: false,
                 onTap: () => controller.selectMode(MatchSearchMode.random),
@@ -415,6 +571,7 @@ class _ModeRow extends StatelessWidget {
                 child: _ModeCard(
                   title: 'Goddess',
                   subtitle: 'Las mejor valoradas',
+                  coins: controller.goddessHintCost,
                   selected: selected == MatchSearchMode.goddess,
                   premium: true,
                   onTap: () => controller.selectMode(MatchSearchMode.goddess),
@@ -431,6 +588,7 @@ class _ModeRow extends StatelessWidget {
 class _ModeCard extends StatelessWidget {
   final String title;
   final String subtitle;
+  final int? coins;
   final bool selected;
   final bool premium;
   final VoidCallback onTap;
@@ -438,6 +596,7 @@ class _ModeCard extends StatelessWidget {
   const _ModeCard({
     required this.title,
     required this.subtitle,
+    this.coins,
     required this.selected,
     required this.premium,
     required this.onTap,
@@ -498,6 +657,26 @@ class _ModeCard extends StatelessWidget {
                             fontSize: 11,
                           ),
                         ),
+                        if (coins != null && coins! > 0) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Image.asset(
+                                AssetRes.icCoin,
+                                width: 12,
+                                height: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$coins coins',
+                                style: TextStyleCustom.outFitSemiBold600(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),

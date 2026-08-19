@@ -11,6 +11,7 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
@@ -1108,7 +1109,7 @@ class _IncentiveSlotCard extends StatelessWidget {
                     right: 4,
                     bottom: 4,
                     child: Text(
-                      '${slot.coinPrice}',
+                      '${HostShare.displayCoins(slot.coinPrice ?? 0)}',
                       style: TextStyleCustom.outFitMedium500(
                         fontSize: 10,
                         color: ColorRes.themeAccentSolid,
@@ -1225,7 +1226,7 @@ class _GiftPickerSheet extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${g.coinPrice ?? 0}',
+                          '${HostShare.displayCoins(g.coinPrice ?? 0)}',
                           style: TextStyleCustom.outFitMedium500(
                             color: ColorRes.themeAccentSolid,
                             fontSize: 11,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/model/chat/message_data.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_media_helpers.dart';
@@ -17,7 +18,8 @@ class ChatGiftMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final coins = message.textMessage ?? '0';
+    final raw = int.tryParse(message.textMessage ?? '') ?? 0;
+    final coins = HostShare.displayCoins(raw);
     return ChatBubble(
       isMe: isMe,
       child: Row(

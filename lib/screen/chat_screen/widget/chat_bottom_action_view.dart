@@ -117,11 +117,11 @@ class ChatTextField extends StatelessWidget {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color:
-                              themeAccentSolid(context).withValues(alpha: .1),
+                              ColorRes.themeAccentSolid.withValues(alpha: .16),
                         ),
                         alignment: Alignment.center,
-                        child: Icon(Icons.photo_camera_outlined,
-                            size: 22, color: themeAccentSolid(context)),
+                        child: const Icon(Icons.photo_camera_outlined,
+                            size: 22, color: ColorRes.themeAccentSolid),
                       ),
                     )
                   : const SizedBox(width: 4, height: 40),
@@ -164,8 +164,8 @@ class ChatTextField extends StatelessWidget {
                         padding: const EdgeInsets.all(6),
                         child: Icon(
                           actions[index].icon,
-                          size: 22,
-                          color: textDarkGrey(context),
+                          size: 24,
+                          color: ColorRes.themeAccentSolid,
                         ),
                       ),
                     );

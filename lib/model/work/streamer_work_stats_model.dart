@@ -163,9 +163,11 @@ class WorkTodayStats {
 }
 
 class WorkWeeklyLevel {
+  static const List<String> kGrades = ['NEW', 'C', 'B', 'A', 'S'];
+
   WorkWeeklyLevel({
     this.grade = 'NEW',
-    this.grades = const ['D', 'C', 'NEW', 'B', 'A', 'S', 'SS'],
+    this.grades = kGrades,
     this.goalMet = false,
     WorkWeekSlice? thisWeek,
     WorkWeekSlice? lastWeek,
@@ -173,11 +175,13 @@ class WorkWeeklyLevel {
         lastWeek = lastWeek ?? WorkWeekSlice();
 
   factory WorkWeeklyLevel.fromJson(Map<String, dynamic> json) {
+    var grade = (json['grade']?.toString() ?? 'NEW').toUpperCase().trim();
+    if (grade == 'SS') grade = 'S';
+    if (grade == 'D') grade = 'NEW';
+    if (!kGrades.contains(grade)) grade = 'NEW';
     return WorkWeeklyLevel(
-      grade: json['grade']?.toString() ?? 'NEW',
-      grades: (json['grades'] as List? ?? ['D', 'C', 'NEW', 'B', 'A', 'S', 'SS'])
-          .map((e) => e.toString())
-          .toList(),
+      grade: grade,
+      grades: kGrades,
       goalMet: json['goal_met'] == true,
       thisWeek: WorkWeekSlice.fromJson(
           Map<String, dynamic>.from(json['this_week'] as Map? ?? {})),

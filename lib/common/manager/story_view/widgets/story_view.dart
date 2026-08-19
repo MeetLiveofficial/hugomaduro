@@ -956,6 +956,7 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin {
 
     GiftManager.openGiftSheet(
         userId: story.story?.userId ?? -1,
+        giftSource: 'story',
         onCompletion: (giftManager) {
           widget.controller.play();
           sendReply(

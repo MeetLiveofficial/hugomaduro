@@ -62,11 +62,18 @@ class LeaderboardScreen extends StatelessWidget {
                         : 0;
                     // Un solo scroll: podio + lista 4+ (evita solape del ranking
                     // sobre las tarjetas TOP 3).
+                    final podiumKey =
+                        '${controller.typeParam}_${controller.periodParam}_'
+                        '${controller.users.take(3).map((e) => '${e.id}:${e.score}').join('|')}';
                     return CustomScrollView(
+                      key: ValueKey(podiumKey),
                       physics: const BouncingScrollPhysics(),
                       slivers: [
                         SliverToBoxAdapter(
-                          child: _PodiumStage(users: controller.users),
+                          child: _PodiumStage(
+                            key: ValueKey('podium_$podiumKey'),
+                            users: List<LeaderboardEntry>.from(controller.users),
+                          ),
                         ),
                         const SliverToBoxAdapter(child: SizedBox(height: 14)),
                         SliverPadding(
@@ -76,8 +83,10 @@ class LeaderboardScreen extends StatelessWidget {
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 6),
                             itemBuilder: (context, index) {
+                              final entry = controller.users[index + 3];
                               return _RankRow(
-                                entry: controller.users[index + 3],
+                                key: ValueKey('rank-${entry.id}'),
+                                entry: entry,
                               );
                             },
                           ),
@@ -213,9 +222,9 @@ class _TypeTabs extends StatelessWidget {
     return Obx(() {
       final tab = controller.tab.value;
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Container(
-          height: 34,
+          height: 38,
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: const Color(0xFF120814),
@@ -226,14 +235,14 @@ class _TypeTabs extends StatelessWidget {
             children: [
               Expanded(
                 child: _TypeChip(
-                  label: 'Envían',
+                  label: 'Giver ranking',
                   selected: tab == LeaderboardTab.clients,
                   onTap: () => controller.setTab(LeaderboardTab.clients),
                 ),
               ),
               Expanded(
                 child: _TypeChip(
-                  label: 'Reciben',
+                  label: 'Receiver ranking',
                   selected: tab == LeaderboardTab.streamers,
                   onTap: () => controller.setTab(LeaderboardTab.streamers),
                 ),
@@ -280,9 +289,9 @@ class _TypeChip extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: selected
               ? TextStyleCustom.outFitBold700(
-                  color: _Epic.tabText, fontSize: 12)
+                  color: _Epic.tabText, fontSize: 10)
               : TextStyleCustom.outFitMedium500(
-                  color: Colors.white70, fontSize: 12),
+                  color: Colors.white70, fontSize: 10),
         ),
       ),
     );
@@ -514,7 +523,7 @@ class _ArenaPainter extends CustomPainter {
 // ───────────────────────────────────────────── Podium (fixed equal columns)
 
 class _PodiumStage extends StatelessWidget {
-  const _PodiumStage({required this.users});
+  const _PodiumStage({super.key, required this.users});
 
   final List<LeaderboardEntry> users;
 
@@ -559,6 +568,7 @@ class _PodiumStage extends StatelessWidget {
               children: [
                 Expanded(
                   child: _ChampionCard(
+                    key: ValueKey('podium-2-${second?.id}'),
                     entry: second,
                     place: 2,
                     colors: _Epic.place2,
@@ -569,6 +579,7 @@ class _PodiumStage extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: _ChampionCard(
+                    key: ValueKey('podium-1-${first?.id}'),
                     entry: first,
                     place: 1,
                     colors: _Epic.place1,
@@ -580,6 +591,7 @@ class _PodiumStage extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: _ChampionCard(
+                    key: ValueKey('podium-3-${third?.id}'),
                     entry: third,
                     place: 3,
                     colors: _Epic.place3,
@@ -647,6 +659,7 @@ class _PodiumFloorPainter extends CustomPainter {
 
 class _ChampionCard extends StatelessWidget {
   const _ChampionCard({
+    super.key,
     required this.entry,
     required this.place,
     required this.colors,
@@ -686,13 +699,6 @@ class _ChampionCard extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Align(
-                alignment: Alignment.center,
-                child: CustomPaint(
-                  size: Size(figureSize * 1.4, figureSize * 0.55),
-                  painter: _WingsPainter(color: accent, place: place),
-                ),
-              ),
-              Align(
                 alignment: Alignment.bottomCenter,
                 child: _RankFigure(
                   entry: entry!,
@@ -700,15 +706,6 @@ class _ChampionCard extends StatelessWidget {
                   size: figureSize,
                 ),
               ),
-              if (place == 1)
-                const Align(
-                  alignment: Alignment.topCenter,
-                  child: Icon(
-                    Icons.workspace_premium,
-                    color: _Epic.gold,
-                    size: 24,
-                  ),
-                ),
             ],
           ),
         ),
@@ -826,72 +823,6 @@ class _ChampionCard extends StatelessWidget {
   }
 }
 
-class _WingsPainter extends CustomPainter {
-  _WingsPainter({required this.color, required this.place});
-
-  final Color color;
-  final int place;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height * 0.6;
-
-    void wing(bool left) {
-      final dir = left ? -1.0 : 1.0;
-      final path = Path()
-        ..moveTo(cx, cy * 0.55)
-        ..cubicTo(
-          cx + dir * size.width * 0.12,
-          cy - size.height * 0.55,
-          cx + dir * size.width * 0.52,
-          cy - size.height * 0.2,
-          cx + dir * size.width * 0.5,
-          cy + size.height * 0.2,
-        )
-        ..cubicTo(
-          cx + dir * size.width * 0.38,
-          cy + size.height * 0.45,
-          cx + dir * size.width * 0.1,
-          cy + size.height * 0.3,
-          cx,
-          cy * 0.75,
-        )
-        ..close();
-
-      canvas.drawPath(
-        path,
-        Paint()
-          ..shader = ui.Gradient.radial(
-            Offset(cx, cy),
-            size.width * 0.55,
-            [
-              color.withValues(alpha: 0.65),
-              color.withValues(alpha: 0.22),
-              color.withValues(alpha: 0),
-            ],
-            const [0.1, 0.55, 1],
-          ),
-      );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = place == 1 ? 1.8 : 1.2
-          ..color = color.withValues(alpha: 0.8)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
-      );
-    }
-
-    wing(true);
-    wing(false);
-  }
-
-  @override
-  bool shouldRepaint(covariant _WingsPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.place != place;
-}
-
 // ───────────────────────────────────────────── Avatar figure
 
 class _RankFigure extends StatelessWidget {
@@ -923,11 +854,11 @@ class _RankFigure extends StatelessWidget {
   static double _avatarRatio(int place) {
     switch (place) {
       case 1:
-        return 0.58;
+        return 0.56;
       case 2:
         return 0.62;
       case 3:
-        return 0.58;
+        return 0.62;
       default:
         return 0.68;
     }
@@ -936,26 +867,13 @@ class _RankFigure extends StatelessWidget {
   static Offset _avatarOffset(int place, double size) {
     switch (place) {
       case 1:
-        return Offset(0, size * 0.02);
-      case 2:
         return Offset(0, size * 0.01);
+      case 2:
+        return Offset(0, size * 0.038);
       case 3:
-        return Offset(0, size * -0.02);
+        return Offset(0, size * 0.016);
       default:
         return Offset.zero;
-    }
-  }
-
-  static Color _ringColor(int place) {
-    switch (place) {
-      case 1:
-        return const Color(0xFFFFD56B);
-      case 2:
-        return const Color(0xFFFF8A5C);
-      case 3:
-        return const Color(0xFF7EB6FF);
-      default:
-        return Colors.white54;
     }
   }
 
@@ -967,7 +885,6 @@ class _RankFigure extends StatelessWidget {
       final ratio = _avatarRatio(place);
       final avatarSize = size * ratio;
       final offset = _avatarOffset(place, size);
-      final ring = _ringColor(place);
 
       return SizedBox(
         width: size,
@@ -978,14 +895,7 @@ class _RankFigure extends StatelessWidget {
           children: [
             Transform.translate(
               offset: offset,
-              child: Container(
-                width: avatarSize,
-                height: avatarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: ring, width: place == 1 ? 2.2 : 1.8),
-                ),
-                clipBehavior: Clip.antiAlias,
+              child: ClipOval(
                 child: CustomImage(
                   size: Size(avatarSize, avatarSize),
                   image: entry.profilePhoto?.addBaseURL(),
@@ -1015,13 +925,25 @@ class _RankFigure extends StatelessWidget {
 
     final dressingFrame = (entry.frameImage ?? '').trim();
     if (dressingFrame.isNotEmpty) {
+      final grade = (entry.unlockGrade ?? '').trim();
+      final ratio = () {
+        final r = entry.photoRatio;
+        if (r != null && r > 0.15 && r < 0.9) return r;
+        if (grade.isNotEmpty) return AssetRes.streamerBadgePhotoRatio(grade);
+        if ((entry.appRole ?? '').toLowerCase() == 'client') {
+          return AssetRes.clientFramePhotoRatio(entry.levelNumber);
+        }
+        return 0.40;
+      }();
       return FramedAvatar.fitted(
         size: size,
         image: entry.profilePhoto,
         fullName: entry.displayName,
         frameImage: dressingFrame,
-        badgeImage: entry.badgeImage,
-        photoRatio: 0.62,
+        photoRatio: ratio,
+        photoOffset: grade.isNotEmpty
+            ? AssetRes.streamerBadgePhotoOffset(grade, outer: size)
+            : Offset.zero,
         photoOnTop: false,
       );
     }
@@ -1055,7 +977,7 @@ class _RankFigure extends StatelessWidget {
 }
 
 class _RankRow extends StatelessWidget {
-  const _RankRow({required this.entry});
+  const _RankRow({super.key, required this.entry});
 
   final LeaderboardEntry entry;
 
@@ -1063,9 +985,9 @@ class _RankRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final place = entry.rank ?? 4;
     return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      clipBehavior: Clip.antiAlias,
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      clipBehavior: Clip.none,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: const Color(0x99161024),
@@ -1092,7 +1014,7 @@ class _RankRow extends StatelessWidget {
           _RankFigure(
             entry: entry,
             place: place,
-            size: 34,
+            size: 42,
             showFrame: false,
           ),
           const SizedBox(width: 10),

@@ -125,6 +125,7 @@ class _GiftWallet {
   String sendGift = "${apiURL}misc/sendGift";
   String fetchMyWithdrawalRequest = "${apiURL}misc/fetchMyWithdrawalRequest";
   String fetchMyRecharges = "${apiURL}misc/fetchMyRecharges";
+  String fetchWalletHistory = "${apiURL}misc/fetchWalletHistory";
   String submitWithdrawalRequest = "${apiURL}misc/submitWithdrawalRequest";
   String buyCoins = "${apiURL}misc/buyCoins";
   String createCryptoPayment = "${apiURL}misc/createCryptoPayment";
@@ -139,11 +140,14 @@ class _User {
   String loginInUser = "${apiURL}user/logInUser";
   String logInFakeUser = "${apiURL}user/logInFakeUser";
   String registerUser = "${apiURL}user/registerUser";
+  String logInAnonymousUser = "${apiURL}user/logInAnonymousUser";
   String deleteMyAccount = "${apiURL}user/deleteMyAccount";
   String logOutUser = "${apiURL}user/logOutUser";
   String subscribePlus = "${apiURL}user/subscribePlus";
   String startKyc = "${apiURL}user/startKyc";
   String fetchUserDetails = "${apiURL}user/fetchUserDetails";
+  String agencyListWorkers = "${apiURL}user/agencyListWorkers";
+  String agencyCreateWorker = "${apiURL}user/agencyCreateWorker";
   String updateUserDetails = "${apiURL}user/updateUserDetails";
   String checkUsernameAvailability = "${apiURL}user/checkUsernameAvailability";
   String addUserLink = "${apiURL}user/addUserLink";

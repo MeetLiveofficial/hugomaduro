@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/double_tap_detector.dart';
@@ -24,9 +25,9 @@ String _liveJoinLabel(LiveChatMessage message) {
 }
 
 String _liveGiftLabel(LiveChatMessage message) {
-  final coins = message.giftCoins;
+  final coins = HostShare.displayCoins(message.giftCoins ?? 0);
   final base = LKey.sentAGift.tr;
-  if (coins != null && coins > 0) {
+  if (coins > 0) {
     return '$base · $coins ${LKey.coins.tr}';
   }
   return base;
@@ -1458,7 +1459,7 @@ class _GiftIncentiveSlider extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    '(${slot.coinPrice ?? 0})',
+                                    '(${HostShare.displayCoins(slot.coinPrice ?? 0)})',
                                     style: TextStyleCustom.outFitRegular400(
                                       color: ColorRes.accentPeach,
                                       fontSize: 10,

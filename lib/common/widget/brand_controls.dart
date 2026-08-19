@@ -66,6 +66,7 @@ class BrandSegmentChip extends StatelessWidget {
   final VoidCallback onTap;
   final Color? accent;
   final IconData? icon;
+  final bool compact;
 
   const BrandSegmentChip({
     super.key,
@@ -74,6 +75,7 @@ class BrandSegmentChip extends StatelessWidget {
     required this.onTap,
     this.accent,
     this.icon,
+    this.compact = false,
   });
 
   @override
@@ -90,7 +92,9 @@ class BrandSegmentChip extends StatelessWidget {
         child: Ink(
           decoration: BrandControls.glass(selected: active),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            padding: compact
+                ? const EdgeInsets.symmetric(vertical: 6, horizontal: 4)
+                : const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -98,10 +102,12 @@ class BrandSegmentChip extends StatelessWidget {
                 if (icon != null) ...[
                   Icon(
                     icon,
-                    size: icon == Icons.circle ? 8 : 15,
+                    size: icon == Icons.circle
+                        ? (compact ? 7 : 8)
+                        : (compact ? 13 : 15),
                     color: iconColor,
                   ),
-                  const SizedBox(width: 5),
+                  SizedBox(width: compact ? 3 : 5),
                 ],
                 Flexible(
                   child: Text(
@@ -110,7 +116,7 @@ class BrandSegmentChip extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyleCustom.outFitMedium500(
                       color: onColor,
-                      fontSize: 13,
+                      fontSize: compact ? 11 : 13,
                     ),
                   ),
                 ),
@@ -128,6 +134,7 @@ class BrandFilterChip extends StatelessWidget {
   final bool active;
   final IconData icon;
   final VoidCallback onTap;
+  final bool compact;
 
   const BrandFilterChip({
     super.key,
@@ -135,6 +142,7 @@ class BrandFilterChip extends StatelessWidget {
     required this.active,
     required this.icon,
     required this.onTap,
+    this.compact = false,
   });
 
   @override
@@ -148,24 +156,28 @@ class BrandFilterChip extends StatelessWidget {
         child: Ink(
           decoration: BrandControls.glass(selected: active),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            padding: compact
+                ? const EdgeInsets.symmetric(horizontal: 6, vertical: 6)
+                : const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(icon, size: 16, color: fg),
-                const SizedBox(width: 8),
-                Expanded(
+                Icon(icon, size: compact ? 13 : 16, color: fg),
+                SizedBox(width: compact ? 4 : 8),
+                Flexible(
                   child: Text(
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyleCustom.outFitMedium500(
-                      fontSize: 13,
+                      fontSize: compact ? 11 : 13,
                       color: fg,
                     ),
                   ),
                 ),
-                Icon(Icons.expand_more_rounded, size: 18, color: fg),
+                Icon(Icons.expand_more_rounded,
+                    size: compact ? 14 : 18, color: fg),
               ],
             ),
           ),

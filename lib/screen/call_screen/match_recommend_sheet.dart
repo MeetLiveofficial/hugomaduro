@@ -71,7 +71,7 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
     _appLanguage = widget.initial.appLanguage;
     _matchSeconds = widget.initial.matchFreeSeconds > 0
         ? widget.initial.matchFreeSeconds
-        : 30;
+        : 40;
   }
 
   Future<void> _loadNext() async {

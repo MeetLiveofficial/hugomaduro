@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -1736,6 +1737,7 @@ class LivestreamScreenController extends BaseController {
   }
 
   Future<void> sendComment(String text) async {
+    if (GuestGate.block()) return;
     final trimmed = text.trim();
     if (trimmed.isEmpty || isSendingComment.value) return;
     final me = SessionManager.instance.getUser();
@@ -1855,6 +1857,7 @@ class LivestreamScreenController extends BaseController {
     String? giftImage,
     int? coinPrice,
   }) async {
+    if (GuestGate.block()) return;
     if (isHost) return;
     if (_sendingDirectGift) return;
     final hostId = livestream.hostId;
@@ -1874,6 +1877,7 @@ class LivestreamScreenController extends BaseController {
           id: g.id,
           categoryId: g.categoryId,
           coinPrice: g.coinPrice,
+          title: g.title,
           image: g.image,
           isFullscreen: g.isFullscreen,
         );
@@ -1921,6 +1925,7 @@ class LivestreamScreenController extends BaseController {
       final detailed = await GiftWalletService.instance.sendGiftDetailed(
         giftId: giftId,
         userId: hostId,
+        source: 'live',
       );
       if (!detailed.ok) {
         showSnackBar(detailed.message ?? LKey.giftNotAvailable.tr);

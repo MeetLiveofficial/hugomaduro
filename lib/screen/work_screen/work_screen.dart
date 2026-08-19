@@ -7,6 +7,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/work/streamer_work_stats_model.dart';
 import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
+import 'package:krimson/screen/wallet_history_screen/wallet_history_screen.dart';
 import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/screen/work_screen/work_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
@@ -115,7 +116,6 @@ class _Header extends StatelessWidget {
               photoRatio: AssetRes.streamerBadgePhotoRatio(grade),
               photoOffset: AssetRes.streamerBadgePhotoOffset(grade, outer: 72),
               photoOnTop: false,
-              gradeLabel: AssetRes.streamerBadgeLabel(grade),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -517,6 +517,22 @@ class _EarningsCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
+              TextButton(
+                onPressed: () => Get.to(() => const WalletHistoryScreen()),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  '${LKey.walletHistory.tr} >',
+                  style: TextStyleCustom.outFitMedium500(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               TextButton(
                 onPressed: () => Get.to(() => const WithdrawalsScreen()),
                 style: TextButton.styleFrom(

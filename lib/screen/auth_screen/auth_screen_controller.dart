@@ -8,6 +8,7 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
@@ -260,6 +261,7 @@ class AuthScreenController extends BaseController {
         country: selectedCountry.value?.countryName,
         countryCode: selectedCountry.value?.countryCode,
         appLanguage: lang,
+        keepAuthToken: GuestGate.isAnonymous,
       )
           .timeout(const Duration(seconds: 25), onTimeout: () {
         throw TimeoutException('El servidor tardó demasiado en responder');
@@ -297,6 +299,50 @@ class AuthScreenController extends BaseController {
     } catch (e) {
       Loggers.error('onCreateAccount: $e');
       showSnackBar('No se pudo registrar: $e');
+    } finally {
+      stopLoader();
+    }
+  }
+
+  Future<void> onAnonymousTap() async {
+    showLoader(barrierDismissible: true);
+    try {
+      final deviceToken =
+          'krimson_android_${DateTime.now().millisecondsSinceEpoch}';
+      final lang = SessionManager.instance.getLang();
+      final data = await UserService.instance
+          .logInAnonymousUser(
+        deviceToken: deviceToken,
+        appLanguage: lang.isNotEmpty ? lang : 'en',
+      )
+          .timeout(const Duration(seconds: 20), onTimeout: () {
+        throw TimeoutException('El servidor tardó demasiado en responder');
+      });
+
+      stopLoader();
+      if (data == null) return;
+      if (data.token?.authToken == null || data.token!.authToken!.isEmpty) {
+        showSnackBar('Login OK pero sin token. Revisa el backend.');
+        return;
+      }
+
+      SessionManager.instance.setUser(data);
+      SessionManager.instance.setAuthToken(data.token);
+      SessionManager.instance.setLogin(true);
+      await _navigateScreen(data);
+
+      Future<void>(() async {
+        final ok = await FirebaseAppHelper.ensureInitialized();
+        if (ok) {
+          try {
+            await FirebaseAuth.instance.signInAnonymously();
+          } catch (_) {}
+        }
+      });
+    } catch (e, st) {
+      Loggers.error('onAnonymousTap: $e\n$st');
+      stopLoader();
+      showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       stopLoader();
     }

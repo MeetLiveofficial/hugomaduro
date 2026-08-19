@@ -36,7 +36,7 @@ class CallService {
   }
 
   /// Recomienda streamer del mismo idioma para Match (sin crear la llamada).
-  /// [mode]: `random` (default) o `goddess` (prioriza grados A/S/SS).
+  /// [mode]: `random` (default) o `goddess` (prioriza grados A/S).
   /// [excludeUserIds]: streamers ya vistos (swipe al siguiente).
   Future<MatchRecommendation> findMatch({
     String? appLanguage,
@@ -86,13 +86,13 @@ class CallService {
           : int.tryParse('${data['call_cost'] ?? 0}') ?? 0,
       matchFreeSeconds: data['match_free_seconds'] is num
           ? (data['match_free_seconds'] as num).toInt()
-          : int.tryParse('${data['match_free_seconds'] ?? 30}') ?? 30,
+          : int.tryParse('${data['match_free_seconds'] ?? 40}') ?? 40,
       matchInitialCoins: data['match_initial_coins'] is num
           ? (data['match_initial_coins'] as num).toInt()
           : int.tryParse('${data['match_initial_coins'] ?? 0}') ?? 0,
       matchGraceSeconds: data['match_grace_seconds'] is num
           ? (data['match_grace_seconds'] as num).toInt()
-          : int.tryParse('${data['match_grace_seconds'] ?? 40}') ?? 40,
+          : int.tryParse('${data['match_grace_seconds'] ?? 10}') ?? 10,
       matchTiers: MatchTier.listFrom(
         data['match_config'] is Map
             ? (data['match_config'] as Map)['tiers']
@@ -107,10 +107,11 @@ class CallService {
   }
 
   /// Paga (si hace falta) la entrada para ver streamers en Match.
-  Future<MatchUnlockResult> unlockMatch() async {
+  /// Los coins van al monedero de la APP, no al streamer.
+  Future<MatchUnlockResult> unlockMatch({String mode = 'random'}) async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.call.unlockMatch,
-      param: const {},
+      param: {'mode': mode},
       fromJson: (j) => j,
     );
     if (json['status'] != true) {
@@ -281,9 +282,9 @@ class MatchRecommendation {
   MatchRecommendation({
     required this.user,
     required this.callCost,
-    this.matchFreeSeconds = 30,
+    this.matchFreeSeconds = 40,
     this.matchInitialCoins = 0,
-    this.matchGraceSeconds = 40,
+    this.matchGraceSeconds = 10,
     List<MatchTier>? matchTiers,
     this.appLanguage,
     List<User>? users,

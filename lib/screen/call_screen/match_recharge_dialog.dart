@@ -21,8 +21,10 @@ class MatchRechargeDialog {
     CallParty? peer,
     int callCost = 0,
     List<MatchTier>? tiers,
-    int graceSeconds = 40,
+    int graceSeconds = 10,
     DateTime? graceEndsAt,
+    bool autoCloseOnTimeout = true,
+    String? subtitle,
     Future<bool> Function(MatchTier tier)? onExtend,
   }) async {
     if (peer?.id == null) return false;
@@ -32,7 +34,7 @@ class MatchRechargeDialog {
         : (settings?.matchTiers ?? MatchTier.defaults);
     final resolvedGrace = graceSeconds > 0
         ? graceSeconds
-        : (settings?.matchGraceSeconds ?? 40);
+        : (settings?.matchGraceSeconds ?? 10);
 
     final result = await Get.dialog<bool>(
       _MatchContinueBody(
@@ -41,6 +43,8 @@ class MatchRechargeDialog {
         tiers: resolvedTiers,
         graceSeconds: resolvedGrace,
         graceEndsAt: graceEndsAt,
+        autoCloseOnTimeout: autoCloseOnTimeout,
+        subtitle: subtitle,
         onExtend: onExtend,
       ),
       barrierDismissible: false,
@@ -55,8 +59,10 @@ class _MatchContinueBody extends StatefulWidget {
     required this.peer,
     required this.tiers,
     this.callCost = 0,
-    this.graceSeconds = 40,
+    this.graceSeconds = 10,
     this.graceEndsAt,
+    this.autoCloseOnTimeout = true,
+    this.subtitle,
     this.onExtend,
   });
 
@@ -65,6 +71,8 @@ class _MatchContinueBody extends StatefulWidget {
   final List<MatchTier> tiers;
   final int graceSeconds;
   final DateTime? graceEndsAt;
+  final bool autoCloseOnTimeout;
+  final String? subtitle;
   final Future<bool> Function(MatchTier tier)? onExtend;
 
   @override
@@ -75,16 +83,19 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
   bool _busy = false;
   Timer? _graceTimer;
   late int _graceLeft;
+  late final DateTime _graceDeadline;
 
   @override
   void initState() {
     super.initState();
+    _graceDeadline = widget.graceEndsAt ??
+        DateTime.now().add(Duration(seconds: widget.graceSeconds));
     _graceLeft = _computeGraceLeft();
     _graceTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       final left = _computeGraceLeft();
       if (!mounted) return;
       setState(() => _graceLeft = left);
-      if (left <= 0 && !_busy) {
+      if (left <= 0 && !_busy && widget.autoCloseOnTimeout) {
         _graceTimer?.cancel();
         Get.back(result: false);
       }
@@ -92,12 +103,8 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
   }
 
   int _computeGraceLeft() {
-    final ends = widget.graceEndsAt;
-    if (ends != null) {
-      final s = ends.difference(DateTime.now()).inSeconds;
-      return s < 0 ? 0 : s;
-    }
-    return widget.graceSeconds;
+    final s = _graceDeadline.difference(DateTime.now()).inSeconds;
+    return s < 0 ? 0 : s;
   }
 
   @override
@@ -107,7 +114,7 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
   }
 
   Future<void> _pick(MatchTier tier) async {
-    if (_busy || _graceLeft <= 0) return;
+    if (_busy || (_graceLeft <= 0 && widget.autoCloseOnTimeout)) return;
     final peerId = widget.peer.id;
     if (peerId == null) return;
 
@@ -216,9 +223,12 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
             ),
             const SizedBox(height: 4),
             Text(
-              _graceLeft > 0
-                  ? 'El video se pausó. Elige un pack (${_graceLeft}s)'
-                  : 'Tiempo de gracia agotado',
+              widget.subtitle ??
+                  (widget.autoCloseOnTimeout
+                      ? (_graceLeft > 0
+                          ? 'Elige 5, 10 o 15 min para quedarte (${_graceLeft}s)'
+                          : 'Tiempo de pago agotado')
+                      : 'Elige 5, 10 o 15 min para quedarte'),
               textAlign: TextAlign.center,
               style: TextStyleCustom.outFitRegular400(
                 color: Colors.white.withValues(alpha: 0.9),
@@ -236,7 +246,8 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
                       child: _OfferCard(
                         tier: offers[i],
                         highlight: i == 1,
-                        enabled: !_busy && _graceLeft > 0,
+                        enabled: !_busy &&
+                            (_graceLeft > 0 || !widget.autoCloseOnTimeout),
                         onTap: () => _pick(offers[i]),
                       ),
                     ),

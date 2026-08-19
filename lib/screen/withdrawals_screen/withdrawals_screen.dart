@@ -7,6 +7,7 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/wallet_history_screen/wallet_history_screen.dart';
 import 'package:krimson/screen/withdrawals_screen/withdrawals_screen_controller.dart';
 import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -22,7 +23,15 @@ class WithdrawalsScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          CustomAppBar(title: LKey.withdrawals.tr),
+          CustomAppBar(
+            title: LKey.withdrawals.tr,
+            rowWidget: IconButton(
+              onPressed: () => Get.to(() => const WalletHistoryScreen()),
+              tooltip: LKey.walletHistory.tr,
+              icon: const Icon(Icons.history,
+                  color: ColorRes.whitePure, size: 22),
+            ),
+          ),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value && controller.withdraws.isEmpty) {

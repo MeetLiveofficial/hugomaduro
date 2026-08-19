@@ -5,11 +5,13 @@ import 'package:krimson/model/user_model/user_model.dart';
 class AppRole {
   static const String streamer = 'streamer';
   static const String client = 'client';
+  static const String agency = 'agency';
 
-  /// Solo `client` explícito; vacío/desconocido = streamer (UI legacy).
+  /// `client` y `agency` son explícitos; vacío/desconocido = streamer.
   static String of(User? user) {
     final raw = (user?.appRole ?? '').trim().toLowerCase();
     if (raw == client) return client;
+    if (raw == agency) return agency;
     return streamer;
   }
 
@@ -18,6 +20,9 @@ class AppRole {
 
   static bool isClient([User? user]) =>
       of(user ?? SessionManager.instance.getUser()) == client;
+
+  static bool isAgency([User? user]) =>
+      of(user ?? SessionManager.instance.getUser()) == agency;
 
   /// Cliente no puede crear LIVE, posts, reels ni stories.
   static bool canPublish([User? user]) => isStreamer(user);
@@ -30,7 +35,11 @@ class AppRole {
   }
 
   /// Solo clientes envían regalos (chats, LIVE, llamadas).
-  static bool canSendGifts([User? user]) => isClient(user);
+  static bool canSendGifts([User? user]) {
+    final u = user ?? SessionManager.instance.getUser();
+    if ((u?.isAnonymous ?? 0) == 1) return false;
+    return isClient(u);
+  }
 
   /// Solo clientes recargan coins; streamers ganan y retiran.
   static bool canRecharge([User? user]) => isClient(user);

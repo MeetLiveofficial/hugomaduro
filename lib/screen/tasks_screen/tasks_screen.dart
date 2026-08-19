@@ -4,10 +4,10 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
-import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/task/task_models.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen_controller.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -44,6 +44,7 @@ class TasksScreen extends StatelessWidget {
     }
 
     final controller = Get.put(TasksScreenController());
+    controller.isDashBoard = isDashBoard;
 
     return Scaffold(
       body: Column(
@@ -63,6 +64,8 @@ class TasksScreen extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   children: [
+                    _CountdownBanner(controller: controller),
+                    const SizedBox(height: 12),
                     _PointsHeader(controller: controller),
                     const SizedBox(height: 12),
                     _EligibilityBanner(controller: controller),
@@ -130,6 +133,58 @@ class _Tabs extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _CountdownBanner extends StatelessWidget {
+  final TasksScreenController controller;
+
+  const _CountdownBanner({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [ColorRes.mlPurple, ColorRes.crimson],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.timer_outlined, color: Colors.white, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    LKey.tasksEndToday.tr,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    controller.remainingLabel.value,
+                    style: TextStyleCustom.outFitBold700(
+                      color: const Color(0xFFFFE082),
+                      fontSize: 26,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -294,24 +349,40 @@ class _TaskCard extends StatelessWidget {
     }
   }
 
-  String _progressLabel() {
-    if (task.isDual && task.requires != null) {
-      final r = task.requires!;
-      return '${task.progressMinutes}/${r.minutes} min · ${task.progressCoins}/${r.coins} coins · ${_statusLabel()}';
+  Color _statusColor(BuildContext context) {
+    switch (task.status) {
+      case 'claimed':
+        return Colors.green.shade700;
+      case 'completed':
+        return themeAccentSolid(context);
+      case 'expired':
+        return Colors.red.shade400;
+      default:
+        return textLightGrey(context);
     }
-    return '${task.progressValue}/${task.targetValue} · ${_statusLabel()}';
   }
 
   @override
   Widget build(BuildContext context) {
     final title = task.titleKey.tr;
     final desc = task.descriptionKey.tr;
+    final canGo = controller.canGoToCategory(task);
+    final showGo = canGo && task.status != 'claimed';
+    final showClaim = task.status == 'completed';
+    final showClaimed = task.status == 'claimed';
+    final highlightNext = !controller.isFirstTask(task) &&
+        controller.firstTaskIsDone &&
+        !task.isDone;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: bgGrey(context),
         borderRadius: BorderRadius.circular(14),
+        border: highlightNext
+            ? Border.all(color: themeAccentSolid(context).withValues(alpha: 0.45))
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,44 +415,48 @@ class _TaskCard extends StatelessWidget {
               fontSize: 12,
             ),
           ),
-          if (task.isDual && task.requires != null) ...[
+          if (highlightNext) ...[
             const SizedBox(height: 8),
-            _DualBars(task: task),
-          ] else ...[
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: task.progressRatio,
-                minHeight: 6,
-                backgroundColor: Colors.black12,
+            Text(
+              LKey.nextTaskUnlocked.tr,
+              style: TextStyleCustom.outFitMedium500(
                 color: themeAccentSolid(context),
+                fontSize: 11,
               ),
             ),
           ],
+          const SizedBox(height: 12),
+          if (task.isDual && task.requires != null)
+            _DualMetrics(task: task)
+          else
+            _SingleMetric(task: task),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _progressLabel(),
-                  style: TextStyleCustom.outFitRegular400(
-                    color: textLightGrey(context),
-                    fontSize: 12,
-                  ),
+          Text(
+            _statusLabel(),
+            style: TextStyleCustom.outFitMedium500(
+              color: _statusColor(context),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (!canGo && !showClaimed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                LKey.completeFirstTaskToContinue.tr,
+                style: TextStyleCustom.outFitRegular400(
+                  color: textLightGrey(context),
+                  fontSize: 11,
                 ),
               ),
-              if (task.status == 'completed')
-                SizedBox(
-                  height: 34,
-                  child: TextButtonCustom(
-                    onTap: () => controller.claimTask(task),
-                    title: LKey.claim.tr,
-                    backgroundColor: themeAccentSolid(context),
-                    titleColor: Colors.white,
-                  ),
-                ),
-            ],
+            ),
+          _TaskActions(
+            showClaim: showClaim,
+            showClaimed: showClaimed,
+            showGo: showGo,
+            goLabel: controller.goLabel(task),
+            onClaim: () => controller.claimTask(task),
+            onGo: () => controller.goToTaskCategory(task),
           ),
         ],
       ),
@@ -389,10 +464,10 @@ class _TaskCard extends StatelessWidget {
   }
 }
 
-class _DualBars extends StatelessWidget {
+class _DualMetrics extends StatelessWidget {
   final TaskItem task;
 
-  const _DualBars({required this.task});
+  const _DualMetrics({required this.task});
 
   @override
   Widget build(BuildContext context) {
@@ -403,26 +478,240 @@ class _DualBars extends StatelessWidget {
         r.coins <= 0 ? 1.0 : (task.progressCoins / r.coins).clamp(0.0, 1.0);
     return Column(
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: minRatio,
-            minHeight: 5,
-            backgroundColor: Colors.black12,
-            color: themeAccentSolid(context),
-          ),
+        _LabeledBar(
+          icon: Icons.schedule_rounded,
+          label: LKey.liveMinutesLabel.tr,
+          value: '${task.progressMinutes}/${r.minutes} min',
+          ratio: minRatio,
+          color: themeAccentSolid(context),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 10),
+        _LabeledBar(
+          icon: Icons.monetization_on_rounded,
+          label: LKey.taskCoinsLabel.tr,
+          value: '${task.progressCoins}/${r.coins}',
+          ratio: coinRatio,
+          color: const Color(0xFFE8A017),
+        ),
+      ],
+    );
+  }
+}
+
+class _SingleMetric extends StatelessWidget {
+  final TaskItem task;
+
+  const _SingleMetric({required this.task});
+
+  String get _label {
+    switch (task.actionType) {
+      case 'user_interactions':
+      case 'reply_messages':
+        return LKey.goToChatCategory.tr;
+      case 'private_call_ge_5':
+      case 'private_call_ge_20':
+      case 'match_completed':
+        return LKey.goToMatchCategory.tr;
+      case 'online_minutes':
+      case 'watch_lives_minutes':
+        return LKey.liveMinutesLabel.tr;
+      case 'receive_gift_coins':
+      case 'send_gifts':
+        return LKey.taskCoinsLabel.tr;
+      default:
+        return LKey.progressLabel.tr;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _LabeledBar(
+      icon: Icons.flag_rounded,
+      label: _label,
+      value: '${task.progressValue}/${task.targetValue}',
+      ratio: task.progressRatio,
+      color: themeAccentSolid(context),
+    );
+  }
+}
+
+class _LabeledBar extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final double ratio;
+  final Color color;
+
+  const _LabeledBar({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.ratio,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyleCustom.outFitMedium500(
+                  color: textDarkGrey(context),
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyleCustom.outFitSemiBold600(
+                color: textDarkGrey(context),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
           child: LinearProgressIndicator(
-            value: coinRatio,
-            minHeight: 5,
+            value: ratio,
+            minHeight: 8,
             backgroundColor: Colors.black12,
-            color: Colors.amber.shade700,
+            color: color,
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TaskActions extends StatelessWidget {
+  final bool showClaim;
+  final bool showClaimed;
+  final bool showGo;
+  final String goLabel;
+  final VoidCallback onClaim;
+  final VoidCallback onGo;
+
+  const _TaskActions({
+    required this.showClaim,
+    required this.showClaimed,
+    required this.showGo,
+    required this.goLabel,
+    required this.onClaim,
+    required this.onGo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (showClaimed && !showGo) {
+      return _PillButton(
+        label: LKey.claimed.tr,
+        filled: false,
+        enabled: false,
+        onTap: () {},
+      );
+    }
+
+    if (showClaim && showGo) {
+      return Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: _PillButton(
+              label: LKey.claim.tr,
+              filled: true,
+              onTap: onClaim,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: _PillButton(
+              label: goLabel,
+              filled: false,
+              onTap: onGo,
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (showClaim) {
+      return _PillButton(
+        label: LKey.claim.tr,
+        filled: true,
+        onTap: onClaim,
+      );
+    }
+
+    if (showGo) {
+      return _PillButton(
+        label: goLabel,
+        filled: false,
+        onTap: onGo,
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+}
+
+class _PillButton extends StatelessWidget {
+  final String label;
+  final bool filled;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _PillButton({
+    required this.label,
+    required this.filled,
+    required this.onTap,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = themeAccentSolid(context);
+    final bg = !enabled
+        ? Colors.black12
+        : (filled ? accent : Colors.transparent);
+    final fg = !enabled
+        ? textLightGrey(context)
+        : (filled ? Colors.white : accent);
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: filled || !enabled
+                ? null
+                : Border.all(color: accent.withValues(alpha: 0.7)),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyleCustom.outFitSemiBold600(
+              color: fg,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

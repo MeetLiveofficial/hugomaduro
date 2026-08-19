@@ -45,7 +45,7 @@ class BaseController extends FullLifeCycleController {
 
     Get.rawSnackbar(
       backgroundColor: blackPure(Get.context!),
-      margin: const EdgeInsets.symmetric(horizontal: 10),
+      margin: const EdgeInsets.fromLTRB(10, 56, 10, 10),
       padding: const EdgeInsets.all(15),
       borderRadius: 10,
       isDismissible: true,
