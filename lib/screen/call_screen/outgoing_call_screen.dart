@@ -234,6 +234,11 @@ class OutgoingCallController extends BaseController {
   void onInit() {
     super.onInit();
     activeInstance = this;
+    if (!isMatch) {
+      unawaited(
+        LivestreamScreenController.activeInstance?.pauseLiveKitForCall(),
+      );
+    }
   }
 
   @override
@@ -535,6 +540,10 @@ class OutgoingCallController extends BaseController {
         errorText.value = 'El otro usuario ya no está en Match';
         subtitle.value = 'El otro usuario ya no está en Match';
       }
+      if (msg.toLowerCase().contains('join the live')) {
+        errorText.value = LKey.callOnlyFromLive.tr;
+        subtitle.value = LKey.callOnlyFromLive.tr;
+      }
       if (msg.toLowerCase().contains('insufficient') ||
           msg.toLowerCase().contains('coin')) {
         CoinGate.ensureEnough(cost, message: 'Moneda insuficiente');
@@ -652,6 +661,11 @@ class OutgoingCallController extends BaseController {
     await _stopRingback();
     if (!skipCancelApi && call?.isPending == true) {
       await _cancelRemote();
+    }
+    if (!_joined) {
+      unawaited(
+        LivestreamScreenController.activeInstance?.resumeLiveKitAfterCall(),
+      );
     }
     if (Get.key.currentState?.canPop() == true) {
       Get.back();

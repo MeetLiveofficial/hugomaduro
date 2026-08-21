@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/manager/content_protection.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/share_manager.dart';
@@ -341,13 +342,7 @@ class ProfileVideoCallFab extends StatelessWidget {
 
   bool get _canReceive => AppRole.canReceivePaidCalls(user);
 
-  int get _cost {
-    if (user.levelTitle != null || user.levelNumber != null) {
-      return user.callRequestCoins;
-    }
-    final fromLevel = user.getLevel.callRequestCoins;
-    return user.callRequestCoins > 0 ? user.callRequestCoins : fromLevel;
-  }
+  int get _cost => CallAvailability.callCost(user);
 
   @override
   Widget build(BuildContext context) {

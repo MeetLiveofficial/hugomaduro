@@ -4,7 +4,6 @@ import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
-import 'package:krimson/common/widget/double_tap_detector.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
@@ -25,7 +24,8 @@ String _liveJoinLabel(LiveChatMessage message) {
 }
 
 String _liveGiftLabel(LiveChatMessage message) {
-  final coins = HostShare.displayCoins(message.giftCoins ?? 0);
+  // Precio completo del regalo (el marcador PK también usa el 100%).
+  final coins = message.giftCoins ?? 0;
   final base = LKey.sentAGift.tr;
   if (coins > 0) {
     return '$base · $coins ${LKey.coins.tr}';
@@ -33,7 +33,7 @@ String _liveGiftLabel(LiveChatMessage message) {
   return base;
 }
 
-/// Overlay LIVE: host/viewers arriba; título + chat/Private/Like/Gift abajo.
+/// Overlay LIVE: host/viewers arriba; título + chat / regalos abajo.
 class LiveStreamOverlay extends StatelessWidget {
   final LivestreamScreenController controller;
   final bool showHostControls;
@@ -98,33 +98,9 @@ class LiveStreamOverlay extends StatelessWidget {
               return const SizedBox.shrink();
             }),
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return Stack(
+              child: Stack(
                     clipBehavior: Clip.hardEdge,
                     children: [
-                      // Doble tap cubre toda el área (incl. video PK).
-                      Positioned.fill(
-                        child: DoubleTapDetector(
-                          onDoubleTap: (details) {
-                            if (controller.isHost) return;
-                            final box =
-                                context.findRenderObject() as RenderBox?;
-                            final local = box?.globalToLocal(
-                                  details.globalPosition,
-                                ) ??
-                                details.localPosition;
-                            controller.onBattleDoubleTap(
-                              local,
-                              Size(
-                                constraints.maxWidth,
-                                constraints.maxHeight,
-                              ),
-                            );
-                          },
-                          child: const ColoredBox(color: Colors.transparent),
-                        ),
-                      ),
                       // Flex (no SizedBox fijo): el spacer PK nunca supera el
                       // alto disponible → evita BOTTOM OVERFLOWED en web.
                       Positioned.fill(
@@ -163,7 +139,9 @@ class LiveStreamOverlay extends StatelessWidget {
                         child: _FloatingLikes(controller: controller),
                       ),
                       Obx(() {
-                        if (!controller.isStreamPaused.value) {
+                        if (!controller.isStreamPaused.value &&
+                            !controller.pausedForCall.value &&
+                            !controller.hostInCall.value) {
                           return const SizedBox.shrink();
                         }
                         return const Center(child: _PausedBadge());
@@ -176,9 +154,7 @@ class LiveStreamOverlay extends StatelessWidget {
                         );
                       }),
                     ],
-                  );
-                },
-              ),
+                  ),
             ),
             const SizedBox(height: 8),
             if (!controller.isHost)
@@ -518,6 +494,72 @@ class _PausedBadge extends StatelessWidget {
   }
 }
 
+/// Fondo del LIVE mientras hay videollamada (host o cliente).
+class LivePausedForCallPane extends StatelessWidget {
+  const LivePausedForCallPane({super.key, required this.controller});
+
+  final LivestreamScreenController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final inCall = controller.isCallUiActive;
+      final failed = controller.statusMessage.value.contains('Reintentar') ||
+          controller.statusMessage.value.contains('Sin video');
+      return ColoredBox(
+        color: const Color(0xFF140E18),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  inCall
+                      ? Icons.pause_circle_filled_rounded
+                      : Icons.videocam_off_rounded,
+                  color: Colors.white70,
+                  size: 64,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  controller.statusMessage.value.isEmpty
+                      ? 'LIVE pausado · En llamada'
+                      : controller.statusMessage.value,
+                  textAlign: TextAlign.center,
+                  style: TextStyleCustom.outFitRegular400(
+                    color: Colors.white70,
+                    fontSize: 16,
+                  ),
+                ),
+                if (!inCall && failed) ...[
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: controller.retryLiveConnection,
+                    style: TextButton.styleFrom(
+                      backgroundColor: ColorRes.themeAccentSolid,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Reintentar'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
 /// Botón circular solo-icono (Batalla / Mic / Regalos / Tareas).
 class _LiveIconBtn extends StatelessWidget {
   final IconData icon;
@@ -700,6 +742,20 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           ),
+          // Rival PK: nombre a la derecha para ir a su LIVE y apoyarlo.
+          Obx(() {
+            final battle = controller.isBattleRunning.value ||
+                controller.isBattleWaiting.value;
+            if (!battle) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(left: 6, right: 4),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: _PkOpponentChip(controller: controller),
+              ),
+            );
+          }),
           // Bloque derecho: contribuidores + viewers + X (al borde).
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -720,6 +776,77 @@ class _TopBar extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _PkOpponentChip extends StatelessWidget {
+  final LivestreamScreenController controller;
+
+  const _PkOpponentChip({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final name = controller.battleOpponentName.value.trim();
+      if (name.isEmpty) return const SizedBox.shrink();
+      final photo = controller.battleOpponentPhoto.value;
+      return Material(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(28),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: controller.goToOpponentLive,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CustomImage(
+                  size: const Size(32, 32),
+                  image: photo?.addBaseURL(),
+                  fullName: name,
+                  strokeWidth: 0,
+                ),
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 88),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyleCustom.outFitSemiBold600(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        controller.isHost ? 'Rival' : 'Apoyar',
+                        maxLines: 1,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: const Color(0xFF93C5FD),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 2),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white70,
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
   }
 }
 
@@ -1011,6 +1138,7 @@ class _ChatBubble extends StatelessWidget {
     final canReply =
         message.type == 'text' || message.type == 'gif' || message.type == 'gift';
     final isGiftBoost = message.type == 'gift_boost';
+    final isCallInvite = message.type == 'call_invite';
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -1019,13 +1147,15 @@ class _ChatBubble extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: isGiftBoost && !controller.isHost
-              ? () => controller.sendGiftDirectly(
-                    giftId: message.giftId,
-                    giftImage: message.giftImage,
-                    coinPrice: message.giftCoins,
-                  )
-              : (canReply ? () => controller.setReplyTo(message) : null),
+          onTap: isCallInvite && !controller.isHost
+              ? () => controller.showCallInviteDialog(message)
+              : (isGiftBoost && !controller.isHost
+                  ? () => controller.sendGiftDirectly(
+                        giftId: message.giftId,
+                        giftImage: message.giftImage,
+                        coinPrice: message.giftCoins,
+                      )
+                  : (canReply ? () => controller.setReplyTo(message) : null)),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Column(
@@ -1689,41 +1819,6 @@ class _ComposerRow extends StatelessWidget {
         icon: Icons.high_quality_rounded,
         onTap: c.openQualitySheet,
       ),
-      const SizedBox(width: 6),
-      Material(
-        color: ColorRes.themeAccentSolid,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: c.openPrivateCall,
-          child: SizedBox(
-            height: 40,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.call, color: Colors.white, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    LKey.privateCall.tr,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(width: 6),
-      Obx(() => _CircleBtn(
-            icon: Icons.favorite,
-            onTap: c.isLiking.value ? null : c.sendLike,
-          )),
       const SizedBox(width: 6),
       _CircleBtn(
         icon: Icons.card_giftcard_outlined,

@@ -31,6 +31,8 @@ class MatchScreenController extends BaseController
   final Rx<MatchSearchMode> mode = MatchSearchMode.random.obs;
   final RxBool isMatching = false.obs;
   final RxBool inMatchPool = false.obs;
+  /// Streamer: Match ON por defecto; solo se apaga si desmarca el radio.
+  final RxBool streamerMatchEnabled = true.obs;
   final RxBool waitCameraOn = false.obs;
   final RxInt coins = 0.obs;
   final RxInt freeMatchesUsed = 0.obs;
@@ -136,6 +138,9 @@ class MatchScreenController extends BaseController
       return;
     }
     if (AppRole.isStreamer()) {
+      if (streamerMatchEnabled.value) {
+        await joinPool();
+      }
       return;
     }
     if (_matchUiVisible) {
@@ -148,9 +153,11 @@ class MatchScreenController extends BaseController
   Future<void> toggleStreamerMatch() async {
     if (!AppRole.isStreamer()) return;
     if (inMatchPool.value) {
+      streamerMatchEnabled.value = false;
       await leavePool();
       return;
     }
+    streamerMatchEnabled.value = true;
     await joinPool();
   }
 
@@ -171,8 +178,16 @@ class MatchScreenController extends BaseController
       return;
     }
     _joining = true;
+    if (AppRole.isStreamer()) {
+      inMatchPool.value = true;
+    }
     try {
       final waitRoom = await CallService.instance.joinMatch();
+      if (AppRole.isStreamer() && !streamerMatchEnabled.value) {
+        inMatchPool.value = false;
+        await CallService.instance.leaveMatch();
+        return;
+      }
       inMatchPool.value = true;
       _heartbeat?.cancel();
       _heartbeat = Timer.periodic(const Duration(seconds: 10), (_) {
@@ -187,6 +202,7 @@ class MatchScreenController extends BaseController
         await _connectWaitCamera(waitRoom);
       }
     } catch (e) {
+      inMatchPool.value = false;
       Loggers.error('Match joinPool: $e');
     } finally {
       _joining = false;
@@ -334,7 +350,9 @@ class MatchScreenController extends BaseController
   /// Tras colgar un Match: la streamer vuelve a esperar si el radio sigue activo.
   Future<void> resumeAfterCall() async {
     if (AppRole.isStreamer()) {
-      await joinPool();
+      if (streamerMatchEnabled.value) {
+        await joinPool();
+      }
       return;
     }
     await _syncPresence();

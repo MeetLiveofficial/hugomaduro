@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
@@ -319,9 +320,11 @@ class _StreamerExploreCard extends StatelessWidget {
         ? '@${user.username}'
         : (user.country ?? user.appLanguage ?? '');
     final photo = (user.profilePhoto ?? '').trim().addBaseURL();
-    final canCall = showCallButton && AppRole.canReceivePaidCalls(user);
-    final isLive = user.isLive == 1;
-    final isActive = !isLive && user.isActive == 1;
+    final isLive = CallAvailability.isLive(user);
+    final canCall = showCallButton && CallAvailability.canPlaceCall(user);
+    final inCall = CallAvailability.isInCall(user);
+    final isActive = !isLive && !inCall && user.isActive == 1;
+    final isOffline = !isLive && !inCall && !isActive;
 
     return GestureDetector(
       onTap: onTap,
@@ -374,7 +377,31 @@ class _StreamerExploreCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (isLive)
+                  if (inCall)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6EA580C),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.videocam_rounded,
+                              color: Colors.white, size: 11),
+                          const SizedBox(width: 3),
+                          Text(
+                            LKey.inCall.tr,
+                            style: TextStyleCustom.outFitMedium500(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (isLive)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 7, vertical: 3),
@@ -395,7 +422,7 @@ class _StreamerExploreCard extends StatelessWidget {
                               color: Colors.white, size: 11),
                           const SizedBox(width: 3),
                           Text(
-                            'LIVE',
+                            LKey.liveBadge.tr,
                             style: TextStyleCustom.outFitMedium500(
                               color: Colors.white,
                               fontSize: 10,
@@ -426,6 +453,22 @@ class _StreamerExploreCard extends StatelessWidget {
                             ),
                           ),
                         ],
+                      ),
+                    )
+                  else if (isOffline)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE63F3F46),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        LKey.offlineBadge.tr,
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
                       ),
                     ),
                 ],
@@ -516,7 +559,28 @@ class _StreamerExploreCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        if (showCallButton)
+                        if (showCallButton && isLive)
+                          PopupMenuItem(
+                            value: 'call',
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.live_tv_rounded,
+                                  color: ColorRes.mlPurple,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  LKey.joinThisLive.tr,
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: ColorRes.textDarkGrey,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (showCallButton)
                           PopupMenuItem(
                             value: 'call',
                             enabled: canCall,

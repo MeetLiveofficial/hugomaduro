@@ -18,6 +18,7 @@ import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/match_recharge_dialog.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
+import 'package:krimson/screen/match_screen/match_web_video.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -138,6 +139,17 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
       );
       if (!mounted || _closing) return;
       setState(() => _status = 'Esperando cámara…');
+      for (var i = 0; i < 25; i++) {
+        if (!mounted || _closing) return;
+        final remotes = _lk?.remoteParticipants ?? [];
+        final remote = remotes.isNotEmpty ? remotes.first : null;
+        if (firstVideoTrackOf(remote) != null) {
+          setState(() => _status = '');
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      if (!mounted || _closing) return;
       _startCountdown();
     } catch (e) {
       Loggers.error('Match preview connect: $e');
@@ -314,23 +326,6 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
           fit: StackFit.expand,
           children: [
             const BrandWashBg(),
-            Transform.translate(
-              offset: Offset(_dragDx * 0.35, 0),
-              child: _VideoLayer(lkTag: _lkTag, status: _status),
-            ),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0x99E24AB7),
-                    Colors.transparent,
-                    Color(0xCC7A22A8),
-                  ],
-                ),
-              ),
-            ),
             SafeArea(
               child: Column(
                 children: [
@@ -365,7 +360,33 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
                       ],
                     ),
                   ),
-                  const Spacer(),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                      child: _dragDx.abs() < 0.5 || kIsWeb
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(22),
+                              child: _VideoLayer(
+                                lkTag: _lkTag,
+                                status: _status,
+                                photoUrl: _user.profilePhoto?.addBaseURL(),
+                                displayName: name,
+                              ),
+                            )
+                          : Transform.translate(
+                              offset: Offset(_dragDx * 0.35, 0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(22),
+                                child: _VideoLayer(
+                                  lkTag: _lkTag,
+                                  status: _status,
+                                  photoUrl: _user.profilePhoto?.addBaseURL(),
+                                  displayName: name,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
                     child: Text(
@@ -422,53 +443,95 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
 }
 
 class _VideoLayer extends StatelessWidget {
-  const _VideoLayer({required this.lkTag, required this.status});
+  const _VideoLayer({
+    required this.lkTag,
+    required this.status,
+    this.photoUrl,
+    this.displayName,
+  });
 
   final String lkTag;
   final String status;
+  final String? photoUrl;
+  final String? displayName;
 
   @override
   Widget build(BuildContext context) {
     if (!Get.isRegistered<LiveKitRoomController>(tag: lkTag)) {
-      return _Placeholder(status: status);
+      return _Placeholder(
+        status: status,
+        photoUrl: photoUrl,
+        displayName: displayName,
+      );
     }
     final lk = Get.find<LiveKitRoomController>(tag: lkTag);
     return Obx(() {
       lk.mediaRevision.value;
       final remotes = lk.remoteParticipants;
       final remote = remotes.isNotEmpty ? remotes.first : null;
-      const allowRenderer = !kIsWeb;
-      if (allowRenderer && firstVideoTrackOf(remote) != null) {
+      if (firstVideoTrackOf(remote) != null) {
+        if (kIsWeb) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            passThroughMatchVideoClicks();
+          });
+        }
         return LiveKitParticipantVideo(
           participant: remote,
           forcePortraitUpright: false,
         );
       }
-      return _Placeholder(status: status);
+      return _Placeholder(
+        status: status,
+        photoUrl: photoUrl,
+        displayName: displayName,
+      );
     });
   }
 }
 
 class _Placeholder extends StatelessWidget {
-  const _Placeholder({required this.status});
+  const _Placeholder({
+    required this.status,
+    this.photoUrl,
+    this.displayName,
+  });
 
   final String status;
+  final String? photoUrl;
+  final String? displayName;
 
   @override
   Widget build(BuildContext context) {
+    final hasPhoto = (photoUrl ?? '').trim().isNotEmpty;
     return ColoredBox(
       color: const Color(0xFF140E18),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Text(
-            kIsWeb
-                ? 'Preview en vivo. El video va por la APP, no por el navegador.'
-                : status,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (hasPhoto)
+            CustomImage(
+              size: const Size(double.infinity, double.infinity),
+              image: photoUrl,
+              radius: 0,
+              fit: BoxFit.cover,
+              fullName: displayName,
+            )
+          else
+            const Center(
+              child: Icon(Icons.person, color: Colors.white24, size: 72),
+            ),
+          ColoredBox(color: Colors.black.withValues(alpha: 0.38)),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Text(
+                status,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

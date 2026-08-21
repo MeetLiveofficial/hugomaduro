@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
+import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
-import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/model/agency/agency_dashboard_model.dart';
 import 'package:krimson/screen/agency_screen/agency_home_controller.dart';
+import 'package:krimson/screen/agency_screen/agency_worker_detail_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/screen/message_screen/message_screen.dart';
 import 'package:krimson/screen/settings_screen/settings_screen.dart';
+import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
@@ -29,6 +34,7 @@ class _AgencyDashboardScreenState extends State<AgencyDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final dash = Get.find<DashboardScreenController>();
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -39,28 +45,41 @@ class _AgencyDashboardScreenState extends State<AgencyDashboardScreen> {
             index: _tab,
             children: const [
               AgencyHomeScreen(),
-              _AgencyAccountTab(),
+              MessageScreen(),
+              SettingsScreen(showBack: false),
             ],
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _tab,
-        onTap: (i) => setState(() => _tab = i),
-        backgroundColor: ColorRes.whitePure,
-        selectedItemColor: ColorRes.crimson,
-        unselectedItemColor: Colors.black45,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.groups_rounded),
-            label: 'Workers',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'Cuenta',
-          ),
-        ],
-      ),
+      bottomNavigationBar: Obx(() {
+        final unread = dash.chatUnReadCount.value;
+        return BottomNavigationBar(
+          currentIndex: _tab,
+          onTap: (i) => setState(() => _tab = i),
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: ColorRes.whitePure,
+          selectedItemColor: ColorRes.crimson,
+          unselectedItemColor: Colors.black45,
+          items: [
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.groups_rounded),
+              label: LKey.agencyStreamers.tr,
+            ),
+            BottomNavigationBarItem(
+              icon: Badge(
+                isLabelVisible: unread > 0,
+                label: Text(unread > 99 ? '99+' : '$unread'),
+                child: const Icon(Icons.chat_bubble_rounded),
+              ),
+              label: LKey.chats.tr,
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.settings_rounded),
+              label: LKey.settings.tr,
+            ),
+          ],
+        );
+      }),
     );
   }
 }
@@ -74,12 +93,13 @@ class AgencyHomeScreen extends StatelessWidget {
     return Column(
       children: [
         CustomAppBar(
-          title: 'Agencia',
+          title: LKey.agencyDashboardTitle.tr,
           showBack: false,
-          subTitle: 'Tus streamers afiliados',
+          subTitle: LKey.agencyYourStreamers.tr,
           rowWidget: IconButton(
             onPressed: () => _openCreate(context, c),
-            icon: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white),
+            icon: const Icon(Icons.person_add_alt_1_rounded,
+                color: Colors.white),
           ),
         ),
         Expanded(
@@ -100,7 +120,7 @@ class AgencyHomeScreen extends StatelessWidget {
                           size: 48, color: Colors.white54),
                       const SizedBox(height: 12),
                       Text(
-                        'Aún no tienes streamers',
+                        LKey.agencyNoStreamers.tr,
                         style: TextStyleCustom.outFitSemiBold600(
                           color: Colors.white,
                           fontSize: 16,
@@ -108,7 +128,7 @@ class AgencyHomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Crea una cuenta Streamer afiliada a tu agencia.',
+                        LKey.agencyCreateStreamerHint.tr,
                         textAlign: TextAlign.center,
                         style: TextStyleCustom.outFitRegular400(
                           color: Colors.white70,
@@ -117,7 +137,7 @@ class AgencyHomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       TextButtonCustom(
-                        title: 'Crear streamer',
+                        title: LKey.agencyCreateStreamer.tr,
                         onTap: () => _openCreate(context, c),
                         gradient: true,
                         btnWidth: 200,
@@ -127,13 +147,22 @@ class AgencyHomeScreen extends StatelessWidget {
                 ),
               );
             }
+            final totals = c.dashboard.value.totals;
             return RefreshIndicator(
               onRefresh: c.loadWorkers,
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                itemCount: c.workers.length,
+                itemCount: c.workers.length + 1,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => _WorkerTile(user: c.workers[i]),
+                itemBuilder: (_, i) {
+                  if (i == 0) {
+                    return _AgencyTotalsCard(
+                      wallet: c.dashboard.value.agencyWallet,
+                      totals: totals,
+                    );
+                  }
+                  return _WorkerTile(worker: c.workers[i - 1]);
+                },
               ),
             );
           }),
@@ -152,7 +181,7 @@ class AgencyHomeScreen extends StatelessWidget {
       AlertDialog(
         backgroundColor: ColorRes.carbon,
         title: Text(
-          'Nuevo streamer',
+          LKey.agencyCreateStreamer.tr,
           style: TextStyleCustom.outFitSemiBold600(
             color: Colors.white,
             fontSize: 18,
@@ -162,21 +191,21 @@ class AgencyHomeScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _field(fullname, 'Nombre completo'),
+              _field(fullname, LKey.fullName.tr),
               const SizedBox(height: 10),
-              _field(email, 'Email de acceso',
+              _field(email, LKey.enterYourEmail.tr,
                   keyboard: TextInputType.emailAddress),
               const SizedBox(height: 10),
-              _field(password, 'Contraseña', obscure: true),
+              _field(password, LKey.password.tr, obscure: true),
               const SizedBox(height: 10),
-              _field(username, 'Username (opcional)'),
+              _field(username, LKey.username.tr),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
-            child: const Text('Cancelar'),
+            child: Text(LKey.cancel.tr),
           ),
           Obx(() => TextButton(
                 onPressed: c.creating.value
@@ -196,7 +225,7 @@ class AgencyHomeScreen extends StatelessWidget {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Crear'),
+                    : Text(LKey.createAccount.tr),
               )),
         ],
       ),
@@ -235,155 +264,186 @@ class AgencyHomeScreen extends StatelessWidget {
   }
 }
 
-class _WorkerTile extends StatelessWidget {
-  final User user;
+class _AgencyTotalsCard extends StatelessWidget {
+  final int wallet;
+  final AgencyDashboardTotals totals;
 
-  const _WorkerTile({required this.user});
+  const _AgencyTotalsCard({required this.wallet, required this.totals});
 
   @override
   Widget build(BuildContext context) {
-    final photo = (user.profilePhoto ?? '').trim();
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white24),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: ColorRes.mlPurple.withValues(alpha: 0.4),
-            backgroundImage: photo.isEmpty ? null : NetworkImage(photo),
-            child: photo.isEmpty
-                ? Text(
-                    _initial(user),
-                    style: const TextStyle(color: Colors.white),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.fullname ?? user.username ?? 'Streamer',
-                  style: TextStyleCustom.outFitSemiBold600(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '@${user.username ?? ''} · ${user.identity ?? user.userEmail ?? ''}',
-                  style: TextStyleCustom.outFitRegular400(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+          Text(
+            LKey.agencyWalletHint.tr,
+            style: TextStyleCustom.outFitRegular400(
+              color: Colors.white70,
+              fontSize: 12,
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: ColorRes.crimson.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'worker',
-              style: TextStyleCustom.outFitSemiBold600(
-                color: ColorRes.accentPeach,
-                fontSize: 11,
-              ),
-            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _miniStat(LKey.balance.tr, wallet),
+              const SizedBox(width: 8),
+              _miniStat(LKey.agencyToday.tr, totals.agencyEarnedToday),
+              const SizedBox(width: 8),
+              _miniStat(
+                  LKey.agencyLifetime.tr, totals.agencyEarnedLifetime),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _miniStat(
+                  LKey.agencyStreamerEarned.tr, totals.streamerEarnedLifetime,
+                  flex: 2),
+              const SizedBox(width: 8),
+              _miniStat(
+                  '${LKey.agencyStreamerEarned.tr} · ${LKey.agencyToday.tr}',
+                  totals.streamerEarnedToday),
+            ],
           ),
         ],
       ),
     );
   }
+
+  Widget _miniStat(String label, int coins, {int flex = 1}) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyleCustom.outFitRegular400(
+                color: Colors.white60,
+                fontSize: 10,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Image.asset(AssetRes.icCoin, width: 12, height: 12),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    coins.fullNumberFormat,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-String _initial(User user) {
-  final name = (user.fullname ?? user.username ?? 'S').trim();
-  if (name.isEmpty) return 'S';
-  return name.substring(0, 1).toUpperCase();
-}
+class _WorkerTile extends StatelessWidget {
+  final AgencyWorker worker;
 
-class _AgencyAccountTab extends StatelessWidget {
-  const _AgencyAccountTab();
+  const _WorkerTile({required this.worker});
 
   @override
   Widget build(BuildContext context) {
-    final me = SessionManager.instance.getUser();
-    return Column(
-      children: [
-        const CustomAppBar(
-          title: 'Agencia',
-          showBack: false,
-          subTitle: 'Cuenta',
+    final user = worker.user;
+    final stats = worker.stats;
+    final photo = (user.profilePhoto ?? '').trim();
+    return InkWell(
+      onTap: () => Get.to(() => AgencyWorkerDetailScreen(worker: worker)),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white24),
         ),
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 36,
-                backgroundColor: ColorRes.mlPurple.withValues(alpha: 0.4),
-                backgroundImage: ((me?.profilePhoto ?? '').trim().isEmpty)
-                    ? null
-                    : NetworkImage(me!.profilePhoto!),
-                child: (me?.profilePhoto ?? '').trim().isEmpty
-                    ? Text(
-                        _initial(me ?? User()),
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 22),
-                      )
-                    : null,
+        child: Row(
+          children: [
+            CustomImage(
+              size: const Size(44, 44),
+              image: photo.isEmpty ? null : photo,
+              fullName: user.displayName,
+              radius: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.displayName,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    user.handle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _earnChip(LKey.agencyStreamerEarned.tr,
+                          stats.streamerEarnedLifetime),
+                      const SizedBox(width: 6),
+                      _earnChip(
+                          LKey.agencyYourShare.tr, stats.agencyEarnedLifetime),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                me?.fullname ?? 'Agencia',
-                style: TextStyleCustom.outFitSemiBold600(
-                  color: Colors.white,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                me?.identity ?? me?.userEmail ?? '',
-                style: TextStyleCustom.outFitRegular400(
-                  color: Colors.white70,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '${(me?.coinWallet ?? 0).toInt()} coins',
-                style: TextStyleCustom.outFitSemiBold600(
-                  color: ColorRes.accentPeach,
-                  fontSize: 16,
-                ),
-              ),
-              Text(
-                '10% del margen App de tus streamers',
-                style: TextStyleCustom.outFitRegular400(
-                  color: Colors.white54,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextButtonCustom(
-                title: 'Ajustes',
-                onTap: () => Get.to(() => const SettingsScreen()),
-                gradient: true,
-              ),
-            ],
-          ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white54),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _earnChip(String label, int coins) {
+    return Flexible(
+      child: Text(
+        '$label ${coins.fullNumberFormat}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyleCustom.outFitRegular400(
+          color: ColorRes.accentPeach,
+          fontSize: 11,
+        ),
+      ),
     );
   }
 }

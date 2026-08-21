@@ -4,17 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
 import 'package:krimson/model/general/countries_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
 import 'package:krimson/screen/match_screen/match_preview_screen.dart';
 import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card.dart';
 import 'package:krimson/utilities/app_res.dart';
@@ -204,18 +207,48 @@ class ExploreScreenController extends BaseController {
       showSnackBar('Con clientes solo puedes enviar mensajes');
       return;
     }
-    if (!AppRole.canReceivePaidCalls(user)) {
-      showSnackBar('Este streamer no recibe llamadas ahora');
+    if (CallAvailability.isLive(user) &&
+        !CallAvailability.isWatchingThisLive(user)) {
+      await _openLive(user);
       return;
     }
-    final cost = user.callRequestCoins > 0
-        ? user.callRequestCoins
-        : user.getLevel.callRequestCoins;
+    if (!CallAvailability.canPlaceCall(user)) {
+      showSnackBar(
+        CallAvailability.blockMessage(user) ??
+            'Este streamer no recibe llamadas ahora',
+      );
+      return;
+    }
+    final cost = CallAvailability.callCost(user);
     if (cost > 0 &&
         !CoinGate.ensureEnough(cost, message: 'Moneda insuficiente')) {
       return;
     }
     Get.to(() => OutgoingCallScreen(callee: user, cost: cost));
+  }
+
+  Future<void> _openLive(User user) async {
+    final roomId = (user.liveRoomId ?? '${user.id}').trim();
+    if (roomId.isEmpty) {
+      showSnackBar('Live not available');
+      return;
+    }
+    showLoader();
+    try {
+      final payload =
+          await LiveSessionService.instance.fetchSession(roomId: roomId);
+      stopLoader();
+      final stream = payload?.session;
+      if (stream == null) {
+        showSnackBar('Live not available');
+        return;
+      }
+      Get.to(() =>
+          LiveStreamAudienceScreen(isHost: false, livestream: stream));
+    } catch (e) {
+      stopLoader();
+      showSnackBar(e.toString());
+    }
   }
 
   /// Match: el cliente paga entrada y ve preview en vivo; el streamer espera en Match.

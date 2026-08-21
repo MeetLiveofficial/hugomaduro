@@ -99,4 +99,6 @@ class Params {
   static const String regionName = 'regionName';
   static const String timezone = 'timezone';
   static const String metadata = 'metadata';
+  static const String streamerId = 'streamer_id';
+  static const String traitIds = 'trait_ids';
 }

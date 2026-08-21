@@ -1,22 +1,28 @@
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/service/api/agency_service.dart';
-import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/languages/dynamic_translations.dart';
+import 'package:krimson/model/agency/agency_dashboard_model.dart';
 
 class AgencyHomeController extends BaseController {
-  final workers = <User>[].obs;
+  final dashboard = AgencyDashboard().obs;
   final creating = false.obs;
+
+  List<AgencyWorker> get workers => dashboard.value.workers;
 
   @override
   void onReady() {
     super.onReady();
+    try {
+      Get.find<DynamicTranslations>().ensureAgencyFallbacks();
+    } catch (_) {}
     loadWorkers();
   }
 
   Future<void> loadWorkers() async {
     isLoading.value = true;
     try {
-      workers.assignAll(await AgencyService.instance.listWorkers());
+      dashboard.value = await AgencyService.instance.fetchDashboard();
     } catch (e) {
       showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -33,14 +39,15 @@ class AgencyHomeController extends BaseController {
     if (creating.value) return false;
     creating.value = true;
     try {
-      final created = await AgencyService.instance.createWorker(
+      await AgencyService.instance.createWorker(
         fullname: fullname.trim(),
         identity: identity.trim(),
         password: password,
         username: username,
       );
-      workers.insert(0, created);
-      showSnackBar('Streamer creado. Ya puede entrar con su email y contraseña.');
+      await loadWorkers();
+      showSnackBar(
+          'Streamer creado. Ya puede entrar con su email y contraseña.');
       return true;
     } catch (e) {
       showSnackBar(e.toString().replaceFirst('Exception: ', ''));

@@ -191,6 +191,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final stream = controller.livestreams[index];
                       return _LiveGridCard(
+                        key: ValueKey(stream.roomID ?? 'live_$index'),
                         stream: stream,
                         onTap: () => controller.openLivestream(stream),
                       );
@@ -212,15 +213,17 @@ class _LiveGridCard extends StatelessWidget {
   final Livestream stream;
   final VoidCallback onTap;
 
-  const _LiveGridCard({required this.stream, required this.onTap});
+  const _LiveGridCard({super.key, required this.stream, required this.onTap});
 
   AppUser? _resolveHost() {
+    // Laravel trae host_user; no pisar con Firestore (fotos viejas/compartidas).
+    if (stream.hostUser != null) return stream.hostUser;
     if (Get.isRegistered<FirebaseFirestoreController>()) {
       final users = Get.find<FirebaseFirestoreController>().users;
       final fromFs = users.firstWhereOrNull((u) => u.userId == stream.hostId);
       if (fromFs != null) return fromFs;
     }
-    return stream.hostUser;
+    return null;
   }
 
   @override
@@ -248,11 +251,13 @@ class _LiveGridCard extends StatelessWidget {
           children: [
             if (cardImage.isNotEmpty)
               CustomImage(
+                key: ValueKey('${stream.roomID}|$cardImage'),
                 size: const Size(400, 600),
                 image: cardImage,
                 fit: BoxFit.cover,
                 radius: 0,
                 isShowPlaceHolder: true,
+                webPreferHtmlElement: false,
               )
             else
               ColoredBox(

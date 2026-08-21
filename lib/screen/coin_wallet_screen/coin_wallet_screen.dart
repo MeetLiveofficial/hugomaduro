@@ -15,12 +15,12 @@ class CoinWalletScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(CoinWalletScreenController());
-    final isStreamer = AppRole.isStreamer();
+    final isEarner = AppRole.canEarn();
     return Scaffold(
       body: Column(
         children: [
           const CoinWalletTopView(),
-          if (isStreamer)
+          if (isEarner)
             const Expanded(child: WalletHistoryScreen(embedded: true))
           else ...[
             const SizedBox(height: 10),

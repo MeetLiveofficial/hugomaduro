@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/model/general/settings_model.dart';
@@ -125,6 +127,8 @@ class User {
       this.isAgencyWorker = 0,
       this.weeklyCallGrade,
       this.levelBenefits = const [],
+      this.impressionQualities = const [],
+      this.impressionRating,
       this.equippedFrame,
       this.equippedBadge});
 
@@ -197,6 +201,8 @@ class User {
     String? appRole,
     String? weeklyCallGrade,
     List<String>? levelBenefits,
+    List<ImpressionQuality>? impressionQualities,
+    double? impressionRating,
     Map<String, dynamic>? equippedFrame,
     Map<String, dynamic>? equippedBadge,
   }) =>
@@ -268,6 +274,8 @@ class User {
         appRole: appRole ?? this.appRole,
         weeklyCallGrade: weeklyCallGrade ?? this.weeklyCallGrade,
         levelBenefits: levelBenefits ?? this.levelBenefits,
+        impressionQualities: impressionQualities ?? this.impressionQualities,
+        impressionRating: impressionRating ?? this.impressionRating,
         equippedFrame: equippedFrame ?? this.equippedFrame,
         equippedBadge: equippedBadge ?? this.equippedBadge,
       );
@@ -362,6 +370,9 @@ class User {
     isLive = _asInt(json['is_live']) ?? 0;
     liveRoomId = json['live_room_id']?.toString();
     isActive = _asInt(json['is_active']) ?? 0;
+    inCall = _asInt(json['in_call']) ?? 0;
+    lastCallAt = json['last_call_at']?.toString();
+    liveViewers = _asInt(json['live_viewers']) ?? 0;
     isVip = _asInt(json['is_vip']) ?? 0;
     vipExpiresAt = json['vip_expires_at']?.toString();
     dailyFreeMatchesQuota = _asInt(json['daily_free_matches_quota']) ?? 2;
@@ -401,6 +412,8 @@ class User {
     if (json['equipped_badge'] is Map) {
       equippedBadge = Map<String, dynamic>.from(json['equipped_badge']);
     }
+    impressionQualities = ImpressionQuality.listFrom(json['impression_qualities']);
+    impressionRating = _asNum(json['impression_rating'])?.toDouble();
   }
 
   int? id;
@@ -491,11 +504,16 @@ class User {
   int isLive = 0;
   String? liveRoomId;
   int isActive = 0;
+  int inCall = 0;
+  String? lastCallAt;
+  int liveViewers = 0;
   int isVip = 0;
   String? vipExpiresAt;
   int dailyFreeMatchesQuota = 2;
   int dailyFreeMatchesUsed = 0;
   int dailyFreeMatchesRemaining = 2;
+  List<ImpressionQuality> impressionQualities = const [];
+  double? impressionRating;
   Map<String, dynamic>? equippedFrame;
   Map<String, dynamic>? equippedBadge;
 
@@ -601,11 +619,17 @@ class User {
     map['is_live'] = isLive;
     map['live_room_id'] = liveRoomId;
     map['is_active'] = isActive;
+    map['in_call'] = inCall;
+    map['last_call_at'] = lastCallAt;
+    map['live_viewers'] = liveViewers;
     map['is_vip'] = isVip;
     map['vip_expires_at'] = vipExpiresAt;
     map['daily_free_matches_quota'] = dailyFreeMatchesQuota;
     map['daily_free_matches_used'] = dailyFreeMatchesUsed;
     map['daily_free_matches_remaining'] = dailyFreeMatchesRemaining;
+    map['impression_qualities'] =
+        impressionQualities.map((e) => e.toJson()).toList();
+    map['impression_rating'] = impressionRating;
     map['equipped_frame'] = equippedFrame;
     map['equipped_badge'] = equippedBadge;
     map["following_ids"] = followingIds;
@@ -686,6 +710,81 @@ class Link {
     map['created_at'] = createdAt;
     map['updated_at'] = updatedAt;
     return map;
+  }
+}
+
+class ImpressionQuality {
+  final int? id;
+  final String label;
+  final int stars;
+  final int votes;
+  final bool isPick;
+  final bool checked;
+
+  const ImpressionQuality({
+    required this.label,
+    this.id,
+    this.stars = 0,
+    this.votes = 0,
+    this.isPick = false,
+    this.checked = false,
+  });
+
+  ImpressionQuality copyWith({bool? checked}) {
+    return ImpressionQuality(
+      id: id,
+      label: label,
+      stars: stars,
+      votes: votes,
+      isPick: isPick,
+      checked: checked ?? this.checked,
+    );
+  }
+
+  int get clampedStars => stars.clamp(0, 5);
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'label': label,
+        'stars': clampedStars,
+        'votes': votes,
+        'is_pick': isPick ? 1 : 0,
+        'checked': checked ? 1 : 0,
+      };
+
+  static List<ImpressionQuality> listFrom(dynamic raw) {
+    List<dynamic> rows = const [];
+    if (raw is List) {
+      rows = raw;
+    } else if (raw is String && raw.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) rows = decoded;
+      } catch (_) {}
+    }
+    final out = <ImpressionQuality>[];
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final label = (row['label'] ?? row['name'])?.toString().trim() ?? '';
+      if (label.isEmpty) continue;
+      final stars = User._asInt(row['stars'] ?? row['rating']) ?? 0;
+      final votes = User._asInt(row['votes'] ?? row['vote_count']) ?? 0;
+      final isPick = row['is_pick'] == true ||
+          row['is_pick'] == 1 ||
+          '${row['is_pick']}' == '1';
+      final checked = row['checked'] == true ||
+          row['checked'] == 1 ||
+          '${row['checked']}' == '1';
+      out.add(ImpressionQuality(
+        id: User._asInt(row['id']),
+        label: label,
+        stars: stars.clamp(0, 5),
+        votes: votes < 0 ? 0 : votes,
+        isPick: isPick,
+        checked: checked,
+      ));
+    }
+    return out;
   }
 }
 

@@ -497,4 +497,50 @@ class UserService {
       // No bloquear la UI si falla el heartbeat.
     }
   }
+
+  bool _isOk(dynamic status) => status == true || status == 1 || '$status' == 'true';
+
+  Future<List<ImpressionQuality>> fetchImpressionCatalog({
+    required int streamerId,
+  }) async {
+    try {
+      final res = await ApiService.instance.call<Map<String, dynamic>>(
+        url: WebService.user.impressionCatalog,
+        param: {
+          Params.streamerId: streamerId,
+          Params.appLanguage: SessionManager.instance.getLang(),
+        },
+      );
+      if (!_isOk(res['status'])) return const [];
+      final data = res['data'];
+      if (data is! Map) return const [];
+      return ImpressionQuality.listFrom(data['traits']);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<User?> rateImpression({
+    required int streamerId,
+    required List<int> traitIds,
+  }) async {
+    try {
+      final res = await ApiService.instance.call<Map<String, dynamic>>(
+        url: WebService.user.impressionRate,
+        param: {
+          Params.streamerId: streamerId,
+          Params.traitIds: traitIds.join(','),
+          Params.appLanguage: SessionManager.instance.getLang(),
+        },
+      );
+      if (!_isOk(res['status'])) {
+        BaseController.share.showSnackBar(res['message']?.toString() ?? 'Error');
+        return null;
+      }
+      return fetchUserDetails(userId: streamerId);
+    } catch (e) {
+      BaseController.share.showSnackBar(e.toString());
+      return null;
+    }
+  }
 }

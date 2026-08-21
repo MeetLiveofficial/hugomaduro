@@ -106,15 +106,15 @@ class WalletHistoryScreen extends StatelessWidget {
         children: [
           CustomAppBar(
             title: LKey.walletHistory.tr,
-            rowWidget: AppRole.isStreamer()
-                ? const SizedBox(width: 48)
-                : IconButton(
+            rowWidget: AppRole.canRecharge()
+                ? IconButton(
                     onPressed: () =>
                         Get.to(() => const RechargeHistoryScreen()),
                     icon: const Icon(Icons.receipt_long_outlined,
                         color: ColorRes.whitePure, size: 22),
                     tooltip: LKey.walletRechargeItem.tr,
-                  ),
+                  )
+                : const SizedBox(width: 48),
           ),
           Expanded(child: body),
         ],
@@ -315,6 +315,9 @@ class _HistoryCard extends StatelessWidget {
 
   String _titleFor(WalletHistoryItem item) {
     final name = item.displayName.isEmpty ? '—' : item.displayName;
+    if (item.note == 'agency_share') {
+      return LKey.walletAgencyShareFrom.trParams({'name': name});
+    }
     switch (item.type) {
       case 'call':
         if (item.note == 'match') {

@@ -501,9 +501,9 @@ class _StreamerMatchRadio extends StatelessWidget {
                 children: [
                   Icon(
                     on
-                        ? Icons.radio_button_checked_rounded
+                        ? Icons.check_circle_rounded
                         : Icons.radio_button_off_rounded,
-                    color: on ? ColorRes.themeAccentSolid : Colors.white54,
+                    color: on ? Colors.white : Colors.white54,
                     size: 22,
                   ),
                   const SizedBox(width: 10),

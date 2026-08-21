@@ -100,7 +100,7 @@ class CoinWalletTopView extends StatelessWidget {
                   label: LKey.collected.tr,
                   value: (user?.coinCollectedLifetime ?? 0).fullNumberFormat,
                 ),
-                if (!AppRole.isStreamer()) ...[
+                if (!AppRole.canEarn()) ...[
                   const SizedBox(width: 6),
                   _StatChip(
                     label: LKey.gifted.tr,
@@ -116,12 +116,12 @@ class CoinWalletTopView extends StatelessWidget {
             );
           }),
         ),
-        if (!AppRole.isStreamer() || canWithdraw)
+        if (!AppRole.canEarn() || canWithdraw)
           Padding(
             padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
             child: Row(
               children: [
-                if (!AppRole.isStreamer())
+                if (!AppRole.canEarn())
                   Expanded(
                     child: TextButtonCustom(
                       onTap: () => Get.to(() => const WalletHistoryScreen()),
@@ -135,7 +135,7 @@ class CoinWalletTopView extends StatelessWidget {
                     ),
                   ),
                 if (canWithdraw) ...[
-                  if (!AppRole.isStreamer()) const SizedBox(width: 8),
+                  if (!AppRole.canEarn()) const SizedBox(width: 8),
                   Expanded(
                     child: TextButtonCustom(
                       onTap: () => Get.to(() => const WithdrawalsScreen()),

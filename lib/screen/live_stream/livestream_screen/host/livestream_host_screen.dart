@@ -89,23 +89,26 @@ class LivestreamHostScreen extends StatelessWidget {
             GetBuilder<LivestreamScreenController>(
               tag: tag,
               builder: (c) {
-                if (c.dummyPlayer != null &&
-                    c.dummyPlayer!.value.isInitialized) {
-                  return FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: c.dummyPlayer!.value.size.width,
-                      height: c.dummyPlayer!.value.size.height,
-                      child: VideoPlayer(c.dummyPlayer!),
-                    ),
-                  );
-                }
-                final lk = c.liveKit;
                 return Obx(() {
+                  c.pausedForCall.value;
+                      if (c.pausedForCall.value) {
+                    return LivePausedForCallPane(controller: c);
+                  }
+                  if (c.dummyPlayer != null &&
+                      c.dummyPlayer!.value.isInitialized) {
+                    return FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: c.dummyPlayer!.value.size.width,
+                        height: c.dummyPlayer!.value.size.height,
+                        child: VideoPlayer(c.dummyPlayer!),
+                      ),
+                    );
+                  }
+                  final lk = c.liveKit;
                   final connected = lk?.isConnected.value == true;
                   final connecting = lk?.isConnecting.value == true;
                   lk?.mediaRevision.value;
-                  c.pausedForCall.value;
                   if (connected && lk != null) {
                     if (c.isBattleRunning.value) {
                       return LiveBattleSplitView(controller: c);
@@ -190,18 +193,13 @@ class LivestreamHostScreen extends StatelessWidget {
                       ),
                     );
                   }
-                  if (c.pausedForCall.value) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      c.ensureLiveKitAfterCallIfNeeded();
-                    });
-                  }
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (connecting || c.pausedForCall.value)
+                          if (connecting)
                             const Padding(
                               padding: EdgeInsets.only(bottom: 16),
                               child: CircularProgressIndicator(
@@ -211,9 +209,7 @@ class LivestreamHostScreen extends StatelessWidget {
                             ),
                           Text(
                             c.statusMessage.value.isEmpty
-                                ? (c.pausedForCall.value
-                                    ? 'Reconectando LIVE…'
-                                    : 'You are live')
+                                ? 'You are live'
                                 : c.statusMessage.value,
                             textAlign: TextAlign.center,
                             style: TextStyleCustom.outFitRegular400(
@@ -221,7 +217,7 @@ class LivestreamHostScreen extends StatelessWidget {
                               fontSize: 14,
                             ),
                           ),
-                          if (!connecting && !c.pausedForCall.value) ...[
+                          if (!connecting) ...[
                             const SizedBox(height: 16),
                             TextButton.icon(
                               onPressed: c.retryLiveConnection,

@@ -41,29 +41,32 @@ class LiveStreamAudienceScreen extends StatelessWidget {
             GetBuilder<LivestreamScreenController>(
               tag: tag,
               builder: (c) {
-                if (c.dummyPlayer != null &&
-                    c.dummyPlayer!.value.isInitialized) {
-                  return FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: c.dummyPlayer!.value.size.width,
-                      height: c.dummyPlayer!.value.size.height,
-                      child: VideoPlayer(c.dummyPlayer!),
-                    ),
-                  );
-                }
-                final lk = c.liveKit;
                 return Obx(() {
+                  c.pausedForCall.value;
+                  c.hostInCall.value;
+                  if (c.pausedForCall.value) {
+                    return LivePausedForCallPane(controller: c);
+                  }
+                  if (c.dummyPlayer != null &&
+                      c.dummyPlayer!.value.isInitialized) {
+                    return FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: c.dummyPlayer!.value.size.width,
+                        height: c.dummyPlayer!.value.size.height,
+                        child: VideoPlayer(c.dummyPlayer!),
+                      ),
+                    );
+                  }
+                  final lk = c.liveKit;
                   final connected = lk?.isConnected.value == true;
                   lk?.mediaRevision.value;
-                  c.pausedForCall.value;
                   if (connected && lk != null) {
                     if (c.isBattleRunning.value) {
                       return LiveBattleSplitView(controller: c);
                     }
                     final remotes = lk.remoteParticipants.toList();
                     if (remotes.isEmpty) {
-                      // Rival de PK puede ser el único local publicando.
                       if (c.isBattleOpponentPublisher &&
                           lk.localParticipant.value != null) {
                         return LiveKitParticipantVideo(
@@ -73,25 +76,37 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                       }
                       final absent = c.hostAbsent.value;
                       final left = c.hostAbsentSecondsLeft.value;
-                      final msg = absent
-                          ? (left > 0
-                              ? 'Host desconectado…\nBuscando otro LIVE en $left s'
-                              : 'Buscando otro LIVE…')
-                          : (c.statusMessage.value.isEmpty
-                              ? 'Waiting for host…'
-                              : c.statusMessage.value);
+                      final hostBusy = c.hostInCall.value;
+                      final msg = hostBusy
+                          ? 'LIVE pausado · Host en llamada'
+                          : (absent
+                              ? (left > 0
+                                  ? 'Host desconectado…\nBuscando otro LIVE en $left s'
+                                  : 'Buscando otro LIVE…')
+                              : (c.statusMessage.value.isEmpty
+                                  ? 'Waiting for host…'
+                                  : c.statusMessage.value));
                       return Center(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 28),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (absent)
+                              if (absent && !hostBusy)
                                 const Padding(
                                   padding: EdgeInsets.only(bottom: 14),
                                   child: CircularProgressIndicator(
                                     color: ColorRes.themeAccentSolid,
                                     strokeWidth: 2.5,
+                                  ),
+                                ),
+                              if (hostBusy)
+                                const Padding(
+                                  padding: EdgeInsets.only(bottom: 14),
+                                  child: Icon(
+                                    Icons.pause_circle_filled_rounded,
+                                    color: Colors.white70,
+                                    size: 56,
                                   ),
                                 ),
                               Text(
@@ -102,7 +117,7 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                                   fontSize: 14,
                                 ),
                               ),
-                              if (absent) ...[
+                              if (absent && !hostBusy) ...[
                                 const SizedBox(height: 16),
                                 TextButton(
                                   onPressed: c.leaveAndRedirectToNextLive,
@@ -133,24 +148,49 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                         ),
                       );
                     }
+                    if (c.hostInCall.value) {
+                      return ColoredBox(
+                        color: const Color(0xFF140E18),
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 28),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.pause_circle_filled_rounded,
+                                  color: Colors.white70,
+                                  size: 56,
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'LIVE pausado · Host en llamada',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyleCustom.outFitRegular400(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
                     return LiveKitParticipantVideo(
                       participant: remotes.first,
                     );
                   }
-                  if (c.pausedForCall.value) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      c.ensureLiveKitAfterCallIfNeeded();
-                    });
-                  }
-                  final busy = lk?.isConnecting.value == true ||
-                      c.pausedForCall.value;
+                  final busy = lk?.isConnecting.value == true;
                   final failed =
                       c.statusMessage.value.contains('Reintentar') ||
                           c.statusMessage.value.contains('No se pudo');
                   final msg = c.statusMessage.value.isEmpty
-                      ? (busy
-                          ? 'Reconectando al LIVE…'
-                          : 'Conectando al LIVE…')
+                      ? (c.hostInCall.value
+                          ? 'LIVE pausado · Host en llamada'
+                          : (busy
+                              ? 'Reconectando al LIVE…'
+                              : 'Conectando al LIVE…'))
                       : c.statusMessage.value;
                   return Center(
                     child: Padding(
@@ -158,7 +198,16 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (busy || !failed)
+                          if (c.hostInCall.value)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 16),
+                              child: Icon(
+                                Icons.pause_circle_filled_rounded,
+                                color: Colors.white70,
+                                size: 56,
+                              ),
+                            )
+                          else if (busy || !failed)
                             const Padding(
                               padding: EdgeInsets.only(bottom: 16),
                               child: CircularProgressIndicator(
@@ -174,7 +223,7 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                               fontSize: 14,
                             ),
                           ),
-                          if (failed && !busy) ...[
+                          if (failed && !busy && !c.hostInCall.value) ...[
                             const SizedBox(height: 16),
                             TextButton.icon(
                               onPressed: c.retryLiveConnection,

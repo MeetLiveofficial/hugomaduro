@@ -557,6 +557,28 @@ class LiveStreamSearchScreenController extends BaseController {
     coverImageUploaded.value = null;
   }
 
+  /// Sube la portada desde bytes (Web y nativo). No usa dart:io File.
+  Future<String?> _uploadCoverIfNeeded() async {
+    final existing = (coverImageUploaded.value ?? '').trim();
+    if (existing.isNotEmpty) return existing;
+    final bytes = coverImageBytes.value;
+    if (bytes == null || bytes.isEmpty) return null;
+    final uploadFile = XFile.fromData(
+      bytes,
+      mimeType: 'image/jpeg',
+      name: 'live_cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+    final uploaded = await CommonService.instance.uploadFileGivePath(uploadFile);
+    if (uploaded.status != true ||
+        uploaded.data == null ||
+        uploaded.data!.isEmpty) {
+      throw Exception(uploaded.message ?? 'Upload de portada falló');
+    }
+    coverImageUploaded.value = uploaded.data;
+    Loggers.info('Live cover uploaded: ${uploaded.data}');
+    return uploaded.data;
+  }
+
   List<LiveGiftIncentive> get configuredGiftIncentives => giftIncentiveSlots
       .where((e) => e.isConfigured)
       .map((e) => e.copyWith(message: e.trimmedMessage))
@@ -621,41 +643,17 @@ class LiveStreamSearchScreenController extends BaseController {
 
     showLoader();
     try {
-      String? coverPath = coverImageUploaded.value;
-      final localCover = coverImageLocalPath.value;
-      final bytes = coverImageBytes.value;
-      if (coverPath == null &&
-          ((localCover ?? '').isNotEmpty || (bytes?.isNotEmpty ?? false))) {
-        try {
-          XFile uploadFile;
-          if ((localCover ?? '').isNotEmpty &&
-              !kIsWeb &&
-              File(localCover!).existsSync()) {
-            uploadFile = XFile(localCover);
-          } else if (bytes != null && bytes.isNotEmpty) {
-            final dir = await PlatformPathExtension.localPath;
-            final path =
-                '${dir}live_cover_upload_${DateTime.now().millisecondsSinceEpoch}.jpg';
-            await File(path).writeAsBytes(bytes, flush: true);
-            uploadFile = XFile(path);
-            coverImageLocalPath.value = path;
-          } else {
-            throw Exception('Archivo de portada no encontrado');
-          }
-          final uploaded =
-              await CommonService.instance.uploadFileGivePath(uploadFile);
-          if (uploaded.status != true ||
-              (uploaded.data == null || uploaded.data!.isEmpty)) {
-            throw Exception(uploaded.message ?? 'Upload de portada falló');
-          }
-          coverPath = uploaded.data;
-          coverImageUploaded.value = coverPath;
-        } catch (e) {
-          stopLoader();
-          showSnackBar('No se pudo subir la portada: $e');
-          return;
-        }
+      String? coverPath;
+      try {
+        coverPath = await _uploadCoverIfNeeded();
+      } catch (e) {
+        stopLoader();
+        showSnackBar('No se pudo subir la portada: $e');
+        return;
       }
+      // Si no eligió portada, usar foto de perfil para no repetir otra cover.
+      coverPath ??= (user.profilePhoto ?? '').trim();
+      if (coverPath.isEmpty) coverPath = null;
 
       final now = DateTime.now().millisecondsSinceEpoch;
       final coHosts = invitedIds.toList();
@@ -677,6 +675,7 @@ class LiveStreamSearchScreenController extends BaseController {
           restrictToJoin: 0,
           isDummyLive: 0,
           coHostIds: coHosts,
+          coverImage: coverPath,
         );
         stream.giftIncentives = configuredGiftIncentives;
         final hostState = user.streamState(

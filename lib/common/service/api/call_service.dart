@@ -1,7 +1,9 @@
 import 'package:krimson/common/service/api/api_service.dart';
+import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/utils/web_service.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/model/work/streamer_work_stats_model.dart';
 
@@ -256,6 +258,69 @@ class CallService {
       throw Exception(json['message'] ?? 'update call price failed');
     }
     return Map<String, dynamic>.from(json['data'] as Map? ?? {});
+  }
+
+  Future<LiveChatMessage?> sendComment({
+    required int callRequestId,
+    required String clientId,
+    required String type,
+    String? text,
+    String? gifUrl,
+  }) async {
+    final json = await ApiService.instance.call(
+      url: WebService.call.sendComment,
+      param: {
+        'call_request_id': callRequestId,
+        'client_id': clientId,
+        'type': type,
+        if (text != null) 'text': text,
+        if (gifUrl != null) 'gif_url': gifUrl,
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'sendComment failed');
+    }
+    final data = json['data'];
+    if (data is Map) {
+      return LiveChatMessage.fromJson(Map<String, dynamic>.from(data));
+    }
+    return null;
+  }
+
+  Future<LiveCommentsPayload> fetchComments({
+    required int callRequestId,
+    int? afterId,
+    int limit = 20,
+  }) async {
+    final json = await ApiService.instance.call(
+      url: WebService.call.fetchComments,
+      param: {
+        'call_request_id': callRequestId,
+        'limit': limit,
+        if (afterId != null && afterId > 0) 'after_id': afterId,
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      return LiveCommentsPayload(
+          comments: const [], lastServerId: afterId ?? 0);
+    }
+    final data = json['data'];
+    if (data is! Map) {
+      return LiveCommentsPayload(
+          comments: const [], lastServerId: afterId ?? 0);
+    }
+    final list = (data['comments'] as List?) ?? const [];
+    final comments = list
+        .map((e) =>
+            LiveChatMessage.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    final last = data['last_server_id'];
+    final lastServerId = last is num
+        ? last.toInt()
+        : int.tryParse('$last') ?? (afterId ?? 0);
+    return LiveCommentsPayload(comments: comments, lastServerId: lastServerId);
   }
 
   Future<CallRequestModel> _mutate(String url, int callRequestId) async {

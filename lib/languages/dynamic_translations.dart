@@ -23,6 +23,8 @@ class DynamicTranslations extends Translations {
     Get.appendTranslations(map);
     ensureLiveFallbacks();
     ensureTaskFallbacks();
+    ensureAgencyFallbacks();
+    ensureCallFallbacks();
   }
 
   /// Claves nuevas del LIVE aunque el CSV del servidor aún no las tenga.
@@ -66,6 +68,66 @@ class DynamicTranslations extends Translations {
       'ru': _taskEn,
       'uk': _taskEn,
       'zh': _taskEn,
+    };
+    final toAppend = <String, Map<String, String>>{};
+    fallbacks.forEach((lang, map) {
+      final existing = _keys[lang] ?? const <String, String>{};
+      final missing = <String, String>{};
+      map.forEach((k, v) {
+        if (!existing.containsKey(k)) missing[k] = v;
+      });
+      if (missing.isEmpty) return;
+      toAppend[lang] = missing;
+      if (_keys.containsKey(lang)) {
+        _keys[lang]!.addAll(missing);
+      } else {
+        _keys[lang] = Map<String, String>.from(missing);
+      }
+    });
+    if (toAppend.isNotEmpty) {
+      Get.appendTranslations(toAppend);
+    }
+  }
+
+  void ensureAgencyFallbacks() {
+    final fallbacks = <String, Map<String, String>>{
+      'en': _agencyEn,
+      'es': _agencyEs,
+      'pt': _agencyPt,
+      'ar': _agencyEn,
+      'ru': _agencyEn,
+      'uk': _agencyEn,
+      'zh': _agencyEn,
+    };
+    final toAppend = <String, Map<String, String>>{};
+    fallbacks.forEach((lang, map) {
+      final existing = _keys[lang] ?? const <String, String>{};
+      final missing = <String, String>{};
+      map.forEach((k, v) {
+        if (!existing.containsKey(k)) missing[k] = v;
+      });
+      if (missing.isEmpty) return;
+      toAppend[lang] = missing;
+      if (_keys.containsKey(lang)) {
+        _keys[lang]!.addAll(missing);
+      } else {
+        _keys[lang] = Map<String, String>.from(missing);
+      }
+    });
+    if (toAppend.isNotEmpty) {
+      Get.appendTranslations(toAppend);
+    }
+  }
+
+  void ensureCallFallbacks() {
+    final fallbacks = <String, Map<String, String>>{
+      'en': _callEn,
+      'es': _callEs,
+      'pt': _callPt,
+      'ar': _callEn,
+      'ru': _callEn,
+      'uk': _callEn,
+      'zh': _callEn,
     };
     final toAppend = <String, Map<String, String>>{};
     fallbacks.forEach((lang, map) {
@@ -438,4 +500,134 @@ const _taskPt = <String, String>{
       'Conclua a Tarefa 1 para ir a esta categoria',
   LKey.claim: 'Resgatar',
   LKey.claimed: 'Resgatado',
+};
+
+const _agencyEn = <String, String>{
+  LKey.newFollowers: 'New Followers',
+  LKey.walletAgencyShareFrom: 'Agency share from @name',
+  LKey.agencyStreamers: 'Streamers',
+  LKey.agencyDashboardTitle: 'Agency',
+  LKey.agencyYourStreamers: 'Your affiliated streamers',
+  LKey.agencyNoStreamers: "You don't have streamers yet",
+  LKey.agencyCreateStreamerHint:
+      'Create a Streamer account affiliated to your agency.',
+  LKey.agencyCreateStreamer: 'Create streamer',
+  LKey.agencyStreamerEarned: 'Streamer earned',
+  LKey.agencyYourShare: 'Your share',
+  LKey.agencyToday: 'Today',
+  LKey.agencyWeek: 'This week',
+  LKey.agencyMonth: 'This month',
+  LKey.agencyLifetime: 'Total',
+  LKey.agencyWalletHint: '10% of the App margin from your streamers',
+};
+
+const _agencyEs = <String, String>{
+  LKey.newFollowers: 'Nuevos seguidores',
+  LKey.walletAgencyShareFrom: 'Comisión de @name',
+  LKey.agencyStreamers: 'Streamers',
+  LKey.agencyDashboardTitle: 'Agencia',
+  LKey.agencyYourStreamers: 'Tus streamers afiliados',
+  LKey.agencyNoStreamers: 'Aún no tienes streamers',
+  LKey.agencyCreateStreamerHint:
+      'Crea una cuenta Streamer afiliada a tu agencia.',
+  LKey.agencyCreateStreamer: 'Crear streamer',
+  LKey.agencyStreamerEarned: 'Ganó el streamer',
+  LKey.agencyYourShare: 'Tu comisión',
+  LKey.agencyToday: 'Hoy',
+  LKey.agencyWeek: 'Esta semana',
+  LKey.agencyMonth: 'Este mes',
+  LKey.agencyLifetime: 'Total',
+  LKey.agencyWalletHint: '10% del margen App de tus streamers',
+};
+
+const _agencyPt = <String, String>{
+  LKey.newFollowers: 'Novos seguidores',
+  LKey.walletAgencyShareFrom: 'Comissão de @name',
+  LKey.agencyStreamers: 'Streamers',
+  LKey.agencyDashboardTitle: 'Agência',
+  LKey.agencyYourStreamers: 'Seus streamers afiliados',
+  LKey.agencyNoStreamers: 'Você ainda não tem streamers',
+  LKey.agencyCreateStreamerHint:
+      'Crie uma conta Streamer afiliada à sua agência.',
+  LKey.agencyCreateStreamer: 'Criar streamer',
+  LKey.agencyStreamerEarned: 'O streamer ganhou',
+  LKey.agencyYourShare: 'Sua comissão',
+  LKey.agencyToday: 'Hoje',
+  LKey.agencyWeek: 'Esta semana',
+  LKey.agencyMonth: 'Este mês',
+  LKey.agencyLifetime: 'Total',
+  LKey.agencyWalletHint: '10% da margem App dos seus streamers',
+};
+
+const _callEn = <String, String>{
+  LKey.callStreamerInCall: 'This streamer is already in a call',
+  LKey.callStreamerOffline: 'This streamer is offline',
+  LKey.onlineNow: 'Online',
+  LKey.callOnlyFromLive: 'Join the LIVE to call this streamer',
+  LKey.joinThisLive: 'Join LIVE',
+  LKey.callEndedInsufficientCoins: 'Not enough coins to continue the call',
+  LKey.callEndedClientNoCoins: 'The call ended: the client ran out of coins',
+  LKey.liveBadge: 'LIVE',
+  LKey.peopleWatching: '@count watching',
+  LKey.lastCallMinutesAgo: 'LAST CALL @min MIN AGO',
+  LKey.lastCallHoursAgo: 'LAST CALL @hours H AGO',
+  LKey.impression: 'Impression',
+  LKey.rankLabel: 'Rank: @grade',
+  LKey.rateImpression: 'Rate',
+  LKey.saveRating: 'Save',
+  LKey.herTraits: 'How she defines herself',
+  LKey.otherTraits: 'More traits',
+  LKey.maxTraitsHint: 'Choose up to @count',
+  LKey.ratingSaved: 'Thanks for rating',
+  LKey.offlineBadge: 'Off',
+};
+
+const _callEs = <String, String>{
+  LKey.callStreamerInCall: 'Esta streamer está en una llamada',
+  LKey.callStreamerOffline: 'Esta streamer está desconectada',
+  LKey.onlineNow: 'En línea',
+  LKey.callOnlyFromLive: 'Entra al LIVE para llamarla',
+  LKey.joinThisLive: 'Unirse al LIVE',
+  LKey.callEndedInsufficientCoins:
+      'No tienes coins suficientes para continuar la llamada',
+  LKey.callEndedClientNoCoins:
+      'La llamada terminó: el cliente no tiene coins',
+  LKey.liveBadge: 'En vivo',
+  LKey.peopleWatching: '@count personas viendo',
+  LKey.lastCallMinutesAgo: 'ULTIMA LLAMADA HACE @min MIN',
+  LKey.lastCallHoursAgo: 'ULTIMA LLAMADA HACE @hours H',
+  LKey.impression: 'Impresión',
+  LKey.rankLabel: 'Rango: @grade',
+  LKey.rateImpression: 'Calificar',
+  LKey.saveRating: 'Guardar',
+  LKey.herTraits: 'Así se define',
+  LKey.otherTraits: 'Más cualidades',
+  LKey.maxTraitsHint: 'Elige hasta @count',
+  LKey.ratingSaved: 'Gracias por calificar',
+  LKey.offlineBadge: 'Off',
+};
+
+const _callPt = <String, String>{
+  LKey.callStreamerInCall: 'Esta streamer já está em uma chamada',
+  LKey.callStreamerOffline: 'Esta streamer está offline',
+  LKey.onlineNow: 'Online',
+  LKey.callOnlyFromLive: 'Entre no LIVE para ligar',
+  LKey.joinThisLive: 'Entrar no LIVE',
+  LKey.callEndedInsufficientCoins:
+      'Você não tem coins suficientes para continuar a chamada',
+  LKey.callEndedClientNoCoins:
+      'A chamada terminou: o cliente ficou sem coins',
+  LKey.liveBadge: 'Ao vivo',
+  LKey.peopleWatching: '@count assistindo',
+  LKey.lastCallMinutesAgo: 'ÚLTIMA CHAMADA HÁ @min MIN',
+  LKey.lastCallHoursAgo: 'ÚLTIMA CHAMADA HÁ @hours H',
+  LKey.impression: 'Impressão',
+  LKey.rankLabel: 'Rank: @grade',
+  LKey.rateImpression: 'Avaliar',
+  LKey.saveRating: 'Salvar',
+  LKey.herTraits: 'Como ela se define',
+  LKey.otherTraits: 'Mais qualidades',
+  LKey.maxTraitsHint: 'Escolha até @count',
+  LKey.ratingSaved: 'Obrigado por avaliar',
+  LKey.offlineBadge: 'Off',
 };

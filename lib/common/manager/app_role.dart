@@ -34,6 +34,18 @@ class AppRole {
     return (u?.canReceiveCalls == 1) || (u?.getLevel.canReceiveCalls == 1);
   }
 
+  /// Precio/min de llamada: solo rangos semanales A y S (SS cuenta como S).
+  static bool canEditCallPrice([User? user]) {
+    if (!isStreamer(user)) return false;
+    var grade = (user ?? SessionManager.instance.getUser())
+            ?.effectiveStreamerGrade
+            ?.toUpperCase()
+            .trim() ??
+        '';
+    if (grade == 'SS') grade = 'S';
+    return grade == 'A' || grade == 'S';
+  }
+
   /// Solo clientes envían regalos (chats, LIVE, llamadas).
   static bool canSendGifts([User? user]) {
     final u = user ?? SessionManager.instance.getUser();
@@ -54,16 +66,19 @@ class AppRole {
   /// Streamer puede abrir el feed Home (LIVE | REELS | POSTS).
   static bool canAccessHomeFeed([User? user]) => isStreamer(user);
 
+  /// Streamers y agencias ganan coins (no recargan).
+  static bool canEarn([User? user]) => isStreamer(user) || isAgency(user);
+
   /// Solo streamers ven y completan tareas (retiros).
   static bool canAccessTasks([User? user]) => isStreamer(user);
 
-  /// Solo streamers pueden solicitar retiros en la APP.
-  static bool canWithdraw([User? user]) => isStreamer(user);
+  /// Streamers y agencias pueden solicitar retiros en la APP.
+  static bool canWithdraw([User? user]) => canEarn(user);
 
-  /// KYC obligatorio una sola vez, solo streamers, al solicitar un retiro.
+  /// KYC obligatorio una sola vez al solicitar un retiro (streamers y agencias).
   static bool needsKycForWithdrawal([User? user]) {
     final u = user ?? SessionManager.instance.getUser();
-    if (u == null || !isStreamer(u)) return false;
+    if (u == null || !canWithdraw(u)) return false;
     return !u.isKycApproved;
   }
 }

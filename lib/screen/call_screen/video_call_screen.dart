@@ -6,20 +6,27 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
+import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/service/translation/chat_translator_service.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/livestream/app_user.dart';
+import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
 import 'package:krimson/screen/call_screen/match_recharge_dialog.dart';
+import 'package:krimson/screen/call_screen/widget/call_chat_overlay.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
+import 'package:krimson/screen/match_screen/match_web_video.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -51,6 +58,7 @@ class VideoCallScreen extends StatelessWidget {
     );
     return Scaffold(
       backgroundColor: const Color(0xFF140E18),
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
@@ -146,45 +154,64 @@ class VideoCallScreen extends StatelessWidget {
               );
             }),
             Expanded(
-              child: ClipRect(
-                child: Obx(() {
-                  controller.liveKit.mediaRevision.value;
-                  controller.awaitingExtension.value;
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      LiveKitCallLayout(
-                        local: controller.liveKit.localParticipant.value,
-                        remotes:
-                            controller.liveKit.remoteParticipants.toList(),
-                        statusText: controller.status.value,
-                      ),
-                      if (controller.awaitingExtension.value)
-                        ColoredBox(
-                          color: Colors.black.withValues(alpha: 0.72),
-                          child: Center(
-                            child: Text(
-                              controller.isMatchCaller
-                                  ? 'Video pausado\nElige más tiempo'
-                                  : 'Video pausado\nEsperando al cliente…',
-                              textAlign: TextAlign.center,
-                              style: TextStyleCustom.outFitMedium500(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
+              child: Obx(() {
+                controller.liveKit.mediaRevision.value;
+                controller.awaitingExtension.value;
+                if (kIsWeb) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    passThroughMatchVideoClicks();
+                  });
+                }
+                final stage = Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    LiveKitCallLayout(
+                      local: controller.liveKit.localParticipant.value,
+                      remotes: controller.liveKit.remoteParticipants.toList(),
+                      statusText: controller.status.value,
+                      remotePhotoUrl: controller.peerPhotoUrl,
+                      remoteName: controller.peerName,
+                      localPhotoUrl: controller.localPhotoUrl,
+                      localName: controller.localName,
+                    ),
+                    Positioned(
+                      left: 10,
+                      right: 72,
+                      bottom: 8,
+                      child: CallChatOverlay(controller: controller),
+                    ),
+                    if (controller.awaitingExtension.value)
+                      ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.72),
+                        child: Center(
+                          child: Text(
+                            controller.isMatchCaller
+                                ? 'Video pausado\nElige más tiempo'
+                                : 'Video pausado\nEsperando al cliente…',
+                            textAlign: TextAlign.center,
+                            style: TextStyleCustom.outFitMedium500(
+                              color: Colors.white,
+                              fontSize: 16,
                             ),
                           ),
                         ),
-                    ],
-                  );
-                }),
-              ),
+                      ),
+                  ],
+                );
+                // ClipRect en Web oculta el <video> de LiveKit.
+                if (kIsWeb) return stage;
+                return ClipRect(child: stage);
+              }),
             ),
             Container(
               width: double.infinity,
               color: const Color(0xFF1C1424),
-              padding: const EdgeInsets.fromLTRB(12, 14, 12, 16),
-              child: Obx(() {
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CallChatComposer(controller: controller),
+                  Obx(() {
                 controller.matchUi.value;
                 final hideHangup =
                     controller.matchUi.value && !controller.isMatchCaller;
@@ -221,6 +248,8 @@ class VideoCallScreen extends StatelessWidget {
                   ],
                 );
               }),
+                ],
+              ),
             ),
           ],
         ),
@@ -251,6 +280,8 @@ class _RoundBtn extends StatelessWidget {
 }
 
 class VideoCallController extends BaseController {
+  static VideoCallController? activeInstance;
+
   VideoCallController(
     this.call, {
     this.resumeLiveOnHangup = false,
@@ -268,11 +299,18 @@ class VideoCallController extends BaseController {
   final RxInt matchSecondsLeft = 30.obs;
   final RxBool matchUi = false.obs;
   final RxBool awaitingExtension = false.obs;
+  final RxList<LiveChatMessage> chatMessages = <LiveChatMessage>[].obs;
+  final RxBool chatComposerExpanded = false.obs;
+  final RxBool isSendingComment = false.obs;
+  final TextEditingController commentController = TextEditingController();
+  final FocusNode commentFocusNode = FocusNode();
+  static const int maxVisibleComments = 8;
 
   late final LiveKitRoomController liveKit;
   Timer? _elapsedTimer;
   Timer? _statusPoll;
   Timer? _peerGoneTimer;
+  Timer? _commentPoll;
   StreamSubscription? _dataSub;
   /// Ancla compartida: `phase_ends_at` del servidor (fallback `responded_at`).
   DateTime? _syncAnchor;
@@ -283,10 +321,14 @@ class VideoCallController extends BaseController {
   String? _respondedAtRaw;
   bool _timerStarted = false;
   bool _ending = false;
+  bool _insufficientNotified = false;
   bool _cleaned = false;
   bool _extensionPromptOpen = false;
   bool _hadRemote = false;
   DateTime? _callConnectedAt;
+  int _lastCommentServerId = 0;
+  bool _commentPollBusy = false;
+  bool _callRoutePopped = false;
 
   String get roomId => call.roomId ?? 'call_${call.id}';
   String get _tag => 'lk_call_${call.id}';
@@ -304,13 +346,57 @@ class VideoCallController extends BaseController {
 
   bool get isMatchClient => isMatchCaller;
 
+  CallParty? get peerParty {
+    final myId = SessionManager.instance.getUserID();
+    return call.caller?.id == myId ? call.callee : call.caller;
+  }
+
+  String? get peerPhotoUrl => peerParty?.profilePhoto?.addBaseURL();
+
+  String? get peerName =>
+      peerParty?.fullname ?? peerParty?.username;
+
+  String? get localPhotoUrl =>
+      SessionManager.instance.getUser()?.profilePhoto?.addBaseURL();
+
+  String? get localName {
+    final me = SessionManager.instance.getUser();
+    return me?.fullname ?? me?.username;
+  }
+
   /// El otro lado colgó (FCM `call_ended`).
-  static void handleRemoteEnded(int? callRequestId) {
+  static void handleRemoteEnded(int? callRequestId, {String? endedReason}) {
     if (callRequestId == null) return;
     final tag = 'call_$callRequestId';
     if (!Get.isRegistered<VideoCallController>(tag: tag)) return;
     final c = Get.find<VideoCallController>(tag: tag);
+    if ((endedReason ?? '').toLowerCase().trim() == 'insufficient_coins') {
+      c._notifyInsufficientIfNeeded(c.call.copyWith(endedReason: endedReason));
+    }
     unawaited(c.hangUp(forcedByPeer: true));
+  }
+
+  void _syncWallet(CallRequestModel fresh) {
+    final w = fresh.myCoinWallet;
+    if (w == null) return;
+    final me = SessionManager.instance.getUser();
+    if (me == null) return;
+    me.coinWallet = w;
+    SessionManager.instance.setUser(me);
+  }
+
+  void _notifyInsufficientIfNeeded(CallRequestModel fresh) {
+    if (_insufficientNotified) return;
+    if (!fresh.endedForInsufficientCoins) return;
+    if (isMatchCall) return;
+    _insufficientNotified = true;
+    final iAmCaller = call.callerId == SessionManager.instance.getUserID();
+    final msg = iAmCaller
+        ? LKey.callEndedInsufficientCoins.tr
+        : LKey.callEndedClientNoCoins.tr;
+    Future.delayed(const Duration(milliseconds: 600), () {
+      BaseController.share.showSnackBar(msg);
+    });
   }
 
   /// Servidor abrió la ventana de gracia (FCM `match_extension_modal`).
@@ -340,6 +426,7 @@ class VideoCallController extends BaseController {
   @override
   void onInit() {
     super.onInit();
+    activeInstance = this;
     matchSecondsLeft.value = _matchDuration;
     matchCountdownLabel.value = _formatMmSs(_matchDuration);
     matchUi.value = isMatchCall;
@@ -361,8 +448,15 @@ class VideoCallController extends BaseController {
     _statusPoll = null;
     _peerGoneTimer?.cancel();
     _peerGoneTimer = null;
+    _commentPoll?.cancel();
+    _commentPoll = null;
     unawaited(_dataSub?.cancel());
     _dataSub = null;
+    commentController.dispose();
+    commentFocusNode.dispose();
+    if (identical(activeInstance, this)) {
+      activeInstance = null;
+    }
     // hangUp ya limpia; no lanzar un disconnect paralelo que pisa al LIVE.
     if (!_cleaned && !_ending) {
       unawaited(_cleanup(notifyApi: false));
@@ -751,17 +845,30 @@ class VideoCallController extends BaseController {
         roomName: roomId,
         identity: '${me!.id}',
         name: me.fullname ?? me.username ?? 'user',
-        // Web: el HtmlElementView de la cámara tapa toda la UI.
-        publishCamera: !kIsWeb,
+        publishCamera: true,
         publishMicrophone: true,
         wsUrl: liveKitWsUrl,
       );
       _callConnectedAt = DateTime.now();
       _dataSub?.cancel();
       _dataSub = liveKit.onDataReceived.listen((event) {
+        final topic = event.topic ?? '';
+        if (topic == 'call_chat') {
+          _onCallChatBytes(event.data);
+          return;
+        }
+        final chat = LiveChatMessage.tryParseBytes(event.data);
+        if (chat != null &&
+            chat.userId > 0 &&
+            (chat.type == 'text' || chat.type == 'gif')) {
+          _appendCallChat(chat);
+          return;
+        }
         _onMatchData(event.data);
       });
       status.value = 'Esperando al otro usuario...';
+      _startCommentPolling();
+      unawaited(ChatTranslatorService.instance.preloadForUserLanguage());
       await _resolveAnchorAndStart();
     } catch (e) {
       status.value = e.toString();
@@ -813,7 +920,9 @@ class VideoCallController extends BaseController {
     try {
       final fresh = await CallService.instance.status(id);
       if (_ending) return;
+      _syncWallet(fresh);
       if (fresh.isEnded) {
+        _notifyInsufficientIfNeeded(fresh);
         await hangUp(forcedByPeer: true);
         return;
       }
@@ -833,6 +942,141 @@ class VideoCallController extends BaseController {
     } catch (_) {}
   }
 
+  void expandChatComposer() {
+    chatComposerExpanded.value = true;
+    commentFocusNode.requestFocus();
+  }
+
+  void collapseChatComposer() {
+    chatComposerExpanded.value = false;
+    commentFocusNode.unfocus();
+  }
+
+  void _onCallChatBytes(List<int> bytes) {
+    final msg = LiveChatMessage.tryParseBytes(bytes);
+    if (msg == null) return;
+    if (msg.type != 'text' && msg.type != 'gif') return;
+    _appendCallChat(msg);
+  }
+
+  void _appendCallChat(LiveChatMessage msg) {
+    if (chatMessages.any((m) => m.id == msg.id)) return;
+    chatMessages.add(msg);
+    while (chatMessages.length > maxVisibleComments) {
+      chatMessages.removeAt(0);
+    }
+    if (msg.type == 'text' &&
+        !msg.isTranslated &&
+        (msg.text ?? '').trim().isNotEmpty) {
+      final me = SessionManager.instance.getUserID();
+      if (msg.userId != me) {
+        unawaited(_translateCallChat(msg));
+      }
+    }
+  }
+
+  Future<void> _translateCallChat(LiveChatMessage msg) async {
+    final original = (msg.text ?? '').trim();
+    if (original.isEmpty) return;
+    try {
+      await ChatTranslatorService.instance.ensureReady(
+        targetLangCode: SessionManager.instance.getLang(),
+      );
+      final translated = await ChatTranslatorService.instance.translateText(
+        original,
+        targetLangCode: SessionManager.instance.getLang(),
+      );
+      final out = translated.trim();
+      if (out.isEmpty || out == original) return;
+      final idx = chatMessages.indexWhere((m) => m.id == msg.id);
+      if (idx < 0) return;
+      if (chatMessages[idx].isTranslated) return;
+      chatMessages[idx] = msg.copyWithTranslation(
+        original: original,
+        translated: out,
+      );
+      chatMessages.refresh();
+    } catch (e) {
+      Loggers.error('call chat translate: $e');
+    }
+  }
+
+  void _startCommentPolling() {
+    _commentPoll?.cancel();
+    unawaited(_pollComments(initial: true));
+    _commentPoll = Timer.periodic(const Duration(seconds: 3), (_) {
+      unawaited(_pollComments());
+    });
+  }
+
+  Future<void> _pollComments({bool initial = false}) async {
+    if (_ending || _commentPollBusy) return;
+    final id = call.id;
+    if (id == null) return;
+    _commentPollBusy = true;
+    try {
+      final payload = await CallService.instance.fetchComments(
+        callRequestId: id,
+        afterId: initial
+            ? null
+            : (_lastCommentServerId > 0 ? _lastCommentServerId : null),
+        limit: initial ? maxVisibleComments : 20,
+      );
+      for (final msg in payload.comments) {
+        _appendCallChat(msg);
+      }
+      if (payload.lastServerId > _lastCommentServerId) {
+        _lastCommentServerId = payload.lastServerId;
+      }
+    } catch (e) {
+      Loggers.error('call comments poll: $e');
+    } finally {
+      _commentPollBusy = false;
+    }
+  }
+
+  Future<void> sendComment(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty || isSendingComment.value) return;
+    final me = SessionManager.instance.getUser();
+    final callId = call.id;
+    if (me?.id == null || callId == null) return;
+    isSendingComment.value = true;
+    try {
+      final clientId = '${me!.id}_${DateTime.now().millisecondsSinceEpoch}';
+      final msg = LiveChatMessage(
+        id: clientId,
+        userId: me.id!,
+        userName: (me.fullname ?? me.username ?? 'User').trim(),
+        type: 'text',
+        text: trimmed,
+      );
+      _appendCallChat(msg);
+      commentController.clear();
+      collapseChatComposer();
+      try {
+        final saved = await CallService.instance.sendComment(
+          callRequestId: callId,
+          clientId: clientId,
+          type: 'text',
+          text: trimmed,
+        );
+        if (saved != null) {
+          _appendCallChat(saved);
+        }
+      } catch (e) {
+        Loggers.error('call sendComment api: $e');
+      }
+      try {
+        await liveKit.publishData(msg.toBytes(), topic: 'call_chat');
+      } catch (_) {}
+    } catch (e) {
+      showSnackBar(e.toString());
+    } finally {
+      isSendingComment.value = false;
+    }
+  }
+
   Future<void> hangUp({
     bool showMatchRecharge = false,
     bool forcedByPeer = false,
@@ -840,7 +1084,7 @@ class VideoCallController extends BaseController {
     if (isMatchCall && !isMatchCaller && !forcedByPeer) {
       return;
     }
-    // Si el primer colgar solo cerró un dialog, reintentar sacar la UI.
+    // Si el primer colgar solo cerró un dialog, reintentar sacar la UI de la llamada.
     if (_ending) {
       _popCallUi();
       return;
@@ -853,6 +1097,8 @@ class VideoCallController extends BaseController {
     _statusPoll = null;
     _peerGoneTimer?.cancel();
     _peerGoneTimer = null;
+    _commentPoll?.cancel();
+    _commentPoll = null;
 
     final peer = call.caller?.id == SessionManager.instance.getUserID()
         ? call.callee
@@ -865,11 +1111,12 @@ class VideoCallController extends BaseController {
         resumeLiveOnHangup || (live?.pausedForCall.value == true);
     final ctrlTag = 'call_${call.id}';
     final lkTag = _tag;
+    final stayOnMatch = isMatchCall && AppRole.isStreamer();
 
     // Cerrar la UI YA (no esperar a LiveKit/API: ahí se quedaba colgado Match).
     _popCallUi();
-    if (isMatchCall && Get.isRegistered<MatchScreenController>()) {
-      unawaited(Get.find<MatchScreenController>().resumeAfterCall());
+    if (stayOnMatch && !Get.isRegistered<MatchScreenController>()) {
+      Get.to(() => const MatchScreen());
     }
 
     unawaited(() async {
@@ -884,6 +1131,13 @@ class VideoCallController extends BaseController {
           await (live ?? LivestreamScreenController.activeInstance)
               ?.resumeLiveKitAfterCall();
         } catch (_) {}
+      }
+      if (isMatchCall) {
+        if (Get.isRegistered<MatchScreenController>()) {
+          unawaited(Get.find<MatchScreenController>().resumeAfterCall());
+        } else if (stayOnMatch) {
+          Get.to(() => const MatchScreen());
+        }
       }
       try {
         if (Get.isRegistered<VideoCallController>(tag: ctrlTag)) {
@@ -908,17 +1162,30 @@ class VideoCallController extends BaseController {
         Get.closeAllSnackbars();
       }
     } catch (_) {}
-    try {
-      for (var i = 0; i < 4; i++) {
-        if (Get.isDialogOpen == true || Get.isBottomSheetOpen == true) {
+    // En Match streamer no usar Get.back de overlays: un falso
+    // isDialogOpen sacaba la pantalla de espera.
+    if (!(isMatchCall && AppRole.isStreamer())) {
+      try {
+        if (Get.isDialogOpen == true) {
           Get.back();
-          continue;
         }
-        break;
+      } catch (_) {}
+      try {
+        if (Get.isBottomSheetOpen == true) {
+          Get.back();
+        }
+      } catch (_) {}
+    }
+    if (_callRoutePopped) return;
+    _callRoutePopped = true;
+    try {
+      final nav = Get.key.currentState;
+      if (nav != null && nav.canPop()) {
+        nav.pop();
+        return;
       }
       if (Get.currentRoute.contains('VideoCall') ||
-          Get.currentRoute.contains('OutgoingCall') ||
-          Get.key.currentState?.canPop() == true) {
+          Get.currentRoute.contains('OutgoingCall')) {
         Get.back();
       }
     } catch (_) {}

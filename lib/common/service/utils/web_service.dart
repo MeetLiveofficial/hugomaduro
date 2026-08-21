@@ -63,6 +63,8 @@ class _Call {
   String unlockMatch = "${apiURL}call/unlockMatch";
   String workStats = "${apiURL}call/workStats";
   String updateCallPrice = "${apiURL}call/updateCallPrice";
+  String sendComment = "${apiURL}call/sendComment";
+  String fetchComments = "${apiURL}call/fetchComments";
 }
 
 class _Chat {
@@ -166,6 +168,8 @@ class _User {
   String reportUser = "${apiURL}misc/reportUser";
   String fetchMyBlockedUsers = "${apiURL}user/fetchMyBlockedUsers";
   String updateLastUsedAt = "${apiURL}user/updateLastUsedAt";
+  String impressionCatalog = "${apiURL}user/impressionCatalog";
+  String impressionRate = "${apiURL}user/impressionRate";
 }
 
 class _AddPostStory {

@@ -125,6 +125,14 @@ class LKey {
   static const String myLevel = "My Level";
   static const String benefits = "Benefits";
   static const String callPrice = "Call price";
+  static const String editCalls = "Editar Llamadas";
+  static const String callPriceScreenTitle = "Precio de llamada";
+  static const String myPrivateCallPrice = "Precio de mi llamada privada";
+  static const String myCurrentGrade = "Mi nivel actual";
+  static const String callPriceTipsTitle = "Consejo para el precio de llamada";
+  static const String callPriceLockedHint =
+      "Solo los rangos A y S pueden editar el precio. Los demás ven el monto fijo de la plataforma.";
+  static const String confirm = "Confirmar";
   static const String receiveCalls = "Can receive calls";
   static const String canGoLive = "Can go Live";
   static const String liveLockedUntilLevel =
@@ -155,6 +163,29 @@ class LKey {
       "Request sent. Waiting for the other user to approve the call.";
   static const String callCannotReceive =
       "This user cannot receive video calls yet. Their level must allow calls.";
+  static const String callStreamerInCall = "This streamer is already in a call";
+  static const String callStreamerOffline = "This streamer is offline";
+  static const String onlineNow = "Online";
+  static const String callOnlyFromLive =
+      "Join the LIVE to call this streamer";
+  static const String joinThisLive = "Join LIVE";
+  static const String callEndedInsufficientCoins =
+      "Not enough coins to continue the call";
+  static const String callEndedClientNoCoins =
+      "The call ended: the client ran out of coins";
+  static const String liveBadge = "LIVE";
+  static const String peopleWatching = "@count watching";
+  static const String lastCallMinutesAgo = "LAST CALL @min MIN AGO";
+  static const String lastCallHoursAgo = "LAST CALL @hours H AGO";
+  static const String impression = "Impression";
+  static const String rankLabel = "Rank: @grade";
+  static const String rateImpression = "Rate";
+  static const String saveRating = "Save";
+  static const String herTraits = "How she defines herself";
+  static const String otherTraits = "More traits";
+  static const String maxTraitsHint = "Choose up to @count";
+  static const String ratingSaved = "Thanks for rating";
+  static const String offlineBadge = "Off";
   static const String calling = "Calling…";
   static const String ringing = "Ringing…";
   static const String connecting = "Connecting…";
@@ -812,4 +843,21 @@ class LKey {
   static const String walletRechargeItem = "Coin recharge";
   static const String walletWithdrawItem = "Withdrawal";
   static const String walletExchangeRate = "Exchange rate: @coins Coins = @currency1";
+  static const String newFollowers = "New Followers";
+  static const String walletAgencyShareFrom = "Agency share from @name";
+  static const String agencyStreamers = "Streamers";
+  static const String agencyDashboardTitle = "Agency";
+  static const String agencyYourStreamers = "Your affiliated streamers";
+  static const String agencyNoStreamers = "You don't have streamers yet";
+  static const String agencyCreateStreamerHint =
+      "Create a Streamer account affiliated to your agency.";
+  static const String agencyCreateStreamer = "Create streamer";
+  static const String agencyStreamerEarned = "Streamer earned";
+  static const String agencyYourShare = "Your share";
+  static const String agencyToday = "Today";
+  static const String agencyWeek = "This week";
+  static const String agencyMonth = "This month";
+  static const String agencyLifetime = "Total";
+  static const String agencyWalletHint =
+      "10% of the App margin from your streamers";
 }

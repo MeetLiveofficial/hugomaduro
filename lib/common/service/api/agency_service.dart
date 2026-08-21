@@ -1,13 +1,14 @@
 import 'package:krimson/common/service/api/api_service.dart';
 import 'package:krimson/common/service/utils/params.dart';
 import 'package:krimson/common/service/utils/web_service.dart';
+import 'package:krimson/model/agency/agency_dashboard_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 
 class AgencyService {
   AgencyService._();
   static final AgencyService instance = AgencyService._();
 
-  Future<List<User>> listWorkers() async {
+  Future<AgencyDashboard> fetchDashboard() async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.user.agencyListWorkers,
       param: const {},
@@ -16,12 +17,24 @@ class AgencyService {
     if (json['status'] != true) {
       throw Exception(json['message'] ?? 'No se pudieron cargar los workers');
     }
-    final data = Map<String, dynamic>.from(json['data'] as Map? ?? {});
-    final raw = data['workers'];
-    if (raw is! List) return [];
-    return raw
-        .whereType<Map>()
-        .map((e) => User.fromJson(Map<String, dynamic>.from(e)))
+    return AgencyDashboard.fromJson(json);
+  }
+
+  Future<List<User>> listWorkers() async {
+    final dash = await fetchDashboard();
+    return dash.workers
+        .map((w) => User(
+              id: w.user.id,
+              fullname: w.user.fullname,
+              username: w.user.username,
+              identity: w.user.identity,
+              userEmail: w.user.userEmail,
+              profilePhoto: w.user.profilePhoto,
+              coinWallet: w.stats.streamerWallet,
+              coinCollectedLifetime: w.stats.streamerEarnedLifetime,
+              weeklyCallGrade: w.user.weeklyCallGrade,
+              isFreez: w.user.isFreez,
+            ))
         .toList();
   }
 
