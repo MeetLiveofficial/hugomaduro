@@ -67,21 +67,12 @@ jobs:
       - name: Use CocoaPods (disable SPM)
         run: flutter config --no-enable-swift-package-manager
 
-      - name: Cache distribution certificates
-        uses: actions/cache@v4
-        with:
-          path: ios/fastlane/certificates
-          key: ios-distribution-cert-v1
-
       - name: Install Fastlane
         run: sudo gem install fastlane
 
       - name: Build signed IPA
         working-directory: ios
-        run: |
-          mkdir -p fastlane/certificates
-          bundle_exec=fastlane
-          $bundle_exec release
+        run: fastlane release
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4

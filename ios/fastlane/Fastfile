@@ -24,18 +24,11 @@ platform :ios do
     certs_dir = File.expand_path("certificates", __dir__)
     FileUtils.mkdir_p(certs_dir)
 
-    Dir[File.join(certs_dir, "*.p12")].each do |p12|
-      import_certificate(
-        certificate_path: p12,
-        certificate_password: ENV.fetch("IOS_DIST_CERTIFICATE_PASSWORD", ""),
-        keychain_name: ENV["MATCH_KEYCHAIN_NAME"],
-        keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"]
-      )
-    end
-
+    # Certificado + perfil vía App Store Connect API (sin cache de .p12).
     get_certificates(
       api_key: api_key,
       team_id: team_id,
+      development: false,
       output_path: certs_dir,
       filename: "distribution"
     )
@@ -46,6 +39,7 @@ platform :ios do
       team_id: team_id,
       provisioning_name: "Krimson App Store",
       filename: "Krimson_AppStore.mobileprovision",
+      output_path: certs_dir,
       force: true
     )
 
