@@ -1,6 +1,7 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -20,6 +21,8 @@ class TextButtonCustom extends StatelessWidget {
   final BorderSide? borderSide;
   final Widget? child;
   final bool gradient;
+  /// Login/registro: siempre coral→magenta, aunque haya sesión cliente.
+  final bool forceStreamerPalette;
 
   const TextButtonCustom(
       {super.key,
@@ -36,10 +39,17 @@ class TextButtonCustom extends StatelessWidget {
       this.btnWidth,
       this.margin,
       this.child,
-      this.gradient = false});
+      this.gradient = false,
+      this.forceStreamerPalette = false});
 
   @override
   Widget build(BuildContext context) {
+    final brandGradient = forceStreamerPalette
+        ? StyleRes.streamerGradient
+        : StyleRes.themeGradient;
+    final brandShadow = forceStreamerPalette
+        ? ColorRes.crimson
+        : StyleRes.brandAccent;
     return Container(
       margin:
           margin ?? EdgeInsets.symmetric(horizontal: horizontalMargin ?? 15),
@@ -58,12 +68,11 @@ class TextButtonCustom extends StatelessWidget {
                     borderRadius: SmoothBorderRadius(
                         cornerRadius: radius ?? 14, cornerSmoothing: 1),
                     side: borderSide ?? BorderSide.none),
-                gradient: gradient ? StyleRes.themeGradient : null,
+                gradient: gradient ? brandGradient : null,
                 color: gradient ? null : (backgroundColor ?? whitePure(context)),
                 shadows: [
                   BoxShadow(
-                    color: StyleRes.brandAccent
-                        .withValues(alpha: gradient ? 0.32 : 0.1),
+                    color: brandShadow.withValues(alpha: gradient ? 0.32 : 0.1),
                     blurRadius: gradient ? 12 : 8,
                     offset: const Offset(0, 4),
                   ),

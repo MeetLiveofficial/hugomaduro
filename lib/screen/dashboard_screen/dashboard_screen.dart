@@ -20,7 +20,6 @@ import 'package:krimson/screen/profile_screen/client_profile_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/streamer_colors.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -106,10 +105,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_isClient) {
       return Theme(data: ThemeRes.clientTheme(context), child: dashboard);
     }
-    return Theme(data: ThemeRes.streamerTheme(context), child: dashboard);
+    return dashboard;
   }
 
-  static const Color _navBarBgStreamer = StreamerColors.surface;
+  static const Color _navBarBgStreamer = ColorRes.whitePure;
 
   Widget _buildBottomNavigationBar(
       BuildContext context, DashboardScreenController controller) {
@@ -207,7 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       BoxShadow(
                         color: (client
                                 ? ClientColors.primary
-                                : StreamerColors.primary)
+                                : ColorRes.crimson)
                             .withValues(alpha: 0.22),
                         blurRadius: 16,
                         offset: const Offset(0, 6),
@@ -298,7 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Icon(
             Icons.favorite_rounded,
             size: 26,
-            color: StreamerColors.primary,
+            color: ColorRes.crimson,
           ),
         ),
       ),
@@ -358,7 +357,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final iconColor = locked
           ? ColorRes.disabledGrey
           : (isSelected
-              ? (client ? ClientColors.text : StreamerColors.text)
+              ? (client ? ClientColors.text : ColorRes.whitePure)
               : (client ? ClientColors.secondarySoft : accent));
       final navBarBg =
           client ? ClientColors.surface : _navBarBgStreamer;

@@ -2,7 +2,16 @@ import 'package:flutter/material.dart';
 
 /// Paleta corporativa del **Usuario Cliente** (`client-50` … `client-950`).
 ///
-/// Cian / turquesa para la interfaz de audiencia (no streamer).
+/// Equivale a `--color-*` / `--client-*` (Tailwind-scale). No usar en streamers.
+///
+/// | Token | Hex | Uso |
+/// |---|---|---|
+/// | 400 | `#27D3F5` | Primario (CTA, marca) |
+/// | 500 / 600 | `#0BCDF4` / `#09A8C8` | Hover / active |
+/// | 300 / 200 | `#63DFF8` / `#8FE8FA` | Acentos, badges, bordes |
+/// | 950 / 900 / 800 | `#011418` / `#033944` / `#055E70` | Fondo, modales, cards |
+/// | 700 | `#07839C` | Divisores |
+/// | 50 / 100 | `#E7FAFE` / `#BBF1FC` | Texto / subtítulos |
 class ClientColors {
   ClientColors._();
 

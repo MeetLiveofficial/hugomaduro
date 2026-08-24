@@ -205,6 +205,10 @@ class LivestreamScreenController extends BaseController {
   Timer? _sessionPoll;
   Timer? _commentPoll;
   Timer? _callPoll;
+  Timer? _hostConnectWatchdog;
+  DateTime? _lastPresenceHeartbeat;
+  int _hostSessionMissingCount = 0;
+  static const int hostConnectTimeoutSecs = 75;
   int _lastCommentServerId = 0;
   bool _commentPollBusy = false;
   bool _callPollBusy = false;
@@ -352,6 +356,7 @@ class LivestreamScreenController extends BaseController {
     }
     commentFocusNode.addListener(_onCommentFocusChanged);
     unawaited(refreshUnreadChats());
+    _armHostConnectWatchdog();
     _bootstrap();
   }
 
@@ -531,6 +536,9 @@ class LivestreamScreenController extends BaseController {
       // Web también entra a LiveKit (chat data + video). Host en web puede
       // fallar cámara; el chat API sigue funcionando.
       await _joinLiveKit();
+      if (isHost && liveKit?.isConnected.value == true) {
+        _disarmHostConnectWatchdog();
+      }
       _startSessionPolling();
       _startCommentPolling();
       _startIncomingCallPolling();
@@ -1052,15 +1060,29 @@ class LivestreamScreenController extends BaseController {
 
   Future<void> _refreshSessionStats({bool silent = false}) async {
     try {
+      final now = DateTime.now();
+      if (_lastPresenceHeartbeat == null ||
+          now.difference(_lastPresenceHeartbeat!).inSeconds >= 30) {
+        _lastPresenceHeartbeat = now;
+        unawaited(UserService.instance.updateLastUsedAt());
+      }
       final payload =
           await LiveSessionService.instance.fetchSession(roomId: roomId);
       if (payload == null) {
         // Live terminado / sala muerta → otro LIVE o salir.
-        if (!isHost && !isEnding.value) {
+        if (isEnding.value) return;
+        if (!isHost) {
           await leaveAndRedirectToNextLive();
+        } else {
+          _hostSessionMissingCount++;
+          if (_hostSessionMissingCount >= 3) {
+            showSnackBar('El LIVE se cerró');
+            await endOrLeave();
+          }
         }
         return;
       }
+      _hostSessionMissingCount = 0;
       var watch = payload.session.watchingCount ?? 0;
       if (isHost && liveKit != null) {
         final remotes = liveKit!.remoteParticipants.length;
@@ -1147,8 +1169,8 @@ class LivestreamScreenController extends BaseController {
             liveKit!.connectedRoomName != avRoomId,
       );
       _connectedLiveKitRoom = avRoomId;
-      // Reaplicar beauty del pre-live cuando ya hay track de cámara.
       if (isHost) {
+        _disarmHostConnectWatchdog();
         await applyBeauty();
       }
     } catch (e) {
@@ -1176,9 +1198,33 @@ class LivestreamScreenController extends BaseController {
     update();
   }
 
+  void _armHostConnectWatchdog() {
+    if (!isHost || isDummy) return;
+    _hostConnectWatchdog?.cancel();
+    _hostConnectWatchdog = Timer(
+      const Duration(seconds: hostConnectTimeoutSecs),
+      () {
+        if (isEnding.value || pausedForCall.value || isCallUiActive) return;
+        if (liveKit?.isConnected.value == true) return;
+        Loggers.error('host LiveKit never connected; ending live');
+        statusMessage.value = 'No se pudo conectar. Cerrando LIVE…';
+        showSnackBar('No se pudo conectar al LIVE');
+        unawaited(endOrLeave());
+      },
+    );
+  }
+
+  void _disarmHostConnectWatchdog() {
+    _hostConnectWatchdog?.cancel();
+    _hostConnectWatchdog = null;
+  }
+
   /// Reintenta LiveKit forzando calidad baja (red débil).
   Future<void> retryLiveConnection() async {
     if (pausedForCall.value && isCallUiActive) return;
+    if (isHost) {
+      _armHostConnectWatchdog();
+    }
     final me = SessionManager.instance.getUser();
     if (me == null || liveKit == null) {
       await _joinLiveKit();
@@ -1201,6 +1247,7 @@ class LivestreamScreenController extends BaseController {
         pausedForCall.value = false;
         statusMessage.value = '';
         _syncElapsedTimerWithPause();
+        _disarmHostConnectWatchdog();
       }
     } catch (e) {
       statusMessage.value = 'No se pudo conectar. Revisa tu red.';
@@ -3938,6 +3985,7 @@ class LivestreamScreenController extends BaseController {
     _sessionPoll?.cancel();
     _commentPoll?.cancel();
     _callPoll?.cancel();
+    _hostConnectWatchdog?.cancel();
     _followBannerTimer?.cancel();
     _joinBannerTimer?.cancel();
     _hostAbsentTimer?.cancel();

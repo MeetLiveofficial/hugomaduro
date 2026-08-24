@@ -5,7 +5,7 @@ import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/utilities/client_colors.dart';
-import 'package:krimson/utilities/streamer_colors.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
@@ -29,14 +29,17 @@ class HomeModeSwitcher extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: StyleRes.brandAccent.withValues(alpha: 0.42),
+              color: (AppRole.isClient()
+                      ? StyleRes.brandAccent
+                      : ColorRes.crimson)
+                  .withValues(alpha: 0.42),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
             BoxShadow(
               color: (AppRole.isClient()
                       ? ClientColors.primaryActive
-                      : StreamerColors.primaryActive)
+                      : ColorRes.mlPurple)
                   .withValues(alpha: 0.28),
               blurRadius: 20,
               offset: const Offset(0, 2),

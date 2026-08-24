@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/utilities/client_colors.dart';
-import 'package:krimson/utilities/streamer_colors.dart';
+import 'package:krimson/utilities/color_res.dart';
 
-/// Fondo dusk: cliente `--client-950`; streamer `--streamer-950`.
+/// Fondo dusk: streamer coral/magenta; cliente `--client-950` + cian.
 class BrandWashBg extends StatelessWidget {
   const BrandWashBg({super.key, this.vivid = true});
 
@@ -13,14 +13,13 @@ class BrandWashBg extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
-    final base = client ? ClientColors.bg : StreamerColors.bg;
-    final mid = client ? ClientColors.surface : StreamerColors.surface;
+    final base = client ? ClientColors.bg : ColorRes.obsidianDeep;
+    final mid = client ? ClientColors.surface : ColorRes.obsidian;
     final top = client
         ? (vivid ? ClientColors.surfaceAlt : ClientColors.surface)
-        : (vivid ? StreamerColors.surfaceAlt : StreamerColors.surface);
-    final orbA = client ? ClientColors.primary : StreamerColors.primary;
-    final orbB =
-        client ? ClientColors.primaryActive : StreamerColors.primaryActive;
+        : (vivid ? const Color(0xFF2A1224) : const Color(0xFF1C121C));
+    final orbA = client ? ClientColors.primary : ColorRes.crimsonAlt;
+    final orbB = client ? ClientColors.primaryActive : ColorRes.mlPurple;
 
     return Stack(
       fit: StackFit.expand,
