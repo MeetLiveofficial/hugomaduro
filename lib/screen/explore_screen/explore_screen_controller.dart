@@ -13,6 +13,7 @@ import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/countries_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
@@ -204,7 +205,7 @@ class ExploreScreenController extends BaseController {
     if (GuestGate.block()) return;
     // Streamer → cliente: solo mensajes, sin videollamada.
     if (AppRole.isStreamer()) {
-      showSnackBar('Con clientes solo puedes enviar mensajes');
+      showSnackBar(LKey.clientsOnlyMessages.tr);
       return;
     }
     if (CallAvailability.isLive(user) &&
@@ -215,13 +216,13 @@ class ExploreScreenController extends BaseController {
     if (!CallAvailability.canPlaceCall(user)) {
       showSnackBar(
         CallAvailability.blockMessage(user) ??
-            'Este streamer no recibe llamadas ahora',
+            LKey.streamerNotReceivingCalls.tr,
       );
       return;
     }
     final cost = CallAvailability.callCost(user);
     if (cost > 0 &&
-        !CoinGate.ensureEnough(cost, message: 'Moneda insuficiente')) {
+        !CoinGate.ensureEnough(cost, message: LKey.insufficientCoins.tr)) {
       return;
     }
     Get.to(() => OutgoingCallScreen(callee: user, cost: cost));
@@ -230,7 +231,7 @@ class ExploreScreenController extends BaseController {
   Future<void> _openLive(User user) async {
     final roomId = (user.liveRoomId ?? '${user.id}').trim();
     if (roomId.isEmpty) {
-      showSnackBar('Live not available');
+      showSnackBar(LKey.liveNotAvailable.tr);
       return;
     }
     showLoader();
@@ -240,7 +241,7 @@ class ExploreScreenController extends BaseController {
       stopLoader();
       final stream = payload?.session;
       if (stream == null) {
-        showSnackBar('Live not available');
+        showSnackBar(LKey.liveNotAvailable.tr);
         return;
       }
       Get.to(() =>
@@ -255,7 +256,7 @@ class ExploreScreenController extends BaseController {
   Future<void> startMatch() async {
     if (GuestGate.block()) return;
     if (AppRole.isStreamer()) {
-      showSnackBar('Entra a Match para abrir tu cámara y esperar clientes');
+      showSnackBar(LKey.enterMatchToWaitClients.tr);
       return;
     }
     if (isMatching.value) return;
@@ -270,7 +271,7 @@ class ExploreScreenController extends BaseController {
           cost > 0 &&
           !CoinGate.ensureEnough(
             cost,
-            message: 'Necesitas $cost coins para buscar Match',
+            message: LKey.needCoinsToSearchMatch.trParams({'coins': '$cost'}),
           )) {
         return;
       }
@@ -290,9 +291,9 @@ class ExploreScreenController extends BaseController {
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
       if (msg.toLowerCase().contains('insufficient')) {
-        CoinGate.ensureEnough(999999, message: 'Monedas insuficientes');
+        CoinGate.ensureEnough(999999, message: LKey.insufficientCoins.tr);
       } else if (msg.toLowerCase().contains('no match')) {
-        showSnackBar('No hay streamers en Match ahora');
+        showSnackBar(LKey.noStreamersInMatch.tr);
       } else {
         showSnackBar(msg);
       }

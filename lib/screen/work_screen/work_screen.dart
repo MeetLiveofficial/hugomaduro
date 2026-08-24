@@ -5,6 +5,7 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/work/streamer_work_stats_model.dart';
+import 'package:krimson/model/user_model/streamer_average.dart';
 import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/screen/wallet_history_screen/wallet_history_screen.dart';
@@ -134,7 +135,11 @@ class _Header extends StatelessWidget {
                   ],
                 ),
                 child: Text(
-                  '${LKey.weeklyLevel.tr} $grade',
+                  [
+                    '${LKey.weeklyLevel.tr} $grade',
+                    if (data.average != null)
+                      '${LKey.streamerAverage.tr} ${data.average!.avg.toStringAsFixed(0)}/100',
+                  ].join(' · '),
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.outFitSemiBold600(
                     color: Colors.white,
@@ -169,8 +174,14 @@ class _Header extends StatelessWidget {
         _GradeProgress(
           grades: data.weeklyLevel.grades,
           current: grade,
-          progress: data.weeklyLevel.progress,
+          progress: data.average != null
+              ? (data.average!.avg / 100).clamp(0.05, 1)
+              : data.weeklyLevel.progress,
         ),
+        if (data.average != null) ...[
+          const SizedBox(height: 12),
+          _AverageBreakdown(avg: data.average!),
+        ],
       ],
     );
   }
@@ -288,6 +299,93 @@ class _GradeProgress extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AverageBreakdown extends StatelessWidget {
+  const _AverageBreakdown({required this.avg});
+
+  final StreamerAverage avg;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = [
+      (LKey.avgCoins.tr, avg.coins, Icons.monetization_on_outlined),
+      (LKey.avgCalls.tr, avg.calls, Icons.call_outlined),
+      (LKey.avgLive.tr, avg.live, Icons.sensors),
+      (LKey.avgActivity.tr, avg.interaction, Icons.forum_outlined),
+      (LKey.avgQuality.tr, avg.quality, Icons.star_outline_rounded),
+    ];
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      decoration: BoxDecoration(
+        color: WorkScreen._card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (avg.nextGrade != null && avg.need > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                avg.need == 1
+                    ? LKey.streamerAverageNeedOne.trParams({
+                        'grade': avg.nextGrade!,
+                      })
+                    : LKey.streamerAverageNeed.trParams({
+                        'n': '${avg.need}',
+                        'grade': avg.nextGrade!,
+                      }),
+                style: TextStyleCustom.outFitMedium500(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          for (final row in rows) ...[
+            Row(
+              children: [
+                Icon(row.$3, color: WorkScreen._gold, size: 14),
+                const SizedBox(width: 6),
+                SizedBox(
+                  width: 78,
+                  child: Text(
+                    row.$1,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white70,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: (row.$2 / 100).clamp(0.02, 1),
+                      minHeight: 6,
+                      backgroundColor: Colors.white12,
+                      valueColor:
+                          const AlwaysStoppedAnimation(WorkScreen._pink),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${row.$2}',
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: Colors.white,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -916,7 +1014,7 @@ class _TasksSection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'LIVE 120 pts + Otras 30 pts = 150 para retiro. Grado B/C: tareas de llamadas privadas.',
+            LKey.tasksWorkHint.tr,
             style: TextStyleCustom.outFitRegular400(
               color: Colors.white70,
               fontSize: 12,

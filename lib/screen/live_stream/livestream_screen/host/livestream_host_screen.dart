@@ -7,6 +7,7 @@ import 'package:krimson/screen/face_filters/models/face_filter_effect.dart';
 import 'package:krimson/screen/face_filters/widgets/beauty_camera_preview.dart';
 import 'package:krimson/screen/deepar/deepar_runtime.dart';
 import 'package:krimson/model/general/settings_model.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_split_view.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_stream_overlay.dart';
@@ -186,7 +187,7 @@ class LivestreamHostScreen extends StatelessWidget {
                                 ),
                               ),
                               icon: const Icon(Icons.videocam_rounded, size: 18),
-                              label: const Text('Activar cámara'),
+                              label: Text(LKey.enableCamera.tr),
                             ),
                           ],
                         ),
@@ -233,7 +234,7 @@ class LivestreamHostScreen extends StatelessWidget {
                                 ),
                               ),
                               icon: const Icon(Icons.refresh_rounded, size: 18),
-                              label: const Text('Reintentar'),
+                              label: Text(LKey.retry.tr),
                             ),
                           ],
                         ],

@@ -601,7 +601,7 @@ class LiveStreamSearchScreenController extends BaseController {
     if (position < 0 || position >= giftIncentiveSlots.length) return;
     final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
     if (gifts.isEmpty) {
-      showSnackBar('No hay regalos en el catálogo');
+      showSnackBar(LKey.noGiftsInCatalog.tr);
       return;
     }
     final selected = await Get.bottomSheet<Gift>(

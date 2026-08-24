@@ -188,13 +188,19 @@ class GiftWalletService {
   }
 
   /// Crea checkout Wompi (tarjeta / PSE / Nequi).
-  Future<Map<String, dynamic>> createWompiPayment(
-      {required int coinPackageId}) async {
+  Future<Map<String, dynamic>> createWompiPayment({
+    required int coinPackageId,
+    String? appLanguage,
+  }) async {
     try {
       final json = await ApiService.instance.call(
         url: WebService.giftWallet.createWompiPayment,
         fromJson: (j) => j,
-        param: {Params.coinPackageId: coinPackageId},
+        param: {
+          Params.coinPackageId: coinPackageId,
+          if (appLanguage != null && appLanguage.trim().isNotEmpty)
+            Params.appLanguage: appLanguage.trim(),
+        },
       );
       if (json['status'] == true && json['data'] is Map) {
         return {

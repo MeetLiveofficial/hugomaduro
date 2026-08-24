@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_split_view.dart';
@@ -78,13 +79,15 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                       final left = c.hostAbsentSecondsLeft.value;
                       final hostBusy = c.hostInCall.value;
                       final msg = hostBusy
-                          ? 'LIVE pausado · Host en llamada'
+                          ? LKey.livePausedHostInCall.tr
                           : (absent
                               ? (left > 0
-                                  ? 'Host desconectado…\nBuscando otro LIVE en $left s'
-                                  : 'Buscando otro LIVE…')
+                                  ? LKey.hostDisconnectedSeeking.trParams(
+                                      {'sec': '$left'},
+                                    )
+                                  : LKey.searchingAnotherLive.tr)
                               : (c.statusMessage.value.isEmpty
-                                  ? 'Waiting for host…'
+                                  ? LKey.waitingForHost.tr
                                   : c.statusMessage.value));
                       return Center(
                         child: Padding(
@@ -164,7 +167,7 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 14),
                                 Text(
-                                  'LIVE pausado · Host en llamada',
+                                  LKey.livePausedHostInCall.tr,
                                   textAlign: TextAlign.center,
                                   style: TextStyleCustom.outFitRegular400(
                                     color: Colors.white70,
@@ -187,7 +190,7 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                           c.statusMessage.value.contains('No se pudo');
                   final msg = c.statusMessage.value.isEmpty
                       ? (c.hostInCall.value
-                          ? 'LIVE pausado · Host en llamada'
+                          ? LKey.livePausedHostInCall.tr
                           : (busy
                               ? 'Reconectando al LIVE…'
                               : 'Conectando al LIVE…'))

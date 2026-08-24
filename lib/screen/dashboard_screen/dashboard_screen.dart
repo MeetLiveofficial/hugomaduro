@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:proste_indexed_stack/proste_indexed_stack.dart';
 import 'package:krimson/common/manager/app_role.dart';
-import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/banner_ads_custom.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
@@ -306,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final busy = matchCtrl.isMatching.value;
       final selected = controller.selectedPageIndex.value ==
           DashboardScreenController.tabLive;
-      final locked = GuestGate.isAnonymous;
+      final locked = false;
       return _navHitTarget(
         selected: selected,
         accent: ColorRes.crimson,
@@ -341,8 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
       final accent = ColorRes.navIconColors[
           index.clamp(0, ColorRes.navIconColors.length - 1)];
-      final locked = GuestGate.isAnonymous &&
-          index == DashboardScreenController.tabChat;
+      final locked = false;
       final iconColor = locked
           ? ColorRes.disabledGrey
           : (isSelected ? ColorRes.whitePure : accent);

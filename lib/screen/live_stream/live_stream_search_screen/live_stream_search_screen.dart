@@ -280,8 +280,8 @@ class _StudioBackdrop extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 40),
                           child: Text(
                             kIsWeb
-                                ? 'Toca para abrir la cámara (permiso del navegador)'
-                                : 'Toca para abrir la cámara',
+                                ? LKey.tapToOpenCameraBrowser.tr
+                                : LKey.tapToOpenCamera.tr,
                             textAlign: TextAlign.center,
                             style: TextStyleCustom.outFitRegular400(
                               color: Colors.white54,

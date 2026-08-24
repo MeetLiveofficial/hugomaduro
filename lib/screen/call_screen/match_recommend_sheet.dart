@@ -5,6 +5,7 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -105,10 +106,10 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
       if (!mounted) return;
       if (extra.isEmpty) {
         Get.snackbar(
-          'Match',
+          LKey.matchLabel.tr,
           AppRole.isStreamer()
-              ? 'No hay más clientes en Match ahora'
-              : 'No hay más streamers en Match ahora',
+              ? LKey.noMoreMatchClients.tr
+              : LKey.noMoreMatchStreamers.tr,
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.black87,
           colorText: Colors.white,
@@ -124,10 +125,10 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
     } catch (_) {
       if (!mounted) return;
       Get.snackbar(
-        'Match',
+        LKey.matchLabel.tr,
         AppRole.isStreamer()
-            ? 'No hay más clientes en Match ahora'
-            : 'No hay más streamers en Match ahora',
+            ? LKey.noMoreMatchClients.tr
+            : LKey.noMoreMatchStreamers.tr,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.black87,
         colorText: Colors.white,
@@ -164,7 +165,7 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
     if (cost > 0 &&
         !CoinGate.ensureEnough(
           cost,
-          message: 'Necesitas $cost coins para el Match',
+          message: LKey.needCoinsForMatch.trParams({'coins': '$cost'}),
         )) {
       return;
     }
@@ -404,7 +405,7 @@ class _MatchProfileCard extends StatelessWidget {
                     ),
                     icon: const Icon(Icons.videocam_rounded, size: 18),
                     label: Text(
-                      'Llamar',
+                      LKey.callAction.tr,
                       style: TextStyleCustom.outFitMedium500(
                         color: Colors.white,
                         fontSize: 16,

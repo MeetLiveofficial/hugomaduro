@@ -174,9 +174,9 @@ class TasksScreenController extends BaseController {
   String tabLabel(String code) {
     switch (code) {
       case 'live':
-        return 'LIVE';
+        return LKey.taskCategoryLive.tr;
       case 'other':
-        return 'Otras';
+        return LKey.taskCategoryOther.tr;
       case 'private_bc':
         return 'B/C';
       case 'daily':

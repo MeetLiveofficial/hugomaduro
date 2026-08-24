@@ -100,7 +100,7 @@ class WithdrawalsScreenController extends BaseController {
       return;
     }
     if (enabledGateways.isEmpty) {
-      showSnackBar('No hay metodos de retiro habilitados');
+      showSnackBar(LKey.noWithdrawalMethods.tr);
       return;
     }
 
@@ -343,7 +343,7 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
                 ),
               ),
               const SizedBox(height: 14),
-              Text('Método de retiro',
+              Text(LKey.withdrawMethod.tr,
                   style: TextStyleCustom.outFitMedium500(
                       color: textDarkGrey(context), fontSize: 13)),
               const SizedBox(height: 6),
@@ -380,7 +380,7 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              Text('Cuenta / wallet de cobro',
+              Text(LKey.payoutAccount.tr,
                   style: TextStyleCustom.outFitMedium500(
                       color: textDarkGrey(context), fontSize: 13)),
               const SizedBox(height: 6),

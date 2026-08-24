@@ -1,3 +1,5 @@
+import 'package:krimson/model/user_model/streamer_average.dart';
+
 class StreamerWorkStats {
   StreamerWorkStats({
     required this.user,
@@ -5,6 +7,7 @@ class StreamerWorkStats {
     required this.weeklyLevel,
     required this.benefits,
     this.callPricing,
+    this.average,
   });
 
   factory StreamerWorkStats.fromJson(Map<String, dynamic> json) {
@@ -23,6 +26,9 @@ class StreamerWorkStats {
           ? WorkCallPricing.fromJson(
               Map<String, dynamic>.from(json['call_pricing']))
           : null,
+      average: json['streamer_average'] is Map
+          ? StreamerAverage.fromJson(json['streamer_average'])
+          : null,
     );
   }
 
@@ -31,6 +37,7 @@ class StreamerWorkStats {
   final WorkWeeklyLevel weeklyLevel;
   final List<String> benefits;
   final WorkCallPricing? callPricing;
+  final StreamerAverage? average;
 }
 
 class WorkCallPricing {
@@ -163,7 +170,7 @@ class WorkTodayStats {
 }
 
 class WorkWeeklyLevel {
-  static const List<String> kGrades = ['NEW', 'C', 'B', 'A', 'S'];
+  static const List<String> kGrades = ['NEW', 'B', 'C', 'A', 'S'];
 
   WorkWeeklyLevel({
     this.grade = 'NEW',

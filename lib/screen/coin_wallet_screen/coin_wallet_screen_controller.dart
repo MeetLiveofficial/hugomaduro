@@ -11,6 +11,7 @@ import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/gift_wallet_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/subscription/subscription_manager.dart';
+import 'package:krimson/languages/catalog_i18n.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
@@ -102,6 +103,7 @@ class CoinWalletScreenController extends BaseController {
               data.appstoreProductId ??
               '',
           priceString: priceString,
+          amountUsd: apiPrice,
           image: data.image,
           canPurchaseViaStore: matched != null && !kIsWeb,
         ),
@@ -143,7 +145,7 @@ class CoinWalletScreenController extends BaseController {
               ),
               const SizedBox(height: 16),
               Text(
-                'Método de pago',
+                LKey.paymentMethod.tr,
                 textAlign: TextAlign.center,
                 style: TextStyleCustom.outFitMedium500(
                   color: textDarkGrey(Get.context!),
@@ -153,8 +155,8 @@ class CoinWalletScreenController extends BaseController {
               const SizedBox(height: 6),
               Text(
                 offer.priceString.isEmpty
-                    ? '${offer.coin} monedas'
-                    : '${offer.name ?? ''} · ${offer.coin} monedas · ${offer.priceString}',
+                    ? LKey.coinsCount.trParams({'count': '${offer.coin}'})
+                    : '${CatalogI18n.packageName(offer.name)} · ${LKey.coinsCount.trParams({'count': '${offer.coin}'})} · ${offer.usdLabel}',
                 textAlign: TextAlign.center,
                 style: TextStyleCustom.outFitRegular400(
                   color: textLightGrey(Get.context!),
@@ -165,8 +167,14 @@ class CoinWalletScreenController extends BaseController {
               if (settings?.wompiEnabled != false)
                 ListTile(
                   leading: const Icon(Icons.credit_card),
-                  title: const Text('Tarjeta / PSE / Nequi'),
-                  subtitle: const Text('Wompi · Colombia e Internacional'),
+                  title: Text(LKey.payCardPseNequi.tr),
+                  subtitle: Text(
+                    offer.usdAmountText.isEmpty
+                        ? LKey.payWompi.tr
+                        : LKey.wompiLocalChargeHint.trParams(
+                            {'amount': offer.usdAmountText},
+                          ),
+                  ),
                   onTap: () {
                     Get.back();
                     Future<void>.delayed(
@@ -178,8 +186,8 @@ class CoinWalletScreenController extends BaseController {
               if (settings?.nowpaymentsEnabled != false)
                 ListTile(
                   leading: const Icon(Icons.currency_bitcoin),
-                  title: const Text('Criptomonedas'),
-                  subtitle: const Text('USDT y más (NOWPayments)'),
+                  title: Text(LKey.cryptocurrencies.tr),
+                  subtitle: Text(LKey.usdtNowPayments.tr),
                   onTap: () {
                     Get.back();
                     onPurchaseCrypto(offer);
@@ -188,8 +196,8 @@ class CoinWalletScreenController extends BaseController {
               if (offer.canPurchaseViaStore)
                 ListTile(
                   leading: const Icon(Icons.phone_android),
-                  title: const Text('App Store / Play Store'),
-                  subtitle: const Text('Compra in-app'),
+                  title: Text(LKey.appStorePlayStore.tr),
+                  subtitle: Text(LKey.inAppPurchase.tr),
                   onTap: () {
                     Get.back();
                     onPurchaseStore(offer);
@@ -201,7 +209,7 @@ class CoinWalletScreenController extends BaseController {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
-                    'No hay métodos de pago disponibles.',
+                    LKey.noPaymentMethods.tr,
                     textAlign: TextAlign.center,
                     style: TextStyleCustom.outFitRegular400(
                       color: textLightGrey(Get.context!),
@@ -309,8 +317,10 @@ class CoinWalletScreenController extends BaseController {
     showLoader(barrierDismissible: false);
     Map<String, dynamic> result;
     try {
-      result = await GiftWalletService.instance
-          .createWompiPayment(coinPackageId: offer.coinPackageId);
+      result = await GiftWalletService.instance.createWompiPayment(
+        coinPackageId: offer.coinPackageId,
+        appLanguage: Get.locale?.languageCode,
+      );
     } catch (_) {
       stopLoader();
       showSnackBar('No se pudo iniciar el pago con tarjeta. Intenta de nuevo.');
@@ -333,10 +343,10 @@ class CoinWalletScreenController extends BaseController {
       return;
     }
 
-    final invoiceUrl = (created['invoice_url'] ??
+    final invoiceUrl = _withCheckoutLang((created['invoice_url'] ??
             created['checkout_url'] ??
             '')
-        .toString();
+        .toString());
     final orderId = (created['order_id'] ?? '').toString();
     if (invoiceUrl.isEmpty || orderId.isEmpty) {
       showSnackBar(LKey.somethingWentWrong.tr);
@@ -350,19 +360,33 @@ class CoinWalletScreenController extends BaseController {
       orderId,
       _PaymentKind.wompi,
       checkoutUrl: invoiceUrl,
+      amountUsd: created['amount_usd'] ?? offer.amountUsd,
     );
+  }
+
+  String _withCheckoutLang(String url) {
+    final lang = (Get.locale?.languageCode ?? 'es').toLowerCase();
+    final uri = Uri.tryParse(url);
+    if (url.isEmpty || uri == null) {
+      return url;
+    }
+    final query = Map<String, String>.from(uri.queryParameters);
+    query.putIfAbsent('lang', () => lang);
+    return uri.replace(queryParameters: query).toString();
   }
 
   Future<void> _showPaymentPendingDialog(
     String orderId,
     _PaymentKind kind, {
     String? checkoutUrl,
+    num? amountUsd,
   }) async {
     await Get.dialog(
       _PaymentPendingDialog(
         orderId: orderId,
         kind: kind,
         checkoutUrl: checkoutUrl,
+        amountUsd: amountUsd,
         onFinished: (user) {
           if (user != null) {
             myUser.value = user;
@@ -381,6 +405,7 @@ class _PaymentPendingDialog extends StatefulWidget {
   final String orderId;
   final _PaymentKind kind;
   final String? checkoutUrl;
+  final num? amountUsd;
   final void Function(User? user) onFinished;
 
   const _PaymentPendingDialog({
@@ -388,6 +413,7 @@ class _PaymentPendingDialog extends StatefulWidget {
     required this.kind,
     required this.onFinished,
     this.checkoutUrl,
+    this.amountUsd,
   });
 
   @override
@@ -430,16 +456,16 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
         _status = status;
         if (status == 'confirming') {
           _message = isWompi
-              ? 'Confirmando el pago…'
-              : 'Confirmando en blockchain…';
+              ? LKey.confirmingPayment.tr
+              : LKey.confirmingBlockchain.tr;
         } else if (status == 'partially_paid') {
-          _message = 'Pago parcial detectado. Completa el monto.';
+          _message = LKey.partialPaymentDetected.tr;
         } else if (status == 'failed' || status == 'expired') {
-          _message = 'El pago no se completó.';
+          _message = LKey.paymentNotCompleted.tr;
         } else {
           _message = isWompi
-              ? 'Esperando tu pago con tarjeta…'
-              : 'Esperando tu pago en crypto…';
+              ? LKey.waitingCardPayment.tr
+              : LKey.waitingCryptoPayment.tr;
         }
       });
 
@@ -514,6 +540,21 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
               fontSize: 13,
             ),
           ),
+          if (!failed &&
+              widget.kind == _PaymentKind.wompi &&
+              widget.amountUsd != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              LKey.wompiLocalChargeHint.trParams({
+                'amount': CoinPlan.formatUsdAmount(widget.amountUsd!),
+              }),
+              textAlign: TextAlign.center,
+              style: TextStyleCustom.outFitRegular400(
+                color: textLightGrey(context),
+                fontSize: 12,
+              ),
+            ),
+          ],
         ],
       ),
       actions: [
@@ -557,6 +598,7 @@ class CoinPlan {
   final int coinPackageId;
   final String id;
   final String priceString;
+  final num? amountUsd;
   final String? image;
   final bool canPurchaseViaStore;
 
@@ -565,6 +607,7 @@ class CoinPlan {
     required this.coinPackageId,
     required this.id,
     required this.priceString,
+    this.amountUsd,
     this.baseCoins = 0,
     this.bonusCoins = 0,
     this.bonusPercent = 0,
@@ -573,4 +616,17 @@ class CoinPlan {
     this.image,
     this.canPurchaseViaStore = false,
   });
+
+  static String formatUsdAmount(num amount) {
+    if (amount % 1 == 0) return amount.toInt().toString();
+    return amount.toStringAsFixed(2);
+  }
+
+  String get usdAmountText =>
+      amountUsd == null ? '' : formatUsdAmount(amountUsd!);
+
+  String get usdLabel {
+    if (usdAmountText.isEmpty) return priceString;
+    return '\$$usdAmountText USD';
+  }
 }

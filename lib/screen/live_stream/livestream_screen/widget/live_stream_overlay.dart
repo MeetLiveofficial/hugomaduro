@@ -524,7 +524,7 @@ class LivePausedForCallPane extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   controller.statusMessage.value.isEmpty
-                      ? 'LIVE pausado · En llamada'
+                      ? LKey.livePausedInCall.tr
                       : controller.statusMessage.value,
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.outFitRegular400(
@@ -548,7 +548,7 @@ class LivePausedForCallPane extends StatelessWidget {
                       ),
                     ),
                     icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: const Text('Reintentar'),
+                    label: Text(LKey.retry.tr),
                   ),
                 ],
               ],

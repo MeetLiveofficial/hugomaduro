@@ -4,6 +4,7 @@ import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/post_story/story/story_model.dart';
+import 'package:krimson/model/user_model/streamer_average.dart';
 
 class UserModel {
   UserModel({
@@ -129,6 +130,7 @@ class User {
       this.levelBenefits = const [],
       this.impressionQualities = const [],
       this.impressionRating,
+      this.streamerAverage,
       this.equippedFrame,
       this.equippedBadge});
 
@@ -203,6 +205,7 @@ class User {
     List<String>? levelBenefits,
     List<ImpressionQuality>? impressionQualities,
     double? impressionRating,
+    StreamerAverage? streamerAverage,
     Map<String, dynamic>? equippedFrame,
     Map<String, dynamic>? equippedBadge,
   }) =>
@@ -276,6 +279,7 @@ class User {
         levelBenefits: levelBenefits ?? this.levelBenefits,
         impressionQualities: impressionQualities ?? this.impressionQualities,
         impressionRating: impressionRating ?? this.impressionRating,
+        streamerAverage: streamerAverage ?? this.streamerAverage,
         equippedFrame: equippedFrame ?? this.equippedFrame,
         equippedBadge: equippedBadge ?? this.equippedBadge,
       );
@@ -414,6 +418,9 @@ class User {
     }
     impressionQualities = ImpressionQuality.listFrom(json['impression_qualities']);
     impressionRating = _asNum(json['impression_rating'])?.toDouble();
+    if (json['streamer_average'] is Map) {
+      streamerAverage = StreamerAverage.fromJson(json['streamer_average']);
+    }
   }
 
   int? id;
@@ -498,7 +505,7 @@ class User {
   int? agencyId;
   String? agencyName;
   int isAgencyWorker = 0;
-  /// Rango semanal de llamadas: NEW, C, B, A, S.
+  /// Rango de rendimiento (AVG 30 días): NEW, B, C, A, S.
   String? weeklyCallGrade;
   List<String> levelBenefits = const [];
   int isLive = 0;
@@ -514,6 +521,7 @@ class User {
   int dailyFreeMatchesRemaining = 2;
   List<ImpressionQuality> impressionQualities = const [];
   double? impressionRating;
+  StreamerAverage? streamerAverage;
   Map<String, dynamic>? equippedFrame;
   Map<String, dynamic>? equippedBadge;
 
@@ -630,6 +638,7 @@ class User {
     map['impression_qualities'] =
         impressionQualities.map((e) => e.toJson()).toList();
     map['impression_rating'] = impressionRating;
+    map['streamer_average'] = streamerAverage?.toJson();
     map['equipped_frame'] = equippedFrame;
     map['equipped_badge'] = equippedBadge;
     map["following_ids"] = followingIds;

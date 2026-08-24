@@ -143,7 +143,7 @@ class WithdrawalsScreen extends StatelessWidget {
                                               CrossAxisAlignment.end,
                                           children: [
                                             Text(
-                                              '${(withdraw.coins ?? 0).toInt().numberFormat} coins',
+                                              '${(withdraw.coins ?? 0).toInt().numberFormat} ${LKey.coins.tr}',
                                               style: TextStyleCustom
                                                   .outFitMedium500(
                                                       color: textDarkGrey(

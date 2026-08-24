@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
+import 'package:krimson/languages/app_fallbacks.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/languages/lkey_catalog.dart';
 
 class DynamicTranslations extends Translations {
   final Map<String, Map<String, String>> _keys = {};
@@ -14,22 +16,78 @@ class DynamicTranslations extends Translations {
   /// `.tr` sigue devolviendo la clave en inglés aunque el locale sea ru/es/pt.
   void addTranslations(Map<String, Map<String, String>> map) {
     map.forEach((lang, translations) {
+      final aligned = LKeyCatalog.align(translations);
       if (_keys.containsKey(lang)) {
-        _keys[lang]?.addAll(translations);
+        _keys[lang]?.addAll(aligned);
       } else {
-        _keys[lang] = Map<String, String>.from(translations);
+        _keys[lang] = Map<String, String>.from(aligned);
       }
+      Get.appendTranslations({lang: aligned});
     });
-    Get.appendTranslations(map);
+    ensureAllFallbacks();
+  }
+
+  void ensureAllFallbacks() {
     ensureLiveFallbacks();
     ensureTaskFallbacks();
     ensureAgencyFallbacks();
     ensureCallFallbacks();
+    ensureAppFallbacks();
+  }
+
+  void _mergeMissing(
+    Map<String, Map<String, String>> fallbacks, {
+    Map<String, String>? english,
+    bool overwrite = false,
+  }) {
+    final toAppend = <String, Map<String, String>>{};
+    fallbacks.forEach((lang, map) {
+      final existing = _keys[lang] ?? const <String, String>{};
+      final missing = <String, String>{};
+      map.forEach((k, v) {
+        final current = existing[k];
+        final englishVal = english?[k];
+        final shouldFill = current == null ||
+            (current == k && v != k) ||
+            (englishVal != null && current == englishVal && v != current);
+        if (overwrite) {
+          if (current != v) missing[k] = v;
+        } else if (shouldFill) {
+          missing[k] = v;
+        }
+      });
+      if (missing.isEmpty) return;
+      toAppend[lang] = missing;
+      if (_keys.containsKey(lang)) {
+        _keys[lang]!.addAll(missing);
+      } else {
+        _keys[lang] = Map<String, String>.from(missing);
+      }
+    });
+    if (toAppend.isNotEmpty) {
+      Get.appendTranslations(toAppend);
+    }
+  }
+
+  /// Cubre todas las LKey aunque el CSV del servidor aún no se haya re-subido.
+  ///
+  /// `overwrite: true` pisa filas viejas del panel (p. ej. 平衡, 硬币, identity EN)
+  /// con el mapa generado; si no, el CSV del API deja traducciones incorrectas.
+  void ensureAppFallbacks() {
+    _mergeMissing({
+      'en': appFallbackEn,
+      'es': appFallbackEs,
+      'pt': appFallbackPt,
+      'ar': appFallbackAr,
+      'ru': appFallbackRu,
+      'uk': appFallbackUk,
+      'zh': appFallbackZh,
+    }, english: appFallbackEn, overwrite: true);
   }
 
   /// Claves nuevas del LIVE aunque el CSV del servidor aún no las tenga.
   void ensureLiveFallbacks() {
-    final fallbacks = <String, Map<String, String>>{
+    _mergeMissing({
       'en': _liveEn,
       'es': _liveEs,
       'pt': _livePt,
@@ -37,30 +95,12 @@ class DynamicTranslations extends Translations {
       'ru': _liveRu,
       'uk': _liveUk,
       'zh': _liveZh,
-    };
-    final toAppend = <String, Map<String, String>>{};
-    fallbacks.forEach((lang, map) {
-      final existing = _keys[lang] ?? const <String, String>{};
-      final missing = <String, String>{};
-      map.forEach((k, v) {
-        if (!existing.containsKey(k)) missing[k] = v;
-      });
-      if (missing.isEmpty) return;
-      toAppend[lang] = missing;
-      if (_keys.containsKey(lang)) {
-        _keys[lang]!.addAll(missing);
-      } else {
-        _keys[lang] = Map<String, String>.from(missing);
-      }
     });
-    if (toAppend.isNotEmpty) {
-      Get.appendTranslations(toAppend);
-    }
   }
 
   /// Claves de Tareas aunque el CSV del servidor aún no las tenga.
   void ensureTaskFallbacks() {
-    final fallbacks = <String, Map<String, String>>{
+    _mergeMissing({
       'en': _taskEn,
       'es': _taskEs,
       'pt': _taskPt,
@@ -68,29 +108,11 @@ class DynamicTranslations extends Translations {
       'ru': _taskEn,
       'uk': _taskEn,
       'zh': _taskEn,
-    };
-    final toAppend = <String, Map<String, String>>{};
-    fallbacks.forEach((lang, map) {
-      final existing = _keys[lang] ?? const <String, String>{};
-      final missing = <String, String>{};
-      map.forEach((k, v) {
-        if (!existing.containsKey(k)) missing[k] = v;
-      });
-      if (missing.isEmpty) return;
-      toAppend[lang] = missing;
-      if (_keys.containsKey(lang)) {
-        _keys[lang]!.addAll(missing);
-      } else {
-        _keys[lang] = Map<String, String>.from(missing);
-      }
     });
-    if (toAppend.isNotEmpty) {
-      Get.appendTranslations(toAppend);
-    }
   }
 
   void ensureAgencyFallbacks() {
-    final fallbacks = <String, Map<String, String>>{
+    _mergeMissing({
       'en': _agencyEn,
       'es': _agencyEs,
       'pt': _agencyPt,
@@ -98,29 +120,11 @@ class DynamicTranslations extends Translations {
       'ru': _agencyEn,
       'uk': _agencyEn,
       'zh': _agencyEn,
-    };
-    final toAppend = <String, Map<String, String>>{};
-    fallbacks.forEach((lang, map) {
-      final existing = _keys[lang] ?? const <String, String>{};
-      final missing = <String, String>{};
-      map.forEach((k, v) {
-        if (!existing.containsKey(k)) missing[k] = v;
-      });
-      if (missing.isEmpty) return;
-      toAppend[lang] = missing;
-      if (_keys.containsKey(lang)) {
-        _keys[lang]!.addAll(missing);
-      } else {
-        _keys[lang] = Map<String, String>.from(missing);
-      }
     });
-    if (toAppend.isNotEmpty) {
-      Get.appendTranslations(toAppend);
-    }
   }
 
   void ensureCallFallbacks() {
-    final fallbacks = <String, Map<String, String>>{
+    _mergeMissing({
       'en': _callEn,
       'es': _callEs,
       'pt': _callPt,
@@ -128,25 +132,7 @@ class DynamicTranslations extends Translations {
       'ru': _callEn,
       'uk': _callEn,
       'zh': _callEn,
-    };
-    final toAppend = <String, Map<String, String>>{};
-    fallbacks.forEach((lang, map) {
-      final existing = _keys[lang] ?? const <String, String>{};
-      final missing = <String, String>{};
-      map.forEach((k, v) {
-        if (!existing.containsKey(k)) missing[k] = v;
-      });
-      if (missing.isEmpty) return;
-      toAppend[lang] = missing;
-      if (_keys.containsKey(lang)) {
-        _keys[lang]!.addAll(missing);
-      } else {
-        _keys[lang] = Map<String, String>.from(missing);
-      }
     });
-    if (toAppend.isNotEmpty) {
-      Get.appendTranslations(toAppend);
-    }
   }
 }
 
@@ -184,11 +170,12 @@ const _liveEn = <String, String>{
   LKey.later: 'Later',
   LKey.invitesYouToLive: 'invites you to their LIVE',
   LKey.continueAsGuest: 'Continue as Guest',
-  LKey.joinToContinue: 'Join to continue',
+  LKey.joinToContinue: 'Link your account',
   LKey.joinToContinueDescription:
-      'Create an account to match, send messages, make calls, comment and send gifts.',
-  LKey.joinNow: 'Join now',
-  LKey.guestAccountExpires: 'Guest accounts expire in 7 days.',
+      'You can keep using the app as Guest. Link an email if you want to recover this account later.',
+  LKey.joinNow: 'Link now',
+  LKey.guestAccountExpires:
+      'Guest accounts do not expire. Same privileges as a regular client.',
   LKey.coinWallet: 'Wallet',
   LKey.walletHistory: 'Wallet history',
   LKey.walletIncome: 'income',
@@ -246,11 +233,12 @@ const _liveEs = <String, String>{
   LKey.later: 'Más tarde',
   LKey.invitesYouToLive: 'te invita a su LIVE',
   LKey.continueAsGuest: 'Continuar como invitado',
-  LKey.joinToContinue: 'Únete para continuar',
+  LKey.joinToContinue: 'Vincular cuenta',
   LKey.joinToContinueDescription:
-      'Crea una cuenta para hacer match, enviar mensajes, llamar, comentar y enviar regalos.',
-  LKey.joinNow: 'Unirme ahora',
-  LKey.guestAccountExpires: 'Las cuentas de invitado caducan en 7 días.',
+      'Puedes seguir usando la app como Guest. Vincula un email si quieres recuperar esta cuenta más adelante.',
+  LKey.joinNow: 'Vincular ahora',
+  LKey.guestAccountExpires:
+      'Las cuentas Guest no caducan. Tienen los mismos privilegios que un cliente.',
   LKey.coinWallet: 'Monedero',
   LKey.walletHistory: 'Historial de monedero',
   LKey.walletIncome: 'ingresos',
@@ -580,6 +568,9 @@ const _callEn = <String, String>{
   LKey.maxTraitsHint: 'Choose up to @count',
   LKey.ratingSaved: 'Thanks for rating',
   LKey.offlineBadge: 'Off',
+  LKey.wompiLocalChargeHint:
+      'The charge will be processed in local currency (COP) at the current exchange rate equivalent to \$@amount USD.',
+  LKey.continueToPayment: 'Continue to payment',
 };
 
 const _callEs = <String, String>{
@@ -605,6 +596,9 @@ const _callEs = <String, String>{
   LKey.maxTraitsHint: 'Elige hasta @count',
   LKey.ratingSaved: 'Gracias por calificar',
   LKey.offlineBadge: 'Off',
+  LKey.wompiLocalChargeHint:
+      'El cobro se procesará en moneda local (COP) según la tasa de cambio actual equivalente a \$@amount USD.',
+  LKey.continueToPayment: 'Continuar al pago',
 };
 
 const _callPt = <String, String>{
@@ -630,4 +624,7 @@ const _callPt = <String, String>{
   LKey.maxTraitsHint: 'Escolha até @count',
   LKey.ratingSaved: 'Obrigado por avaliar',
   LKey.offlineBadge: 'Off',
+  LKey.wompiLocalChargeHint:
+      'A cobrança será processada em moeda local (COP) conforme a taxa de câmbio atual equivalente a \$@amount USD.',
+  LKey.continueToPayment: 'Continuar para o pagamento',
 };

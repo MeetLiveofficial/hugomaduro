@@ -90,7 +90,7 @@ class _PriceCard extends StatelessWidget {
                   Image.asset(AssetRes.icCoin, width: 28, height: 28),
                   const SizedBox(width: 8),
                   Text(
-                    '$price/min',
+                    LKey.callCostPerMin.trParams({'coins': '$price'}),
                     style: TextStyleCustom.outFitExtraBold800(
                       color: Colors.white,
                       fontSize: 32,
@@ -156,12 +156,12 @@ class _Tips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const tips = [
-      'El precio de llamada lo ajusta la plataforma según tu rendimiento.',
-      'Para cambiar el rango de precio, contacta a soporte o a tu agente.',
-      'Subir el precio puede aumentar tus ingresos, pero no lo hagas de golpe.',
-      'Si al subir el precio bajan las llamadas, restaura el precio anterior.',
-      'Prueba varios montos hasta equilibrar volumen de llamadas e ingresos.',
+    final tips = [
+      LKey.callPriceTip1.tr,
+      LKey.callPriceTip2.tr,
+      LKey.callPriceTip3.tr,
+      LKey.callPriceTip4.tr,
+      LKey.callPriceTip5.tr,
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +203,7 @@ class _Tips extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              'Rango A: precio dentro del límite A. Rango S: límite más amplio.',
+              LKey.callPriceTipRangeHint.tr,
               style: TextStyleCustom.outFitRegular400(
                 color: textLightGrey(context),
                 fontSize: 12,
@@ -355,7 +355,7 @@ class _PricePickerSheetState extends State<_PricePickerSheet> {
             ),
             const SizedBox(height: 18),
             Text(
-              '$_value/min',
+              LKey.callCostPerMin.trParams({'coins': '$_value'}),
               style: TextStyleCustom.outFitExtraBold800(
                 color: const Color(0xFF222222),
                 fontSize: 34,
@@ -424,7 +424,9 @@ class _PricePickerSheetState extends State<_PricePickerSheet> {
                                         ? OverflowBox(
                                             maxWidth: 64,
                                             child: Text(
-                                              '$v/min',
+                                              LKey.callCostPerMin.trParams(
+                                                {'coins': '$v'},
+                                              ),
                                               textAlign: TextAlign.center,
                                               style: TextStyleCustom
                                                   .outFitRegular400(

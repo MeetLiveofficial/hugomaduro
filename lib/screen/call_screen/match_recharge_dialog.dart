@@ -6,6 +6,7 @@ import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
@@ -120,7 +121,10 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
 
     if (!CoinGate.ensureEnough(
       tier.coins,
-      message: 'Necesitas ${tier.coins} coins para ${tier.minutes} min',
+          message: LKey.needCoinsForMinutes.trParams({
+            'coins': '${tier.coins}',
+            'minutes': '${tier.minutes}',
+          }),
     )) {
       return;
     }

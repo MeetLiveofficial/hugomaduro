@@ -49,8 +49,8 @@ class ExploreScreen extends StatelessWidget {
                           showShow: !isLoading && !hasData,
                           title: LKey.searchPageEmptyTitle.tr,
                           description: viewerIsStreamer
-                              ? 'No hay clientes con estos filtros'
-                              : 'No hay streamers con estos filtros',
+                              ? LKey.noClientsWithFilters
+                              : LKey.noStreamersWithFilters,
                           child: GridView.builder(
                             controller: controller.scrollController,
                             padding: const EdgeInsets.fromLTRB(10, 4, 10, 24),
@@ -119,7 +119,7 @@ class _ExploreHeader extends StatelessWidget {
                 color: textDarkGrey(context),
               ),
               decoration: BrandControls.search(
-                hint: 'Buscar usuarios',
+                hint: LKey.searchUsers.tr,
                 hintColor: textLightGrey(context),
                 prefix: const Icon(Icons.search,
                     color: ColorRes.crimson, size: 22),
@@ -130,7 +130,7 @@ class _ExploreHeader extends StatelessWidget {
                           controller.searchText.value.trim().isNotEmpty;
                   if (!hasFilter) return const SizedBox.shrink();
                   return IconButton(
-                    tooltip: 'Limpiar',
+                    tooltip: LKey.clearFilters.tr,
                     onPressed: controller.clearFilters,
                     icon: const Icon(Icons.close,
                         size: 18, color: ColorRes.crimson),
@@ -146,7 +146,7 @@ class _ExploreHeader extends StatelessWidget {
                   Expanded(
                     child: BrandSegmentChip(
                       compact: true,
-                      label: 'Todos',
+                      label: LKey.all.tr,
                       active: presence == 'all',
                       onTap: () => controller.selectPresence('all'),
                     ),
@@ -156,7 +156,7 @@ class _ExploreHeader extends StatelessWidget {
                     Expanded(
                       child: BrandSegmentChip(
                         compact: true,
-                        label: 'En vivo',
+                        label: LKey.liveBadge.tr,
                         active: presence == 'live',
                         accent: ColorRes.themeAccentSolid,
                         icon: Icons.videocam,
@@ -168,7 +168,7 @@ class _ExploreHeader extends StatelessWidget {
                   Expanded(
                     child: BrandSegmentChip(
                       compact: true,
-                      label: 'Activos',
+                      label: LKey.activeFilter.tr,
                       active: presence == 'active',
                       accent: const Color(0xFF22C55E),
                       icon: Icons.circle,
@@ -179,7 +179,8 @@ class _ExploreHeader extends StatelessWidget {
                   Expanded(
                     child: BrandFilterChip(
                       compact: true,
-                      label: controller.selectedCountryName.value ?? 'País',
+                      label: controller.selectedCountryName.value ??
+                          LKey.country.tr,
                       active: controller.selectedCountryCode.value != null,
                       icon: Icons.public,
                       onTap: () => _pickCountry(context, controller),
@@ -225,7 +226,7 @@ Future<void> _pickCountry(
               children: [
                 Expanded(
                   child: Text(
-                    'Filtrar por país',
+                    LKey.filterByCountry.tr,
                     style: TextStyleCustom.outFitSemiBold600(
                       color: textDarkGrey(context),
                       fontSize: 16,
@@ -234,7 +235,7 @@ Future<void> _pickCountry(
                 ),
                 TextButton(
                   onPressed: () => Get.back(result: '__clear__'),
-                  child: const Text('Todos'),
+                  child: Text(LKey.all.tr),
                 ),
               ],
             ),
@@ -446,7 +447,7 @@ class _StreamerExploreCard extends StatelessWidget {
                               color: Color(0xFF4ADE80), size: 8),
                           const SizedBox(width: 4),
                           Text(
-                            'Activo',
+                            LKey.statusActive.tr,
                             style: TextStyleCustom.outFitMedium500(
                               color: Colors.white,
                               fontSize: 10,
@@ -532,7 +533,7 @@ class _StreamerExploreCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.18),
                     shape: const CircleBorder(),
                     child: PopupMenuButton<String>(
-                      tooltip: 'Opciones',
+                      tooltip: LKey.options.tr,
                       color: ColorRes.whitePure,
                       padding: EdgeInsets.zero,
                       icon: const Icon(Icons.more_vert_rounded,
@@ -550,7 +551,7 @@ class _StreamerExploreCard extends StatelessWidget {
                                   color: ColorRes.textDarkGrey, size: 18),
                               const SizedBox(width: 10),
                               Text(
-                                'Chat',
+                                LKey.chat.tr,
                                 style: TextStyleCustom.outFitMedium500(
                                   color: ColorRes.textDarkGrey,
                                   fontSize: 14,
@@ -595,7 +596,7 @@ class _StreamerExploreCard extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
-                                  'Llamar',
+                                  LKey.callAction.tr,
                                   style: TextStyleCustom.outFitMedium500(
                                     color: canCall
                                         ? ColorRes.textDarkGrey

@@ -731,7 +731,7 @@ class _ActionButtons extends StatelessWidget {
                 Expanded(
                   child: TextButtonCustom(
                     onTap: () => Get.to(() => const MatchScreen()),
-                    title: 'Match',
+                    title: LKey.matchLabel.tr,
                     backgroundColor: ColorRes.coralRed,
                     titleColor: whitePure(context),
                     btnHeight: 36,

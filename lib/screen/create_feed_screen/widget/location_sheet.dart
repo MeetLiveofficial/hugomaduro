@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:get/get.dart';
+import 'package:krimson/languages/languages_keys.dart';
 
 class LocationErrorWidget extends StatelessWidget {
   final bool showError;
@@ -13,9 +15,9 @@ class LocationErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    return SizedBox(
       height: 80,
-      child: Center(child: Text('Location error')),
+      child: Center(child: Text(LKey.locationError.tr)),
     );
   }
 }

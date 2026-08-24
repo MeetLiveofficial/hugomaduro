@@ -128,7 +128,7 @@ Future<void> openLiveBattleSheet({
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
-                        'No hay rivales en LIVE disponibles.\nSolo aparecen hosts en transmisión y fuera de PK.',
+                        LKey.noRivalsInLive.tr,
                         textAlign: TextAlign.center,
                         style: TextStyleCustom.outFitRegular400(
                           color: textLightGrey(Get.context!),

@@ -66,7 +66,7 @@ class IncomingCallScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      isMatch ? 'Match' : LKey.incomingCall.tr,
+                      isMatch ? LKey.matchLabel.tr : LKey.incomingCall.tr,
                       style: TextStyleCustom.outFitRegular400(
                         color: whitePure(context).withValues(alpha: 0.75),
                         fontSize: 13,
@@ -171,7 +171,7 @@ class IncomingCallScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 28),
             Text(
-              call.isMatchSession ? 'Match' : LKey.incomingCall.tr,
+              call.isMatchSession ? LKey.matchLabel.tr : LKey.incomingCall.tr,
               style: TextStyleCustom.outFitRegular400(
                 color: whitePure(context).withValues(alpha: 0.75),
                 fontSize: 15,

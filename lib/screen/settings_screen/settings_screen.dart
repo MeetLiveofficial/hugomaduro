@@ -122,7 +122,7 @@ class SettingsScreen extends StatelessWidget {
                 SettingIconTextWithArrow(
                   icon: AssetRes.icHeart,
                   iconColor: ColorRes.crimsonAlt,
-                  title: 'Match',
+                  title: LKey.matchLabel,
                   onTap: () {
                     Get.to(() => const MatchScreen());
                   },

@@ -3,7 +3,8 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/guest_join_sheet.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 
-/// Perfil invitado: ve contenido, no puede match / chat / llamadas / comentarios / regalos.
+/// Cliente Guest (incógnito): mismos privilegios que un cliente normal.
+/// El sheet de unirse es opcional para vincular email, no un bloqueo.
 class GuestGate {
   GuestGate._();
 
@@ -13,12 +14,8 @@ class GuestGate {
 
   static bool get isAnonymous => (_user?.isAnonymous ?? 0) == 1;
 
-  /// true = acción bloqueada (el caller debe hacer return).
-  static bool block() {
-    if (!isAnonymous) return false;
-    showJoinSheet();
-    return true;
-  }
+  /// Ya no bloquea acciones: el Guest opera como cliente.
+  static bool block() => false;
 
   static void showJoinSheet() {
     if (_sheetOpen) return;

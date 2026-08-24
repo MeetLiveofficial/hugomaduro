@@ -1,0 +1,77 @@
+LKeys: 894
+es.csv rows: 884
+Admin keys missing before fill: 0
+
+=== LKeys without dedicated ES (fallback = English key) ===
+
+=== Admin keys still identity (English, not yet translated) ===
+  Actividad
+  Admin
+  Admob
+  Agencia
+  Agencia (worker)
+  Agencias
+  Android
+  Bio
+  Bonus
+  Bonus %
+  Bundle Id / Package Name
+  Calidad
+  Color
+  Crear Agencia
+  Cuentas Agency. Crean streamers afiliados como workers.
+  Dummy
+  Email
+  Favicon
+  Fecha
+  GIF, WebP, PNG, JPG, SVG o MP4.
+  GIPHY
+  Hashtag
+  Hashtags
+  Hoy
+  Link
+  Links
+  Llamadas
+  Margen regalos
+  Match Goddess (coins)
+  Match Grace Window (seconds)
+  Match Preview (seconds)
+  Match Random (coins)
+  Match Tier 1 (5 min)
+  Match Tier 2 (10 min)
+  Match Tier 3 (15 min)
+  Modo
+  Monedas
+  Motivo
+  Movimientos
+  Ninguna
+  Onboarding
+  Opcional
+  Pantalla completa
+  Pesos (%)
+  Posts
+  Rango
+  Rango streamer
+  Real/Dummy
+  Recalcular streamers
+  Reels
+  SVIP
+  Segundos / coins
+  SightEngine
+  Slug
+  Streamer
+  Streamer % B/C/NEW
+  Streamer % LIVE (A/S)
+  Team Id
+  Ticket
+  Total
+  Ventana y protecciones
+  Ver movimientos
+  Video
+  Videos
+  Workers
+  Workers (streamers afiliados)
+  Zego Cloud App ID
+  Zego Cloud App Sign
+  coins ingresados hoy
+  iOS

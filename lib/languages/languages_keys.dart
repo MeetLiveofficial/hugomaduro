@@ -83,12 +83,12 @@ class LKey {
   static const String enterHere = "Enter here..";
   static const String createAccount = "Create Account";
   static const String continueAsGuest = "Continue as Guest";
-  static const String joinToContinue = "Join to continue";
+  static const String joinToContinue = "Link your account";
   static const String joinToContinueDescription =
-      "Create an account to match, send messages, make calls, comment and send gifts.";
-  static const String joinNow = "Join now";
+      "You can keep using the app as Guest. Link an email if you want to recover this account later.";
+  static const String joinNow = "Link now";
   static const String guestAccountExpires =
-      "Guest accounts expire in 7 days.";
+      "Guest accounts do not expire. Same privileges as a regular client.";
   static const String enterFullName = "Enter Full Name";
   static const String livestreams = "LIVESTREAMS";
   static const String searchHere = "Search here..";
@@ -185,6 +185,7 @@ class LKey {
   static const String otherTraits = "More traits";
   static const String maxTraitsHint = "Choose up to @count";
   static const String ratingSaved = "Thanks for rating";
+  static const String rating = "Rating";
   static const String offlineBadge = "Off";
   static const String calling = "Calling…";
   static const String ringing = "Ringing…";
@@ -755,7 +756,15 @@ class LKey {
 
   // Streamer work dashboard
   static const String work = "Work";
-  static const String weeklyLevel = "Weekly level";
+  static const String weeklyLevel = "Nivel";
+  static const String streamerAverage = "Average";
+  static const String streamerAverageNeed =
+      "Necesitas @n puntos para llegar a @grade";
+  static const String avgCoins = "Monedas";
+  static const String avgCalls = "Llamadas";
+  static const String avgLive = "Conexión";
+  static const String avgActivity = "Actividad";
+  static const String avgQuality = "Calidad";
   static const String callGoalNotMet = "Call goal not met";
   static const String callGoalMet = "Call goal met";
   static const String detail = "Detail";
@@ -860,4 +869,219 @@ class LKey {
   static const String agencyLifetime = "Total";
   static const String agencyWalletHint =
       "10% of the App margin from your streamers";
+
+  // UI copy that was hardcoded (must go through .tr)
+  static const String addMore = "Add more";
+  static const String locationError = "Location error";
+  static const String kycCheckStatus = "I already finished — check status";
+  static const String retry = "Retry";
+  static const String enableCamera = "Turn on camera";
+  static const String withdrawMethod = "Withdrawal method";
+  static const String payoutAccount = "Payout account / wallet";
+  static const String battleEndedTitle = "Battle ended";
+  static const String noLeave = "No, leave";
+  static const String yesAnotherPk = "Yes, another PK";
+  static const String notNow = "Not now";
+  static const String payCardPseNequi = "Card / PSE / Nequi";
+  static const String payWompi = "Wompi · Colombia and International";
+  static const String cryptocurrencies = "Cryptocurrencies";
+  static const String usdtNowPayments = "USDT and more (NOWPayments)";
+  static const String inAppPurchase = "In-app purchase";
+  static const String updateNow = "Update";
+  static const String filterByCountry = "Filter by country";
+  static const String callAction = "Call";
+  static const String anotherPkSameRival =
+      "Do you want another PK with the same opponent?";
+  static const String timeUpAnotherPk = "Time's up. Want another PK?";
+  static const String wompiLocalChargeHint =
+      "The charge will be processed in local currency (COP) at the current exchange rate equivalent to \$@amount USD.";
+  static const String continueToPayment = "Continue to payment";
+  static const String rechargeHistory = "Recharge history";
+  static const String noRecharges = "No recharges";
+  static const String noRechargesDesc =
+      "Your coin purchases will appear here.";
+  static const String rechargeSourceAdmin = "Admin";
+  static const String rechargeSourceCrypto = "Crypto (NOWPayments)";
+  static const String rechargeSourceWompi = "Card (Wompi)";
+  static const String resumeLive = "Resume";
+  static const String pauseLive = "Pause";
+  static const String resumeLiveSubtitle = "Continue the stream";
+  static const String pauseLiveSubtitle = "Pause video temporarily";
+  static const String unmuteMic = "Unmute microphone";
+  static const String muteMic = "Mute microphone";
+  static const String micMutedSubtitle = "The mic is muted";
+  static const String micOpenSubtitle = "The mic is on";
+  static const String turnOffCamera = "Turn off camera";
+  static const String liveVideoControl = "Live video control";
+  static const String videoQuality = "Video quality";
+  static const String currentQuality = "Current: @quality";
+  static const String qualityLowMediumHigh = "Low / Medium / High";
+  static const String qualityHint =
+      "You start on Low. Raise it if your signal improves.";
+  static const String qualityLowHint = "180p · less data";
+  static const String qualityMediumHint = "360p · balanced";
+  static const String qualityHighHint = "720p · maximum quality";
+  static const String matchModeRandom = "Random";
+  static const String matchAnyClient = "Any client";
+  static const String matchAnyStreamer = "Any streamer";
+  static const String matchModeGoddess = "Goddess";
+  static const String matchTopRated = "Top rated";
+  static const String paymentMethod = "Payment method";
+  static const String coinsCount = "@count coins";
+  static const String noPaymentMethods = "No payment methods available.";
+  static const String appStorePlayStore = "App Store / Play Store";
+  static const String waitingCardPayment = "Waiting for your card payment…";
+  static const String waitingCryptoPayment = "Waiting for your crypto payment…";
+  static const String clickToMatch = "Tap to match";
+  static const String searchingMatch = "Looking for a match…";
+  static const String freeMatchesCount = "Free @used/@quota";
+  static const String membership = "Membership";
+  static const String myCoinsCount = "My coins: @coins";
+  static const String giftsSent = "gifts sent";
+  static const String liveTab = "LIVE";
+  static const String chat = "Chat";
+  static const String matchLabel = "Match";
+  static const String planInicial = "Starter";
+  static const String planBasico = "Basic";
+  static const String planPopular = "Popular";
+  static const String planPremium = "Premium";
+  static const String planVip = "VIP";
+  static const String planGrande = "Large";
+  static const String frameSilver = "Silver frame";
+  static const String frameGold = "Gold frame";
+  static const String frameDiamond = "Diamond frame";
+  static const String youAreSvip = "You are SVIP";
+  static const String searchingAnotherLive = "Looking for another LIVE…";
+  static const String hostDisconnectedSeeking =
+      "Host disconnected…\nLooking for another LIVE in @sec s";
+  static const String livePausedHostInCall = "LIVE paused · Host on a call";
+  static const String livePausedInCall = "LIVE paused · On a call";
+  static const String waitingForHost = "Waiting for host…";
+  static const String enablingCamera = "Turning camera on…";
+  static const String waitingForClient = "Waiting for a client…";
+  static const String tapToReceiveClients = "Tap to receive clients";
+  static const String waitingVideo = "Waiting for video…";
+  static const String unreadChats = "Unread chats";
+  static const String tapToReply = "Tap to reply…";
+  static const String noMoreMatchClients =
+      "No more clients in Match right now";
+  static const String noMoreMatchStreamers =
+      "No more streamers in Match right now";
+  static const String noGoddessInMatch =
+      "No Goddess in Match right now. Try Random.";
+  static const String noStreamersInMatch = "No streamers in Match right now";
+  static const String noClientsWithFilters = "No clients match these filters";
+  static const String noStreamersWithFilters =
+      "No streamers match these filters";
+  static const String needCoinsToSearchMatch =
+      "You need @coins coins to search Match";
+  static const String needCoinsForMatch = "You need @coins coins for Match";
+  static const String needCoinsForMinutes =
+      "You need @coins coins for @minutes min";
+  static const String coinsUsedToViewMatch =
+      "@count coins were used to view Match";
+  static const String yourBalanceCoins = "Your balance: @coins";
+  static const String statusActive = "Active";
+  static const String statusInactive = "Inactive";
+  static const String waitingForOtherUser = "Waiting for the other user…";
+  static const String tapToOpenCamera = "Tap to open the camera";
+  static const String tapToOpenCameraBrowser =
+      "Tap to open the camera (browser permission)";
+  static const String waitingCamera = "Waiting for camera…";
+  static const String noGiftsInCatalog = "No gifts in the catalog";
+  static const String noActiveGifts = "No active gifts";
+  static const String noIncentivizedGifts = "No incentivized gifts configured";
+  static const String noRivalsInLive =
+      "No LIVE rivals available.\nOnly hosts currently streaming and not in PK are shown.";
+  static const String noTasksForNow = "No tasks right now";
+  static const String noWithdrawalMethods = "No withdrawal methods enabled";
+  static const String confirmingPayment = "Confirming payment…";
+  static const String confirmingBlockchain = "Confirming on the blockchain…";
+  static const String partialPaymentDetected =
+      "Partial payment detected. Complete the amount.";
+  static const String paymentNotCompleted = "The payment was not completed.";
+  static const String gift = "Gift";
+  static const String taskCategoryLive = "LIVE";
+  static const String taskCategoryOther = "Other";
+  static const String tasksOnlyForStreamers =
+      "Tasks are only available for streamers.";
+  static const String withdrawalPointsProgress =
+      "Withdrawal points @current / @target pts";
+  static const String liveAndOtherPoints =
+      "LIVE: @live/@liveMax · Other: @other/@otherMax";
+  static const String todayLiveOtherGoal =
+      "Today LIVE @live + Other @other (goal @target)";
+  static const String tasksWorkHint =
+      "LIVE 120 pts + Other 30 pts = 150 to withdraw. Grade B/C: private call tasks.";
+  static const String callPriceTip1 =
+      "The platform sets your call price based on your performance.";
+  static const String callPriceTip2 =
+      "To change your price range, contact support or your agent.";
+  static const String callPriceTip3 =
+      "Raising the price can increase your income, but don't raise it all at once.";
+  static const String callPriceTip4 =
+      "If calls drop after a price increase, restore the previous price.";
+  static const String callPriceTip5 =
+      "Try several amounts until you balance call volume and income.";
+  static const String callPriceTipRangeHint =
+      "Rank A: price within the A limit. Rank S: a wider limit.";
+  static const String searchUsersEllipsis = "Search users…";
+  static const String durationMinutesAbbr = "@count m";
+  static const String durationSecondsAbbr = "@count s";
+  static const String durationMinSec = "@m m @s s";
+  static const String minutesUnit = "min";
+  static const String streamerAverageNeedOne =
+      "You need 1 point to reach @grade";
+  static const String liveTask1 = "LIVE Task 1";
+  static const String liveTask2 = "LIVE Task 2";
+  static const String liveTask3 = "LIVE Task 3";
+  static const String liveTask4 = "LIVE Task 4";
+  static const String liveMaxTask = "LIVE Max Task";
+  static const String liveTask1Desc = "60 min LIVE + coin meta 1";
+  static const String liveTask2Desc = "90 min LIVE + coin meta 2";
+  static const String liveTask3Desc = "120 min LIVE + coin meta 3";
+  static const String liveTask4Desc = "240 min LIVE + coin meta 4";
+  static const String liveMaxTaskDesc =
+      "150 min LIVE + max coin meta (auto-completes previous)";
+  static const String liveTasksCategory = "LIVE Tasks";
+  static const String otherActivitiesCategory = "Other Activities";
+  static const String privateCallTasksBc = "Private Call Tasks B/C";
+  static const String interactionsTask = "Interactions";
+  static const String interactionsTaskDesc =
+      "Complete 10 interactions (messages, likes, replies)";
+  static const String privateCall5MinTask = "Private call 5 min";
+  static const String privateCall5MinTaskDesc =
+      "Complete 1 private call of at least 5 billable minutes";
+  static const String dailyActivityTask = "Daily activity";
+  static const String dailyActivityTaskDesc =
+      "Publish a post or update your profile today";
+  static const String taskT01 = "T01 — 5 calls of 5 min";
+  static const String taskT01Desc =
+      "Complete 5 different billable calls of at least 5 minutes";
+  static const String taskT02 = "T02 — 10 Matches";
+  static const String taskT02Desc =
+      "Complete 10 Matches (full 20 free seconds)";
+  static const String taskT03 = "T03 — Gifts in 5 calls";
+  static const String taskT03Desc =
+      "Receive at least 1 gift in 5 different calls";
+  static const String taskT04 = "T04 — Publish story";
+  static const String taskT04Desc = "Publish 1 valid story";
+  static const String taskT05 = "T05 — Reply 10 messages";
+  static const String taskT05Desc = "Reply to 10 different received messages";
+  static const String taskT06 = "T06 — 20 min call";
+  static const String taskT06Desc =
+      "Complete 1 billable call of at least 20 minutes";
+  static const String taskT07 = "T07 — Gift coins";
+  static const String taskT07Desc = "Accumulate gift coins (placeholder meta)";
+  static const String taskT08 = "T08 — 6h online";
+  static const String taskT08Desc = "Accumulate 6 hours of valid connection";
+  static const String activeFilter = "Active users";
+  static const String clearFilters = "Clear";
+  static const String clientsOnlyMessages =
+      "With clients you can only send messages";
+  static const String streamerNotReceivingCalls =
+      "This streamer is not receiving calls now";
+  static const String liveNotAvailable = "LIVE is not available";
+  static const String enterMatchToWaitClients =
+      "Go to Match to open your camera and wait for clients";
 }

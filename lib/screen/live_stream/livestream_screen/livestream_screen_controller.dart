@@ -757,7 +757,7 @@ class LivestreamScreenController extends BaseController {
                 ),
               ),
               Text(
-                'Regalos recibidos',
+                LKey.giftsReceived.tr,
                 style: TextStyleCustom.unboundedSemiBold600(
                   color: Colors.black87,
                   fontSize: 16,
@@ -772,7 +772,7 @@ class LivestreamScreenController extends BaseController {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 28),
                       child: Text(
-                        'Aún no hay regalos',
+                        LKey.noGiftsYet.tr,
                         style: TextStyleCustom.outFitRegular400(
                           color: Colors.black54,
                           fontSize: 14,
@@ -818,10 +818,10 @@ class LivestreamScreenController extends BaseController {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
-                            '${s.giftCount} regalo${s.giftCount == 1 ? '' : 's'}',
+                            '${s.giftCount} ${LKey.gift.tr}',
                           ),
                           trailing: Text(
-                            '${s.totalCoins} coins',
+                            LKey.coinsCount.trParams({'count': '${s.totalCoins}'}),
                             style: TextStyleCustom.outFitMedium500(
                               color: ColorRes.themeAccentSolid,
                               fontSize: 14,
@@ -1208,9 +1208,9 @@ class LivestreamScreenController extends BaseController {
   }
 
   String qualityLabel(LiveKitQualityProfile p) => switch (p) {
-        LiveKitQualityProfile.low => 'Baja',
-        LiveKitQualityProfile.medium => 'Media',
-        LiveKitQualityProfile.high => 'Alta',
+        LiveKitQualityProfile.low => LKey.qualityLow.tr,
+        LiveKitQualityProfile.medium => LKey.qualityMedium.tr,
+        LiveKitQualityProfile.high => LKey.qualityHigh.tr,
       };
 
   Future<void> setLiveQuality(LiveKitQualityProfile profile) async {
@@ -1252,7 +1252,7 @@ class LivestreamScreenController extends BaseController {
                   ),
                 ),
                 Text(
-                  'Calidad de video',
+                  LKey.videoQuality.tr,
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.unboundedSemiBold600(
                     color: Colors.black87,
@@ -1261,7 +1261,7 @@ class LivestreamScreenController extends BaseController {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Entras en Baja. Súbela si tu señal mejora.',
+                  LKey.qualityHint.tr,
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.outFitRegular400(
                     color: Colors.black54,
@@ -1288,10 +1288,10 @@ class LivestreamScreenController extends BaseController {
                       title: Text(qualityLabel(p)),
                       subtitle: Text(
                         p == LiveKitQualityProfile.low
-                            ? '180p · menos datos'
+                            ? LKey.qualityLowHint.tr
                             : p == LiveKitQualityProfile.medium
-                                ? '360p · equilibrado'
-                                : '720p · máxima calidad',
+                                ? LKey.qualityMediumHint.tr
+                                : LKey.qualityHighHint.tr,
                       ),
                       trailing: current == p
                           ? const Icon(Icons.check_circle,
@@ -2135,8 +2135,8 @@ class LivestreamScreenController extends BaseController {
         : (SessionManager.instance.getSettings()?.gifts ?? []);
     if (gifts.isEmpty) {
       showSnackBar(configured.isEmpty
-          ? 'No hay regalos activos'
-          : 'No hay regalos incentivados configurados');
+          ? LKey.noActiveGifts.tr
+          : LKey.noIncentivizedGifts.tr);
       return;
     }
     await Get.bottomSheet(
@@ -2235,12 +2235,12 @@ class LivestreamScreenController extends BaseController {
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
-            child: Text('Cancelar',
+            child: Text(LKey.cancel.tr,
                 style: TextStyleCustom.outFitMedium500(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () => Get.back(result: true),
-            child: Text('Enviar',
+            child: Text(LKey.send.tr,
                 style: TextStyleCustom.outFitMedium500(
                     color: ColorRes.themeAccentSolid)),
           ),
@@ -2363,7 +2363,7 @@ class LivestreamScreenController extends BaseController {
         actions: [
           TextButton(
             onPressed: Get.back,
-            child: Text('Ahora no',
+            child: Text(LKey.notNow.tr,
                 style: TextStyleCustom.outFitMedium500(color: Colors.white54)),
           ),
           TextButton(
@@ -2379,7 +2379,7 @@ class LivestreamScreenController extends BaseController {
               openPrivateCall(skipConfirmSheet: true);
             },
             child: Text(
-              'Llamar',
+              LKey.callAction.tr,
               style: TextStyleCustom.outFitMedium500(
                 color: ColorRes.themeAccentSolid,
               ),
@@ -2441,9 +2441,7 @@ class LivestreamScreenController extends BaseController {
   Future<void> pauseLiveKitForCall() async {
     hostInCall.value = true;
     pausedForCall.value = true;
-    statusMessage.value = isHost
-        ? 'LIVE pausado · En llamada'
-        : 'LIVE pausado · En llamada';
+    statusMessage.value = LKey.livePausedInCall.tr;
     update();
     try {
       await liveKit?.disconnect(silent: true);
@@ -2938,20 +2936,20 @@ class LivestreamScreenController extends BaseController {
     try {
       final rematch = await Get.dialog<bool>(
         AlertDialog(
-          title: const Text('Batalla terminada'),
+          title: Text(LKey.battleEndedTitle.tr),
           content: Text(
             fromManualStop
-                ? '¿Quieres hacer otra PK con el mismo rival?'
-                : 'El tiempo terminó. ¿Quieres otra PK?',
+                ? LKey.anotherPkSameRival.tr
+                : LKey.timeUpAnotherPk.tr,
           ),
           actions: [
             TextButton(
               onPressed: () => Get.back(result: false),
-              child: const Text('No, salir'),
+              child: Text(LKey.noLeave.tr),
             ),
             TextButton(
               onPressed: () => Get.back(result: true),
-              child: const Text('Sí, otra PK'),
+              child: Text(LKey.yesAnotherPk.tr),
             ),
           ],
         ),

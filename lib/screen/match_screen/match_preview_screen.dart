@@ -12,6 +12,7 @@ import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
@@ -138,7 +139,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         forceReconnect: true,
       );
       if (!mounted || _closing) return;
-      setState(() => _status = 'Esperando cámara…');
+      setState(() => _status = LKey.waitingCamera.tr);
       for (var i = 0; i < 25; i++) {
         if (!mounted || _closing) return;
         final remotes = _lk?.remoteParticipants ?? [];
@@ -182,8 +183,8 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
       if (!mounted || _closing) return;
       setState(() => _busy = false);
       Get.snackbar(
-        'Match',
-        'No hay más streamers en Match ahora',
+        LKey.matchLabel.tr,
+        LKey.noMoreMatchStreamers.tr,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.black87,
         colorText: Colors.white,
@@ -249,7 +250,10 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
       onExtend: (MatchTier tier) async {
         if (!CoinGate.ensureEnough(
           tier.coins,
-          message: 'Necesitas ${tier.coins} coins para ${tier.minutes} min',
+          message: LKey.needCoinsForMinutes.trParams({
+            'coins': '${tier.coins}',
+            'minutes': '${tier.minutes}',
+          }),
         )) {
           return false;
         }

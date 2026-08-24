@@ -7,6 +7,7 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_web_video.dart';
 import 'package:krimson/utilities/asset_res.dart';
@@ -60,8 +61,8 @@ class MatchScreen extends StatelessWidget {
                                     Obx(() {
                                       final busy = c.isMatching.value;
                                       final text = busy
-                                          ? 'Buscando coincidencia…'
-                                          : 'Haga clic para hacer coincidir';
+                                          ? LKey.searchingMatch.tr
+                                          : LKey.clickToMatch.tr;
                                       return Padding(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 24),
@@ -215,17 +216,17 @@ class _CameraPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: Color(0xFF140E18),
+    return ColoredBox(
+      color: const Color(0xFF140E18),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.videocam_rounded, color: Colors.white54, size: 42),
-            SizedBox(height: 10),
+            const Icon(Icons.videocam_rounded, color: Colors.white54, size: 42),
+            const SizedBox(height: 10),
             Text(
-              'Activando cámara…',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+              LKey.enablingCamera.tr,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
           ],
         ),
@@ -292,7 +293,10 @@ class _TopBar extends StatelessWidget {
               final used = controller.freeMatchesUsed.value;
               final quota = controller.freeMatchesQuota.value;
               return Text(
-                'Gratis $used/$quota',
+                LKey.freeMatchesCount.trParams({
+                  'used': '$used',
+                  'quota': '$quota',
+                }),
                 style: TextStyleCustom.outFitMedium500(
                   color: Colors.white70,
                   fontSize: 12,
@@ -309,7 +313,7 @@ class _TopBar extends StatelessWidget {
                 Image.asset(AssetRes.icPro, width: 16, height: 16),
                 const SizedBox(width: 6),
                 Text(
-                  'Membresía',
+                  LKey.membership.tr,
                   style: TextStyleCustom.outFitMedium500(
                     color: const Color(0xFFE8D48B),
                     fontSize: 12,
@@ -474,10 +478,10 @@ class _StreamerMatchRadio extends StatelessWidget {
       child: Obx(() {
         final on = controller.inMatchPool.value;
         final camera = controller.waitCameraOn.value;
-        final title = on ? 'Match' : 'Match';
+        final title = LKey.matchLabel.tr;
         final subtitle = on
-            ? (camera ? 'Esperando cliente…' : 'Activando cámara…')
-            : 'Toca para recibir clientes';
+            ? (camera ? LKey.waitingForClient.tr : LKey.enablingCamera.tr)
+            : LKey.tapToReceiveClients.tr;
         return Material(
           color: on
               ? ColorRes.crimson.withValues(alpha: 0.42)
@@ -555,10 +559,10 @@ class _ModeRow extends StatelessWidget {
           children: [
             Expanded(
               child: _ModeCard(
-                title: 'Random',
+                title: LKey.matchModeRandom.tr,
                 subtitle: seekingClients
-                    ? 'Cualquier cliente'
-                    : 'Cualquier streamer',
+                    ? LKey.matchAnyClient.tr
+                    : LKey.matchAnyStreamer.tr,
                 coins: seekingClients ? null : controller.randomHintCost,
                 selected: selected == MatchSearchMode.random,
                 premium: false,
@@ -569,8 +573,8 @@ class _ModeRow extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _ModeCard(
-                  title: 'Goddess',
-                  subtitle: 'Las mejor valoradas',
+                  title: LKey.matchModeGoddess.tr,
+                  subtitle: LKey.matchTopRated.tr,
                   coins: controller.goddessHintCost,
                   selected: selected == MatchSearchMode.goddess,
                   premium: true,
@@ -668,7 +672,7 @@ class _ModeCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '$coins coins',
+                                LKey.coinsCount.trParams({'count': '$coins'}),
                                 style: TextStyleCustom.outFitSemiBold600(
                                   color: Colors.white,
                                   fontSize: 11,

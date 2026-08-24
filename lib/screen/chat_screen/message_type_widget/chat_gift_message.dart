@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/widget/gift_media.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/message_data.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_media_helpers.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -43,14 +45,14 @@ class ChatGiftMessage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Gift',
+                LKey.gift.tr,
                 style: TextStyleCustom.outFitMedium500(
                   color: textDarkGrey(context),
                   fontSize: 13,
                 ),
               ),
               Text(
-                '$coins coins',
+                LKey.coinsCount.trParams({'count': '$coins'}),
                 style: TextStyleCustom.outFitRegular400(
                   color: textLightGrey(context),
                   fontSize: 12,

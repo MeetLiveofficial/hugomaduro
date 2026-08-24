@@ -445,8 +445,12 @@ class _MetaRow extends StatelessWidget {
     if (total <= 0) return '';
     final m = total ~/ 60;
     final s = total % 60;
-    if (m <= 0) return '${s}s';
-    if (s <= 0) return '${m}m';
-    return '${m}m ${s}s';
+    if (m <= 0) {
+      return LKey.durationSecondsAbbr.trParams({'count': '$s'});
+    }
+    if (s <= 0) {
+      return LKey.durationMinutesAbbr.trParams({'count': '$m'});
+    }
+    return LKey.durationMinSec.trParams({'m': '$m', 's': '$s'});
   }
 }

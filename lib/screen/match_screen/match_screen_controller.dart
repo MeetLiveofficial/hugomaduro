@@ -375,7 +375,7 @@ class MatchScreenController extends BaseController
         cost > 0 &&
         !CoinGate.ensureEnough(
           cost,
-          message: 'Necesitas $cost coins para buscar Match',
+          message: LKey.needCoinsToSearchMatch.trParams({'coins': '$cost'}),
         )) {
       return;
     }
@@ -388,7 +388,7 @@ class MatchScreenController extends BaseController
           cost > 0 &&
           !CoinGate.ensureEnough(
             cost,
-            message: 'Necesitas $cost coins para buscar Match',
+            message: LKey.needCoinsToSearchMatch.trParams({'coins': '$cost'}),
           )) {
         return;
       }
@@ -400,7 +400,7 @@ class MatchScreenController extends BaseController
         refreshCoins();
       }
       if (unlock.charged > 0) {
-        showSnackBar('Se usaron ${unlock.charged} coins para ver Match');
+        showSnackBar(LKey.coinsUsedToViewMatch.trParams({'count': '${unlock.charged}'}));
       }
       final lang = (me?.appLanguage ?? '').trim().toLowerCase();
       final match = await CallService.instance.findMatch(
@@ -427,11 +427,11 @@ class MatchScreenController extends BaseController
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
       if (msg.toLowerCase().contains('insufficient')) {
-        CoinGate.ensureEnough(999999, message: 'Monedas insuficientes');
+        CoinGate.ensureEnough(999999, message: LKey.insufficientCoins.tr);
       } else if (msg.toLowerCase().contains('no match')) {
         showSnackBar(mode.value == MatchSearchMode.goddess
-            ? 'No hay Goddess en Match ahora. Prueba Random.'
-            : 'No hay streamers en Match ahora');
+            ? LKey.noGoddessInMatch.tr
+            : LKey.noStreamersInMatch.tr);
       } else {
         showSnackBar(msg);
       }

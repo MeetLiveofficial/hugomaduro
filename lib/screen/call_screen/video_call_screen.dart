@@ -73,7 +73,7 @@ class VideoCallScreen extends StatelessWidget {
                         Obx(() {
                           final match = controller.matchUi.value;
                           return Text(
-                            match ? 'Match' : LKey.videoCall.tr,
+                            match ? LKey.matchLabel.tr : LKey.videoCall.tr,
                             style: TextStyleCustom.outFitMedium500(
                                 color: Colors.white, fontSize: 16),
                           );
@@ -837,7 +837,7 @@ class VideoCallController extends BaseController {
             unawaited(hangUp(forcedByPeer: true));
           });
         } else if (liveKit.isConnected.value) {
-          status.value = 'Esperando al otro usuario...';
+          status.value = LKey.waitingForOtherUser.tr;
         }
       });
 
@@ -866,7 +866,7 @@ class VideoCallController extends BaseController {
         }
         _onMatchData(event.data);
       });
-      status.value = 'Esperando al otro usuario...';
+      status.value = LKey.waitingForOtherUser.tr;
       _startCommentPolling();
       unawaited(ChatTranslatorService.instance.preloadForUserLanguage());
       await _resolveAnchorAndStart();

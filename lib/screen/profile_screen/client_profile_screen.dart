@@ -46,11 +46,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       }
     });
     _refresh();
-    if (GuestGate.isAnonymous) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) GuestGate.showJoinSheet();
-      });
-    }
   }
 
   @override
@@ -192,7 +187,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 ),
                 _MenuTile(
                   icon: AssetRes.icGift,
-                  title: 'Historial de Recargas',
+                  title: LKey.rechargeHistory.tr,
                   onTap: () => Get.to(() => const RechargeHistoryScreen()),
                 ),
                 _MenuTile(

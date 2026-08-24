@@ -133,6 +133,9 @@ class AssetRes {
   static const String icRankFrame1 = '${icons}ic_rank_frame_1.png';
   static const String icRankFrame2 = '${icons}ic_rank_frame_2.png';
   static const String icRankFrame3 = '${icons}ic_rank_frame_3.png';
+  static const String icRankPodium1 = '${icons}ic_rank_podium_1.png';
+  static const String icRankPodium2 = '${icons}ic_rank_podium_2.png';
+  static const String icRankPodium3 = '${icons}ic_rank_podium_3.png';
   static const String icVideoRequest = '${icons}ic_video_request.png';
   static const String icPinned = '${icons}ic_pinned.png';
   static const String icPause = '${icons}ic_pause.png';
@@ -165,8 +168,8 @@ class AssetRes {
 
   static const List<String> weeklyStreamerGrades = [
     'NEW',
-    'C',
     'B',
+    'C',
     'A',
     'S',
   ];

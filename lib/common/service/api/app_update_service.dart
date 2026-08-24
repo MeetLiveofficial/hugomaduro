@@ -9,6 +9,7 @@ import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/api_service.dart';
 import 'package:krimson/common/service/utils/web_service.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -154,11 +155,11 @@ class AppUpdateService {
                   await markDismissed(result.latestVersion);
                   Get.back();
                 },
-                child: const Text('Más tarde'),
+                child: Text(LKey.later.tr),
               ),
             TextButton(
               onPressed: () => _openDownload(result.downloadUrl),
-              child: const Text('Actualizar'),
+              child: Text(LKey.updateNow.tr),
             ),
           ],
         ),

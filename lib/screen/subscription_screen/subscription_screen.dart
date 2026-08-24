@@ -97,7 +97,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   _Benefit(text: 'Ad-free experience'),
                   const SizedBox(height: 12),
                   Text(
-                    'Your balance: $wallet ${LKey.coins.tr}',
+                    LKey.yourBalanceCoins.trParams(
+                        {'coins': '$wallet ${LKey.coins.tr}'}),
                     style: TextStyleCustom.outFitRegular400(
                       color: textLightGrey(context),
                       fontSize: 13,

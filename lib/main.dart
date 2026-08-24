@@ -78,6 +78,7 @@ Future<void> main() async {
   if (!Get.isRegistered<DynamicTranslations>()) {
     Get.put(DynamicTranslations());
   }
+  Get.find<DynamicTranslations>().ensureAllFallbacks();
 
   // Pintar YA — no esperar Firebase/Ads (en BlueStacks Ads puede tumbar nativo).
   runApp(const RestartWidget(child: MyApp()));

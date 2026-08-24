@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 /// Renderiza el video de un [Participant] con [VideoTrackRenderer].
@@ -94,7 +96,7 @@ class LiveKitCallLayout extends StatelessWidget {
     final remoteHasVideo = firstVideoTrackOf(primaryRemote) != null;
     final localHasVideo = firstVideoTrackOf(local) != null;
     final waitingText = (statusText == null || statusText!.trim().isEmpty)
-        ? 'Esperando video…'
+        ? LKey.waitingVideo.tr
         : statusText!;
 
     return Stack(

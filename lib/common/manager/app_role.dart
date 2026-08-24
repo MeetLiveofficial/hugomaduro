@@ -49,7 +49,6 @@ class AppRole {
   /// Solo clientes envían regalos (chats, LIVE, llamadas).
   static bool canSendGifts([User? user]) {
     final u = user ?? SessionManager.instance.getUser();
-    if ((u?.isAnonymous ?? 0) == 1) return false;
     return isClient(u);
   }
 

@@ -20,6 +20,7 @@ import 'package:krimson/common/service/api/post_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/post_story/post_model.dart';
+import 'package:krimson/model/user_model/streamer_average.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/edit_profile_screen/edit_profile_screen.dart';
 import 'package:krimson/screen/post_screen/single_post_screen.dart';
@@ -28,6 +29,7 @@ import 'package:krimson/screen/profile_screen/widget/follow_list_controller.dart
 import 'package:krimson/screen/reels_screen/reels_screen.dart';
 import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
 import 'package:krimson/screen/settings_screen/settings_screen.dart';
+import 'package:krimson/screen/work_screen/work_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/language_display.dart';
@@ -367,41 +369,63 @@ class _InfoSheet extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: SafeArea(
           top: false,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16, 44, 16, extraBottom),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _IdentityBlock(user: user, controller: controller),
-                const SizedBox(height: 12),
-                _ImpressionCard(
-                  user: user,
-                  controller: controller,
-                  isMe: isMe,
-                ),
-                if ((user.bio ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    user.bio!.trim(),
-                    style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
+          bottom: extraBottom < 40,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 44, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _IdentityBlock(user: user, controller: controller),
+                      const SizedBox(height: 12),
+                      if (AppRole.isStreamer(user)) ...[
+                        if (user.streamerAverage != null) ...[
+                          _StreamerAvgCard(
+                            avg: user.streamerAverage!,
+                            showBars: isMe,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        _ImpressionCard(
+                          user: user,
+                          controller: controller,
+                          isMe: isMe,
+                        ),
+                      ],
+                      if ((user.bio ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          user.bio!.trim(),
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                      if ((user.levelTitle ?? '').trim().isNotEmpty ||
+                          (user.levelNumber ?? 0) > 0) ...[
+                        const SizedBox(height: 14),
+                        _LevelBar(user: user),
+                      ],
+                    ],
                   ),
-                ],
-                const SizedBox(height: 14),
-                _BottomActions(
-                  user: user,
-                  controller: controller,
-                  isMe: isMe,
                 ),
-                if ((user.levelTitle ?? '').trim().isNotEmpty ||
-                    (user.levelNumber ?? 0) > 0) ...[
-                  const SizedBox(height: 14),
-                  _LevelBar(user: user),
-                ],
-              ],
-            ),
+              ),
+              ColoredBox(
+                color: _sheet,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 10, 16, extraBottom),
+                  child: _BottomActions(
+                    user: user,
+                    controller: controller,
+                    isMe: isMe,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -905,6 +929,125 @@ double? _impressionAvg(User user) {
   return starred.fold<int>(0, (sum, q) => sum + q.stars) / starred.length;
 }
 
+class _StreamerAvgCard extends StatelessWidget {
+  const _StreamerAvgCard({required this.avg, required this.showBars});
+
+  final StreamerAverage avg;
+  final bool showBars;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                avg.avg.toStringAsFixed(0),
+                style: TextStyleCustom.unboundedSemiBold600(
+                  color: _callOrange,
+                  fontSize: 22,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${LKey.streamerAverage.tr} / 100',
+                    style: TextStyleCustom.outFitMedium500(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    '${LKey.weeklyLevel.tr} ${avg.grade}',
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (avg.nextGrade != null && avg.need > 0) ...[
+            const SizedBox(height: 6),
+            Text(
+              avg.need == 1
+                  ? LKey.streamerAverageNeedOne.trParams({
+                      'grade': avg.nextGrade!,
+                    })
+                  : LKey.streamerAverageNeed.trParams({
+                      'n': '${avg.need}',
+                      'grade': avg.nextGrade!,
+                    }),
+              style: TextStyleCustom.outFitRegular400(
+                color: Colors.white54,
+                fontSize: 11,
+              ),
+            ),
+          ],
+          if (showBars) ...[
+            const SizedBox(height: 10),
+            for (final row in [
+              (LKey.avgCoins.tr, avg.coins),
+              (LKey.avgCalls.tr, avg.calls),
+              (LKey.avgLive.tr, avg.live),
+              (LKey.avgActivity.tr, avg.interaction),
+              (LKey.avgQuality.tr, avg.quality),
+            ]) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 78,
+                      child: Text(
+                        row.$1,
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white54,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: (row.$2 / 100).clamp(0.02, 1),
+                          minHeight: 5,
+                          backgroundColor: Colors.white12,
+                          valueColor:
+                              const AlwaysStoppedAnimation(_callOrange),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${row.$2}',
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: Colors.white,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ImpressionCard extends StatelessWidget {
   final User user;
   final ProfileScreenController controller;
@@ -916,10 +1059,7 @@ class _ImpressionCard extends StatelessWidget {
     required this.isMe,
   });
 
-  bool get _canRate =>
-      !isMe &&
-      AppRole.isClient() &&
-      (SessionManager.instance.getUser()?.isAnonymousUser ?? false) == false;
+  bool get _canRate => !isMe && AppRole.isClient();
 
   @override
   Widget build(BuildContext context) {
@@ -986,7 +1126,7 @@ class _ImpressionCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Rating',
+                            LKey.rating.tr,
                             style: TextStyleCustom.outFitMedium500(
                               color: Colors.white70,
                               fontSize: 12,
@@ -1522,27 +1662,53 @@ class _BottomActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isMe) {
-      return Material(
-        color: const Color(0xFF2A2A30),
-        borderRadius: BorderRadius.circular(28),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: () => Get.to(() => EditProfileScreen(
-                onUpdateUser: controller.onUpdateUser,
-              )),
-          child: SizedBox(
-            height: 52,
-            child: Center(
-              child: Text(
-                LKey.editProfile.tr,
-                style: TextStyleCustom.outFitSemiBold600(
-                  color: Colors.white,
-                  fontSize: 16,
+      return Row(
+        children: [
+          if (AppRole.isStreamer(user)) ...[
+            Material(
+              color: const Color(0xFF2A2A30),
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => Get.to(() => const WorkScreen()),
+                child: const SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Icon(
+                    Icons.work_outline_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: Material(
+              color: const Color(0xFF2A2A30),
+              borderRadius: BorderRadius.circular(28),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(28),
+                onTap: () => Get.to(() => EditProfileScreen(
+                      onUpdateUser: controller.onUpdateUser,
+                    )),
+                child: SizedBox(
+                  height: 52,
+                  child: Center(
+                    child: Text(
+                      LKey.editProfile.tr,
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       );
     }
 

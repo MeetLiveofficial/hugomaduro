@@ -28,7 +28,7 @@ class TasksScreen extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'Las tareas solo están disponibles para streamers.',
+                    LKey.tasksOnlyForStreamers.tr,
                     textAlign: TextAlign.center,
                     style: TextStyleCustom.outFitMedium500(
                       color: textDarkGrey(context),
@@ -210,7 +210,10 @@ class _PointsHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Puntos para retiro ${b.combinedPoints} / ${b.targetTotal} pts',
+              LKey.withdrawalPointsProgress.trParams({
+                'current': '${b.combinedPoints}',
+                'target': '${b.targetTotal}',
+              }),
               style: TextStyleCustom.outFitBold700(
                 color: textDarkGrey(context),
                 fontSize: 16,
@@ -218,7 +221,12 @@ class _PointsHeader extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'LIVE: ${b.livePoints}/${b.liveMax}  ·  Otras: ${b.otherPoints}/${b.otherMax}',
+              LKey.liveAndOtherPoints.trParams({
+                'live': '${b.livePoints}',
+                'liveMax': '${b.liveMax}',
+                'other': '${b.otherPoints}',
+                'otherMax': '${b.otherMax}',
+              }),
               style: TextStyleCustom.outFitMedium500(
                 color: textLightGrey(context),
                 fontSize: 13,
@@ -283,7 +291,11 @@ class _EligibilityBanner extends StatelessWidget {
             if (livePts != null || otherPts != null) ...[
               const SizedBox(height: 4),
               Text(
-                'Hoy LIVE ${livePts ?? 0} + Otras ${otherPts ?? 0} (meta $target)',
+                LKey.todayLiveOtherGoal.trParams({
+                  'live': '${livePts ?? 0}',
+                  'other': '${otherPts ?? 0}',
+                  'target': '$target',
+                }),
                 style: TextStyleCustom.outFitRegular400(
                   color: textLightGrey(context),
                   fontSize: 12,
@@ -481,7 +493,7 @@ class _DualMetrics extends StatelessWidget {
         _LabeledBar(
           icon: Icons.schedule_rounded,
           label: LKey.liveMinutesLabel.tr,
-          value: '${task.progressMinutes}/${r.minutes} min',
+          value: '${task.progressMinutes}/${r.minutes} ${LKey.minutesUnit.tr}',
           ratio: minRatio,
           color: themeAccentSolid(context),
         ),

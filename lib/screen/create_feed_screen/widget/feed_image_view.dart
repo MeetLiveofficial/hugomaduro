@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/create_feed_screen/create_feed_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -103,7 +104,7 @@ class FeedImageView extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: () => controller.onMediaTap(FeedPostType.image),
                 icon: const Icon(Icons.add_photo_alternate_outlined),
-                label: const Text('Add more'),
+                label: Text(LKey.addMore.tr),
               ),
             ),
         ],
