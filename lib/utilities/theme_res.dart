@@ -7,7 +7,7 @@ class ThemeRes {
 
   static ThemeData lightTheme(BuildContext context) {
     return ThemeData(
-      scaffoldBackgroundColor: ColorRes.whitePure,
+      scaffoldBackgroundColor: ColorRes.bgLightGrey,
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: ColorRes.whitePure),
       appBarTheme: const AppBarTheme(backgroundColor: ColorRes.bgLightGrey),

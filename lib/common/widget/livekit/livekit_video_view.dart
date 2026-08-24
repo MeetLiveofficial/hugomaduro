@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 /// Renderiza el video de un [Participant] con [VideoTrackRenderer].
@@ -63,28 +66,38 @@ class LiveKitParticipantVideo extends StatelessWidget {
   }
 }
 
-/// Layout típico de llamada: remoto a pantalla completa + local en PiP.
+/// Llamada 1:1: el **otro** va a pantalla completa y **tú** en miniatura.
+/// Cliente: streamer grande, cliente en PiP. Streamer: cliente grande, streamer en PiP.
 class LiveKitCallLayout extends StatelessWidget {
   const LiveKitCallLayout({
     super.key,
     required this.local,
     required this.remotes,
     this.statusText,
+    this.remotePhotoUrl,
+    this.remoteName,
+    this.localPhotoUrl,
+    this.localName,
   });
 
   final LocalParticipant? local;
   final List<RemoteParticipant> remotes;
   final String? statusText;
+  final String? remotePhotoUrl;
+  final String? remoteName;
+  final String? localPhotoUrl;
+  final String? localName;
+
+  static const _pipSize = Size(110, 160);
 
   @override
   Widget build(BuildContext context) {
     final primaryRemote = remotes.isNotEmpty ? remotes.first : null;
-    // En Web, VideoTrackRenderer (HtmlElementView) se pinta ENCIMA de Flutter
-    // y tapa botones/cronómetro. En emulador a veces el SurfaceView hace lo mismo.
-    final allowRenderer = !kIsWeb;
-    final remoteHasVideo =
-        allowRenderer && firstVideoTrackOf(primaryRemote) != null;
-    final localHasVideo = allowRenderer && firstVideoTrackOf(local) != null;
+    final remoteHasVideo = firstVideoTrackOf(primaryRemote) != null;
+    final localHasVideo = firstVideoTrackOf(local) != null;
+    final waitingText = (statusText == null || statusText!.trim().isEmpty)
+        ? LKey.waitingVideo.tr
+        : statusText!;
 
     return Stack(
       fit: StackFit.expand,
@@ -95,46 +108,43 @@ class LiveKitCallLayout extends StatelessWidget {
             forcePortraitUpright: false,
           )
         else
-          ColoredBox(
-            color: const Color(0xFF140E18),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  statusText ??
-                      (kIsWeb
-                          ? 'Llamada activa. El video va por la APP, no por el navegador.'
-                          : 'Esperando video…'),
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
+          _CallWaitingPhoto(
+            imageUrl: remotePhotoUrl,
+            name: remoteName,
+            overlayText: waitingText,
           ),
         Positioned(
           right: 16,
           top: 16,
-          width: 110,
-          height: 160,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: localHasVideo
-                ? LiveKitParticipantVideo(
-                    participant: local,
-                    mirror: true,
-                    forcePortraitUpright: false,
-                    placeholder: const ColoredBox(color: Colors.black54),
-                  )
-                : const ColoredBox(
-                    color: Colors.black54,
-                    child: Center(
-                      child: Icon(Icons.person, color: Colors.white38, size: 36),
+          width: _pipSize.width,
+          height: _pipSize.height,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: kIsWeb ? Clip.none : Clip.antiAlias,
+              child: (localHasVideo && !kIsWeb)
+                  ? LiveKitParticipantVideo(
+                      participant: local,
+                      mirror: true,
+                      forcePortraitUpright: false,
+                      placeholder: _CallWaitingPhoto(
+                        imageUrl: localPhotoUrl,
+                        name: localName,
+                      ),
+                    )
+                  : _CallWaitingPhoto(
+                      imageUrl: localPhotoUrl,
+                      name: localName,
                     ),
-                  ),
+            ),
           ),
         ),
-        // Remotos adicionales en franja inferior
-        if (allowRenderer && remotes.length > 1)
+        if (!kIsWeb && remotes.length > 1)
           Positioned(
             left: 8,
             right: 8,
@@ -157,6 +167,71 @@ class LiveKitCallLayout extends StatelessWidget {
               },
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// Foto de perfil a pantalla completa mientras no hay video (esperando conexión).
+class _CallWaitingPhoto extends StatelessWidget {
+  const _CallWaitingPhoto({
+    this.imageUrl,
+    this.name,
+    this.overlayText,
+  });
+
+  final String? imageUrl;
+  final String? name;
+  final String? overlayText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(
+          color: const Color(0xFF140E18),
+          child: CustomImage(
+            size: const Size(double.infinity, double.infinity),
+            image: imageUrl,
+            radius: 0,
+            fit: BoxFit.cover,
+            isShowPlaceHolder: true,
+            fullName: name,
+          ),
+        ),
+        if (overlayText != null && overlayText!.trim().isNotEmpty) ...[
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x66000000),
+                  Color(0x33000000),
+                  Color(0x99000000),
+                ],
+              ),
+            ),
+          ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                overlayText!,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  shadows: [
+                    Shadow(color: Colors.black54, blurRadius: 8),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

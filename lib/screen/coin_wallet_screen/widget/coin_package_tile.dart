@@ -4,6 +4,7 @@ import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/languages/catalog_i18n.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
@@ -55,7 +56,7 @@ class CoinPackageTile extends StatelessWidget {
               children: [
                 if ((plan.name ?? '').isNotEmpty)
                   Text(
-                    plan.name!,
+                    CatalogI18n.packageName(plan.name),
                     style: TextStyleCustom.outFitMedium500(
                       color: textDarkGrey(context),
                       fontSize: 12,
@@ -77,8 +78,8 @@ class CoinPackageTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   hasBonus
-                      ? '${plan.baseCoins.numberFormat} + ${plan.bonusPercent.toStringAsFixed(0)}% (${plan.bonusCoins.numberFormat}) · ${plan.priceString}'
-                      : plan.priceString,
+                      ? '${plan.baseCoins.numberFormat} + ${plan.bonusPercent.toStringAsFixed(0)}% (${plan.bonusCoins.numberFormat}) · ${plan.usdLabel}'
+                      : plan.usdLabel,
                   style: TextStyleCustom.outFitRegular400(
                     color: textLightGrey(context),
                     fontSize: 12,

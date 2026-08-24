@@ -37,11 +37,11 @@ class CustomPopupMenuButton extends StatelessWidget {
       surfaceTintColor: ColorRes.whitePure,
       offset: offset ?? Offset.zero,
       color: color ?? ColorRes.whitePure,
-      shadowColor: ColorRes.coralRed.withValues(alpha: 0.2),
+      shadowColor: ColorRes.crimson.withValues(alpha: 0.28),
       position: PopupMenuPosition.under,
       popUpAnimationStyle: const AnimationStyle(curve: Curves.easeOutCubic),
       shape: SmoothRectangleBorder(
-        side: const BorderSide(color: ColorRes.bgGrey),
+        side: const BorderSide(color: ColorRes.menuBorder),
         borderRadius: const SmoothBorderRadius.all(
             SmoothRadius(cornerRadius: 10, cornerSmoothing: 1)),
       ),

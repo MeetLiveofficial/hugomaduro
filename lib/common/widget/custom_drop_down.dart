@@ -35,7 +35,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fieldBg = bgColor ?? ColorRes.whitePure;
+    final fieldBg = bgColor ?? ColorRes.menuSelected;
     return Container(
       height: height,
       width: width,
@@ -43,9 +43,16 @@ class CustomDropDownBtn<T> extends StatelessWidget {
       decoration: ShapeDecoration(
         color: fieldBg,
         shape: SmoothRectangleBorder(
-          borderRadius: SmoothBorderRadius(cornerRadius: 8, cornerSmoothing: 1),
-          side: const BorderSide(color: ColorRes.bgGrey, width: 1),
+          borderRadius: SmoothBorderRadius(cornerRadius: 12, cornerSmoothing: 1),
+          side: const BorderSide(color: ColorRes.roseBorder, width: 1),
         ),
+        shadows: [
+          BoxShadow(
+            color: ColorRes.crimson.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       alignment: Alignment.center,
       child: DropdownButton<T>(
@@ -56,7 +63,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
               AssetRes.icDownArrow_1,
               width: 23,
               height: 20,
-              color: ColorRes.textDarkGrey,
+              color: ColorRes.crimson,
             )),
         dropdownColor: ColorRes.whitePure,
         style: TextStyleCustom.outFitRegular400(
@@ -77,7 +84,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
               getTitle(item),
               style: TextStyleCustom.outFitRegular400(
                 color: selected
-                    ? ColorRes.coralRed
+                    ? ColorRes.crimson
                     : ColorRes.textDarkGrey,
                 fontSize: 15,
               ),

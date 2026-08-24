@@ -173,7 +173,10 @@ class FirebaseNotificationManager {
         return;
       } else if (type == 'call_ended') {
         final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
-        VideoCallController.handleRemoteEnded(id);
+        VideoCallController.handleRemoteEnded(
+          id,
+          endedReason: message.data['ended_reason']?.toString(),
+        );
         return;
       } else if (type == 'match_extension_modal') {
         final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
@@ -281,7 +284,10 @@ class FirebaseNotificationManager {
     }
     if (dataType == 'call_ended') {
       final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
-      VideoCallController.handleRemoteEnded(id);
+      VideoCallController.handleRemoteEnded(
+        id,
+        endedReason: message.data['ended_reason']?.toString(),
+      );
       return;
     }
     if (dataType == 'match_extension_modal') {

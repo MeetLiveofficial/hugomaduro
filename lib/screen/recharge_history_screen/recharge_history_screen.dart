@@ -27,7 +27,7 @@ class RechargeHistoryScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          const CustomAppBar(title: 'Historial de Recargas'),
+          CustomAppBar(title: LKey.rechargeHistory.tr),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value && controller.items.isEmpty) {
@@ -36,8 +36,8 @@ class RechargeHistoryScreen extends StatelessWidget {
               return NoDataView(
                 showShow:
                     !controller.isLoading.value && controller.items.isEmpty,
-                title: 'Sin recargas',
-                description: 'Tus compras de monedas aparecerán aquí.',
+                title: LKey.noRecharges.tr,
+                description: LKey.noRechargesDesc.tr,
                 child: ListView.builder(
                   itemCount: controller.items.length,
                   padding: const EdgeInsets.only(top: 1, bottom: 24),
@@ -67,12 +67,12 @@ class RechargeHistoryScreen extends StatelessWidget {
                                 Text(
                                   item.note ??
                                       (item.source == 'admin'
-                                          ? 'Admin'
+                                          ? LKey.rechargeSourceAdmin.tr
                                           : item.source == 'crypto'
-                                              ? 'Crypto (NOWPayments)'
+                                              ? LKey.rechargeSourceCrypto.tr
                                               : item.source == 'wompi'
-                                                  ? 'Tarjeta (Wompi)'
-                                                  : 'In-app purchase'),
+                                                  ? LKey.rechargeSourceWompi.tr
+                                                  : LKey.inAppPurchase.tr),
                                   style: TextStyleCustom.outFitRegular400(
                                     color: textLightGrey(context),
                                     fontSize: 12,

@@ -135,9 +135,7 @@ class _Header extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      current?.title?.isNotEmpty == true
-                          ? current!.title!
-                          : '${LKey.level.tr} ${current?.level ?? 1}',
+                      '${LKey.level.tr} ${current?.level ?? 1}',
                       style: TextStyleCustom.outFitSemiBold600(
                         fontSize: 13,
                         color: Colors.white,

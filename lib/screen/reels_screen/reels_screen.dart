@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/my_refresh_indicator.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -15,6 +16,7 @@ import 'package:krimson/screen/reels_screen/reels_screen_controller.dart';
 import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
 import 'package:krimson/screen/reels_screen/widget/reels_text_field.dart';
 import 'package:krimson/screen/reels_screen/widget/reels_top_bar.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/theme_res.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -81,10 +83,11 @@ class _ReelsScreenState extends State<ReelsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: blackPure(context),
+      backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: [
+          const BrandWashBg(),
           Column(
             children: [
               Expanded(
@@ -103,10 +106,10 @@ class _ReelsScreenState extends State<ReelsScreen> {
                               if (controller.reels.isEmpty)
                                 widget.isLoading?.value == true
                                     ? Shimmer.fromColors(
-                                        baseColor: Colors.black,
-                                        highlightColor: const Color(0x00404040),
+                                        baseColor: ColorRes.crimson,
+                                        highlightColor: ColorRes.mlPurple,
                                         child: Container(
-                                          color: whitePure(context),
+                                          color: ColorRes.whitePure,
                                           width: double.infinity,
                                           height: double.infinity,
                                         ),

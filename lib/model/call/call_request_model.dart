@@ -4,6 +4,8 @@ class CallRequestModel {
     this.callerId,
     this.calleeId,
     this.coinsCost = 0,
+    this.billedMinutes = 0,
+    this.billedCoins = 0,
     this.userLevel = 1,
     this.status,
     this.matchPhase,
@@ -17,9 +19,11 @@ class CallRequestModel {
     this.secondsLeft = 0,
     this.graceSecondsLeft = 0,
     this.endedAt,
+    this.endedReason,
     this.createdAt,
     this.caller,
     this.callee,
+    this.myCoinWallet,
   });
 
   factory CallRequestModel.fromJson(Map<String, dynamic> json) {
@@ -43,6 +47,12 @@ class CallRequestModel {
       coinsCost: json['coins_cost'] is num
           ? (json['coins_cost'] as num).toInt()
           : int.tryParse('${json['coins_cost'] ?? 0}') ?? 0,
+      billedMinutes: json['billed_minutes'] is num
+          ? (json['billed_minutes'] as num).toInt()
+          : int.tryParse('${json['billed_minutes'] ?? 0}') ?? 0,
+      billedCoins: json['billed_coins'] is num
+          ? (json['billed_coins'] as num).toInt()
+          : int.tryParse('${json['billed_coins'] ?? 0}') ?? 0,
       userLevel: json['user_level'] is num
           ? (json['user_level'] as num).toInt()
           : int.tryParse('${json['user_level'] ?? 1}') ?? 1,
@@ -64,6 +74,7 @@ class CallRequestModel {
           ? (json['grace_seconds_left'] as num).toInt()
           : int.tryParse('${json['grace_seconds_left'] ?? 0}') ?? 0,
       endedAt: json['ended_at']?.toString(),
+      endedReason: json['ended_reason']?.toString(),
       createdAt: json['created_at']?.toString(),
       caller: json['caller'] is Map
           ? CallParty.fromJson(Map<String, dynamic>.from(json['caller']))
@@ -71,6 +82,9 @@ class CallRequestModel {
       callee: json['callee'] is Map
           ? CallParty.fromJson(Map<String, dynamic>.from(json['callee']))
           : null,
+      myCoinWallet: json['my_coin_wallet'] is num
+          ? (json['my_coin_wallet'] as num).toInt()
+          : int.tryParse('${json['my_coin_wallet'] ?? ''}'),
     );
   }
 
@@ -85,6 +99,8 @@ class CallRequestModel {
   final int? callerId;
   final int? calleeId;
   final int coinsCost;
+  final int billedMinutes;
+  final int billedCoins;
   final int userLevel;
   final String? status;
   final String? matchPhase;
@@ -99,9 +115,11 @@ class CallRequestModel {
   final int secondsLeft;
   final int graceSecondsLeft;
   final String? endedAt;
+  final String? endedReason;
   final String? createdAt;
   final CallParty? caller;
   final CallParty? callee;
+  final int? myCoinWallet;
 
   bool get isPending =>
       (status ?? '').toLowerCase().trim() == 'pending';
@@ -122,11 +140,16 @@ class CallRequestModel {
       matchSeconds > 0 ||
       (roomId ?? '').toLowerCase().startsWith('match');
 
+  bool get endedForInsufficientCoins =>
+      (endedReason ?? '').toLowerCase().trim() == 'insufficient_coins';
+
   CallRequestModel copyWith({
     int? id,
     int? callerId,
     int? calleeId,
     int? coinsCost,
+    int? billedMinutes,
+    int? billedCoins,
     int? userLevel,
     String? status,
     String? matchPhase,
@@ -140,15 +163,19 @@ class CallRequestModel {
     int? secondsLeft,
     int? graceSecondsLeft,
     String? endedAt,
+    String? endedReason,
     String? createdAt,
     CallParty? caller,
     CallParty? callee,
+    int? myCoinWallet,
   }) {
     return CallRequestModel(
       id: id ?? this.id,
       callerId: callerId ?? this.callerId,
       calleeId: calleeId ?? this.calleeId,
       coinsCost: coinsCost ?? this.coinsCost,
+      billedMinutes: billedMinutes ?? this.billedMinutes,
+      billedCoins: billedCoins ?? this.billedCoins,
       userLevel: userLevel ?? this.userLevel,
       status: status ?? this.status,
       matchPhase: matchPhase ?? this.matchPhase,
@@ -162,9 +189,11 @@ class CallRequestModel {
       secondsLeft: secondsLeft ?? this.secondsLeft,
       graceSecondsLeft: graceSecondsLeft ?? this.graceSecondsLeft,
       endedAt: endedAt ?? this.endedAt,
+      endedReason: endedReason ?? this.endedReason,
       createdAt: createdAt ?? this.createdAt,
       caller: caller ?? this.caller,
       callee: callee ?? this.callee,
+      myCoinWallet: myCoinWallet ?? this.myCoinWallet,
     );
   }
 }

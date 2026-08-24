@@ -27,6 +27,9 @@ class CustomImage extends StatelessWidget {
   /// When set (e.g. gift GIFs), uses [CachedNetworkImage] even on web
   /// so images persist in disk cache instead of reloading every open.
   final BaseCacheManager? cacheManager;
+  /// En grids Web, HTML &lt;img&gt; (prefer) reutiliza el mismo frame y
+  /// pinta la misma foto en varias celdas. Desactivar para portadas LIVE.
+  final bool webPreferHtmlElement;
 
   const CustomImage({
     super.key,
@@ -44,6 +47,7 @@ class CustomImage extends StatelessWidget {
     this.isStokeOutSide = true,
     this.placeHolderImage,
     this.cacheManager,
+    this.webPreferHtmlElement = true,
   });
 
   @override
@@ -77,6 +81,7 @@ class CustomImage extends StatelessWidget {
             isStokeOutSide: isStokeOutSide,
             placeHolderImage: placeHolderImage,
             cacheManager: cacheManager,
+            webPreferHtmlElement: webPreferHtmlElement,
           );
         },
       );
@@ -104,6 +109,7 @@ class CustomImage extends StatelessWidget {
             fullName: fullName,
             placeHolderImage: placeHolderImage,
             cacheManager: cacheManager,
+            webPreferHtmlElement: webPreferHtmlElement,
           );
 
     // On web, ClipSmoothRect rasterizes children and breaks HTML <img>
@@ -168,6 +174,7 @@ class _NetworkImage extends StatelessWidget {
   final String? fullName;
   final String? placeHolderImage;
   final BaseCacheManager? cacheManager;
+  final bool webPreferHtmlElement;
 
   const _NetworkImage({
     required this.imageUrl,
@@ -180,6 +187,7 @@ class _NetworkImage extends StatelessWidget {
     this.fullName,
     this.placeHolderImage,
     this.cacheManager,
+    this.webPreferHtmlElement = true,
   });
 
   Widget _error(BuildContext context) => ImageErrorWidget(
@@ -246,11 +254,14 @@ class _NetworkImage extends StatelessWidget {
     return SizedBox.expand(
       child: Image.network(
         imageUrl,
+        key: ValueKey(imageUrl),
         fit: fit,
         width: w,
         height: h,
-        gaplessPlayback: true,
-        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+        gaplessPlayback: false,
+        webHtmlElementStrategy: webPreferHtmlElement
+            ? WebHtmlElementStrategy.prefer
+            : WebHtmlElementStrategy.never,
         errorBuilder: (context, error, stackTrace) => _error(context),
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) {
@@ -310,10 +321,9 @@ class ImageErrorWidget extends StatelessWidget {
                 (fullName?[0] ?? AppRes.appName[0]).toUpperCase(),
                 style: TextStyleCustom.unboundedMedium500(
                     fontSize: size.height.isFinite && size.height > 0
-                        ? size.height / 2
+                        ? (size.height / 2.4).clamp(16.0, 36.0)
                         : 20,
-                    color: whitePure(context),
-                    opacity: 0.4),
+                    color: whitePure(context)),
               ),
       ),
     );

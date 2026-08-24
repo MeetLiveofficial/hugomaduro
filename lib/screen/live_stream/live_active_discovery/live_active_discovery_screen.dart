@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
 import 'package:krimson/common/widget/podium_icon.dart';
@@ -23,17 +24,19 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(LiveActiveDiscoveryController());
-    const bg = ColorRes.bgVoid;
-
     return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const BrandWashBg(),
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
             // Header estilo referencia Live
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 6),
+              padding: const EdgeInsets.fromLTRB(16, 10, 12, 6),
               child: Row(
                 children: [
                   // Ranking — podio flat (sin círculo / trofeo)
@@ -101,7 +104,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                       fontSize: 15,
                     ),
                     filled: true,
-                    fillColor: ColorRes.surfaceDeep,
+                    fillColor: Colors.white.withValues(alpha: 0.18),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
                     prefixIcon: const Icon(Icons.search,
@@ -161,7 +164,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                             child: Text(
                               LKey.refresh.tr,
                               style: TextStyleCustom.outFitMedium500(
-                                color: ColorRes.themeAccentSolid,
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -173,7 +176,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
 
                 return RefreshIndicator(
                   color: ColorRes.themeAccentSolid,
-                  backgroundColor: ColorRes.surfaceDeep,
+                  backgroundColor: Colors.white,
                   onRefresh: controller.refreshList,
                   child: GridView.builder(
                     padding: const EdgeInsets.fromLTRB(10, 4, 10, 20),
@@ -188,6 +191,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final stream = controller.livestreams[index];
                       return _LiveGridCard(
+                        key: ValueKey(stream.roomID ?? 'live_$index'),
                         stream: stream,
                         onTap: () => controller.openLivestream(stream),
                       );
@@ -198,6 +202,8 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
             ),
           ],
         ),
+          ),
+        ],
       ),
     );
   }
@@ -207,15 +213,17 @@ class _LiveGridCard extends StatelessWidget {
   final Livestream stream;
   final VoidCallback onTap;
 
-  const _LiveGridCard({required this.stream, required this.onTap});
+  const _LiveGridCard({super.key, required this.stream, required this.onTap});
 
   AppUser? _resolveHost() {
+    // Laravel trae host_user; no pisar con Firestore (fotos viejas/compartidas).
+    if (stream.hostUser != null) return stream.hostUser;
     if (Get.isRegistered<FirebaseFirestoreController>()) {
       final users = Get.find<FirebaseFirestoreController>().users;
       final fromFs = users.firstWhereOrNull((u) => u.userId == stream.hostId);
       if (fromFs != null) return fromFs;
     }
-    return stream.hostUser;
+    return null;
   }
 
   @override
@@ -243,11 +251,13 @@ class _LiveGridCard extends StatelessWidget {
           children: [
             if (cardImage.isNotEmpty)
               CustomImage(
+                key: ValueKey('${stream.roomID}|$cardImage'),
                 size: const Size(400, 600),
                 image: cardImage,
                 fit: BoxFit.cover,
                 radius: 0,
                 isShowPlaceHolder: true,
+                webPreferHtmlElement: false,
               )
             else
               ColoredBox(

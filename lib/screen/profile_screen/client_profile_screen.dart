@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/widget/framed_avatar.dart';
@@ -32,12 +33,25 @@ class ClientProfileScreen extends StatefulWidget {
 
 class _ClientProfileScreenState extends State<ClientProfileScreen> {
   late Rx<User?> userData;
+  Worker? _sessionUserWorker;
 
   @override
   void initState() {
     super.initState();
     userData = (widget.user ?? SessionManager.instance.getUser()).obs;
+    _sessionUserWorker = ever<User?>(SessionManager.instance.userRx, (u) {
+      if (!mounted) return;
+      if (u != null && u.id == SessionManager.instance.getUserID()) {
+        userData.value = u;
+      }
+    });
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    _sessionUserWorker?.dispose();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -52,7 +66,13 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         userData.value = fresh;
         SessionManager.instance.setUser(fresh);
       }
-    } catch (_) {}
+    } catch (_) {    }
+  }
+
+  Future<void> _openWallet() async {
+    if (GuestGate.block()) return;
+    await Get.to(() => const CoinWalletScreen());
+    await _refresh();
   }
 
   @override
@@ -74,6 +94,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
               children: [
+                if (GuestGate.isAnonymous) ...[
+                  _GuestJoinBanner(onJoin: GuestGate.showJoinSheet),
+                  const SizedBox(height: 18),
+                ],
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -82,7 +106,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       children: [
                         FramedAvatar.fromUser(
                           user,
-                          size: 88,
+                          size: 112,
                           ring: (child) => LevelAvatarRing(
                             user: user,
                             padding: 3.5,
@@ -90,37 +114,20 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                           ),
                         ),
                         Positioned(
-                          right: 6,
-                          bottom: 18,
+                          right: 8,
+                          bottom: 10,
                           child: Container(
-                            width: 18,
-                            height: 18,
+                            width: 16,
+                            height: 16,
                             decoration: BoxDecoration(
-                              gradient: isPresent
-                                  ? const LinearGradient(
-                                      colors: [
-                                        ColorRes.softSalmon,
-                                        ColorRes.coralRed,
-                                      ],
-                                    )
-                                  : null,
                               color: isPresent
-                                  ? null
+                                  ? const Color(0xFF22C55E)
                                   : const Color(0xFF9CA3AF),
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: scaffoldBackgroundColor(context),
                                 width: 2.5,
                               ),
-                              boxShadow: isPresent
-                                  ? [
-                                      BoxShadow(
-                                        color: ColorRes.brandPink
-                                            .withValues(alpha: 0.55),
-                                        blurRadius: 8,
-                                      ),
-                                    ]
-                                  : null,
                             ),
                           ),
                         ),
@@ -142,64 +149,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                             style: TextStyleCustom.outFitRegular400(
                               color: textLightGrey(context),
                               fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              gradient: isPresent
-                                  ? const LinearGradient(
-                                      colors: [
-                                        ColorRes.softSalmon,
-                                        ColorRes.coralRed,
-                                      ],
-                                    )
-                                  : null,
-                              color: isPresent
-                                  ? null
-                                  : ColorRes.bgSoft.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isPresent
-                                    ? Colors.white24
-                                    : Colors.white24,
-                              ),
-                              boxShadow: isPresent
-                                  ? [
-                                      BoxShadow(
-                                        color: ColorRes.brandPink
-                                            .withValues(alpha: 0.45),
-                                        blurRadius: 10,
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: BoxDecoration(
-                                    color: isPresent
-                                        ? Colors.white
-                                        : const Color(0xFF9CA3AF),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  isPresent ? 'Activa' : 'Inactiva',
-                                  style: TextStyleCustom.outFitMedium500(
-                                    color: isPresent
-                                        ? Colors.white
-                                        : const Color(0xFF9CA3AF),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
                         ],
@@ -228,17 +177,17 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 const SizedBox(height: 28),
                 _WalletShineCard(
                   coinsLabel: coins.fullNumberFormat,
-                  onRecharge: () => Get.to(() => const CoinWalletScreen()),
+                  onRecharge: () => _openWallet(),
                 ),
                 const SizedBox(height: 20),
                 _MenuTile(
                   icon: AssetRes.icWallet,
                   title: LKey.coinWallet.tr,
-                  onTap: () => Get.to(() => const CoinWalletScreen()),
+                  onTap: _openWallet,
                 ),
                 _MenuTile(
                   icon: AssetRes.icGift,
-                  title: 'Historial de Recargas',
+                  title: LKey.rechargeHistory.tr,
                   onTap: () => Get.to(() => const RechargeHistoryScreen()),
                 ),
                 _MenuTile(
@@ -401,6 +350,56 @@ class _MenuTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _GuestJoinBanner extends StatelessWidget {
+  final VoidCallback onJoin;
+
+  const _GuestJoinBanner({required this.onJoin});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: ColorRes.whitePure.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ColorRes.roseBorder.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            LKey.joinToContinue.tr,
+            style: TextStyleCustom.outFitSemiBold600(
+              color: textDarkGrey(context),
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            LKey.guestAccountExpires.tr,
+            style: TextStyleCustom.outFitRegular400(
+              color: textLightGrey(context),
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButtonCustom(
+            onTap: onJoin,
+            title: LKey.joinNow.tr,
+            gradient: true,
+            horizontalMargin: 0,
+            margin: EdgeInsets.zero,
+            btnHeight: 44,
+            titleColor: whitePure(context),
+            radius: 22,
+          ),
+        ],
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -241,7 +242,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('I already finished — check status'),
+                  child: Text(LKey.kycCheckStatus.tr),
                 ),
                 if (_verificationUrl != null) ...[
                   const SizedBox(height: 12),

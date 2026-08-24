@@ -3,6 +3,7 @@ import 'package:krimson/common/service/utils/params.dart';
 import 'package:krimson/common/service/utils/web_service.dart';
 import 'package:krimson/model/general/status_model.dart';
 import 'package:krimson/model/gift_wallet/coin_recharge_model.dart';
+import 'package:krimson/model/gift_wallet/wallet_history_model.dart';
 import 'package:krimson/model/gift_wallet/withdraw_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/utilities/app_res.dart';
@@ -12,22 +13,30 @@ class GiftWalletService {
 
   static final GiftWalletService instance = GiftWalletService._();
 
-  Future<StatusModel> sendGift({int? userId, int? giftId}) async {
+  Future<StatusModel> sendGift({int? userId, int? giftId, String? source}) async {
     final json = await ApiService.instance.call(
       url: WebService.giftWallet.sendGift,
       fromJson: (j) => j,
-      param: {Params.userId: userId, Params.giftId: giftId},
+      param: {
+        Params.userId: userId,
+        Params.giftId: giftId,
+        if (source != null && source.isNotEmpty) Params.source: source,
+      },
     );
     return StatusModel.fromJson(json);
   }
 
   /// Envía regalo y devuelve el precio real confirmado por el backend.
   Future<({bool ok, String? message, int coinPrice, String? image})>
-      sendGiftDetailed({int? userId, int? giftId}) async {
+      sendGiftDetailed({int? userId, int? giftId, String? source}) async {
     final json = await ApiService.instance.call(
       url: WebService.giftWallet.sendGift,
       fromJson: (j) => j,
-      param: {Params.userId: userId, Params.giftId: giftId},
+      param: {
+        Params.userId: userId,
+        Params.giftId: giftId,
+        if (source != null && source.isNotEmpty) Params.source: source,
+      },
     );
     final ok = json['status'] == true;
     final data = json['data'];
@@ -77,6 +86,26 @@ class GiftWalletService {
     return data
         .map((e) => CoinRecharge.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
+  }
+
+  Future<WalletHistoryResponse> fetchWalletHistory({
+    required String startDate,
+    required String endDate,
+    String filter = 'all',
+    int offset = 0,
+    int? limit,
+  }) async {
+    return ApiService.instance.call(
+      url: WebService.giftWallet.fetchWalletHistory,
+      fromJson: WalletHistoryResponse.fromJson,
+      param: {
+        Params.startDate: startDate,
+        Params.endDate: endDate,
+        Params.filter: filter,
+        Params.offset: offset,
+        Params.limit: limit ?? AppRes.paginationLimit,
+      },
+    );
   }
 
   Future<Map<String, dynamic>> submitWithdrawalRequest(
@@ -159,13 +188,19 @@ class GiftWalletService {
   }
 
   /// Crea checkout Wompi (tarjeta / PSE / Nequi).
-  Future<Map<String, dynamic>> createWompiPayment(
-      {required int coinPackageId}) async {
+  Future<Map<String, dynamic>> createWompiPayment({
+    required int coinPackageId,
+    String? appLanguage,
+  }) async {
     try {
       final json = await ApiService.instance.call(
         url: WebService.giftWallet.createWompiPayment,
         fromJson: (j) => j,
-        param: {Params.coinPackageId: coinPackageId},
+        param: {
+          Params.coinPackageId: coinPackageId,
+          if (appLanguage != null && appLanguage.trim().isNotEmpty)
+            Params.appLanguage: appLanguage.trim(),
+        },
       );
       if (json['status'] == true && json['data'] is Map) {
         return {

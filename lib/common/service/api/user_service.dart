@@ -19,7 +19,8 @@ import 'package:krimson/utilities/app_res.dart';
 enum LoginMethod {
   email,
   google,
-  apple;
+  apple,
+  anonymous;
 
   String title() {
     switch (this) {
@@ -29,6 +30,8 @@ enum LoginMethod {
         return 'google';
       case LoginMethod.apple:
         return 'apple';
+      case LoginMethod.anonymous:
+        return 'guest';
     }
   }
 }
@@ -107,10 +110,11 @@ class UserService {
     String? country,
     String? countryCode,
     String? appLanguage,
+    bool keepAuthToken = false,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.registerUser,
-        cancelAuthToken: true,
+        cancelAuthToken: !keepAuthToken,
         param: {
           Params.identity: identity,
           Params.password: password,
@@ -136,6 +140,33 @@ class UserService {
     }
     BaseController.share.showSnackBar(
         model.message ?? 'Registration failed');
+    return null;
+  }
+
+  Future<User?> logInAnonymousUser({
+    String? deviceToken,
+    String? appLanguage,
+  }) async {
+    UserModel model = await ApiService.instance.call(
+        url: WebService.user.logInAnonymousUser,
+        cancelAuthToken: true,
+        param: {
+          Params.deviceToken: deviceToken,
+          Params.device: AppPlatform.isAndroid ? 0 : 1,
+          Params.loginMethod: LoginMethod.anonymous.title(),
+          if (appLanguage != null && appLanguage.isNotEmpty)
+            Params.appLanguage: appLanguage,
+        },
+        fromJson: UserModel.fromJson);
+
+    if (model.status == true && model.data != null) {
+      SessionManager.instance.setUser(model.data);
+      SessionManager.instance.setAuthToken(model.data?.token);
+      SessionManager.instance.setLogin(true);
+      return model.data;
+    }
+    BaseController.share.showSnackBar(
+        model.message ?? 'No se pudo entrar como invitado');
     return null;
   }
 
@@ -464,6 +495,52 @@ class UserService {
       }
     } catch (_) {
       // No bloquear la UI si falla el heartbeat.
+    }
+  }
+
+  bool _isOk(dynamic status) => status == true || status == 1 || '$status' == 'true';
+
+  Future<List<ImpressionQuality>> fetchImpressionCatalog({
+    required int streamerId,
+  }) async {
+    try {
+      final res = await ApiService.instance.call<Map<String, dynamic>>(
+        url: WebService.user.impressionCatalog,
+        param: {
+          Params.streamerId: streamerId,
+          Params.appLanguage: SessionManager.instance.getLang(),
+        },
+      );
+      if (!_isOk(res['status'])) return const [];
+      final data = res['data'];
+      if (data is! Map) return const [];
+      return ImpressionQuality.listFrom(data['traits']);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<User?> rateImpression({
+    required int streamerId,
+    required List<int> traitIds,
+  }) async {
+    try {
+      final res = await ApiService.instance.call<Map<String, dynamic>>(
+        url: WebService.user.impressionRate,
+        param: {
+          Params.streamerId: streamerId,
+          Params.traitIds: traitIds.join(','),
+          Params.appLanguage: SessionManager.instance.getLang(),
+        },
+      );
+      if (!_isOk(res['status'])) {
+        BaseController.share.showSnackBar(res['message']?.toString() ?? 'Error');
+        return null;
+      }
+      return fetchUserDetails(userId: streamerId);
+    } catch (e) {
+      BaseController.share.showSnackBar(e.toString());
+      return null;
     }
   }
 }

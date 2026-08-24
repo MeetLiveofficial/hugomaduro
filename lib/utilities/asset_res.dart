@@ -1,3 +1,5 @@
+import 'dart:ui' show Offset;
+
 class AssetRes {
   static const String images = "assets/images/";
   static const String icons = "assets/icons/";
@@ -18,6 +20,7 @@ class AssetRes {
 
   // Images
   static const String icBackground = '${images}ic_background.jpg';
+  static const String matchWomanBg = '${images}match_woman_bg.jpg';
   static const String icNoImage = '${images}ic_no_image.png';
   static const String icNoFilter = '${images}ic_no_filter.png';
   static const String icBattleView = '${images}ic_battle_view.png';
@@ -130,6 +133,9 @@ class AssetRes {
   static const String icRankFrame1 = '${icons}ic_rank_frame_1.png';
   static const String icRankFrame2 = '${icons}ic_rank_frame_2.png';
   static const String icRankFrame3 = '${icons}ic_rank_frame_3.png';
+  static const String icRankPodium1 = '${icons}ic_rank_podium_1.png';
+  static const String icRankPodium2 = '${icons}ic_rank_podium_2.png';
+  static const String icRankPodium3 = '${icons}ic_rank_podium_3.png';
   static const String icVideoRequest = '${icons}ic_video_request.png';
   static const String icPinned = '${icons}ic_pinned.png';
   static const String icPause = '${icons}ic_pause.png';
@@ -156,12 +162,30 @@ class AssetRes {
   static const String streamerBadgeB = '${icons}streamer_b.png';
   static const String streamerBadgeA = '${icons}streamer_a.png';
   static const String streamerBadgeS = '${icons}streamer_s.png';
+  static const String clientFrame1 = '${icons}client_frame_1.png';
+  static const String clientFrame2 = '${icons}client_frame_2.png';
+  static const String clientFrame3 = '${icons}client_frame_3.png';
+
+  static const List<String> weeklyStreamerGrades = [
+    'NEW',
+    'B',
+    'C',
+    'A',
+    'S',
+  ];
+
+  static String normalizeStreamerGrade(String? grade) {
+    final g = (grade ?? '').toUpperCase().trim();
+    if (g == 'SS') return 'S';
+    if (g == 'D') return 'NEW';
+    if (weeklyStreamerGrades.contains(g)) return g;
+    return 'NEW';
+  }
 
   static String? streamerBadgeForGrade(String? grade) {
-    switch ((grade ?? '').toUpperCase().trim()) {
+    switch (normalizeStreamerGrade(grade)) {
       case 'NEW':
         return streamerBadgeNew;
-      case 'D':
       case 'C':
         return streamerBadgeC;
       case 'B':
@@ -169,7 +193,6 @@ class AssetRes {
       case 'A':
         return streamerBadgeA;
       case 'S':
-      case 'SS':
         return streamerBadgeS;
       default:
         return null;
@@ -177,21 +200,49 @@ class AssetRes {
   }
 
   static double streamerBadgePhotoRatio(String? grade) {
-    switch ((grade ?? '').toUpperCase().trim()) {
-      case 'NEW':
-        return 0.30;
-      case 'D':
-      case 'C':
-        return 0.24;
-      case 'B':
-        return 0.26;
-      case 'A':
-        return 0.32;
-      case 'S':
-      case 'SS':
-        return 0.36;
+    return 0.40;
+  }
+
+  static double streamerBadgeHoleDx(String? grade) {
+    return 0;
+  }
+
+  static double streamerBadgeHoleDy(String? grade) {
+    return 0.03;
+  }
+
+  static Offset streamerBadgePhotoOffset(String? grade, {double outer = 120}) {
+    return Offset(
+      outer * streamerBadgeHoleDx(grade),
+      outer * streamerBadgeHoleDy(grade),
+    );
+  }
+
+  static String streamerBadgeLabel(String? grade) {
+    final g = (grade ?? '').toUpperCase().trim();
+    if (g.isEmpty) return '';
+    return normalizeStreamerGrade(g);
+  }
+
+  static String? clientFrameForLevel(int? level) {
+    final n = (level ?? 1).clamp(1, 3).toInt();
+    switch (n) {
+      case 2:
+        return clientFrame2;
+      case 3:
+        return clientFrame3;
       default:
-        return 0.62;
+        return clientFrame1;
+    }
+  }
+
+  static double clientFramePhotoRatio(int? level) {
+    final n = (level ?? 1).clamp(1, 3).toInt();
+    switch (n) {
+      case 1:
+        return 0.52;
+      default:
+        return 0.46;
     }
   }
 }

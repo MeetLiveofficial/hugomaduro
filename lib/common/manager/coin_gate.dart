@@ -98,7 +98,7 @@ class _CoinShopSheet extends StatelessWidget {
                           (controller.myUser.value?.coinWallet ?? initialCoins)
                               .toInt();
                       return Text(
-                        'Mis monedas: $coins',
+                        LKey.myCoinsCount.trParams({'coins': '$coins'}),
                         style: TextStyleCustom.outFitMedium500(
                           color: ColorRes.themeAccentSolid,
                           fontSize: 16,

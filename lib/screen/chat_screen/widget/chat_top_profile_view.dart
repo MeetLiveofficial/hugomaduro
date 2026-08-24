@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
-import 'package:krimson/common/widget/custom_back_button.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/custom_popup_menu_button.dart';
 import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
@@ -11,7 +10,7 @@ import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/model/livestream/app_user.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
-import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -23,7 +22,7 @@ class ChatTopProfileView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: bgLightGrey(context),
+      color: ColorRes.whitePure,
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       child: SafeArea(
         bottom: false,
@@ -39,11 +38,15 @@ class ChatTopProfileView extends StatelessWidget {
           return Row(
             spacing: 10,
             children: [
-              const CustomBackButton(
-                image: AssetRes.icBackArrow_1,
-                height: 25,
-                width: 25,
+              IconButton(
+                onPressed: () => Get.back(),
                 padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: ColorRes.textDarkGrey,
+                ),
               ),
               Expanded(
                 child: InkWell(
@@ -67,6 +70,7 @@ class ChatTopProfileView extends StatelessWidget {
                   child: Row(
                     spacing: 10,
                     children: [
+                      // Chat: foto circular sin insignia/marco.
                       CustomImage(
                           size: const Size(48, 48),
                           image: chatUser?.profile?.addBaseURL(),
@@ -110,10 +114,18 @@ class ChatTopProfileView extends StatelessWidget {
                       height: 36,
                       width: 36,
                       decoration: BoxDecoration(
-                          color: bgMediumGrey(context), shape: BoxShape.circle),
+                        color: ColorRes.whitePure,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: ColorRes.crimson.withValues(alpha: 0.45),
+                        ),
+                      ),
                       alignment: Alignment.center,
-                      child:
-                          Image.asset(AssetRes.icMore, width: 25, height: 25)))
+                      child: const Icon(
+                        Icons.more_horiz_rounded,
+                        size: 22,
+                        color: ColorRes.textDarkGrey,
+                      )))
             ],
           );
           });

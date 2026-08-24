@@ -186,6 +186,7 @@ class ReelController extends BaseController {
     FocusManager.instance.primaryFocus?.unfocus();
     GiftManager.openGiftSheet(
       userId: reelData.value.userId ?? -1,
+      giftSource: 'post',
       onCompletion: (giftManager) {
         GiftManager.showAnimationDialog(giftManager.gift);
         GiftManager.sendNotification(reelData.value);

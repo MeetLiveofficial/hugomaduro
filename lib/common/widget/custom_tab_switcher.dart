@@ -1,6 +1,8 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -14,6 +16,7 @@ class CustomTabSwitcher extends StatelessWidget {
   final Map<int, Widget>? badges;
   final EdgeInsets? margin;
   final Color? selectedFontColor;
+  final Color? unselectedFontColor;
   final Color? backgroundColor;
 
   const CustomTabSwitcher(
@@ -26,21 +29,23 @@ class CustomTabSwitcher extends StatelessWidget {
       this.badges,
       this.margin,
       this.selectedFontColor,
+      this.unselectedFontColor,
       this.backgroundColor});
 
   @override
   Widget build(BuildContext context) {
     return Obx(
       () => Container(
-        height: 45,
+        height: 48,
         width: double.infinity,
         margin: margin ?? const EdgeInsets.symmetric(vertical: 10),
         decoration: ShapeDecoration(
           color: backgroundColor ?? bgMediumGrey(context),
           shape: SmoothRectangleBorder(
-              borderRadius:
-                  SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
-              side: BorderSide(color: bgGrey(context))),
+            borderRadius:
+                SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
+            side: const BorderSide(color: ColorRes.menuBorder),
+          ),
         ),
         padding: const EdgeInsets.all(4),
         child: Stack(
@@ -52,7 +57,7 @@ class CustomTabSwitcher extends StatelessWidget {
                   alignment: Alignment(
                     items.length <= 1
                         ? 0
-                        : (selectedIndex * 2 / (items.length - 1)) - 1,
+                        : (selectedIndex.value * 2 / (items.length - 1)) - 1,
                     0,
                   ),
                   duration: const Duration(milliseconds: 300),
@@ -63,7 +68,7 @@ class CustomTabSwitcher extends StatelessWidget {
                         borderRadius: SmoothBorderRadius(
                             cornerRadius: 10 - 2, cornerSmoothing: 1),
                       ),
-                      color: whitePure(context),
+                      gradient: StyleRes.themeGradient,
                     ),
                   ),
                 );
@@ -89,9 +94,10 @@ class CustomTabSwitcher extends StatelessWidget {
                               items[index].tr,
                               style: TextStyleCustom.outFitRegular400(
                                   color: !isSelected
-                                      ? textLightGrey(context)
+                                      ? (unselectedFontColor ??
+                                          textLightGrey(context))
                                       : (selectedFontColor ??
-                                          textDarkGrey(context)),
+                                          ColorRes.whitePure),
                                   fontSize: 15),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

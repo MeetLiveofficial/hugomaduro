@@ -11,11 +11,18 @@ class BlackGradientShadow extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: height ?? 300,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-            colors: [Colors.transparent, ColorRes.blackPure],
-            begin: Alignment.topCenter,
-            end: AlignmentDirectional.bottomCenter),
+          colors: [
+            Colors.transparent,
+            ColorRes.crimson.withValues(alpha: 0.22),
+            ColorRes.mlPurple.withValues(alpha: 0.55),
+            ColorRes.obsidian.withValues(alpha: 0.92),
+          ],
+          stops: const [0.0, 0.35, 0.7, 1.0],
+          begin: Alignment.topCenter,
+          end: AlignmentDirectional.bottomCenter,
+        ),
       ),
     );
   }

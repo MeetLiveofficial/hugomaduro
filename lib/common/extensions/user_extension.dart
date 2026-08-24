@@ -26,9 +26,11 @@ extension UserExtension on User {
     int? isDummyLive = 0,
     String? dummyUserLink = '',
     List<int>? coHostIds,
+    String? coverImage,
   }) {
     return Livestream(
         description: (description ?? '').trim(),
+        coverImage: coverImage,
         isRestrictToJoin: restrictToJoin,
         type: type,
         watchingCount: 0,

@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -31,6 +33,7 @@ import 'package:krimson/model/livestream/livestream_user_state.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
+import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet_controller.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
@@ -92,6 +95,11 @@ class LivestreamScreenController extends BaseController {
   final RxBool pausedForCall = false.obs;
   bool _resumingAfterCall = false;
   DateTime? _lastResumeAfterCallAt;
+
+  /// Hay pantalla de llamada (saliente o activa) encima del LIVE.
+  bool get isCallUiActive =>
+      OutgoingCallController.activeInstance != null ||
+      VideoCallController.activeInstance != null;
 
   final RxBool beautyOn = false.obs;
   final RxDouble whiten = 50.0.obs;
@@ -172,6 +180,7 @@ class LivestreamScreenController extends BaseController {
   final RxBool isBattleWaiting = false.obs;
   final RxnInt battleOpponentId = RxnInt();
   final RxString battleOpponentName = ''.obs;
+  final RxnString battleOpponentPhoto = RxnString();
   final RxInt battleHostCoins = 0.obs;
   final RxInt battleOpponentCoins = 0.obs;
   final RxInt battleRemainingSeconds = 0.obs;
@@ -184,11 +193,11 @@ class LivestreamScreenController extends BaseController {
   Timer? _battleTicker;
   Timer? _battleResultClearTimer;
   bool _endingBattle = false;
-  bool _battlePublishEnsured = false;
   bool _rematchPromptOpen = false;
   bool _battleResultShown = false;
   /// Última sala LiveKit a la que nos conectamos (para detectar cambio post-PK).
   String? _connectedLiveKitRoom;
+  bool _avRoomSyncing = false;
 
   StreamSubscription? _dataSub;
   Timer? _sessionPoll;
@@ -255,6 +264,19 @@ class LivestreamScreenController extends BaseController {
     return false;
   }
 
+  /// Sala LIVE del rival (para ir a apoyarlo).
+  String? get opponentLiveRoomId {
+    if (!(isBattleRunning.value || isBattleWaiting.value)) return null;
+    if (isBattlePrimaryHost) {
+      final linked = (livestream.battleLinkedRoomId ?? '').trim();
+      return linked.isEmpty ? null : linked;
+    }
+    final primary = (livestream.battlePrimaryRoomId ?? '').trim();
+    if (primary.isNotEmpty) return primary;
+    final linked = (livestream.battleLinkedRoomId ?? '').trim();
+    return linked.isEmpty ? null : linked;
+  }
+
   /// ID equipo rojo (invitador / sala primaria).
   int get battleRedUserId {
     final primary = (livestream.battlePrimaryRoomId ?? '').trim();
@@ -306,6 +328,9 @@ class LivestreamScreenController extends BaseController {
       Get.find<DynamicTranslations>().ensureLiveFallbacks();
     }
     activeInstance = this;
+    if (!isHost) {
+      CallAvailability.watchingLiveHostId = livestream.hostId;
+    }
     _enterImmersiveLive();
     selectedGiftUser.value = livestream.hostUser;
     invitedIds.addAll(livestream.coHostIds ?? []);
@@ -361,8 +386,10 @@ class LivestreamScreenController extends BaseController {
   }
 
   void _tickLiveElapsed() {
-    // Si el LIVE está pausado, congelar el badge de tiempo.
-    if (isStreamPaused.value) return;
+    // Si el LIVE está pausado o hay llamada, congelar el badge de tiempo.
+    if (isStreamPaused.value || pausedForCall.value || hostInCall.value) {
+      return;
+    }
     final start = _liveStartedAt;
     if (start == null) return;
     final secs = DateTime.now().difference(start).inSeconds;
@@ -371,8 +398,7 @@ class LivestreamScreenController extends BaseController {
 
   /// Al pausar/reanudar: congelar o reanudar el contador del badge.
   void _syncElapsedTimerWithPause() {
-    if (isStreamPaused.value) {
-      // Congelar el valor actual (el ticker no avanzará).
+    if (isStreamPaused.value || pausedForCall.value || hostInCall.value) {
       return;
     }
     // Reanudar: el "inicio" se recalcula para continuar desde el valor congelado.
@@ -731,7 +757,7 @@ class LivestreamScreenController extends BaseController {
                 ),
               ),
               Text(
-                'Regalos recibidos',
+                LKey.giftsReceived.tr,
                 style: TextStyleCustom.unboundedSemiBold600(
                   color: Colors.black87,
                   fontSize: 16,
@@ -746,7 +772,7 @@ class LivestreamScreenController extends BaseController {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 28),
                       child: Text(
-                        'Aún no hay regalos',
+                        LKey.noGiftsYet.tr,
                         style: TextStyleCustom.outFitRegular400(
                           color: Colors.black54,
                           fontSize: 14,
@@ -792,10 +818,10 @@ class LivestreamScreenController extends BaseController {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
-                            '${s.giftCount} regalo${s.giftCount == 1 ? '' : 's'}',
+                            '${s.giftCount} ${LKey.gift.tr}',
                           ),
                           trailing: Text(
-                            '${s.totalCoins} coins',
+                            LKey.coinsCount.trParams({'count': '${s.totalCoins}'}),
                             style: TextStyleCustom.outFitMedium500(
                               color: ColorRes.themeAccentSolid,
                               fontSize: 14,
@@ -882,6 +908,11 @@ class LivestreamScreenController extends BaseController {
       }
     }
     return 0;
+  }
+
+  void _applyBattleCoinsFromServer(int? hostCoin, int? oppCoin) {
+    if (hostCoin != null) battleHostCoins.value = hostCoin;
+    if (oppCoin != null) battleOpponentCoins.value = oppCoin;
   }
 
   void _applyGiftSendersFromServer(List<LiveGiftSender>? remote) {
@@ -1145,6 +1176,7 @@ class LivestreamScreenController extends BaseController {
 
   /// Reintenta LiveKit forzando calidad baja (red débil).
   Future<void> retryLiveConnection() async {
+    if (pausedForCall.value && isCallUiActive) return;
     final me = SessionManager.instance.getUser();
     if (me == null || liveKit == null) {
       await _joinLiveKit();
@@ -1166,6 +1198,7 @@ class LivestreamScreenController extends BaseController {
       if (liveKit!.isConnected.value) {
         pausedForCall.value = false;
         statusMessage.value = '';
+        _syncElapsedTimerWithPause();
       }
     } catch (e) {
       statusMessage.value = 'No se pudo conectar. Revisa tu red.';
@@ -1175,9 +1208,9 @@ class LivestreamScreenController extends BaseController {
   }
 
   String qualityLabel(LiveKitQualityProfile p) => switch (p) {
-        LiveKitQualityProfile.low => 'Baja',
-        LiveKitQualityProfile.medium => 'Media',
-        LiveKitQualityProfile.high => 'Alta',
+        LiveKitQualityProfile.low => LKey.qualityLow.tr,
+        LiveKitQualityProfile.medium => LKey.qualityMedium.tr,
+        LiveKitQualityProfile.high => LKey.qualityHigh.tr,
       };
 
   Future<void> setLiveQuality(LiveKitQualityProfile profile) async {
@@ -1219,7 +1252,7 @@ class LivestreamScreenController extends BaseController {
                   ),
                 ),
                 Text(
-                  'Calidad de video',
+                  LKey.videoQuality.tr,
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.unboundedSemiBold600(
                     color: Colors.black87,
@@ -1228,7 +1261,7 @@ class LivestreamScreenController extends BaseController {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Entras en Baja. Súbela si tu señal mejora.',
+                  LKey.qualityHint.tr,
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.outFitRegular400(
                     color: Colors.black54,
@@ -1255,10 +1288,10 @@ class LivestreamScreenController extends BaseController {
                       title: Text(qualityLabel(p)),
                       subtitle: Text(
                         p == LiveKitQualityProfile.low
-                            ? '180p · menos datos'
+                            ? LKey.qualityLowHint.tr
                             : p == LiveKitQualityProfile.medium
-                                ? '360p · equilibrado'
-                                : '720p · máxima calidad',
+                                ? LKey.qualityMediumHint.tr
+                                : LKey.qualityHighHint.tr,
                       ),
                       trailing: current == p
                           ? const Icon(Icons.check_circle,
@@ -1736,6 +1769,7 @@ class LivestreamScreenController extends BaseController {
   }
 
   Future<void> sendComment(String text) async {
+    if (GuestGate.block()) return;
     final trimmed = text.trim();
     if (trimmed.isEmpty || isSendingComment.value) return;
     final me = SessionManager.instance.getUser();
@@ -1829,20 +1863,19 @@ class LivestreamScreenController extends BaseController {
     final meId = SessionManager.instance.getUserID();
     if (meId != 0 && meId == hostId) return;
 
-    if (isBattleRunning.value) {
-      await _openBattleGiftPicker(hostId);
-      return;
-    }
-
+    // En PK el regalo va al streamer de ESTE LIVE (el que el cliente apoya).
     final host = livestream.hostUser ??
         AppUser(userId: hostId, fullname: liveTitle);
+    selectedGiftUser.value = host;
     await GiftManager.openGiftSheet(
       userId: hostId,
-      giftType: GiftType.livestream,
+      giftType: isBattleRunning.value ? GiftType.battle : GiftType.livestream,
+      battleViewType:
+          hostId == battleBlueUserId ? BattleView.blue : BattleView.red,
       streamUsers: [host],
       onCompletion: (gm) async {
         GiftManager.showAnimationDialog(gm.gift);
-        await broadcastGift(gm.gift);
+        await broadcastGift(gm.gift, battleForUserId: hostId);
       },
     );
   }
@@ -1855,6 +1888,7 @@ class LivestreamScreenController extends BaseController {
     String? giftImage,
     int? coinPrice,
   }) async {
+    if (GuestGate.block()) return;
     if (isHost) return;
     if (_sendingDirectGift) return;
     final hostId = livestream.hostId;
@@ -1874,6 +1908,7 @@ class LivestreamScreenController extends BaseController {
           id: g.id,
           categoryId: g.categoryId,
           coinPrice: g.coinPrice,
+          title: g.title,
           image: g.image,
           isFullscreen: g.isFullscreen,
         );
@@ -1921,6 +1956,7 @@ class LivestreamScreenController extends BaseController {
       final detailed = await GiftWalletService.instance.sendGiftDetailed(
         giftId: giftId,
         userId: hostId,
+        source: 'live',
       );
       if (!detailed.ok) {
         showSnackBar(detailed.message ?? LKey.giftNotAvailable.tr);
@@ -1940,7 +1976,7 @@ class LivestreamScreenController extends BaseController {
       // Cerrar loader residual ANTES de la animación (Get.back pisa dialogs).
       stopLoader();
       GiftManager.showAnimationDialog(gift);
-      await broadcastGift(gift);
+      await broadcastGift(gift, battleForUserId: hostId);
     } finally {
       sendingGiftId.value = null;
       _sendingDirectGift = false;
@@ -1953,47 +1989,6 @@ class LivestreamScreenController extends BaseController {
       giftId: slot.giftId,
       giftImage: slot.image,
       coinPrice: slot.coinPrice,
-    );
-  }
-
-  Future<void> _openBattleGiftPicker(int hostId) async {
-    final redId = battleRedUserId;
-    final blueId = battleBlueUserId;
-    final me = SessionManager.instance.getUserID();
-    final roomHost = livestream.hostId ?? hostId;
-
-    // Reutilizar apoyo ya elegido (sin volver a preguntar).
-    var forId = battleLikeForUserId.value ?? 0;
-    if (forId <= 0 || forId == me || (forId != redId && forId != blueId)) {
-      forId = roomHost;
-      if (forId == me || (forId != redId && forId != blueId)) {
-        forId = redId != me ? redId : blueId;
-      }
-    }
-    if (forId <= 0 || forId == me) return;
-
-    battleLikeForUserId.value = forId;
-    final team = forId == blueId ? BattleView.blue : BattleView.red;
-    final forUser = forId == (livestream.hostId ?? 0)
-        ? (livestream.hostUser ??
-            AppUser(userId: forId, fullname: liveTitle))
-        : AppUser(
-            userId: forId,
-            fullname: battleOpponentName.value.isEmpty
-                ? 'Rival'
-                : battleOpponentName.value,
-            username: battleOpponentName.value,
-          );
-
-    await GiftManager.openGiftSheet(
-      userId: forId,
-      giftType: GiftType.battle,
-      battleViewType: team,
-      streamUsers: [forUser],
-      onCompletion: (gm) async {
-        GiftManager.showAnimationDialog(gm.gift);
-        await broadcastGift(gm.gift, battleForUserId: forId);
-      },
     );
   }
 
@@ -2039,20 +2034,25 @@ class LivestreamScreenController extends BaseController {
     } catch (e) {
       Loggers.error('broadcastGift api: $e');
     }
+    var forUserId = battleForUserId ?? 0;
+    if (forUserId <= 0 && isBattleRunning.value) {
+      forUserId = livestream.hostId ?? 0;
+    }
     if (gift.id != null) {
       try {
-        final senders = await LiveSessionService.instance.recordGift(
+        final recorded = await LiveSessionService.instance.recordGift(
           roomId: roomId,
           giftId: gift.id!,
           coins: coins,
           image: image,
           clientId: clientId,
-          battleForUserId: battleForUserId,
+          battleForUserId: forUserId > 0 ? forUserId : null,
         );
-        _applyGiftSendersFromServer(senders);
-        if (battleForUserId != null) {
-          await _refreshSessionStats(silent: true);
-        }
+        _applyGiftSendersFromServer(recorded.senders);
+        _applyBattleCoinsFromServer(
+          recorded.battleHostCoin,
+          recorded.battleOpponentCoin,
+        );
       } catch (e2) {
         Loggers.error('broadcastGift recordGift: $e2');
       }
@@ -2062,7 +2062,7 @@ class LivestreamScreenController extends BaseController {
     } catch (_) {}
   }
 
-  Future<void> openPrivateCall() async {
+  Future<void> openPrivateCall({bool skipConfirmSheet = false}) async {
     if (isHost) return;
     final hostId = livestream.hostId;
     if (hostId == null) return;
@@ -2084,9 +2084,7 @@ class LivestreamScreenController extends BaseController {
         return;
       }
 
-      final cost = hostUser.callRequestCoins > 0
-          ? hostUser.callRequestCoins
-          : hostUser.getLevel.callRequestCoins;
+      final cost = CallAvailability.callCost(hostUser);
       final hostApp = livestream.hostUser ??
           AppUser(
             userId: hostId,
@@ -2095,13 +2093,23 @@ class LivestreamScreenController extends BaseController {
             profile: hostUser.profilePhoto,
           );
 
+      void goOutgoing() {
+        unawaited(pauseLiveKitForCall());
+        Get.to(() => OutgoingCallScreen(callee: hostUser, cost: cost));
+      }
+
+      if (skipConfirmSheet) {
+        goOutgoing();
+        return;
+      }
+
       await Get.bottomSheet(
         LivePrivateCallSheet(
           host: hostApp,
           cost: cost,
           onConfirm: () {
             Get.back();
-            Get.to(() => OutgoingCallScreen(callee: hostUser, cost: cost));
+            goOutgoing();
           },
         ),
         isScrollControlled: true,
@@ -2127,8 +2135,8 @@ class LivestreamScreenController extends BaseController {
         : (SessionManager.instance.getSettings()?.gifts ?? []);
     if (gifts.isEmpty) {
       showSnackBar(configured.isEmpty
-          ? 'No hay regalos activos'
-          : 'No hay regalos incentivados configurados');
+          ? LKey.noActiveGifts.tr
+          : LKey.noIncentivizedGifts.tr);
       return;
     }
     await Get.bottomSheet(
@@ -2202,9 +2210,7 @@ class LivestreamScreenController extends BaseController {
       showSnackBar('Tu nivel aún no puede recibir llamadas');
       return;
     }
-    final cost = me.callRequestCoins > 0
-        ? me.callRequestCoins
-        : me.getLevel.callRequestCoins;
+    final cost = CallAvailability.callCost(me);
 
     final ok = await Get.dialog<bool>(
       AlertDialog(
@@ -2229,12 +2235,12 @@ class LivestreamScreenController extends BaseController {
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
-            child: Text('Cancelar',
+            child: Text(LKey.cancel.tr,
                 style: TextStyleCustom.outFitMedium500(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () => Get.back(result: true),
-            child: Text('Enviar',
+            child: Text(LKey.send.tr,
                 style: TextStyleCustom.outFitMedium500(
                     color: ColorRes.themeAccentSolid)),
           ),
@@ -2328,6 +2334,11 @@ class LivestreamScreenController extends BaseController {
   void _handleCallInvite(LiveChatMessage msg) {
     if (isHost) return;
     if (!_seenCallInviteIds.add(msg.id)) return;
+    showCallInviteDialog(msg);
+  }
+
+  void showCallInviteDialog(LiveChatMessage msg) {
+    if (isHost) return;
     final cost = msg.giftCoins ?? 0;
     final name = msg.userName;
     Get.dialog(
@@ -2352,7 +2363,7 @@ class LivestreamScreenController extends BaseController {
         actions: [
           TextButton(
             onPressed: Get.back,
-            child: Text('Ahora no',
+            child: Text(LKey.notNow.tr,
                 style: TextStyleCustom.outFitMedium500(color: Colors.white54)),
           ),
           TextButton(
@@ -2365,10 +2376,10 @@ class LivestreamScreenController extends BaseController {
                   )) {
                 return;
               }
-              openPrivateCall();
+              openPrivateCall(skipConfirmSheet: true);
             },
             child: Text(
-              'Llamar',
+              LKey.callAction.tr,
               style: TextStyleCustom.outFitMedium500(
                 color: ColorRes.themeAccentSolid,
               ),
@@ -2430,19 +2441,21 @@ class LivestreamScreenController extends BaseController {
   Future<void> pauseLiveKitForCall() async {
     hostInCall.value = true;
     pausedForCall.value = true;
+    statusMessage.value = LKey.livePausedInCall.tr;
+    update();
     try {
       await liveKit?.disconnect(silent: true);
     } catch (e) {
       Loggers.error('pauseLiveKitForCall: $e');
     } finally {
-      statusMessage.value = '';
       update();
     }
   }
 
   /// Reconecta al LIVE tras colgar la videollamada.
   Future<void> resumeLiveKitAfterCall() async {
-    if (_resumingAfterCall) return;
+    if (_resumingAfterCall || isEnding.value) return;
+    if (VideoCallController.activeInstance != null) return;
     _resumingAfterCall = true;
     hostInCall.value = false;
     pausedForCall.value = true;
@@ -2511,6 +2524,7 @@ class LivestreamScreenController extends BaseController {
       if (liveKit?.isConnected.value == true) {
         pausedForCall.value = false;
         statusMessage.value = '';
+        _syncElapsedTimerWithPause();
       } else {
         statusMessage.value = 'Sin video. Toca Reintentar.';
       }
@@ -2528,6 +2542,7 @@ class LivestreamScreenController extends BaseController {
   /// Si el LIVE volvió a verse tras una llamada y el video no está, reconecta.
   Future<void> ensureLiveKitAfterCallIfNeeded() async {
     if (!pausedForCall.value || _resumingAfterCall || isEnding.value) return;
+    if (isCallUiActive) return;
     if (liveKit?.isConnected.value == true) {
       pausedForCall.value = false;
       if (statusMessage.value.isNotEmpty) statusMessage.value = '';
@@ -2573,173 +2588,21 @@ class LivestreamScreenController extends BaseController {
     }
   }
 
-  /// Quien recibe los puntos del like en batalla.
-  /// Si ya hay apoyo válido (p.ej. el host del LIVE que abriste), no vuelve a preguntar.
-  Future<int?> _resolveBattleLikeTarget({int? preferredSideUserId}) async {
-    final hostId = battleRedUserId;
-    final opponentId = battleBlueUserId;
-    if (hostId <= 0) return null;
-
-    final me = SessionManager.instance.getUserID();
-    final roomHost = livestream.hostId ?? 0;
-
-    bool isValidTarget(int id) =>
-        id > 0 && id != me && (id == hostId || id == opponentId);
-
-    // Cambio de lado por doble tap en el panel contrario: sin modal.
-    if (preferredSideUserId != null && isValidTarget(preferredSideUserId)) {
-      battleLikeForUserId.value = preferredSideUserId;
-      return preferredSideUserId;
-    }
-
-    final existing = battleLikeForUserId.value ?? 0;
-    if (isValidTarget(existing)) {
-      return existing;
-    }
-
-    // Por defecto: apoyar al host del LIVE que estoy viendo.
-    if (isValidTarget(roomHost)) {
-      battleLikeForUserId.value = roomHost;
-      return roomHost;
-    }
-
-    if (opponentId <= 0) {
-      if (hostId == me) return null;
-      battleLikeForUserId.value = hostId;
-      return hostId;
-    }
-
-    var preferred = preferredSideUserId ??
-        battleLikeForUserId.value ??
-        (me == hostId ? opponentId : hostId);
-    if (preferred == me) {
-      preferred = me == hostId ? opponentId : hostId;
-    }
-    if (isValidTarget(preferred)) {
-      battleLikeForUserId.value = preferred;
-      return preferred;
-    }
-
-    // Solo preguntar si aún no hay un objetivo claro.
-    final host = livestream.hostUser ??
-        AppUser(userId: hostId, fullname: liveTitle);
-    final oppName = battleOpponentName.value.isEmpty
-        ? 'Rival'
-        : battleOpponentName.value;
-
-    final team = await Get.bottomSheet<BattleView>(
-      SafeArea(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'A quien estas apoyando?',
-                style: TextStyleCustom.unboundedSemiBold600(
-                  color: Colors.black87,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'No puedes enviarte likes a ti mismo',
-                style: TextStyleCustom.outFitRegular400(
-                  color: Colors.black54,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (hostId != me)
-                ListTile(
-                  selected: preferred == hostId,
-                  selectedTileColor:
-                      ColorRes.themeAccentSolid.withValues(alpha: 0.12),
-                  leading: const CircleAvatar(
-                    backgroundColor: ColorRes.themeAccentSolid,
-                    child: Text('A', style: TextStyle(color: Colors.white)),
-                  ),
-                  title: Text(host.fullname ?? host.username ?? 'Host'),
-                  subtitle: Text(
-                    preferred == hostId
-                        ? 'Equipo rojo - seleccionado'
-                        : 'Equipo rojo',
-                  ),
-                  onTap: () => Get.back(result: BattleView.red),
-                ),
-              if (opponentId != me)
-                ListTile(
-                  selected: preferred == opponentId,
-                  selectedTileColor:
-                      const Color(0xFF3B82F6).withValues(alpha: 0.12),
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFF3B82F6),
-                    child: Text('B', style: TextStyle(color: Colors.white)),
-                  ),
-                  title: Text(oppName),
-                  subtitle: Text(
-                    preferred == opponentId
-                        ? 'Equipo azul - seleccionado'
-                        : 'Equipo azul',
-                  ),
-                  onTap: () => Get.back(result: BattleView.blue),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (team == null) return null;
-    final forId = team == BattleView.red ? hostId : opponentId;
-    if (forId == me) return null;
-    battleLikeForUserId.value = forId;
-    return forId;
-  }
-
-  /// Doble tap: en batalla abre modal de apoyo (lado = preferencia).
+  /// Doble tap: like visual (no suma al marcador PK).
   Future<void> onBattleDoubleTap(Offset localPosition, Size areaSize) async {
-    if (isHost || isLiking.value) return;
-    int? preferred;
-    if (isBattleRunning.value && areaSize.width > 0) {
-      preferred = localPosition.dx < areaSize.width / 2
-          ? battleRedUserId
-          : battleBlueUserId;
-    }
-    await sendLike(preferredSideUserId: preferred);
+    await sendLike();
   }
 
-  Future<void> sendLike({int? preferredSideUserId}) async {
+  Future<void> sendLike() async {
     if (isHost || isLiking.value) return;
     isLiking.value = true;
     // Feedback inmediato en el que da like.
     _pulseFloatingLike();
     try {
-      int? battleFor;
-      if (isBattleRunning.value) {
-        battleFor = await _resolveBattleLikeTarget(
-          preferredSideUserId: preferredSideUserId,
-        );
-        if (battleFor == null || battleFor <= 0) {
-          return;
-        }
-      }
-      final result = await LiveSessionService.instance.like(
-        roomId: roomId,
-        battleForUserId: battleFor,
-      );
+      final result = await LiveSessionService.instance.like(roomId: roomId);
       _lastSeenLikeCount = result.likeCount;
       likeCount.value = result.likeCount;
       livestream.likeCount = result.likeCount;
-      if (result.battleHostCoin != null) {
-        battleHostCoins.value = result.battleHostCoin!;
-      }
-      if (result.battleOpponentCoin != null) {
-        battleOpponentCoins.value = result.battleOpponentCoin!;
-      }
       final me = SessionManager.instance.getUser();
       if (me?.id != null) {
         final msg = LiveChatMessage(
@@ -3073,20 +2936,20 @@ class LivestreamScreenController extends BaseController {
     try {
       final rematch = await Get.dialog<bool>(
         AlertDialog(
-          title: const Text('Batalla terminada'),
+          title: Text(LKey.battleEndedTitle.tr),
           content: Text(
             fromManualStop
-                ? '¿Quieres hacer otra PK con el mismo rival?'
-                : 'El tiempo terminó. ¿Quieres otra PK?',
+                ? LKey.anotherPkSameRival.tr
+                : LKey.timeUpAnotherPk.tr,
           ),
           actions: [
             TextButton(
               onPressed: () => Get.back(result: false),
-              child: const Text('No, salir'),
+              child: Text(LKey.noLeave.tr),
             ),
             TextButton(
               onPressed: () => Get.back(result: true),
-              child: const Text('Sí, otra PK'),
+              child: Text(LKey.yesAnotherPk.tr),
             ),
           ],
         ),
@@ -3138,46 +3001,46 @@ class LivestreamScreenController extends BaseController {
 
   /// Tras PK: volver a la sala propia y dejar de oír al rival.
   Future<void> _rejoinOwnLiveRoomAfterBattle({int? muteRivalId}) async {
-    final me = SessionManager.instance.getUser();
-    if (me == null || liveKit == null || isDummy) return;
+    if (liveKit == null || isDummy) return;
 
     if (muteRivalId != null && muteRivalId > 0) {
       await liveKit!.muteRemoteParticipantAudio('$muteRivalId');
     }
 
-    // Silenciar todos los remotos un instante (solo queda el LIVE propio).
     final remotes = List<RemoteParticipant>.from(liveKit!.remoteParticipants);
     for (final p in remotes) {
       await liveKit!.muteRemoteParticipantAudio(p.identity);
     }
 
-    final targetRoom = roomId;
-    // Siempre reconectar tras PK: la sala primaria puede quedar "fantasma"
-    // si solo hacemos early-return por estado local desfasado.
-    try {
-      if (liveKit!.isConnected.value) {
-        await liveKit!.disconnect();
+    _hostEverPublished = false;
+    _clearHostAbsent();
+
+    final current = _connectedLiveKitRoom ?? liveKit!.connectedRoomName;
+    final onOwn = liveKit!.isConnected.value && current == roomId;
+    final cameraOk = !shouldPublishAv || liveKit!.cameraEnabled.value;
+    final needSwitch = !onOwn || !cameraOk;
+
+    for (var attempt = 0; attempt < (needSwitch ? 3 : 1); attempt++) {
+      await _syncLiveKitAvRoom(force: needSwitch);
+      if (liveKit?.isConnected.value == true &&
+          (_connectedLiveKitRoom == roomId ||
+              liveKit!.connectedRoomName == roomId) &&
+          (!shouldPublishAv || liveKit!.cameraEnabled.value)) {
+        break;
       }
-      _connectedLiveKitRoom = null;
-      _battlePublishEnsured = false;
-      await liveKit!.connect(
-        roomName: targetRoom,
-        identity: '${me.id}',
-        name: me.fullname ?? me.username ?? 'user',
-        publishCamera: shouldPublishAv,
-        publishMicrophone: shouldPublishAv,
-        wsUrl: liveKitWsUrl,
-        forceProfile: LiveKitQualityProfile.medium,
-        forceReconnect: true,
-      );
-      _connectedLiveKitRoom = targetRoom;
-      if (liveKit!.remoteAudioMuted.value) {
-        await liveKit!.setRemoteAudioMuted(false);
-      }
-      update();
-    } catch (e) {
-      Loggers.error('_rejoinOwnLiveRoomAfterBattle: $e');
+      await Future<void>.delayed(Duration(milliseconds: 400 * (attempt + 1)));
     }
+
+    if (!isHost && liveKit != null) {
+      for (var i = 0; i < 12; i++) {
+        if (liveKit!.remoteParticipants.isNotEmpty) break;
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      }
+    }
+    if (liveKit?.remoteAudioMuted.value == true) {
+      await liveKit!.setRemoteAudioMuted(false);
+    }
+    update();
   }
 
   void _syncBattleFromSession(
@@ -3186,11 +3049,17 @@ class LivestreamScreenController extends BaseController {
   ) {
     final hostId = session.hostId ?? livestream.hostId ?? 0;
     final hostRow = participants.firstWhereOrNull((p) => p.userId == hostId);
+    final wasHostInCall = hostInCall.value;
     // Si el host local acaba de pausar para llamada, no bajar el flag por race del poll.
-    if (hostRow != null) {
+    if (isHost && pausedForCall.value) {
+      hostInCall.value = true;
+    } else if (hostRow != null) {
       hostInCall.value = hostRow.inCall;
     } else if (!isHost) {
       hostInCall.value = false;
+    }
+    if (wasHostInCall && !hostInCall.value) {
+      _syncElapsedTimerWithPause();
     }
 
     final wasRunning = isBattleRunning.value;
@@ -3214,7 +3083,6 @@ class LivestreamScreenController extends BaseController {
     isBattleWaiting.value = waiting;
     if (!running && !waiting) {
       battleLikeForUserId.value = null;
-      _battlePublishEnsured = false;
     } else if (isHost) {
       unawaited(_publishLiveDocToFirestore());
     }
@@ -3228,15 +3096,20 @@ class LivestreamScreenController extends BaseController {
     if (rivalId > 0) {
       final fromParticipants =
           participants.firstWhereOrNull((p) => p.userId == rivalId);
-      final name = fromParticipants?.user?.fullname ??
-          fromParticipants?.user?.username ??
-          inviteCandidates
-              .firstWhereOrNull((u) => u.id == rivalId)
-              ?.fullname ??
+      final fromUser = fromParticipants?.user;
+      final fromInvite =
+          inviteCandidates.firstWhereOrNull((u) => u.id == rivalId);
+      final name = fromUser?.fullname ??
+          fromUser?.username ??
+          fromInvite?.fullname ??
+          fromInvite?.username ??
           (isBattlePrimaryHost ? 'Rival' : 'Invitador');
       battleOpponentName.value = name;
+      final photo = (fromUser?.profile ?? fromInvite?.profilePhoto ?? '').trim();
+      battleOpponentPhoto.value = photo.isEmpty ? null : photo;
     } else {
       battleOpponentName.value = '';
+      battleOpponentPhoto.value = null;
     }
 
     final hostState =
@@ -3252,7 +3125,7 @@ class LivestreamScreenController extends BaseController {
     if (running) {
       _ensureBattleTicker();
       _updateBattleRemaining();
-      unawaited(_ensureBattlePublishMedia());
+      unawaited(_syncLiveKitAvRoom());
     } else {
       _battleTicker?.cancel();
       _battleTicker = null;
@@ -3320,46 +3193,60 @@ class LivestreamScreenController extends BaseController {
     }
   }
 
-  /// Si soy el rival, reconectar LiveKit publicando cámara/mic en la sala PK.
-  Future<void> _ensureBattlePublishMedia() async {
-    if (!isBattleOpponentPublisher || kIsWeb || liveKit == null) return;
+  /// Host, rival y audiencia: misma sala LiveKit durante PK; sala propia al terminar.
+  Future<void> _syncLiveKitAvRoom({bool force = false}) async {
+    if (liveKit == null || isDummy) return;
+    if (pausedForCall.value) return;
+    if (_avRoomSyncing) {
+      for (var i = 0; i < 25 && _avRoomSyncing; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+      }
+      if (_avRoomSyncing) return;
+    }
     final me = SessionManager.instance.getUser();
     if (me?.id == null) return;
 
-    final target = avRoomId;
-    final onTargetRoom = liveKit!.isConnected.value &&
-        (_connectedLiveKitRoom == target ||
-            liveKit!.connectedRoomName == target);
-    final cameraOn = liveKit!.cameraEnabled.value;
+    final inBattle = isBattleRunning.value;
+    final target = inBattle ? avRoomId : roomId;
+    final publish = shouldPublishAv;
 
-    // Solo skip si YA estamos publicando en la sala primaria del PK.
-    if (_battlePublishEnsured && onTargetRoom && cameraOn) return;
-    if (onTargetRoom && cameraOn) {
-      _battlePublishEnsured = true;
+    final current = _connectedLiveKitRoom ?? liveKit!.connectedRoomName;
+    final onTarget = liveKit!.isConnected.value && current == target;
+    final cameraOk = !publish || liveKit!.cameraEnabled.value;
+
+    if (!force && onTarget && cameraOk) {
       return;
     }
 
+    _avRoomSyncing = true;
     try {
-      if (liveKit!.isConnected.value) {
-        await liveKit!.disconnect();
+      if (!onTarget) {
+        _hostEverPublished = false;
+        _clearHostAbsent();
       }
-      _connectedLiveKitRoom = null;
       await liveKit!.connect(
         roomName: target,
         identity: '${me!.id}',
         name: me.fullname ?? me.username ?? 'user',
-        publishCamera: true,
-        publishMicrophone: true,
+        publishCamera: publish,
+        publishMicrophone: publish,
         wsUrl: liveKitWsUrl,
         forceProfile: LiveKitQualityProfile.medium,
-        forceReconnect: true,
+        forceReconnect: force || !onTarget || (publish && !cameraOk),
       );
       _connectedLiveKitRoom = target;
-      _battlePublishEnsured = true;
+      if (liveKit!.remoteAudioMuted.value) {
+        await liveKit!.setRemoteAudioMuted(false);
+      }
+      if (isHost) {
+        await applyBeauty();
+      }
       update();
     } catch (e) {
-      _battlePublishEnsured = false;
-      Loggers.error('ensureBattlePublishMedia: $e');
+      _connectedLiveKitRoom = null;
+      Loggers.error('_syncLiveKitAvRoom: $e');
+    } finally {
+      _avRoomSyncing = false;
     }
   }
 
@@ -3644,6 +3531,76 @@ class LivestreamScreenController extends BaseController {
     );
   }
 
+  /// Audiencia: sale de este LIVE y entra al del rival para apoyarlo.
+  /// Host: abre el perfil (no puede abandonar su propia transmisión).
+  Future<void> goToOpponentLive() async {
+    final oppId = battleOpponentId.value ?? 0;
+    final oppName = battleOpponentName.value.trim();
+    final oppPhoto = battleOpponentPhoto.value;
+    if (isHost) {
+      if (oppId <= 0) return;
+      await openUserProfile(
+        userId: oppId,
+        fullname: oppName.isEmpty ? null : oppName,
+        profilePhoto: oppPhoto,
+      );
+      return;
+    }
+    if (isDummy || isEnding.value || _redirectingToNextLive) return;
+
+    showLoader();
+    Livestream? next;
+    try {
+      final targetRoom = opponentLiveRoomId;
+      final lives = await LiveSessionService.instance.listActive();
+      if (targetRoom != null && targetRoom.isNotEmpty) {
+        next = lives.firstWhereOrNull(
+          (l) => (l.roomID ?? '').trim() == targetRoom,
+        );
+      }
+      if (next == null && oppId > 0) {
+        next = lives.firstWhereOrNull((l) => (l.hostId ?? 0) == oppId);
+      }
+    } catch (e) {
+      Loggers.error('goToOpponentLive: $e');
+    }
+    stopLoader();
+    if (next == null || (next.roomID ?? '').trim().isEmpty) {
+      showSnackBar('El LIVE del rival no está disponible');
+      return;
+    }
+    if ((next.roomID ?? '').trim() == roomId) {
+      showSnackBar('Ya estás en su LIVE');
+      return;
+    }
+
+    _redirectingToNextLive = true;
+    isEnding.value = true;
+    _sessionPoll?.cancel();
+    _commentPoll?.cancel();
+    _callPoll?.cancel();
+    try {
+      try {
+        await LiveSessionService.instance
+            .leave(roomId: roomId)
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {}
+      await _cleanupMedia().timeout(const Duration(seconds: 8));
+    } catch (e) {
+      Loggers.error('goToOpponentLive cleanup: $e');
+    }
+    await _popLiveUi();
+    final dest = next;
+    Future.microtask(() {
+      Get.to(
+        () => LiveStreamAudienceScreen(isHost: false, livestream: dest),
+        preventDuplicates: false,
+      );
+    });
+    isEnding.value = false;
+    _redirectingToNextLive = false;
+  }
+
   Future<void> openChatUserProfile(LiveChatMessage message) async {
     await openUserProfile(
       userId: message.userId,
@@ -3829,7 +3786,6 @@ class LivestreamScreenController extends BaseController {
       } catch (_) {}
       isBattleRunning.value = false;
       isBattleWaiting.value = false;
-      _battlePublishEnsured = false;
     }
     // Cerrar UI primero: si LiveKit/API se cuelgan, el usuario ya pudo salir.
     await _popLiveUi();
@@ -3874,7 +3830,6 @@ class LivestreamScreenController extends BaseController {
     _battleTicker?.cancel();
     isBattleRunning.value = false;
     isBattleWaiting.value = false;
-    _battlePublishEnsured = false;
     await _popLiveUi();
     try {
       if (!preserveLaravelSession && !isDummy) {
@@ -3906,7 +3861,6 @@ class LivestreamScreenController extends BaseController {
     _battleTicker?.cancel();
     _battleTicker = null;
     _connectedLiveKitRoom = null;
-    _battlePublishEnsured = false;
     if (!isDummy) {
       if (!isHost) {
         try {
@@ -3961,6 +3915,9 @@ class LivestreamScreenController extends BaseController {
     _exitImmersiveLive();
     if (identical(activeInstance, this)) {
       activeInstance = null;
+    }
+    if (CallAvailability.watchingLiveHostId == livestream.hostId) {
+      CallAvailability.watchingLiveHostId = null;
     }
     _sessionPoll?.cancel();
     _commentPoll?.cancel();

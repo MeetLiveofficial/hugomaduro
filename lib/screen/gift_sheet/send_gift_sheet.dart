@@ -2,6 +2,7 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/widget/bottom_sheet_top_view.dart';
 import 'package:krimson/common/widget/custom_image.dart';
@@ -23,18 +24,21 @@ class SendGiftSheet extends StatelessWidget {
   final BattleView battleViewType;
   final int? userId;
   final List<AppUser> streamUsers;
+  final String? giftSource;
 
   const SendGiftSheet(
       {super.key,
       this.giftType = GiftType.none,
       this.battleViewType = BattleView.red,
       required this.userId,
-      this.streamUsers = const []});
+      this.streamUsers = const [],
+      this.giftSource});
 
   @override
   Widget build(BuildContext context) {
-    final controller =
-        Get.put(SendGiftSheetController(giftType, userId, streamUsers));
+    final controller = Get.put(
+        SendGiftSheetController(giftType, userId, streamUsers,
+            giftSource: giftSource));
 
     return Container(
       height: Get.height / 1.5,
@@ -102,13 +106,16 @@ class SendGiftSheet extends StatelessWidget {
                 style: TextStyleCustom.outFitRegular400(
                     fontSize: 15, color: textLightGrey(context))),
             Obx(() {
-              final cats = controller.categories;
+              // Hay que leer el id aquí: ListView.itemBuilder corre
+              // fuera del tracker de Obx y el pill activo no se movía.
+              final selectedId = controller.selectedCategoryId.value;
+              final cats = controller.categories.toList();
               if (cats.isEmpty) return const SizedBox(height: 10);
               return Column(
                 children: [
                   const SizedBox(height: 12),
                   SizedBox(
-                    height: 34,
+                    height: 36,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -120,14 +127,14 @@ class SendGiftSheet extends StatelessWidget {
                         final label = isAll
                             ? LKey.all.tr
                             : (cats[index - 1].name ?? '');
-                        final selected =
-                            controller.selectedCategoryId.value == catId;
+                        final selected = selectedId == catId;
                         return GestureDetector(
                           onTap: () => controller.selectCategory(catId),
                           child: AnimatedContainer(
+                            key: ValueKey('gift-cat-$catId'),
                             duration: const Duration(milliseconds: 180),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 6),
+                                horizontal: 14, vertical: 7),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(20),
                               gradient: selected
@@ -174,7 +181,7 @@ class SendGiftSheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 11),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 4,
-                      mainAxisExtent: 126,
+                      mainAxisExtent: 138,
                       crossAxisSpacing: 5,
                       mainAxisSpacing: 5),
                   itemBuilder: (context, index) {
@@ -215,8 +222,23 @@ class SendGiftSheet extends StatelessWidget {
                                 fit: BoxFit.contain,
                               ),
                             ),
+                            if (gift.displayTitle.isNotEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                child: Text(
+                                  gift.displayTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyleCustom.outFitMedium500(
+                                    fontSize: 11,
+                                    color: textLightGrey(context),
+                                  ),
+                                ),
+                              ),
                             Text(
-                                '${(gift.coinPrice ?? 0).numberFormat} ${LKey.coins.tr}',
+                                '${HostShare.displayCoins(gift.coinPrice ?? 0).numberFormat} ${LKey.coins.tr}',
                                 style: TextStyleCustom.outFitMedium500(
                                     fontSize: 13,
                                     color: textLightGrey(context))),

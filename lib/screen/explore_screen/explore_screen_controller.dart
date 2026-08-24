@@ -4,16 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/countries_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
 import 'package:krimson/screen/match_screen/match_preview_screen.dart';
 import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card.dart';
 import 'package:krimson/utilities/app_res.dart';
@@ -192,49 +197,85 @@ class ExploreScreenController extends BaseController {
   }
 
   void openChat(User user) {
+    if (GuestGate.block()) return;
     openDirectChatWith(user);
   }
 
   Future<void> startCall(User user) async {
+    if (GuestGate.block()) return;
     // Streamer → cliente: solo mensajes, sin videollamada.
     if (AppRole.isStreamer()) {
-      showSnackBar('Con clientes solo puedes enviar mensajes');
+      showSnackBar(LKey.clientsOnlyMessages.tr);
       return;
     }
-    if (!AppRole.canReceivePaidCalls(user)) {
-      showSnackBar('Este streamer no recibe llamadas ahora');
+    if (CallAvailability.isLive(user) &&
+        !CallAvailability.isWatchingThisLive(user)) {
+      await _openLive(user);
       return;
     }
-    final cost = user.callRequestCoins > 0
-        ? user.callRequestCoins
-        : user.getLevel.callRequestCoins;
+    if (!CallAvailability.canPlaceCall(user)) {
+      showSnackBar(
+        CallAvailability.blockMessage(user) ??
+            LKey.streamerNotReceivingCalls.tr,
+      );
+      return;
+    }
+    final cost = CallAvailability.callCost(user);
     if (cost > 0 &&
-        !CoinGate.ensureEnough(cost, message: 'Moneda insuficiente')) {
+        !CoinGate.ensureEnough(cost, message: LKey.insufficientCoins.tr)) {
       return;
     }
     Get.to(() => OutgoingCallScreen(callee: user, cost: cost));
   }
 
+  Future<void> _openLive(User user) async {
+    final roomId = (user.liveRoomId ?? '${user.id}').trim();
+    if (roomId.isEmpty) {
+      showSnackBar(LKey.liveNotAvailable.tr);
+      return;
+    }
+    showLoader();
+    try {
+      final payload =
+          await LiveSessionService.instance.fetchSession(roomId: roomId);
+      stopLoader();
+      final stream = payload?.session;
+      if (stream == null) {
+        showSnackBar(LKey.liveNotAvailable.tr);
+        return;
+      }
+      Get.to(() =>
+          LiveStreamAudienceScreen(isHost: false, livestream: stream));
+    } catch (e) {
+      stopLoader();
+      showSnackBar(e.toString());
+    }
+  }
+
   /// Match: el cliente paga entrada y ve preview en vivo; el streamer espera en Match.
   Future<void> startMatch() async {
+    if (GuestGate.block()) return;
     if (AppRole.isStreamer()) {
-      showSnackBar('Entra a Match para abrir tu cámara y esperar clientes');
+      showSnackBar(LKey.enterMatchToWaitClients.tr);
       return;
     }
     if (isMatching.value) return;
     isMatching.value = true;
     try {
       await CallService.instance.joinMatch();
+      final remaining =
+          SessionManager.instance.getUser()?.dailyFreeMatchesRemaining ?? 2;
       final cost =
-          SessionManager.instance.getSettings()?.matchInitialCoins ?? 0;
-      if (cost > 0 &&
+          SessionManager.instance.getSettings()?.matchRandomCoins ?? 50;
+      if (remaining <= 0 &&
+          cost > 0 &&
           !CoinGate.ensureEnough(
             cost,
-            message: 'Necesitas $cost coins para ver streamers en Match',
+            message: LKey.needCoinsToSearchMatch.trParams({'coins': '$cost'}),
           )) {
         return;
       }
-      final unlock = await CallService.instance.unlockMatch();
+      final unlock = await CallService.instance.unlockMatch(mode: 'random');
       final me = SessionManager.instance.getUser();
       if (me != null) {
         me.coinWallet = unlock.coinWallet;
@@ -250,9 +291,9 @@ class ExploreScreenController extends BaseController {
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
       if (msg.toLowerCase().contains('insufficient')) {
-        CoinGate.ensureEnough(999999, message: 'Monedas insuficientes');
+        CoinGate.ensureEnough(999999, message: LKey.insufficientCoins.tr);
       } else if (msg.toLowerCase().contains('no match')) {
-        showSnackBar('No hay streamers en Match ahora');
+        showSnackBar(LKey.noStreamersInMatch.tr);
       } else {
         showSnackBar(msg);
       }

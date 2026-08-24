@@ -31,7 +31,9 @@ class PostViewActionButton extends StatelessWidget {
           PostViewIconWithCount(
               key: likeKey,
               onTap: () => controller.onLike(post),
-              color: post.isLiked ?? false ? ColorRes.likeRed : null,
+              color: post.isLiked ?? false
+                  ? ColorRes.likeRed
+                  : ColorRes.crimson,
               image: post.isLiked ?? false
                   ? AssetRes.icFillHeart
                   : AssetRes.icHeart,
@@ -39,16 +41,19 @@ class PostViewActionButton extends StatelessWidget {
           if (post.canComment == 1)
             PostViewIconWithCount(
                 onTap: controller.onComment,
+                color: ColorRes.mlPurple,
                 image: AssetRes.icPostComment,
                 count: post.comments),
           if (ContentProtection.canShare)
             PostViewIconWithCount(
                 onTap: controller.handleShare,
+                color: ColorRes.roseBorder,
                 image: AssetRes.icPostShare,
                 count: post.shares),
           if (post.userId != SessionManager.instance.getUserID())
             PostViewIconWithCount(
               onTap: () => controller.onGiftTap(post),
+              color: ColorRes.crimson,
               image: AssetRes.icGift_2,
               isCountVisible: false,
             ),

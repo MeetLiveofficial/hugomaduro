@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/call_availability.dart';
+import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/my_refresh_indicator.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/countries_model.dart';
-import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/explore_screen/explore_screen_controller.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -47,8 +49,8 @@ class ExploreScreen extends StatelessWidget {
                           showShow: !isLoading && !hasData,
                           title: LKey.searchPageEmptyTitle.tr,
                           description: viewerIsStreamer
-                              ? 'No hay clientes con estos filtros'
-                              : 'No hay streamers con estos filtros',
+                              ? LKey.noClientsWithFilters
+                              : LKey.noStreamersWithFilters,
                           child: GridView.builder(
                             controller: controller.scrollController,
                             padding: const EdgeInsets.fromLTRB(10, 4, 10, 24),
@@ -57,7 +59,7 @@ class ExploreScreen extends StatelessWidget {
                               crossAxisCount: 2,
                               mainAxisSpacing: 8,
                               crossAxisSpacing: 8,
-                              childAspectRatio: 0.72,
+                              childAspectRatio: 0.78,
                             ),
                             itemCount: list.length +
                                 (controller.isLoadingMore.value ? 1 : 0),
@@ -103,147 +105,90 @@ class _ExploreHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: scaffoldBackgroundColor(context),
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: SafeArea(
-        bottom: false,
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
         child: Column(
           children: [
             TextField(
               controller: controller.searchController,
               onChanged: controller.onSearchChanged,
-              style: TextStyleCustom.outFitRegular400(
+              style: TextStyleCustom.outFitMedium500(
                 fontSize: 15,
                 color: textDarkGrey(context),
               ),
-              decoration: InputDecoration(
-                hintText: viewerIsStreamer
-                    ? 'Buscar clientes…'
-                    : 'Buscar streamers…',
-                hintStyle: TextStyleCustom.outFitLight300(
-                  fontSize: 15,
-                  color: textLightGrey(context),
-                ),
-                prefixIcon: Icon(Icons.search,
-                    color: textLightGrey(context), size: 20),
-                suffixIcon: Obx(() {
+              decoration: BrandControls.search(
+                hint: LKey.searchUsers.tr,
+                hintColor: textLightGrey(context),
+                prefix: const Icon(Icons.search,
+                    color: ColorRes.crimson, size: 22),
+                suffix: Obx(() {
                   final hasFilter =
                       controller.selectedCountryCode.value != null ||
-                          controller.selectedLanguageCode.value != null ||
                           controller.presenceFilter.value != 'all' ||
                           controller.searchText.value.trim().isNotEmpty;
                   if (!hasFilter) return const SizedBox.shrink();
                   return IconButton(
-                    tooltip: 'Limpiar',
+                    tooltip: LKey.clearFilters.tr,
                     onPressed: controller.clearFilters,
-                    icon: Icon(Icons.close,
-                        size: 18, color: textLightGrey(context)),
+                    icon: const Icon(Icons.close,
+                        size: 18, color: ColorRes.crimson),
                   );
                 }),
-                filled: true,
-                fillColor: bgMediumGrey(context),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Obx(() {
               final presence = controller.presenceFilter.value;
-              // Streamers exploran clientes: no aplica "En vivo".
-              if (viewerIsStreamer) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: _PresenceChip(
-                        label: 'Todos',
-                        active: presence == 'all',
-                        onTap: () => controller.selectPresence('all'),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: _PresenceChip(
-                        label: 'Activos',
-                        active: presence == 'active',
-                        accent: const Color(0xFF22C55E),
-                        icon: Icons.circle,
-                        onTap: () => controller.selectPresence('active'),
-                      ),
-                    ),
-                  ],
-                );
-              }
               return Row(
                 children: [
                   Expanded(
-                    child: _PresenceChip(
-                      label: 'Todos',
+                    child: BrandSegmentChip(
+                      compact: true,
+                      label: LKey.all.tr,
                       active: presence == 'all',
                       onTap: () => controller.selectPresence('all'),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: _PresenceChip(
-                      label: 'En vivo',
-                      active: presence == 'live',
-                      accent: ColorRes.themeAccentSolid,
-                      icon: Icons.videocam,
-                      onTap: () => controller.selectPresence('live'),
+                  if (!viewerIsStreamer) ...[
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: BrandSegmentChip(
+                        compact: true,
+                        label: LKey.liveBadge.tr,
+                        active: presence == 'live',
+                        accent: ColorRes.themeAccentSolid,
+                        icon: Icons.videocam,
+                        onTap: () => controller.selectPresence('live'),
+                      ),
                     ),
-                  ),
+                  ],
                   const SizedBox(width: 6),
                   Expanded(
-                    child: _PresenceChip(
-                      label: 'Activos',
+                    child: BrandSegmentChip(
+                      compact: true,
+                      label: LKey.activeFilter.tr,
                       active: presence == 'active',
                       accent: const Color(0xFF22C55E),
                       icon: Icons.circle,
                       onTap: () => controller.selectPresence('active'),
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: BrandFilterChip(
+                      compact: true,
+                      label: controller.selectedCountryName.value ??
+                          LKey.country.tr,
+                      active: controller.selectedCountryCode.value != null,
+                      icon: Icons.public,
+                      onTap: () => _pickCountry(context, controller),
+                    ),
+                  ),
                 ],
               );
             }),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Obx(() => _FilterChipButton(
-                        label: controller.selectedCountryName.value ?? 'País',
-                        active: controller.selectedCountryCode.value != null,
-                        icon: Icons.public,
-                        onTap: () => _pickCountry(context, controller),
-                      )),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Obx(() {
-                    final code = controller.selectedLanguageCode.value;
-                    var label = 'Idioma';
-                    if (code != null) {
-                      final lang = controller.languages
-                          .firstWhereOrNull((l) => l.code == code);
-                      label = (lang?.localizedTitle ??
-                              lang?.title ??
-                              code)
-                          .toString();
-                    }
-                    return _FilterChipButton(
-                      label: label,
-                      active: code != null,
-                      icon: Icons.translate,
-                      onTap: () => _pickLanguage(context, controller),
-                    );
-                  }),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -281,7 +226,7 @@ Future<void> _pickCountry(
               children: [
                 Expanded(
                   child: Text(
-                    'Filtrar por país',
+                    LKey.filterByCountry.tr,
                     style: TextStyleCustom.outFitSemiBold600(
                       color: textDarkGrey(context),
                       fontSize: 16,
@@ -290,7 +235,7 @@ Future<void> _pickCountry(
                 ),
                 TextButton(
                   onPressed: () => Get.back(result: '__clear__'),
-                  child: const Text('Todos'),
+                  child: Text(LKey.all.tr),
                 ),
               ],
             ),
@@ -354,141 +299,6 @@ Future<void> _pickCountry(
   }
 }
 
-Future<void> _pickLanguage(
-    BuildContext context, ExploreScreenController c) async {
-  final result = await Get.bottomSheet<Object>(
-    Container(
-      decoration: BoxDecoration(
-        color: scaffoldBackgroundColor(context),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: bgGrey(context),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Filtrar por idioma',
-                      style: TextStyleCustom.outFitSemiBold600(
-                        color: textDarkGrey(context),
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Get.back(result: '__clear__'),
-                    child: const Text('Todos'),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: c.languages.length,
-                itemBuilder: (_, i) {
-                  final lang = c.languages[i];
-                  final active = c.selectedLanguageCode.value == lang.code;
-                  final title =
-                      (lang.localizedTitle ?? lang.title ?? lang.code ?? '')
-                          .toString();
-                  return ListTile(
-                    dense: true,
-                    title: Text(title),
-                    subtitle: Text(lang.code ?? ''),
-                    trailing: active
-                        ? const Icon(Icons.check,
-                            color: ColorRes.themeAccentSolid)
-                        : null,
-                    onTap: () => Get.back(result: lang),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    ),
-    isScrollControlled: true,
-  );
-
-  if (result == '__clear__') {
-    c.selectLanguage(null);
-  } else if (result is Language) {
-    c.selectLanguage(result);
-  }
-}
-
-class _FilterChipButton extends StatelessWidget {
-  final String label;
-  final bool active;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _FilterChipButton({
-    required this.label,
-    required this.active,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: active
-          ? ColorRes.themeAccentSolid.withValues(alpha: 0.15)
-          : bgMediumGrey(context),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          child: Row(
-            children: [
-              Icon(icon,
-                  size: 16,
-                  color: active
-                      ? ColorRes.themeAccentSolid
-                      : textLightGrey(context)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyleCustom.outFitMedium500(
-                    fontSize: 13,
-                    color: active
-                        ? ColorRes.themeAccentSolid
-                        : textDarkGrey(context),
-                  ),
-                ),
-              ),
-              Icon(Icons.expand_more,
-                  size: 18, color: textLightGrey(context)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _StreamerExploreCard extends StatelessWidget {
   final User user;
   final bool showCallButton;
@@ -511,14 +321,16 @@ class _StreamerExploreCard extends StatelessWidget {
         ? '@${user.username}'
         : (user.country ?? user.appLanguage ?? '');
     final photo = (user.profilePhoto ?? '').trim().addBaseURL();
-    final canCall = showCallButton && AppRole.canReceivePaidCalls(user);
-    final isLive = user.isLive == 1;
-    final isActive = !isLive && user.isActive == 1;
+    final isLive = CallAvailability.isLive(user);
+    final canCall = showCallButton && CallAvailability.canPlaceCall(user);
+    final inCall = CallAvailability.isInCall(user);
+    final isActive = !isLive && !inCall && user.isActive == 1;
+    final isOffline = !isLive && !inCall && !isActive;
 
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -532,13 +344,17 @@ class _StreamerExploreCard extends StatelessWidget {
                 fullName: name,
               )
             else
-              ColoredBox(
-                color: ColorRes.surfaceDeep,
+              DecoratedBox(
+                decoration: BoxDecoration(gradient: StyleRes.themeGradient),
                 child: Center(
-                  child: CustomImage(
-                    size: const Size(72, 72),
-                    fullName: name,
-                    radius: 40,
+                  child: Text(
+                    name.trim().isEmpty
+                        ? 'ML'
+                        : name.trim().substring(0, 1).toUpperCase(),
+                    style: TextStyleCustom.unboundedMedium500(
+                      color: Colors.white,
+                      fontSize: 36,
+                    ),
                   ),
                 ),
               ),
@@ -556,67 +372,109 @@ class _StreamerExploreCard extends StatelessWidget {
                 ),
               ),
             ),
-            if (isLive)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: ColorRes.themeAccentSolid,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.videocam, color: Colors.white, size: 11),
-                      const SizedBox(width: 3),
-                      Text(
-                        'LIVE',
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (inCall)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6EA580C),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.videocam_rounded,
+                              color: Colors.white, size: 11),
+                          const SizedBox(width: 3),
+                          Text(
+                            LKey.inCall.tr,
+                            style: TextStyleCustom.outFitMedium500(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (isLive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        gradient: StyleRes.themeGradient,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: ColorRes.crimson.withValues(alpha: 0.45),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.videocam,
+                              color: Colors.white, size: 11),
+                          const SizedBox(width: 3),
+                          Text(
+                            LKey.liveBadge.tr,
+                            style: TextStyleCustom.outFitMedium500(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6166534),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.circle,
+                              color: Color(0xFF4ADE80), size: 8),
+                          const SizedBox(width: 4),
+                          Text(
+                            LKey.statusActive.tr,
+                            style: TextStyleCustom.outFitMedium500(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (isOffline)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE63F3F46),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        LKey.offlineBadge.tr,
                         style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white,
+                          color: Colors.white70,
                           fontSize: 10,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              )
-            else if (isActive)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF166534),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF4ADE80),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Activo',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                ],
               ),
+            ),
             if ((user.country ?? '').isNotEmpty ||
                 (user.countryCode ?? '').isNotEmpty)
               Positioned(
@@ -626,7 +484,7 @@ class _StreamerExploreCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.black54,
+                    color: ColorRes.darkPurple.withValues(alpha: 0.82),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -640,167 +498,122 @@ class _StreamerExploreCard extends StatelessWidget {
               ),
             Positioned(
               left: 10,
-              right: 10,
-              bottom: 10,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              right: 6,
+              bottom: 8,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyleCustom.outFitSemiBold600(
-                      color: Colors.white,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _CardActionButton(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          label: 'Chat',
-                          onTap: onMessage,
-                          color: showCallButton
-                              ? Colors.white24
-                              : ColorRes.themeAccentSolid,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyleCustom.outFitSemiBold600(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                      if (showCallButton) ...[
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: _CardActionButton(
-                            icon: Icons.videocam_rounded,
-                            label: 'Llamar',
-                            onTap: canCall ? onCall : null,
-                            color: canCall
-                                ? ColorRes.themeAccentSolid
-                                : Colors.white12,
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white70,
+                            fontSize: 11,
                           ),
                         ),
                       ],
-                    ],
+                    ),
+                  ),
+                  Material(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: const CircleBorder(),
+                    child: PopupMenuButton<String>(
+                      tooltip: LKey.options.tr,
+                      color: ColorRes.whitePure,
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.more_vert_rounded,
+                          color: Colors.white, size: 20),
+                      onSelected: (value) {
+                        if (value == 'chat') onMessage();
+                        if (value == 'call') onCall();
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'chat',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.chat_bubble_outline_rounded,
+                                  color: ColorRes.textDarkGrey, size: 18),
+                              const SizedBox(width: 10),
+                              Text(
+                                LKey.chat.tr,
+                                style: TextStyleCustom.outFitMedium500(
+                                  color: ColorRes.textDarkGrey,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (showCallButton && isLive)
+                          PopupMenuItem(
+                            value: 'call',
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.live_tv_rounded,
+                                  color: ColorRes.mlPurple,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  LKey.joinThisLive.tr,
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: ColorRes.textDarkGrey,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (showCallButton)
+                          PopupMenuItem(
+                            value: 'call',
+                            enabled: canCall,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.videocam_rounded,
+                                  color: canCall
+                                      ? ColorRes.crimson
+                                      : ColorRes.disabledGrey,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  LKey.callAction.tr,
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: canCall
+                                        ? ColorRes.textDarkGrey
+                                        : ColorRes.disabledGrey,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PresenceChip extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  final Color? accent;
-  final IconData? icon;
-
-  const _PresenceChip({
-    required this.label,
-    required this.active,
-    required this.onTap,
-    this.accent,
-    this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = accent ?? textDarkGrey(context);
-    return Material(
-      color: active
-          ? (accent ?? ColorRes.themeAccentSolid).withValues(alpha: 0.18)
-          : bgMediumGrey(context),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: icon == Icons.circle ? 8 : 14,
-                  color: active ? color : textLightGrey(context),
-                ),
-                const SizedBox(width: 4),
-              ],
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyleCustom.outFitMedium500(
-                    color: active ? color : textDarkGrey(context),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CardActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final Color color;
-
-  const _CardActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 14, color: Colors.white),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyleCustom.outFitMedium500(
-                    color: Colors.white,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/model/post_story/post_model.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_center_message_view.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 /// Preview de imagen/video thumbnail compatible con Web y móvil.
@@ -101,9 +102,17 @@ class ChatBubble extends StatelessWidget {
       constraints: BoxConstraints(maxWidth: Get.width * 0.72),
       padding: padding,
       decoration: ShapeDecoration(
-        color: isMe
-            ? themeAccentSolid(context).withValues(alpha: 0.12)
-            : bgGrey(context),
+        color: isMe ? null : ColorRes.bgMediumGrey,
+        gradient: isMe
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFFD6EC),
+                  Color(0xFFE9C4F5),
+                ],
+              )
+            : null,
         shape: SmoothRectangleBorder(
           borderRadius: SmoothBorderRadius(cornerRadius: 14, cornerSmoothing: 1),
         ),

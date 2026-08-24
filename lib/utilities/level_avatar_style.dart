@@ -3,7 +3,7 @@ import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/utilities/color_res.dart';
 
-/// Contorno del avatar según nivel (Warm Sunrise → Dusk Violet).
+/// Contorno del avatar según nivel (Coral → Magenta → Purple).
 class LevelAvatarStyle {
   LevelAvatarStyle._();
 

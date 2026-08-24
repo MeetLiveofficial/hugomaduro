@@ -103,7 +103,7 @@ class LoginScreen extends StatelessWidget {
                               title: LKey.logIn.tr,
                               btnHeight: 50,
                               horizontalMargin: 0,
-                              backgroundColor: ColorRes.mauve,
+                              gradient: true,
                               titleColor: ColorRes.whitePure,
                               radius: 25)
                         ],
@@ -172,6 +172,31 @@ class LoginScreen extends StatelessWidget {
                               onTap: controller.onGoogleTap,
                               icon: AssetRes.icGoogle),
                         ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                      child: InkWell(
+                        onTap: controller.onAnonymousTap,
+                        borderRadius: BorderRadius.circular(25),
+                        child: Container(
+                          height: 48,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(25),
+                            border: Border.all(
+                              color: ColorRes.whitePure.withValues(alpha: 0.55),
+                            ),
+                            color: ColorRes.menuSurface.withValues(alpha: 0.12),
+                          ),
+                          child: Text(
+                            LKey.continueAsGuest.tr,
+                            style: TextStyleCustom.outFitMedium500(
+                              color: ColorRes.whitePure,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     PrivacyPolicyText(

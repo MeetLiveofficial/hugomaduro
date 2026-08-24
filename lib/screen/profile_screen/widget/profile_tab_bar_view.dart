@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -77,7 +79,7 @@ class _TabItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color =
-        isSelected ? themeAccentSolid(context) : textLightGrey(context);
+        isSelected ? ColorRes.crimson : textLightGrey(context);
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -103,7 +105,11 @@ class _TabItem extends StatelessWidget {
             Container(
               height: 2,
               margin: const EdgeInsets.symmetric(horizontal: 24),
-              color: isSelected ? themeAccentSolid(context) : Colors.transparent,
+              decoration: BoxDecoration(
+                gradient: isSelected ? StyleRes.themeGradient : null,
+                color: isSelected ? null : Colors.transparent,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ],
         ),

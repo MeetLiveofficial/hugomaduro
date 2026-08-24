@@ -188,6 +188,8 @@ class LeaderboardEntry {
     this.score = 0,
     this.frameImage,
     this.badgeImage,
+    this.unlockGrade,
+    this.photoRatio,
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
@@ -222,7 +224,18 @@ class LeaderboardEntry {
       badgeImage: json['equipped_badge'] is Map
           ? json['equipped_badge']['image']?.toString()
           : json['badge_image']?.toString(),
+      unlockGrade: json['equipped_frame'] is Map
+          ? json['equipped_frame']['unlock_grade']?.toString()
+          : json['unlock_grade']?.toString(),
+      photoRatio: json['equipped_frame'] is Map
+          ? _asDouble(json['equipped_frame']['photo_ratio'])
+          : _asDouble(json['photo_ratio']),
     );
+  }
+
+  static double? _asDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse('$v');
   }
 
   final int? id;
@@ -239,6 +252,8 @@ class LeaderboardEntry {
   final int score;
   final String? frameImage;
   final String? badgeImage;
+  final String? unlockGrade;
+  final double? photoRatio;
 
   String get displayName {
     final n = (fullname ?? '').trim();

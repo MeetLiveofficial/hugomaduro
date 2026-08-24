@@ -6,6 +6,7 @@ import 'package:krimson/common/widget/gradient_border.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/feed_screen/feed_screen_controller.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -92,7 +93,7 @@ class StoryView extends StatelessWidget {
               Text(
                 LKey.you.tr,
                 style: TextStyleCustom.outFitRegular400(
-                    fontSize: 13, color: blackPure(context)),
+                    fontSize: 13, color: ColorRes.whitePure),
               ),
             ],
           ),
@@ -133,7 +134,8 @@ class StoryView extends StatelessWidget {
             Expanded(
               child: Text(
                 users[index].username ?? '',
-                style: TextStyleCustom.outFitRegular400(fontSize: 13),
+                style: TextStyleCustom.outFitRegular400(
+                    fontSize: 13, color: ColorRes.whitePure),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),

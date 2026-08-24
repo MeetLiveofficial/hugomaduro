@@ -4,8 +4,11 @@ import 'package:proste_indexed_stack/proste_indexed_stack.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/banner_ads_custom.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
+import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/agency_screen/agency_dashboard_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/explore_screen/explore_screen.dart';
 import 'package:krimson/screen/home_screen/unified_home_screen.dart';
@@ -62,6 +65,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(DashboardScreenController());
+    if (AppRole.isAgency(widget.myUser ?? SessionManager.instance.getUser())) {
+      return const AgencyDashboardScreen();
+    }
     return Obx(() {
       final onLiveTab = controller.selectedPageIndex.value ==
           DashboardScreenController.tabLive;
@@ -71,19 +77,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
               controller.homeTabMode.value == HomeTabMode.live);
       final hideBannerMatch = _isClient && onLiveTab;
       return Scaffold(
-        backgroundColor: ColorRes.bgLightGrey,
+        backgroundColor: Colors.transparent,
         extendBody: true,
         // En Go Live / Match el teclado no debe empujar el layout.
         resizeToAvoidBottomInset: !onLiveTab,
-        body: Column(
+        body: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
-              child: ProsteIndexedStack(
-                index: controller.selectedPageIndex.value,
-                children: _pages,
-              ),
+            const BrandWashBg(vivid: false),
+            Column(
+              children: [
+                Expanded(
+                  child: ProsteIndexedStack(
+                    index: controller.selectedPageIndex.value,
+                    children: _pages,
+                  ),
+                ),
+                if (!hideBanner && !hideBannerMatch) const BannerAdsCustom(),
+              ],
             ),
-            if (!hideBanner && !hideBannerMatch) const BannerAdsCustom(),
           ],
         ),
         bottomNavigationBar: _buildBottomNavigationBar(context, controller),
@@ -91,8 +103,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  static const Color _navBarBg = Color(0xFF1C1C1E);
-  static const Color _navActivePill = ColorRes.themeAccentSolid;
+  static const Color _navBarBg = ColorRes.whitePure;
 
   Widget _buildBottomNavigationBar(
       BuildContext context, DashboardScreenController controller) {
@@ -178,31 +189,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.sizeOf(context).width - 20,
+                child: Container(
+                  height: 58,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: _navBarBg,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ColorRes.crimson.withValues(alpha: 0.22),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Container(
-                      height: 56,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: _navBarBg,
-                        borderRadius: BorderRadius.circular(32),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: items,
-                      ),
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: items,
                   ),
                 ),
               ),
@@ -215,79 +218,76 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _navHitTarget({
     required bool selected,
+    required Color accent,
     required VoidCallback onTap,
     required Widget child,
+    bool locked = false,
   }) {
+    final showSelected = selected && !locked;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: SizedBox(
-        width: 48,
-        height: 56,
+        width: 46,
+        height: 58,
         child: Center(
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
-            width: selected ? 44 : 36,
-            height: selected ? 34 : 36,
+            width: showSelected ? 42 : 32,
+            height: showSelected ? 42 : 32,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: selected ? _navActivePill : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-              border: selected
-                  ? Border.all(color: Colors.white.withValues(alpha: 0.35))
-                  : null,
+              shape: BoxShape.circle,
+              gradient: showSelected ? StyleRes.themeGradient : null,
+              color: Colors.transparent,
+              boxShadow: showSelected
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.72),
+                        blurRadius: 16,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : const [],
             ),
-            child: child,
+            child: showSelected
+                ? ClipOval(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Center(child: child),
+                        const IgnorePointer(child: ShineSweep()),
+                      ],
+                    ),
+                  )
+                : child,
           ),
         ),
       ),
     );
   }
 
-  Widget _navAssetIcon(String asset, {double size = 26}) {
+  Widget _navAssetIcon(String asset, {required Color color, double size = 26}) {
     return ColorFiltered(
-      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+      colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
       child: Image.asset(asset, height: size, width: size),
     );
   }
 
   /// Streamer: Match con clientes (abre pantalla, no sustituye Go Live).
   Widget _buildStreamerMatchNavItem() {
-    const matchRed = ColorRes.coralRed;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => Get.to(() => const MatchScreen()),
-      child: SizedBox(
-        width: 58,
-        height: 56,
+      child: const SizedBox(
+        width: 46,
+        height: 58,
         child: Center(
-          child: Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: matchRed,
-              boxShadow: [
-                BoxShadow(
-                  color: matchRed.withValues(alpha: 0.55),
-                  blurRadius: 14,
-                  spreadRadius: 1,
-                  offset: const Offset(0, 3),
-                ),
-                BoxShadow(
-                  color: matchRed.withValues(alpha: 0.35),
-                  blurRadius: 22,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.favorite_rounded,
-              size: 24,
-              color: Colors.white,
-            ),
+          child: Icon(
+            Icons.favorite_rounded,
+            size: 26,
+            color: ColorRes.crimson,
           ),
         ),
       ),
@@ -303,52 +303,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : Get.put(MatchScreenController());
     return Obx(() {
       final busy = matchCtrl.isMatching.value;
-      const matchRed = ColorRes.coralRed;
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      final selected = controller.selectedPageIndex.value ==
+          DashboardScreenController.tabLive;
+      final locked = false;
+      return _navHitTarget(
+        selected: selected,
+        accent: ColorRes.crimson,
+        locked: locked,
         onTap: () => controller.onChanged(DashboardScreenController.tabLive),
-        child: SizedBox(
-          width: 58,
-          height: 56,
-          child: Center(
-            child: Container(
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: matchRed,
-                boxShadow: [
-                  BoxShadow(
-                    color: matchRed.withValues(alpha: 0.55),
-                    blurRadius: 14,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 3),
-                  ),
-                  BoxShadow(
-                    color: matchRed.withValues(alpha: 0.35),
-                    blurRadius: 22,
-                    spreadRadius: 2,
-                  ),
-                ],
+        child: busy
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: locked
+                      ? ColorRes.disabledGrey
+                      : (selected ? Colors.white : ColorRes.crimson),
+                ),
+              )
+            : Icon(
+                Icons.favorite_rounded,
+                size: 24,
+                color: locked
+                    ? ColorRes.disabledGrey
+                    : (selected ? Colors.white : ColorRes.crimson),
               ),
-              child: busy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.favorite_rounded,
-                      size: 24,
-                      color: Colors.white,
-                    ),
-            ),
-          ),
-        ),
       );
     });
   }
@@ -358,9 +338,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Obx(() {
       final isSelected = controller.selectedPageIndex.value == index;
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
+      final accent = ColorRes.navIconColors[
+          index.clamp(0, ColorRes.navIconColors.length - 1)];
+      final locked = false;
+      final iconColor = locked
+          ? ColorRes.disabledGrey
+          : (isSelected ? ColorRes.whitePure : accent);
 
       return _navHitTarget(
         selected: isSelected,
+        accent: accent,
+        locked: locked,
         onTap: () => controller.onChanged(index),
         child: AnimatedScale(
           scale: scaleValue,
@@ -370,10 +358,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             alignment: Alignment.center,
             children: [
               if (index == DashboardScreenController.tabLive)
-                const LiveTvIcon(size: 26, color: Colors.white)
+                LiveTvIcon(size: 26, color: iconColor)
               else
-                _navAssetIcon(controller.bottomIconList[index]),
-              if (index == DashboardScreenController.tabChat)
+                _navAssetIcon(
+                  controller.bottomIconList[index],
+                  color: iconColor,
+                ),
+              if (index == DashboardScreenController.tabChat && !locked)
                 _buildUnreadDot(controller),
             ],
           ),

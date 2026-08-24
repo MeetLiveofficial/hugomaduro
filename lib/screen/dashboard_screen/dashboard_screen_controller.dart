@@ -83,6 +83,9 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     if (AppRole.isStreamer(user)) {
       selectedPageIndex.value = tabProfile;
     }
+    if (AppRole.isAgency(user)) {
+      selectedPageIndex.value = tabHome;
+    }
     SystemChrome.setSystemUIOverlayStyle(
         const SystemUiOverlayStyle(statusBarBrightness: Brightness.light));
     Get.put(GifSheetController());
@@ -138,7 +141,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
   void _promptCoinPackagesOnce() {
     if (_packagesPromptShown) return;
     if (!SessionManager.instance.isLogin()) return;
-    if (AppRole.isStreamer(user)) return;
+    if (AppRole.isStreamer(user) || AppRole.isAgency(user)) return;
     _packagesPromptShown = true;
     Future.delayed(const Duration(milliseconds: 700), () {
       if (isClosed) return;
@@ -155,6 +158,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
 
   /// Poll de invitaciones LIVE (cubre Web/sin FCM real).
   void _startLiveInvitePoll() {
+    if (AppRole.isAgency(user)) return;
     _liveInvitePollTimer?.cancel();
     Future.microtask(_pollLiveInvites);
     _liveInvitePollTimer =
@@ -163,6 +167,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
 
   /// Poll global de llamadas entrantes (badge + overlay; cubre sin FCM / BlueStacks).
   void _startIncomingCallPoll() {
+    if (AppRole.isAgency(user)) return;
     _incomingCallPollTimer?.cancel();
     Future.microtask(_pollIncomingCalls);
     _incomingCallPollTimer = Timer.periodic(

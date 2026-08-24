@@ -7,7 +7,7 @@ import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
-import 'package:krimson/screen/recharge_history_screen/recharge_history_screen.dart';
+import 'package:krimson/screen/wallet_history_screen/wallet_history_screen.dart';
 import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/style_res.dart';
@@ -100,54 +100,58 @@ class CoinWalletTopView extends StatelessWidget {
                   label: LKey.collected.tr,
                   value: (user?.coinCollectedLifetime ?? 0).fullNumberFormat,
                 ),
-                const SizedBox(width: 6),
-                _StatChip(
-                  label: LKey.gifted.tr,
-                  value: (user?.coinGiftedLifetime ?? 0).fullNumberFormat,
-                ),
-                const SizedBox(width: 6),
-                _StatChip(
-                  label: LKey.purchased.tr,
-                  value: (user?.coinPurchasedLifetime ?? 0).fullNumberFormat,
-                ),
+                if (!AppRole.canEarn()) ...[
+                  const SizedBox(width: 6),
+                  _StatChip(
+                    label: LKey.gifted.tr,
+                    value: (user?.coinGiftedLifetime ?? 0).fullNumberFormat,
+                  ),
+                  const SizedBox(width: 6),
+                  _StatChip(
+                    label: LKey.purchased.tr,
+                    value: (user?.coinPurchasedLifetime ?? 0).fullNumberFormat,
+                  ),
+                ],
               ],
             );
           }),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextButtonCustom(
-                  onTap: () => Get.to(() => const RechargeHistoryScreen()),
-                  title: 'Historial',
-                  backgroundColor: bgGrey(context),
-                  titleColor: textDarkGrey(context),
-                  btnHeight: 34,
-                  horizontalMargin: 0,
-                  margin: EdgeInsets.zero,
-                  fontSize: 13,
-                ),
-              ),
-              if (canWithdraw) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextButtonCustom(
-                    onTap: () => Get.to(() => const WithdrawalsScreen()),
-                    title: LKey.withdrawals.tr,
-                    backgroundColor: bgGrey(context),
-                    titleColor: textDarkGrey(context),
-                    btnHeight: 34,
-                    horizontalMargin: 0,
-                    margin: EdgeInsets.zero,
-                    fontSize: 13,
+        if (!AppRole.canEarn() || canWithdraw)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
+            child: Row(
+              children: [
+                if (!AppRole.canEarn())
+                  Expanded(
+                    child: TextButtonCustom(
+                      onTap: () => Get.to(() => const WalletHistoryScreen()),
+                      title: LKey.walletHistory.tr,
+                      backgroundColor: bgGrey(context),
+                      titleColor: textDarkGrey(context),
+                      btnHeight: 34,
+                      horizontalMargin: 0,
+                      margin: EdgeInsets.zero,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
+                if (canWithdraw) ...[
+                  if (!AppRole.canEarn()) const SizedBox(width: 8),
+                  Expanded(
+                    child: TextButtonCustom(
+                      onTap: () => Get.to(() => const WithdrawalsScreen()),
+                      title: LKey.withdrawals.tr,
+                      backgroundColor: bgGrey(context),
+                      titleColor: textDarkGrey(context),
+                      btnHeight: 34,
+                      horizontalMargin: 0,
+                      margin: EdgeInsets.zero,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
       ],
     );
   }

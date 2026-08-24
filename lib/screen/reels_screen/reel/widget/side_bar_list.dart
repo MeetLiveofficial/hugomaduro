@@ -10,6 +10,7 @@ import 'package:krimson/model/post_story/music/music_model.dart';
 import 'package:krimson/model/post_story/post_model.dart';
 import 'package:krimson/screen/reels_screen/reel/reel_page_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -50,6 +51,9 @@ class SideBarList extends StatelessWidget {
                 onTap: () {
                   isPlaceholder ? () {} : controller.onLikeTap();
                 },
+                iconColor: (reel.isLiked ?? false)
+                    ? ColorRes.likeRed
+                    : ColorRes.crimson,
                 image: (reel.isLiked ?? false)
                     ? AssetRes.icFillHeart
                     : AssetRes.icHeart,
@@ -57,12 +61,14 @@ class SideBarList extends StatelessWidget {
             if (reel.canComment == 1)
               IconWithLabel(
                 onTap: isPlaceholder ? () {} : controller.onCommentTap,
+                iconColor: ColorRes.mlPurple,
                 image: AssetRes.icComment,
                 text: isPlaceholder ? '1' : (reel.comments ?? 0).toString(),
               ),
             if (ContentProtection.canShare)
               IconWithLabel(
                 onTap: isPlaceholder ? () {} : controller.onShareTap,
+                iconColor: ColorRes.roseMuted,
                 image: AssetRes.icShare,
                 text: isPlaceholder ? '1' : (reel.shares ?? 0).toString(),
               ),
