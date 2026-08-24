@@ -9,7 +9,6 @@ import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
-import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -20,7 +19,7 @@ import 'package:krimson/screen/call_screen/match_recharge_dialog.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_web_video.dart';
-import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
@@ -322,14 +321,14 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: ClientColors.bg,
         body: GestureDetector(
           onHorizontalDragUpdate: _onHorizontalDragUpdate,
           onHorizontalDragEnd: _onHorizontalDragEnd,
           child: Stack(
           fit: StackFit.expand,
           children: [
-            const BrandWashBg(),
+            const ColoredBox(color: ClientColors.bg),
             SafeArea(
               child: Column(
                 children: [
@@ -340,7 +339,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
                         IconButton(
                           onPressed: _busy ? null : Get.back,
                           icon: const Icon(Icons.close,
-                              color: Colors.white, size: 22),
+                              color: ClientColors.text, size: 22),
                         ),
                         CustomImage(
                           size: const Size(36, 36),
@@ -355,13 +354,28 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyleCustom.outFitSemiBold600(
-                              color: Colors.white,
+                              color: ClientColors.text,
                               fontSize: 15,
                             ),
                           ),
                         ),
                         _CountdownBadge(seconds: _secondsLeft),
                       ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: _previewSeconds > 0
+                            ? (_secondsLeft / _previewSeconds).clamp(0.0, 1.0)
+                            : 0,
+                        minHeight: 6,
+                        backgroundColor:
+                            ClientColors.secondarySoft.withValues(alpha: 0.28),
+                        color: ClientColors.secondary,
+                      ),
                     ),
                   ),
                   Expanded(
@@ -397,7 +411,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
                       'Desliza para otra streamer · ${_previewSeconds}s de preview',
                       textAlign: TextAlign.center,
                       style: TextStyleCustom.outFitRegular400(
-                        color: Colors.white.withValues(alpha: 0.78),
+                        color: ClientColors.textMuted,
                         fontSize: 12,
                       ),
                     ),
@@ -407,7 +421,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
                       padding: EdgeInsets.only(bottom: 18),
                       child: CircularProgressIndicator(
                         strokeWidth: 2.4,
-                        color: Colors.white70,
+                        color: ClientColors.secondarySoft,
                       ),
                     )
                   else
@@ -508,7 +522,7 @@ class _Placeholder extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasPhoto = (photoUrl ?? '').trim().isNotEmpty;
     return ColoredBox(
-      color: const Color(0xFF140E18),
+      color: ClientColors.surface,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -522,7 +536,7 @@ class _Placeholder extends StatelessWidget {
             )
           else
             const Center(
-              child: Icon(Icons.person, color: Colors.white24, size: 72),
+              child: Icon(Icons.person, color: ClientColors.textMuted, size: 72),
             ),
           ColoredBox(color: Colors.black.withValues(alpha: 0.38)),
           Center(
@@ -531,7 +545,7 @@ class _Placeholder extends StatelessWidget {
               child: Text(
                 status,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                style: const TextStyle(color: ClientColors.textMuted, fontSize: 14),
               ),
             ),
           ),
@@ -551,14 +565,14 @@ class _CountdownBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
+        color: ClientColors.surface.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: ColorRes.themeAccentSolid.withValues(alpha: 0.8)),
+        border: Border.all(color: ClientColors.secondarySoft),
       ),
       child: Text(
         '${seconds}s',
         style: TextStyleCustom.outFitSemiBold600(
-          color: Colors.white,
+          color: ClientColors.text,
           fontSize: 14,
         ),
       ),
@@ -582,7 +596,7 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: filled ? ColorRes.themeAccentSolid : Colors.black.withValues(alpha: 0.45),
+      color: filled ? ClientColors.primary : ClientColors.surfaceAlt,
       borderRadius: BorderRadius.circular(28),
       child: InkWell(
         onTap: onTap,
@@ -592,20 +606,18 @@ class _ActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: filled
-                  ? Colors.transparent
-                  : Colors.white.withValues(alpha: 0.28),
+              color: filled ? ClientColors.primaryHover : ClientColors.secondarySoft,
             ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white, size: 22),
+              Icon(icon, color: ClientColors.text, size: 22),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyleCustom.outFitSemiBold600(
-                  color: Colors.white,
+                  color: ClientColors.text,
                   fontSize: 15,
                 ),
               ),

@@ -27,6 +27,7 @@ import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_c
 import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_web_video.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -56,8 +57,9 @@ class VideoCallScreen extends StatelessWidget {
       ),
       tag: 'call_${call.id}',
     );
+    final client = AppRole.isClient();
     return Scaffold(
-      backgroundColor: const Color(0xFF140E18),
+      backgroundColor: client ? ClientColors.bg : const Color(0xFF140E18),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
@@ -75,7 +77,10 @@ class VideoCallScreen extends StatelessWidget {
                           return Text(
                             match ? LKey.matchLabel.tr : LKey.videoCall.tr,
                             style: TextStyleCustom.outFitMedium500(
-                                color: Colors.white, fontSize: 16),
+                                color: client
+                                    ? ClientColors.text
+                                    : Colors.white,
+                                fontSize: 16),
                           );
                         }),
                         const SizedBox(height: 4),
@@ -89,8 +94,12 @@ class VideoCallScreen extends StatelessWidget {
                             label,
                             style: TextStyleCustom.outFitRegular400(
                               color: match && left <= 5
-                                  ? ColorRes.themeAccentSolid
-                                  : Colors.white70,
+                                  ? (client
+                                      ? ClientColors.primary
+                                      : ColorRes.themeAccentSolid)
+                                  : (client
+                                      ? ClientColors.textMuted
+                                      : Colors.white70),
                               fontSize: match ? 18 : 13,
                             ),
                           );
@@ -120,6 +129,27 @@ class VideoCallScreen extends StatelessWidget {
                 ],
               ),
             ),
+            if (client)
+              Obx(() {
+                if (!controller.matchUi.value) {
+                  return const SizedBox.shrink();
+                }
+                final total = controller.matchDurationSeconds;
+                final left = controller.matchSecondsLeft.value;
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: total > 0 ? (left / total).clamp(0.0, 1.0) : 0,
+                      minHeight: 6,
+                      backgroundColor:
+                          ClientColors.secondarySoft.withValues(alpha: 0.28),
+                      color: ClientColors.secondary,
+                    ),
+                  ),
+                );
+              }),
             Obx(() {
               if (!controller.matchUi.value) return const SizedBox.shrink();
               if (controller.awaitingExtension.value) {
@@ -131,7 +161,7 @@ class VideoCallScreen extends StatelessWidget {
                         : 'El cliente puede continuar el Match…',
                     textAlign: TextAlign.center,
                     style: TextStyleCustom.outFitMedium500(
-                      color: Colors.white,
+                      color: client ? ClientColors.text : Colors.white,
                       fontSize: 12,
                     ),
                   ),
@@ -147,7 +177,7 @@ class VideoCallScreen extends StatelessWidget {
                       : 'Match termina en $left s',
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.outFitMedium500(
-                    color: Colors.white,
+                    color: client ? ClientColors.text : Colors.white,
                     fontSize: 12,
                   ),
                 ),
@@ -182,7 +212,8 @@ class VideoCallScreen extends StatelessWidget {
                     ),
                     if (controller.awaitingExtension.value)
                       ColoredBox(
-                        color: Colors.black.withValues(alpha: 0.72),
+                        color: (client ? ClientColors.bg : Colors.black)
+                            .withValues(alpha: 0.78),
                         child: Center(
                           child: Text(
                             controller.isMatchCaller
@@ -190,7 +221,9 @@ class VideoCallScreen extends StatelessWidget {
                                 : 'Video pausado\nEsperando al cliente…',
                             textAlign: TextAlign.center,
                             style: TextStyleCustom.outFitMedium500(
-                              color: Colors.white,
+                              color: client
+                                  ? ClientColors.text
+                                  : Colors.white,
                               fontSize: 16,
                             ),
                           ),
@@ -205,7 +238,7 @@ class VideoCallScreen extends StatelessWidget {
             ),
             Container(
               width: double.infinity,
-              color: const Color(0xFF1C1424),
+              color: client ? ClientColors.surface : const Color(0xFF1C1424),
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -222,7 +255,9 @@ class VideoCallScreen extends StatelessWidget {
                       icon: controller.liveKit.microphoneEnabled.value
                           ? Icons.mic
                           : Icons.mic_off,
-                      color: const Color(0xFF3A3144),
+                      color: client
+                          ? ClientColors.surfaceAlt
+                          : const Color(0xFF3A3144),
                       onTap: controller.toggleMic,
                     ),
                     if (hideHangup)
@@ -237,12 +272,16 @@ class VideoCallScreen extends StatelessWidget {
                       icon: controller.liveKit.cameraEnabled.value
                           ? Icons.videocam
                           : Icons.videocam_off,
-                      color: const Color(0xFF3A3144),
+                      color: client
+                          ? ClientColors.surfaceAlt
+                          : const Color(0xFF3A3144),
                       onTap: controller.toggleCamera,
                     ),
                     _RoundBtn(
                       icon: Icons.card_giftcard_rounded,
-                      color: ColorRes.themeAccentSolid.withValues(alpha: 0.9),
+                      color: client
+                          ? ClientColors.primary
+                          : ColorRes.themeAccentSolid.withValues(alpha: 0.9),
                       onTap: controller.openGiftSheet,
                     ),
                   ],
@@ -273,7 +312,11 @@ class _RoundBtn extends StatelessWidget {
       child: CircleAvatar(
         radius: 28,
         backgroundColor: color,
-        child: Icon(icon, color: Colors.white, size: 28),
+        child: Icon(
+          icon,
+          color: AppRole.isClient() ? ClientColors.text : Colors.white,
+          size: 28,
+        ),
       ),
     );
   }
@@ -345,6 +388,8 @@ class VideoCallController extends BaseController {
   }
 
   bool get isMatchClient => isMatchCaller;
+
+  int get matchDurationSeconds => _matchDuration;
 
   CallParty? get peerParty {
     final myId = SessionManager.instance.getUserID();

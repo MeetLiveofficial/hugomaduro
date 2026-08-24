@@ -18,7 +18,9 @@ import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/message_screen/message_screen.dart';
 import 'package:krimson/screen/profile_screen/client_profile_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/streamer_colors.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -68,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (AppRole.isAgency(widget.myUser ?? SessionManager.instance.getUser())) {
       return const AgencyDashboardScreen();
     }
-    return Obx(() {
+    final dashboard = Obx(() {
       final onLiveTab = controller.selectedPageIndex.value ==
           DashboardScreenController.tabLive;
       final hideBanner = controller.selectedPageIndex.value ==
@@ -101,9 +103,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         bottomNavigationBar: _buildBottomNavigationBar(context, controller),
       );
     });
+    if (_isClient) {
+      return Theme(data: ThemeRes.clientTheme(context), child: dashboard);
+    }
+    return Theme(data: ThemeRes.streamerTheme(context), child: dashboard);
   }
 
-  static const Color _navBarBg = ColorRes.whitePure;
+  static const Color _navBarBgStreamer = StreamerColors.surface;
 
   Widget _buildBottomNavigationBar(
       BuildContext context, DashboardScreenController controller) {
@@ -112,6 +118,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bool isPostUploading =
           postUpload.uploadType == UploadType.none ? false : true;
       final roleUser = SessionManager.instance.getUser() ?? controller.user;
+      final client = AppRole.isClient(roleUser);
+      final navBarBg = client ? ClientColors.surface : _navBarBgStreamer;
 
       final items = <Widget>[];
       for (var i = 0; i < controller.bottomIconList.length; i++) {
@@ -193,11 +201,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   height: 58,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: _navBarBg,
+                    color: navBarBg,
                     borderRadius: BorderRadius.circular(32),
                     boxShadow: [
                       BoxShadow(
-                        color: ColorRes.crimson.withValues(alpha: 0.22),
+                        color: (client
+                                ? ClientColors.primary
+                                : StreamerColors.primary)
+                            .withValues(alpha: 0.22),
                         blurRadius: 16,
                         offset: const Offset(0, 6),
                       ),
@@ -287,14 +298,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Icon(
             Icons.favorite_rounded,
             size: 26,
-            color: ColorRes.crimson,
+            color: StreamerColors.primary,
           ),
         ),
       ),
     );
   }
 
-  /// Cliente: Match — círculo rojo llamativo (siempre destacado, no pill “activo”).
+  /// Cliente: Match — círculo primario (`client-400`).
   Widget _buildMatchNavItem(DashboardScreenController controller) {
     // Registrar ya el controller para que Obx siempre lea un .obs
     // (si no, GetX muestra error y desborda la barra).
@@ -308,7 +319,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final locked = false;
       return _navHitTarget(
         selected: selected,
-        accent: ColorRes.crimson,
+        accent: ClientColors.primary,
         locked: locked,
         onTap: () => controller.onChanged(DashboardScreenController.tabLive),
         child: busy
@@ -319,7 +330,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   strokeWidth: 2.2,
                   color: locked
                       ? ColorRes.disabledGrey
-                      : (selected ? Colors.white : ColorRes.crimson),
+                      : (selected ? ClientColors.text : ClientColors.primary),
                 ),
               )
             : Icon(
@@ -327,7 +338,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 size: 24,
                 color: locked
                     ? ColorRes.disabledGrey
-                    : (selected ? Colors.white : ColorRes.crimson),
+                    : (selected ? ClientColors.text : ClientColors.primary),
               ),
       );
     });
@@ -338,12 +349,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Obx(() {
       final isSelected = controller.selectedPageIndex.value == index;
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
-      final accent = ColorRes.navIconColors[
-          index.clamp(0, ColorRes.navIconColors.length - 1)];
+      final client = AppRole.isClient();
+      final accent = client
+          ? ClientColors.secondary
+          : ColorRes.navIconColors[
+              index.clamp(0, ColorRes.navIconColors.length - 1)];
       final locked = false;
       final iconColor = locked
           ? ColorRes.disabledGrey
-          : (isSelected ? ColorRes.whitePure : accent);
+          : (isSelected
+              ? (client ? ClientColors.text : StreamerColors.text)
+              : (client ? ClientColors.secondarySoft : accent));
+      final navBarBg =
+          client ? ClientColors.surface : _navBarBgStreamer;
 
       return _navHitTarget(
         selected: isSelected,
@@ -365,7 +383,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: iconColor,
                 ),
               if (index == DashboardScreenController.tabChat && !locked)
-                _buildUnreadDot(controller),
+                _buildUnreadDot(controller, navBarBg: navBarBg),
             ],
           ),
         ),
@@ -373,7 +391,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  Widget _buildUnreadDot(DashboardScreenController controller) {
+  Widget _buildUnreadDot(DashboardScreenController controller,
+      {required Color navBarBg}) {
     return Obx(() {
       final count = controller.unReadCount.value;
       if (count <= 0) return const SizedBox.shrink();
@@ -386,7 +405,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           decoration: BoxDecoration(
             color: ColorRes.likeRed,
             shape: BoxShape.circle,
-            border: Border.all(color: _navBarBg, width: 1.5),
+            border: Border.all(color: navBarBg, width: 1.5),
           ),
         ),
       );

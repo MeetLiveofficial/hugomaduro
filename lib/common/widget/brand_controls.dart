@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -8,18 +10,26 @@ class BrandControls {
   static const double radius = 14;
 
   static BoxDecoration glass({bool selected = false}) {
+    final client = AppRole.isClient();
     return BoxDecoration(
-      color: selected ? null : ColorRes.whitePure.withValues(alpha: 0.92),
+      color: selected
+          ? null
+          : (client
+              ? ClientColors.surfaceAlt.withValues(alpha: 0.92)
+              : ColorRes.whitePure.withValues(alpha: 0.92)),
       gradient: selected ? StyleRes.themeGradient : null,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
         color: selected
             ? Colors.white.withValues(alpha: 0.35)
-            : ColorRes.roseBorder.withValues(alpha: 0.35),
+            : (client
+                ? ClientColors.secondarySoft.withValues(alpha: 0.45)
+                : ColorRes.roseBorder.withValues(alpha: 0.35)),
       ),
       boxShadow: [
         BoxShadow(
-          color: ColorRes.crimson.withValues(alpha: selected ? 0.55 : 0.16),
+          color: (client ? ClientColors.primary : ColorRes.crimson)
+              .withValues(alpha: selected ? 0.55 : 0.16),
           blurRadius: selected ? 14 : 8,
           spreadRadius: selected ? 0.5 : 0,
           offset: const Offset(0, 3),
@@ -34,13 +44,16 @@ class BrandControls {
     Widget? prefix,
     Widget? suffix,
   }) {
+    final client = AppRole.isClient();
     return InputDecoration(
       hintText: hint,
       hintStyle: TextStyleCustom.outFitLight300(fontSize: 15, color: hintColor),
       prefixIcon: prefix,
       suffixIcon: suffix,
       filled: true,
-      fillColor: ColorRes.whitePure.withValues(alpha: 0.94),
+      fillColor: client
+          ? ClientColors.surfaceAlt.withValues(alpha: 0.94)
+          : ColorRes.whitePure.withValues(alpha: 0.94),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(radius),
@@ -49,12 +62,17 @@ class BrandControls {
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(radius),
         borderSide: BorderSide(
-          color: ColorRes.roseBorder.withValues(alpha: 0.28),
+          color: client
+              ? ClientColors.border.withValues(alpha: 0.7)
+              : ColorRes.roseBorder.withValues(alpha: 0.28),
         ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(radius),
-        borderSide: const BorderSide(color: ColorRes.crimson, width: 1.4),
+        borderSide: BorderSide(
+          color: client ? ClientColors.primary : ColorRes.crimson,
+          width: 1.4,
+        ),
       ),
     );
   }
@@ -80,10 +98,13 @@ class BrandSegmentChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onColor = active ? ColorRes.whitePure : ColorRes.textDarkGrey;
+    final client = AppRole.isClient();
+    final onColor = active
+        ? ColorRes.whitePure
+        : (client ? ClientColors.text : ColorRes.textDarkGrey);
     final iconColor = active
         ? ColorRes.whitePure
-        : (accent ?? ColorRes.crimson);
+        : (accent ?? (client ? ClientColors.secondary : ColorRes.crimson));
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -147,7 +168,10 @@ class BrandFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = active ? ColorRes.whitePure : ColorRes.textDarkGrey;
+    final client = AppRole.isClient();
+    final fg = active
+        ? ColorRes.whitePure
+        : (client ? ClientColors.text : ColorRes.textDarkGrey);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -245,16 +269,22 @@ class BrandPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
     return Container(
       margin: margin ?? const EdgeInsets.fromLTRB(12, 8, 12, 4),
       padding: padding ?? EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: ColorRes.whitePure.withValues(alpha: 0.82),
+        color: client
+            ? ClientColors.surface.withValues(alpha: 0.92)
+            : ColorRes.whitePure.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: ColorRes.menuBorder),
+        border: Border.all(
+          color: client ? ClientColors.border : ColorRes.menuBorder,
+        ),
         boxShadow: [
           BoxShadow(
-            color: ColorRes.crimson.withValues(alpha: 0.08),
+            color: (client ? ClientColors.primary : ColorRes.crimson)
+                .withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),

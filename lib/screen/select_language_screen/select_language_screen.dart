@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/custom_back_button.dart';
 import 'package:krimson/common/widget/restart_widget.dart';
 import 'package:krimson/common/widget/theme_blur_bg.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -44,44 +45,67 @@ class SelectLanguageScreen extends StatelessWidget {
             (label: '中文', code: 'zh'),
           ];
 
+    final showBack = languageNavigationType == LanguageNavigationType.fromSetting ||
+        (ModalRoute.of(context)?.canPop ?? false);
+
     return Scaffold(
       body: Stack(
         children: [
           const ThemeBlurBg(),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(8, 8, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    LKey.language.tr,
-                    style: TextStyle(
-                      color: whitePure(context),
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      if (showBack)
+                        CustomBackButton(
+                          color: whitePure(context),
+                          width: 18,
+                          height: 18,
+                          padding: const EdgeInsets.all(12),
+                        )
+                      else
+                        const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          LKey.language.tr,
+                          style: TextStyle(
+                            color: whitePure(context),
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    LKey.languages.tr,
-                    style: TextStyle(
-                      color: whitePure(context).withValues(alpha: 0.8),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 4),
+                    child: Text(
+                      LKey.languages.tr,
+                      style: TextStyle(
+                        color: whitePure(context).withValues(alpha: 0.8),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: tiles.length,
-                      itemBuilder: (_, i) {
-                        final tile = tiles[i];
-                        return _LangTile(
-                          label: tile.label,
-                          code: tile.code,
-                          selected: tile.code == current,
-                          onTap: () => _select(context, tile.code),
-                        );
-                      },
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: ListView.builder(
+                        itemCount: tiles.length,
+                        itemBuilder: (_, i) {
+                          final tile = tiles[i];
+                          return _LangTile(
+                            label: tile.label,
+                            code: tile.code,
+                            selected: tile.code == current,
+                            onTap: () => _select(context, tile.code),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ],

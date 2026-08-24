@@ -8,6 +8,7 @@ import 'package:krimson/languages/catalog_i18n.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/role_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -30,11 +31,13 @@ class CoinPackageTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: bgLightGrey(context),
+        color: RolePalette.surfaceAlt,
         borderRadius: BorderRadius.circular(12),
-        border: hasBonus
-            ? Border.all(color: accent.withValues(alpha: 0.35))
-            : null,
+        border: Border.all(
+          color: hasBonus
+              ? accent.withValues(alpha: 0.55)
+              : RolePalette.border.withValues(alpha: 0.7),
+        ),
       ),
       child: Row(
         children: [
@@ -58,7 +61,7 @@ class CoinPackageTile extends StatelessWidget {
                   Text(
                     CatalogI18n.packageName(plan.name),
                     style: TextStyleCustom.outFitMedium500(
-                      color: textDarkGrey(context),
+                      color: RolePalette.text,
                       fontSize: 12,
                     ),
                   ),
@@ -69,7 +72,7 @@ class CoinPackageTile extends StatelessWidget {
                     Text(
                       plan.coin.numberFormat,
                       style: TextStyleCustom.unboundedMedium500(
-                        color: textDarkGrey(context),
+                        color: RolePalette.text,
                         fontSize: 15,
                       ),
                     ),
@@ -81,7 +84,7 @@ class CoinPackageTile extends StatelessWidget {
                       ? '${plan.baseCoins.numberFormat} + ${plan.bonusPercent.toStringAsFixed(0)}% (${plan.bonusCoins.numberFormat}) · ${plan.usdLabel}'
                       : plan.usdLabel,
                   style: TextStyleCustom.outFitRegular400(
-                    color: textLightGrey(context),
+                    color: RolePalette.textMuted,
                     fontSize: 12,
                   ),
                 ),
@@ -92,7 +95,7 @@ class CoinPackageTile extends StatelessWidget {
             onTap: onPurchase,
             title: LKey.purchase.tr,
             backgroundColor: accent,
-            titleColor: whitePure(context),
+            titleColor: Colors.white,
             btnHeight: 32,
             btnWidth: 88,
             fontSize: 12,

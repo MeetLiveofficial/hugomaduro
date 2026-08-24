@@ -8,6 +8,7 @@ import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
@@ -222,7 +223,9 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
             Text(
               'Desliza para el siguiente',
               style: TextStyleCustom.outFitRegular400(
-                color: Colors.white54,
+                color: AppRole.isClient()
+                    ? ClientColors.textMuted
+                    : Colors.white54,
                 fontSize: 13,
               ),
             ),
@@ -260,6 +263,7 @@ class _MatchProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
     final name = (user.fullname ?? user.username ?? 'Streamer').trim();
     final handle = (user.username ?? '').trim();
     final photo = (user.profilePhoto ?? '').trim().addBaseURL();
@@ -270,20 +274,30 @@ class _MatchProfileCard extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
-      child: Stack(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: client ? ClientColors.border : Colors.transparent,
+            width: client ? 1.4 : 0,
+          ),
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Stack(
         fit: StackFit.expand,
         children: [
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF8B6AA8),
-                  Color(0xFF4A3270),
-                  Color(0xFF1C1228),
-                ],
-              ),
+              gradient: client
+                  ? ClientColors.surfaceGradient
+                  : const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFF8B6AA8),
+                        Color(0xFF4A3270),
+                        Color(0xFF1C1228),
+                      ],
+                    ),
             ),
           ),
           if (photo.isNotEmpty)
@@ -305,7 +319,7 @@ class _MatchProfileCard extends StatelessWidget {
                 ),
               ),
             ),
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -313,9 +327,11 @@ class _MatchProfileCard extends StatelessWidget {
                 colors: [
                   Color(0x33000000),
                   Colors.transparent,
-                  Color(0xF2140E1C),
+                  client
+                      ? ClientColors.bg.withValues(alpha: 0.95)
+                      : const Color(0xF2140E1C),
                 ],
-                stops: [0, 0.38, 1],
+                stops: const [0, 0.38, 1],
               ),
             ),
           ),
@@ -337,15 +353,19 @@ class _MatchProfileCard extends StatelessWidget {
             top: 14,
             right: 14,
             child: _Pill(
-              color: const Color(0xE6166534),
+              color: client
+                  ? ClientColors.primary.withValues(alpha: 0.88)
+                  : const Color(0xE6166534),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4ADE80),
+                    decoration: BoxDecoration(
+                      color: client
+                          ? ClientColors.secondarySoft
+                          : const Color(0xFF4ADE80),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -373,7 +393,7 @@ class _MatchProfileCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyleCustom.outFitSemiBold600(
-                    color: Colors.white,
+                    color: client ? ClientColors.text : Colors.white,
                     fontSize: 22,
                   ),
                 ),
@@ -384,7 +404,9 @@ class _MatchProfileCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70,
+                      color: client
+                          ? ClientColors.textMuted
+                          : Colors.white70,
                       fontSize: 14,
                     ),
                   ),
@@ -396,8 +418,11 @@ class _MatchProfileCard extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: onCall,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: ColorRes.themeAccentSolid,
-                      foregroundColor: Colors.white,
+                      backgroundColor: client
+                          ? ClientColors.primary
+                          : ColorRes.themeAccentSolid,
+                      foregroundColor:
+                          client ? ClientColors.text : Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -407,7 +432,7 @@ class _MatchProfileCard extends StatelessWidget {
                     label: Text(
                       LKey.callAction.tr,
                       style: TextStyleCustom.outFitMedium500(
-                        color: Colors.white,
+                        color: client ? ClientColors.text : Colors.white,
                         fontSize: 16,
                       ),
                     ),
@@ -431,6 +456,7 @@ class _MatchProfileCard extends StatelessWidget {
               ),
             ),
         ],
+      ),
       ),
     );
   }

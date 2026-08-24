@@ -11,7 +11,7 @@ import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
-import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Ventana de gracia: 3 tiers de extensión configurados en el backend.
@@ -179,13 +179,9 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF6B2D8B), Color(0xFF3D1A55)],
-          ),
+          gradient: ClientColors.surfaceGradient,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          border: Border.all(color: ClientColors.border),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -194,7 +190,7 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
               alignment: Alignment.topRight,
               child: IconButton(
                 onPressed: _busy ? null : () => Get.back(result: false),
-                icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                icon: const Icon(Icons.close, color: ClientColors.textMuted, size: 20),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
@@ -205,7 +201,7 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
               fullName: name,
               radius: 36,
               strokeWidth: 2,
-              strokeColor: ColorRes.accentPeach,
+              strokeColor: ClientColors.secondary,
             ),
             const SizedBox(height: 10),
             Text(
@@ -213,7 +209,7 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyleCustom.outFitMedium500(
-                color: Colors.white,
+                color: ClientColors.text,
                 fontSize: 16,
               ),
             ),
@@ -221,7 +217,7 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
             Text(
               '¿Quieres seguir?',
               style: TextStyleCustom.outFitMedium500(
-                color: const Color(0xFFFFD6F0),
+                color: ClientColors.text,
                 fontSize: 20,
               ),
             ),
@@ -235,8 +231,20 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
                       : 'Elige 5, 10 o 15 min para quedarte'),
               textAlign: TextAlign.center,
               style: TextStyleCustom.outFitRegular400(
-                color: Colors.white.withValues(alpha: 0.9),
+                color: ClientColors.textMuted,
                 fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: widget.graceSeconds > 0
+                    ? (_graceLeft / widget.graceSeconds).clamp(0.0, 1.0)
+                    : 0,
+                minHeight: 6,
+                backgroundColor: ClientColors.secondarySoft.withValues(alpha: 0.28),
+                color: ClientColors.secondary,
               ),
             ),
             const SizedBox(height: 16),
@@ -266,7 +274,7 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
                 height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white70,
+                  color: ClientColors.secondarySoft,
                 ),
               ),
             ],
@@ -292,17 +300,15 @@ class _OfferCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = highlight
-        ? const Color(0xFFFFD166)
-        : Colors.white.withValues(alpha: 0.14);
+    final border = highlight ? ClientColors.secondary : ClientColors.border;
     final badge = highlight
         ? 'HOT'
         : (tier.tier == 3 ? 'MEJOR' : 'T${tier.tier}');
 
     return Material(
       color: highlight
-          ? Colors.white.withValues(alpha: 0.16)
-          : Colors.white.withValues(alpha: 0.1),
+          ? ClientColors.primary.withValues(alpha: 0.28)
+          : ClientColors.surfaceAlt.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: enabled ? onTap : null,
@@ -320,14 +326,14 @@ class _OfferCard extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: highlight
-                      ? const Color(0xFFFFD166)
-                      : const Color(0xFFFF4FA3),
+                      ? ClientColors.secondary
+                      : ClientColors.primary,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   badge,
                   style: TextStyleCustom.outFitMedium500(
-                    color: highlight ? Colors.black87 : Colors.white,
+                    color: ClientColors.text,
                     fontSize: 10,
                   ),
                 ),
@@ -336,7 +342,7 @@ class _OfferCard extends StatelessWidget {
               Text(
                 '${tier.minutes} min',
                 style: TextStyleCustom.outFitMedium500(
-                  color: Colors.white,
+                  color: ClientColors.text,
                   fontSize: 18,
                 ),
               ),
@@ -344,7 +350,7 @@ class _OfferCard extends StatelessWidget {
               Text(
                 'con ella',
                 style: TextStyleCustom.outFitRegular400(
-                  color: Colors.white60,
+                  color: ClientColors.textMuted,
                   fontSize: 11,
                 ),
               ),
@@ -353,11 +359,11 @@ class _OfferCard extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF4FA3),
+                  color: ClientColors.primary,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF4FA3).withValues(alpha: 0.35),
+                      color: ClientColors.primaryHover.withValues(alpha: 0.45),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -367,7 +373,7 @@ class _OfferCard extends StatelessWidget {
                   '${tier.coins}',
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.outFitMedium500(
-                    color: Colors.white,
+                    color: ClientColors.text,
                     fontSize: 13,
                   ),
                 ),
@@ -376,7 +382,7 @@ class _OfferCard extends StatelessWidget {
               Text(
                 'coins',
                 style: TextStyleCustom.outFitRegular400(
-                  color: Colors.white54,
+                  color: ClientColors.textMuted,
                   fontSize: 10,
                 ),
               ),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/utilities/client_colors.dart';
+import 'package:krimson/utilities/streamer_colors.dart';
 
-/// Fondo dusk Meet&Live: obsidian + brillos coral/magenta (no wash chicle).
+/// Fondo dusk: streamer `--streamer-950` + cian; cliente `--client-950`.
 class BrandWashBg extends StatelessWidget {
   const BrandWashBg({super.key, this.vivid = true});
 
@@ -10,26 +12,26 @@ class BrandWashBg extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final base = client ? ClientColors.bg : StreamerColors.bg;
+    final mid = client ? ClientColors.surface : StreamerColors.surface;
+    final top = client
+        ? (vivid ? ClientColors.surfaceAlt : ClientColors.surface)
+        : (vivid ? StreamerColors.surfaceAlt : StreamerColors.surface);
+    final orbA = client ? ClientColors.primary : StreamerColors.primary;
+    final orbB =
+        client ? ClientColors.primaryActive : StreamerColors.primaryActive;
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: ColorRes.obsidianDeep),
+        ColoredBox(color: base),
         DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: vivid
-                  ? const [
-                      Color(0xFF2A1224),
-                      ColorRes.obsidian,
-                      ColorRes.obsidianDeep,
-                    ]
-                  : const [
-                      Color(0xFF1C121C),
-                      ColorRes.obsidian,
-                      ColorRes.obsidianDeep,
-                    ],
+              colors: [top, mid, base],
             ),
           ),
         ),
@@ -39,7 +41,7 @@ class BrandWashBg extends StatelessWidget {
               center: const Alignment(-0.75, -0.9),
               radius: 0.95,
               colors: [
-                ColorRes.crimsonAlt.withValues(alpha: vivid ? 0.28 : 0.14),
+                orbA.withValues(alpha: vivid ? 0.28 : 0.16),
                 Colors.transparent,
               ],
             ),
@@ -51,7 +53,7 @@ class BrandWashBg extends StatelessWidget {
               center: const Alignment(0.9, 0.55),
               radius: 0.9,
               colors: [
-                ColorRes.mlPurple.withValues(alpha: vivid ? 0.22 : 0.12),
+                orbB.withValues(alpha: vivid ? 0.22 : 0.14),
                 Colors.transparent,
               ],
             ),
