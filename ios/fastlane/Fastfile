@@ -114,6 +114,7 @@ platform :ios do
       upload_to_testflight(
         api_key: api_key,
         ipa: ipa,
+        apple_id: ENV.fetch("APP_STORE_APPLE_ID", "6802754271"),
         skip_waiting_for_build_processing: true,
         distribute_external: false,
         changelog: "Meet&Live #{ENV.fetch('FLUTTER_BUILD_NAME', '')} (#{ENV.fetch('FLUTTER_BUILD_NUMBER', '')})"
