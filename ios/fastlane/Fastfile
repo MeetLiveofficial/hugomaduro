@@ -13,9 +13,9 @@ platform :ios do
     team_id = ENV.fetch("APPLE_TEAM_ID", TEAM_ID_DEFAULT)
     key_is_base64 = !key_content.include?("BEGIN PRIVATE KEY")
 
+    keychain_path = nil
     if is_ci
       # setup_ci activa MATCH_READONLY y no encaja con cert/sigh.
-      # Keychain propio, sin timeout, para instalar el cert generado.
       create_keychain(
         name: CI_KEYCHAIN,
         password: CI_KEYCHAIN,
@@ -25,6 +25,14 @@ platform :ios do
         lock_when_sleeps: false,
         add_to_search_list: true
       )
+      # get_certificates exige ruta absoluta, no el nombre del keychain.
+      keychain_path = File.expand_path(
+        lane_context[SharedValues::KEYCHAIN_PATH] ||
+          "~/Library/Keychains/#{CI_KEYCHAIN}"
+      )
+      db_path = "#{keychain_path}-db"
+      keychain_path = db_path if File.exist?(db_path)
+      UI.message("CI keychain: #{keychain_path}")
     end
 
     api_key = app_store_connect_api_key(
@@ -43,7 +51,7 @@ platform :ios do
     if is_ci
       import_certificate(
         certificate_path: wwdr_path,
-        keychain_path: CI_KEYCHAIN,
+        keychain_path: keychain_path,
         keychain_password: CI_KEYCHAIN
       )
     end
@@ -56,7 +64,7 @@ platform :ios do
       filename: "distribution"
     }
     if is_ci
-      cert_opts[:keychain_path] = CI_KEYCHAIN
+      cert_opts[:keychain_path] = keychain_path
       cert_opts[:keychain_password] = CI_KEYCHAIN
     end
     get_certificates(**cert_opts)
