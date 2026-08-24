@@ -15,11 +15,10 @@ import 'package:krimson/screen/level_screen/level_screen.dart';
 import 'package:krimson/screen/recharge_history_screen/recharge_history_screen.dart';
 import 'package:krimson/screen/settings_screen/settings_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
-import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/level_avatar_style.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
 
 /// Perfil del rol client: centrado en saldo y recarga.
 class ClientProfileScreen extends StatefulWidget {
@@ -78,6 +77,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Obx(() {
           final user = userData.value;
@@ -125,7 +125,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                   : const Color(0xFF9CA3AF),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: scaffoldBackgroundColor(context),
+                                color: ClientColors.bg,
                                 width: 2.5,
                               ),
                             ),
@@ -142,12 +142,13 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                             username: user.fullname ?? user.username,
                             isVerify: user.isVerify,
                             fontSize: 16,
+                            fontColor: ClientColors.text,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '@${user.username ?? ''}',
                             style: TextStyleCustom.outFitRegular400(
-                              color: textLightGrey(context),
+                              color: ClientColors.textMuted,
                               fontSize: 13,
                             ),
                           ),
@@ -169,7 +170,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                         AssetRes.icEdit,
                         height: 22,
                         width: 22,
-                        color: textDarkGrey(context),
+                        color: ClientColors.text,
                       ),
                     ),
                   ],
@@ -241,7 +242,7 @@ class _WalletShineCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: ColorRes.coralRed.withValues(alpha: 0.35),
+                  color: ClientColors.primary.withValues(alpha: 0.35),
                   blurRadius: 18,
                   offset: const Offset(0, 8),
                 ),
@@ -253,7 +254,7 @@ class _WalletShineCard extends StatelessWidget {
                 Text(
                   LKey.coinWallet.tr,
                   style: TextStyleCustom.outFitMedium500(
-                    color: whitePure(context).withValues(alpha: 0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 14,
                   ),
                 ),
@@ -270,7 +271,7 @@ class _WalletShineCard extends StatelessWidget {
                           coinsLabel,
                           maxLines: 1,
                           style: TextStyleCustom.unboundedSemiBold600(
-                            color: whitePure(context),
+                            color: Colors.white,
                             fontSize: 28,
                           ).copyWith(
                             height: 1.4,
@@ -285,8 +286,8 @@ class _WalletShineCard extends StatelessWidget {
                 TextButtonCustom(
                   onTap: onRecharge,
                   title: LKey.recharge.tr,
-                  backgroundColor: whitePure(context),
-                  titleColor: themeAccentSolid(context),
+                  backgroundColor: Colors.white,
+                  titleColor: ClientColors.primary,
                   btnHeight: 46,
                   fontSize: 15,
                   horizontalMargin: 0,
@@ -325,18 +326,18 @@ class _MenuTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            color: bgLightGrey(context),
+            color: ClientColors.surface,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             children: [
-              Image.asset(icon, height: 22, width: 22, color: textDarkGrey(context)),
+              Image.asset(icon, height: 22, width: 22, color: ClientColors.text),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyleCustom.outFitMedium500(
-                    color: textDarkGrey(context),
+                    color: ClientColors.text,
                     fontSize: 15,
                   ),
                 ),
@@ -345,7 +346,7 @@ class _MenuTile extends StatelessWidget {
                 AssetRes.icRightArrow,
                 height: 16,
                 width: 16,
-                color: textLightGrey(context),
+                color: ClientColors.textMuted,
               ),
             ],
           ),
@@ -366,9 +367,9 @@ class _GuestJoinBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
-        color: ColorRes.whitePure.withValues(alpha: 0.92),
+        color: ClientColors.surface.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ColorRes.roseBorder.withValues(alpha: 0.35)),
+        border: Border.all(color: ClientColors.border.withValues(alpha: 0.7)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,7 +377,7 @@ class _GuestJoinBanner extends StatelessWidget {
           Text(
             LKey.joinToContinue.tr,
             style: TextStyleCustom.outFitSemiBold600(
-              color: textDarkGrey(context),
+              color: ClientColors.text,
               fontSize: 16,
             ),
           ),
@@ -384,7 +385,7 @@ class _GuestJoinBanner extends StatelessWidget {
           Text(
             LKey.guestAccountExpires.tr,
             style: TextStyleCustom.outFitRegular400(
-              color: textLightGrey(context),
+              color: ClientColors.textMuted,
               fontSize: 13,
             ),
           ),
@@ -396,7 +397,7 @@ class _GuestJoinBanner extends StatelessWidget {
             horizontalMargin: 0,
             margin: EdgeInsets.zero,
             btnHeight: 44,
-            titleColor: whitePure(context),
+            titleColor: Colors.white,
             radius: 22,
           ),
         ],

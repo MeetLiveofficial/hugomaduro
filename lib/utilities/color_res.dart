@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:krimson/utilities/client_colors.dart';
+import 'package:krimson/utilities/streamer_colors.dart';
 
-/// Meet&Live — paleta oficial ([meetlive.online](https://meetlive.online/) + logo).
+/// Meet&Live — paletas por rol.
 ///
-/// Coral `#FE5A59` · Magenta `#E24AB7` · Purple `#B140D8` · Rose `#F9A8D4`
-/// Fondos: Obsidian `#0F0F12` · Carbon `#1A1A1F`
+/// Streamer: cian/turquesa [StreamerColors] (`streamer-50` … `streamer-950`).
+/// Cliente: [ClientColors] (`client-50` … `client-950`).
 class ColorRes {
   static const Color blackPure = Color(0xFF000000);
   static const Color whitePure = Color(0xFFFFFFFF);
@@ -44,8 +46,8 @@ class ColorRes {
   /// Menús / selects: superficie clara (texto oscuro).
   static const Color menuSurface = Color(0xFFFFFFFF);
   static const Color menuSurfaceElevated = Color(0xFFFFFFFF);
-  static const Color menuBorder = Color(0x33E24AB7);
-  static const Color menuSelected = Color(0xFFFFE8F5);
+  static const Color menuBorder = Color(0x3307839C);
+  static const Color menuSelected = Color(0x1A27D3F5);
 
   static const Color streamerSalmon = softSalmon;
   static const Color streamerCoral = coralRed;
@@ -55,11 +57,35 @@ class ColorRes {
   static const Color streamerLavender = mediumPurple;
   static const Color streamerPurple = darkPurple;
 
-  static const Color clientMagenta = mauve;
-  static const Color clientIndigo = darkPurple;
-  static const Color clientTeal = accentRose;
-  static const Color clientRoyal = mediumPurple;
-  static const Color clientFuchsia = accentRose;
+  static const Color streamer50 = StreamerColors.streamer50;
+  static const Color streamer100 = StreamerColors.streamer100;
+  static const Color streamer200 = StreamerColors.streamer200;
+  static const Color streamer300 = StreamerColors.streamer300;
+  static const Color streamer400 = StreamerColors.streamer400;
+  static const Color streamer500 = StreamerColors.streamer500;
+  static const Color streamer600 = StreamerColors.streamer600;
+  static const Color streamer700 = StreamerColors.streamer700;
+  static const Color streamer800 = StreamerColors.streamer800;
+  static const Color streamer900 = StreamerColors.streamer900;
+  static const Color streamer950 = StreamerColors.streamer950;
+
+  static const Color client50 = ClientColors.client50;
+  static const Color client100 = ClientColors.client100;
+  static const Color client200 = ClientColors.client200;
+  static const Color client300 = ClientColors.client300;
+  static const Color client400 = ClientColors.client400;
+  static const Color client500 = ClientColors.client500;
+  static const Color client600 = ClientColors.client600;
+  static const Color client700 = ClientColors.client700;
+  static const Color client800 = ClientColors.client800;
+  static const Color client900 = ClientColors.client900;
+  static const Color client950 = ClientColors.client950;
+
+  static const Color clientMagenta = ClientColors.primary;
+  static const Color clientIndigo = ClientColors.primaryActive;
+  static const Color clientTeal = ClientColors.secondary;
+  static const Color clientRoyal = ClientColors.primaryHover;
+  static const Color clientFuchsia = ClientColors.secondarySoft;
 
   static const Color baseCoral = coralRed;
   static const Color baseLavender = mediumPurple;
@@ -73,20 +99,20 @@ class ColorRes {
   static const Color accentOrange = softSalmon;
   static const Color accentGold = accentPeach;
 
-  /// Logo: Coral → Magenta → Purple.
-  static const Color themeGradient1 = crimsonAlt;
-  static const Color themeGradientMid = crimson;
-  static const Color themeGradient2 = mlPurple;
+  /// Streamer: `--color-400` → `--color-600`.
+  static const Color themeGradient1 = StreamerColors.streamer400;
+  static const Color themeGradientMid = StreamerColors.streamer500;
+  static const Color themeGradient2 = StreamerColors.streamer600;
 
-  static const Color clientGradient1 = crimson;
-  static const Color clientGradientMid = mlPurple;
-  static const Color clientGradient2 = darkPurple;
+  static const Color clientGradient1 = ClientColors.client400;
+  static const Color clientGradientMid = ClientColors.client500;
+  static const Color clientGradient2 = ClientColors.client600;
 
-  static const Color themeAccentSolid = crimson;
+  static const Color themeAccentSolid = StreamerColors.primary;
 
-  static const Color themeColor = bgVoid;
-  static const Color obsidianNavy = bgVoid;
-  static const Color surfaceDeep = bgElevated;
+  static const Color themeColor = StreamerColors.bg;
+  static const Color obsidianNavy = StreamerColors.bg;
+  static const Color surfaceDeep = StreamerColors.surface;
 
   static const Color textDarkGrey = Color(0xFF1C1218);
   static const Color textLightGrey = Color(0xFF6B5360);
@@ -103,12 +129,12 @@ class ColorRes {
   static const Color bgMediumGrey = Color(0xFFFFEAF5);
   static const Color disabledGrey = Color(0xFFC4B0BC);
 
-  /// Iconos de la barra inferior (uno por tab).
-  static const Color navHome = crimson;
-  static const Color navExplore = mlPurple;
-  static const Color navLive = crimsonAlt;
-  static const Color navChat = roseBorder;
-  static const Color navProfile = darkPurple;
+  /// Iconos de la barra inferior (streamer).
+  static const Color navHome = StreamerColors.primary;
+  static const Color navExplore = StreamerColors.secondary;
+  static const Color navLive = StreamerColors.primaryHover;
+  static const Color navChat = StreamerColors.secondarySoft;
+  static const Color navProfile = StreamerColors.primaryActive;
 
   static const List<Color> navIconColors = [
     navHome,

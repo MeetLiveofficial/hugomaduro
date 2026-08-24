@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/functions/debounce_action.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
@@ -11,13 +12,18 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card.dart';
 import 'package:krimson/utilities/app_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 /// Sheet para buscar un usuario e iniciar un chat directo.
 Future<void> openNewDirectChatSheet() {
   return Get.bottomSheet(
-    const _NewDirectChatSheet(),
+    Builder(builder: (context) {
+      const sheet = _NewDirectChatSheet();
+      if (!AppRole.isClient()) return sheet;
+      return Theme(data: ThemeRes.clientTheme(context), child: sheet);
+    }),
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
   );
@@ -77,7 +83,9 @@ class _NewDirectChatSheetState extends State<_NewDirectChatSheet> {
       child: Container(
         height: height,
         decoration: BoxDecoration(
-          color: whitePure(context),
+          color: AppRole.isClient()
+              ? ClientColors.surface
+              : whitePure(context),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(

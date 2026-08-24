@@ -2,32 +2,47 @@ import 'dart:ui' as ui show Gradient;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/streamer_colors.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 class StyleRes {
-  /// Logo Meet&Live: Coral → Magenta → Purple.
-  static Gradient themeGradient = const LinearGradient(
-    colors: [
-      ColorRes.themeGradient1,
-      ColorRes.themeGradientMid,
-      ColorRes.themeGradient2,
-    ],
-    stops: [0.0, 0.48, 1.0],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static const Gradient _streamerGradient = StreamerColors.primaryGradient;
 
-  static Gradient themeGradientVertical = const LinearGradient(
+  static const Gradient _streamerGradientVertical = LinearGradient(
     colors: [
-      ColorRes.themeGradient1,
-      ColorRes.themeGradientMid,
-      ColorRes.themeGradient2,
+      StreamerColors.streamer400,
+      StreamerColors.streamer500,
+      StreamerColors.streamer600,
     ],
     stops: [0.0, 0.48, 1.0],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
+
+  /// Marca sólida: cliente `--client-400`; streamer `--color-400`.
+  static Color get brandAccent =>
+      AppRole.isClient() ? ClientColors.primary : StreamerColors.primary;
+
+  /// Streamer: `streamer-400` → `600`. Cliente: `client-400` → `600`.
+  static Gradient get themeGradient =>
+      AppRole.isClient() ? ClientColors.primaryGradient : _streamerGradient;
+
+  static Gradient get themeGradientVertical => AppRole.isClient()
+      ? ClientColors.primaryGradient
+      : _streamerGradientVertical;
+
+  /// Cliente: `--client-400` → `--client-600`.
+  static const Gradient clientGradient = ClientColors.primaryGradient;
+
+  static const Gradient clientSurfaceGradient = ClientColors.surfaceGradient;
+
+  /// Streamer: `--streamer-400` → `--streamer-600`.
+  static const Gradient streamerGradient = StreamerColors.primaryGradient;
+
+  static const Gradient streamerSurfaceGradient = StreamerColors.surfaceGradient;
 
   /// Dusk: Magenta → Purple → Deep violet.
   static Gradient duskGradient = const LinearGradient(
@@ -78,14 +93,21 @@ class StyleRes {
 
   static Shader get wavesGradient {
     final width = Get.context != null ? Get.width : 400.0;
+    final colors = AppRole.isClient()
+        ? const [
+            ClientColors.client400,
+            ClientColors.client500,
+            ClientColors.client600,
+          ]
+        : const [
+            StreamerColors.streamer400,
+            StreamerColors.streamer500,
+            StreamerColors.streamer600,
+          ];
     return ui.Gradient.linear(
       const Offset(70, 50),
       Offset(width / 2, 0),
-      [
-        ColorRes.themeGradient1,
-        ColorRes.themeGradientMid,
-        ColorRes.themeGradient2,
-      ],
+      colors,
       [0.0, 0.48, 1.0],
     );
   }

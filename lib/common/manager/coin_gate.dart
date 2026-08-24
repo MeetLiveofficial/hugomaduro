@@ -6,7 +6,8 @@ import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
 import 'package:krimson/screen/coin_wallet_screen/widget/coin_package_tile.dart';
-import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/role_colors.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -53,7 +54,12 @@ class CoinGate {
         (SessionManager.instance.getUser()?.coinWallet ?? 0).toInt();
 
     Get.bottomSheet(
-      _CoinShopSheet(initialCoins: wallet, headline: headline),
+      Builder(builder: (context) {
+        return Theme(
+          data: ThemeRes.roleTheme(context),
+          child: _CoinShopSheet(initialCoins: wallet, headline: headline),
+        );
+      }),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
     );
@@ -72,8 +78,11 @@ class _CoinShopSheet extends StatelessWidget {
     return Container(
       height: MediaQuery.sizeOf(context).height * 0.72,
       decoration: BoxDecoration(
-        color: whitePure(context),
+        color: RolePalette.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border(
+          top: BorderSide(color: RolePalette.border.withValues(alpha: 0.7)),
+        ),
       ),
       child: SafeArea(
         top: false,
@@ -84,7 +93,7 @@ class _CoinShopSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: bgGrey(context),
+                color: RolePalette.border,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -100,7 +109,7 @@ class _CoinShopSheet extends StatelessWidget {
                       return Text(
                         LKey.myCoinsCount.trParams({'coins': '$coins'}),
                         style: TextStyleCustom.outFitMedium500(
-                          color: ColorRes.themeAccentSolid,
+                          color: RolePalette.primary,
                           fontSize: 16,
                         ),
                       );
@@ -108,7 +117,7 @@ class _CoinShopSheet extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: Get.back,
-                    icon: Icon(Icons.close, color: textLightGrey(context)),
+                    icon: Icon(Icons.close, color: RolePalette.textMuted),
                   ),
                 ],
               ),
@@ -120,7 +129,7 @@ class _CoinShopSheet extends StatelessWidget {
                   headline!,
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.outFitRegular400(
-                    color: textDarkGrey(context),
+                    color: RolePalette.textMuted,
                     fontSize: 13,
                   ),
                 ),
@@ -145,7 +154,7 @@ class _CoinShopSheet extends StatelessWidget {
                       return CoinPackageTile(
                         plan: plan,
                         onPurchase: () => controller.onPurchase(plan),
-                        buttonColor: ColorRes.themeAccentSolid,
+                        buttonColor: StyleRes.brandAccent,
                       );
                     },
                   ),

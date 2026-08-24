@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/widget/custom_tab_switcher.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/screen/message_screen/message_screen_controller.dart';
@@ -11,6 +12,7 @@ import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card
 import 'package:krimson/screen/message_screen/widget/message_search_sheet.dart';
 import 'package:krimson/screen/message_screen/widget/new_direct_chat_sheet.dart';
 import 'package:krimson/screen/message_screen/widget/support_chat_card.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -19,14 +21,16 @@ import 'package:krimson/utilities/theme_res.dart';
 class MessageScreen extends StatelessWidget {
   const MessageScreen({super.key});
 
-  static const Color _pageBg = Color(0xFFFFF4F8);
+  static const Color _pageBgStreamer = Color(0xFFFFF4F8);
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(MessageScreenController());
+    final client = AppRole.isClient();
+    final pageBg = client ? Colors.transparent : _pageBgStreamer;
 
     return ColoredBox(
-      color: _pageBg,
+      color: pageBg,
       child: Column(
         children: [
           Container(
@@ -35,7 +39,7 @@ class MessageScreen extends StatelessWidget {
               gradient: StyleRes.themeGradient,
               boxShadow: [
                 BoxShadow(
-                  color: ColorRes.crimson.withValues(alpha: 0.28),
+                  color: StyleRes.brandAccent.withValues(alpha: 0.28),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -107,8 +111,12 @@ class MessageScreen extends StatelessWidget {
                                 .dashboardController.callsUnReadCount),
                       },
                       margin: const EdgeInsets.only(top: 10),
-                      backgroundColor: ColorRes.whitePure,
-                      unselectedFontColor: ColorRes.textDarkGrey,
+                      backgroundColor: client
+                          ? ClientColors.surface
+                          : ColorRes.whitePure,
+                      unselectedFontColor: client
+                          ? ClientColors.textMuted
+                          : ColorRes.textDarkGrey,
                     ),
                   ],
                 ),
@@ -183,10 +191,12 @@ class ChatsListView extends StatelessWidget {
         child: ListView.separated(
           itemCount: itemCount,
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
-          separatorBuilder: (_, __) => const Divider(
+          separatorBuilder: (_, __) => Divider(
             height: 1,
             indent: 76,
-            color: Color(0x22E24AB7),
+            color: AppRole.isClient()
+                ? ClientColors.border.withValues(alpha: 0.45)
+                : const Color(0x22E24AB7),
           ),
           itemBuilder: (context, index) {
             if (index == 0) {
@@ -219,10 +229,12 @@ class RequestsListView extends StatelessWidget {
           child: ListView.separated(
             itemCount: list.length,
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
-            separatorBuilder: (_, __) => const Divider(
+            separatorBuilder: (_, __) => Divider(
               height: 1,
               indent: 76,
-              color: Color(0x22E24AB7),
+              color: AppRole.isClient()
+                  ? ClientColors.border.withValues(alpha: 0.45)
+                  : const Color(0x22E24AB7),
             ),
             itemBuilder: (context, index) {
               ChatThread chatConversation = list[index];

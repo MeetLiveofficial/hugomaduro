@@ -12,6 +12,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/countries_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/explore_screen/explore_screen_controller.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -116,13 +117,17 @@ class _ExploreHeader extends StatelessWidget {
               onChanged: controller.onSearchChanged,
               style: TextStyleCustom.outFitMedium500(
                 fontSize: 15,
-                color: textDarkGrey(context),
+                color: AppRole.isClient()
+                    ? ClientColors.text
+                    : textDarkGrey(context),
               ),
               decoration: BrandControls.search(
                 hint: LKey.searchUsers.tr,
-                hintColor: textLightGrey(context),
-                prefix: const Icon(Icons.search,
-                    color: ColorRes.crimson, size: 22),
+                hintColor: AppRole.isClient()
+                    ? ClientColors.textMuted
+                    : textLightGrey(context),
+                prefix: Icon(Icons.search,
+                    color: StyleRes.brandAccent, size: 22),
                 suffix: Obx(() {
                   final hasFilter =
                       controller.selectedCountryCode.value != null ||
@@ -132,8 +137,8 @@ class _ExploreHeader extends StatelessWidget {
                   return IconButton(
                     tooltip: LKey.clearFilters.tr,
                     onPressed: controller.clearFilters,
-                    icon: const Icon(Icons.close,
-                        size: 18, color: ColorRes.crimson),
+                    icon: Icon(Icons.close,
+                        size: 18, color: StyleRes.brandAccent),
                   );
                 }),
               ),
@@ -158,7 +163,7 @@ class _ExploreHeader extends StatelessWidget {
                         compact: true,
                         label: LKey.liveBadge.tr,
                         active: presence == 'live',
-                        accent: ColorRes.themeAccentSolid,
+                        accent: StyleRes.brandAccent,
                         icon: Icons.videocam,
                         onTap: () => controller.selectPresence('live'),
                       ),
@@ -202,11 +207,12 @@ Future<void> _pickCountry(
   final filtered = <Country>[].obs;
   filtered.assignAll(c.countries);
 
-  final result = await Get.bottomSheet<Object>(
-    Container(
+  final sheet = Container(
       height: Get.height * 0.72,
       decoration: BoxDecoration(
-        color: scaffoldBackgroundColor(context),
+        color: AppRole.isClient()
+            ? ClientColors.surface
+            : scaffoldBackgroundColor(context),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Column(
@@ -258,7 +264,9 @@ Future<void> _pickCountry(
                 hintText: LKey.searchCountry.tr,
                 prefixIcon: const Icon(Icons.search, size: 20),
                 filled: true,
-                fillColor: bgMediumGrey(context),
+                fillColor: AppRole.isClient()
+                    ? ClientColors.surfaceAlt
+                    : bgMediumGrey(context),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none,
@@ -278,8 +286,7 @@ Future<void> _pickCountry(
                       dense: true,
                       title: Text(country.countryName),
                       trailing: active
-                          ? const Icon(Icons.check,
-                              color: ColorRes.themeAccentSolid)
+                          ? Icon(Icons.check, color: StyleRes.brandAccent)
                           : null,
                       onTap: () => Get.back(result: country),
                     );
@@ -288,7 +295,12 @@ Future<void> _pickCountry(
           ),
         ],
       ),
-    ),
+    );
+
+  final result = await Get.bottomSheet<Object>(
+    AppRole.isClient()
+        ? Theme(data: ThemeRes.clientTheme(context), child: sheet)
+        : sheet,
     isScrollControlled: true,
   );
 
@@ -411,7 +423,7 @@ class _StreamerExploreCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                            color: ColorRes.crimson.withValues(alpha: 0.45),
+                            color: StyleRes.brandAccent.withValues(alpha: 0.45),
                             blurRadius: 10,
                           ),
                         ],
@@ -484,7 +496,9 @@ class _StreamerExploreCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: ColorRes.darkPurple.withValues(alpha: 0.82),
+                    color: AppRole.isClient()
+                        ? ClientColors.primaryActive
+                        : ColorRes.darkPurple.withValues(alpha: 0.82),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -565,9 +579,9 @@ class _StreamerExploreCard extends StatelessWidget {
                             value: 'call',
                             child: Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.live_tv_rounded,
-                                  color: ColorRes.mlPurple,
+                                  color: StyleRes.brandAccent,
                                   size: 18,
                                 ),
                                 const SizedBox(width: 10),
@@ -590,7 +604,7 @@ class _StreamerExploreCard extends StatelessWidget {
                                 Icon(
                                   Icons.videocam_rounded,
                                   color: canCall
-                                      ? ColorRes.crimson
+                                      ? StyleRes.brandAccent
                                       : ColorRes.disabledGrey,
                                   size: 18,
                                 ),

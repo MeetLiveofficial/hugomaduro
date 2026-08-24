@@ -6,12 +6,14 @@ import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/enum/chat_enum.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/chat_screen/chat_screen.dart';
 import 'package:krimson/screen/message_screen/message_screen_controller.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -65,7 +67,9 @@ class ChatConversationUserCard extends StatelessWidget {
                           color: const Color(0xFF22C55E),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: whitePure(context),
+                            color: AppRole.isClient()
+                                ? ClientColors.bg
+                                : whitePure(context),
                             width: 2,
                           ),
                         ),
@@ -91,7 +95,9 @@ class ChatConversationUserCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyleCustom.outFitMedium500(
                               fontSize: 15,
-                              color: ColorRes.textDarkGrey,
+                              color: AppRole.isClient()
+                                  ? ClientColors.text
+                                  : ColorRes.textDarkGrey,
                             ),
                           ),
                         ),
@@ -114,7 +120,9 @@ class ChatConversationUserCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyleCustom.outFitRegular400(
                         fontSize: 13,
-                        color: ColorRes.textLightGrey,
+                        color: AppRole.isClient()
+                            ? ClientColors.textMuted
+                            : ColorRes.textLightGrey,
                       ),
                     ),
                   ],

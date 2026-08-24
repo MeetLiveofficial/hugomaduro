@@ -31,7 +31,44 @@
 
   <title>Meet&Live</title>
   <link rel="manifest" href="manifest.json">
-  <style>html, body { margin: 0; background: #120E18; }</style>
+  <style>
+    :root {
+      --client-50: #E7F7FE;
+      --client-100: #BBE8FC;
+      --client-200: #8FDAFA;
+      --client-300: #63CBF8;
+      --client-400: #27B7F5;
+      --client-500: #0BAEF4;
+      --client-600: #098FC8;
+      --client-700: #076F9C;
+      --client-800: #055070;
+      --client-900: #033144;
+      --client-950: #011118;
+      --streamer-50: #E7FAFE;
+      --streamer-100: #BBF1FC;
+      --streamer-200: #8FE8FA;
+      --streamer-300: #63DFF8;
+      --streamer-400: #27D3F5;
+      --streamer-500: #0BCDF4;
+      --streamer-600: #09A8C8;
+      --streamer-700: #07839C;
+      --streamer-800: #055E70;
+      --streamer-900: #033944;
+      --streamer-950: #011418;
+      --color-50: var(--streamer-50);
+      --color-100: var(--streamer-100);
+      --color-200: var(--streamer-200);
+      --color-300: var(--streamer-300);
+      --color-400: var(--streamer-400);
+      --color-500: var(--streamer-500);
+      --color-600: var(--streamer-600);
+      --color-700: var(--streamer-700);
+      --color-800: var(--streamer-800);
+      --color-900: var(--streamer-900);
+      --color-950: var(--streamer-950);
+    }
+    html, body { margin: 0; background: var(--color-950); }
+  </style>
   <script>
     // Fuerza la versión JS que FlutterFire espera.
     window.flutterfire_web_sdk_version = '12.15.0';

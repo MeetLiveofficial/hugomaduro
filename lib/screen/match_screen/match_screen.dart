@@ -11,6 +11,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_web_video.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -71,7 +72,9 @@ class MatchScreen extends StatelessWidget {
                                           textAlign: TextAlign.center,
                                           style:
                                               TextStyleCustom.outFitMedium500(
-                                            color: Colors.white,
+                                            color: AppRole.isClient()
+                                                ? ClientColors.text
+                                                : Colors.white,
                                             fontSize: 15,
                                           ),
                                         ),
@@ -103,10 +106,26 @@ class _MatchBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final base = client ? ClientColors.bg : ColorRes.obsidianDeep;
+    final mid = client
+        ? ClientColors.primary.withValues(alpha: 0.28)
+        : ColorRes.mlPurple.withValues(alpha: 0.28);
+    final bottom = client
+        ? ClientColors.surface.withValues(alpha: 0.82)
+        : ColorRes.obsidianDeep.withValues(alpha: 0.78);
+    final halo = client ? ClientColors.primary : ColorRes.themeAccentSolid;
+    final vignetteMid = client
+        ? ClientColors.primaryActive.withValues(alpha: 0.45)
+        : ColorRes.mlPurple.withValues(alpha: 0.45);
+    final vignetteEnd = client
+        ? ClientColors.bg.withValues(alpha: 0.88)
+        : ColorRes.darkPurple.withValues(alpha: 0.78);
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: ColorRes.obsidianDeep),
+        ColoredBox(color: base),
         ImageFiltered(
           imageFilter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Transform.scale(
@@ -125,9 +144,9 @@ class _MatchBackdrop extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                ColorRes.obsidianDeep.withValues(alpha: 0.38),
-                ColorRes.mlPurple.withValues(alpha: 0.28),
-                ColorRes.obsidianDeep.withValues(alpha: 0.78),
+                base.withValues(alpha: 0.38),
+                mid,
+                bottom,
               ],
             ),
           ),
@@ -142,8 +161,8 @@ class _MatchBackdrop extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  ColorRes.themeAccentSolid.withValues(alpha: 0.28),
-                  ColorRes.themeAccentSolid.withValues(alpha: 0.0),
+                  halo.withValues(alpha: 0.28),
+                  halo.withValues(alpha: 0.0),
                 ],
               ),
             ),
@@ -163,8 +182,8 @@ class _MatchBackdrop extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      ColorRes.mlPurple.withValues(alpha: 0.45),
-                      ColorRes.darkPurple.withValues(alpha: 0.78),
+                      vignetteMid,
+                      vignetteEnd,
                     ],
                   ),
                 ),
@@ -279,7 +298,7 @@ class _TopBar extends StatelessWidget {
                 Obx(() => Text(
                       '${controller.coins.value}',
                       style: TextStyleCustom.outFitSemiBold600(
-                        color: Colors.white,
+                        color: ClientColors.text,
                         fontSize: 13,
                       ),
                     )),
@@ -298,7 +317,7 @@ class _TopBar extends StatelessWidget {
                   'quota': '$quota',
                 }),
                 style: TextStyleCustom.outFitMedium500(
-                  color: Colors.white70,
+                  color: ClientColors.textMuted,
                   fontSize: 12,
                 ),
               );
@@ -342,7 +361,7 @@ class _ChipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: ColorRes.crimson.withValues(alpha: 0.28),
+      color: ClientColors.surfaceAlt.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -352,7 +371,7 @@ class _ChipButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: borderColor ?? Colors.white24,
+              color: borderColor ?? ClientColors.secondarySoft,
               width: 1,
             ),
           ),
@@ -393,9 +412,9 @@ class _RadarButton extends StatelessWidget {
                   height: core,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: StyleRes.themeGradient,
+                    gradient: StyleRes.clientGradient,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.85),
+                      color: ClientColors.secondarySoft,
                       width: 2,
                     ),
                   ),
@@ -409,7 +428,7 @@ class _RadarButton extends StatelessWidget {
                         )
                       : Icon(
                           Icons.touch_app_rounded,
-                          color: Colors.white,
+                          color: ClientColors.text,
                           size: iconSize,
                         ),
                 );
@@ -419,7 +438,7 @@ class _RadarButton extends StatelessWidget {
               return CustomPaint(
                 painter: _RadarPainter(
                   progress: controller.pulseController.value,
-                  accent: ColorRes.themeAccentSolid,
+                  accent: ClientColors.primary,
                 ),
                 child: child,
               );
@@ -608,10 +627,26 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final fill = selected
+        ? (client
+            ? ClientColors.primary.withValues(alpha: 0.42)
+            : ColorRes.crimson.withValues(alpha: 0.42))
+        : (client
+            ? ClientColors.surfaceAlt.withValues(alpha: 0.72)
+            : Colors.white.withValues(alpha: 0.16));
+    final edge = selected
+        ? (client ? ClientColors.secondary : ColorRes.themeAccentSolid.withValues(alpha: 0.85))
+        : (client ? ClientColors.border : Colors.white24);
+    final radio = selected
+        ? (client ? ClientColors.secondary : ColorRes.themeAccentSolid)
+        : Colors.white54;
+    final titleColor = client ? ClientColors.text : Colors.white;
+    final subtitleColor =
+        client ? ClientColors.textMuted : const Color(0xFFE8D48B);
+
     return Material(
-      color: selected
-          ? ColorRes.crimson.withValues(alpha: 0.42)
-          : Colors.white.withValues(alpha: 0.16),
+      color: fill,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -621,9 +656,7 @@ class _ModeCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected
-                  ? ColorRes.themeAccentSolid.withValues(alpha: 0.85)
-                  : Colors.white24,
+              color: edge,
               width: selected ? 1.4 : 1,
             ),
           ),
@@ -636,9 +669,7 @@ class _ModeCard extends StatelessWidget {
                     selected
                         ? Icons.radio_button_checked_rounded
                         : Icons.radio_button_off_rounded,
-                    color: selected
-                        ? ColorRes.themeAccentSolid
-                        : Colors.white54,
+                    color: radio,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -649,7 +680,7 @@ class _ModeCard extends StatelessWidget {
                         Text(
                           title,
                           style: TextStyleCustom.outFitSemiBold600(
-                            color: Colors.white,
+                            color: titleColor,
                             fontSize: 14,
                           ),
                         ),
@@ -657,7 +688,7 @@ class _ModeCard extends StatelessWidget {
                         Text(
                           subtitle,
                           style: TextStyleCustom.outFitRegular400(
-                            color: const Color(0xFFE8D48B),
+                            color: subtitleColor,
                             fontSize: 11,
                           ),
                         ),
@@ -674,7 +705,7 @@ class _ModeCard extends StatelessWidget {
                               Text(
                                 LKey.coinsCount.trParams({'count': '$coins'}),
                                 style: TextStyleCustom.outFitSemiBold600(
-                                  color: Colors.white,
+                                  color: titleColor,
                                   fontSize: 11,
                                 ),
                               ),
@@ -693,7 +724,9 @@ class _ModeCard extends StatelessWidget {
                   child: Icon(
                     Icons.auto_awesome,
                     size: 14,
-                    color: ColorRes.accentPeach.withValues(alpha: 0.9),
+                    color: client
+                        ? ClientColors.secondarySoft
+                        : ColorRes.accentPeach.withValues(alpha: 0.9),
                   ),
                 ),
             ],

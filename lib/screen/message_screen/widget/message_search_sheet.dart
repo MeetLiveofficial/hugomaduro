@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/screen/message_screen/message_screen_controller.dart';
 import 'package:krimson/screen/message_screen/widget/chat_conversation_user_card.dart';
 import 'package:krimson/screen/message_screen/widget/new_direct_chat_sheet.dart';
 import 'package:krimson/screen/message_screen/widget/support_chat_card.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 import 'package:krimson/common/widget/custom_search_text_field.dart';
 
 /// Menú de búsqueda de chats: se abre al tocar el input de Mensajes.
 Future<void> openMessageSearchSheet() {
   return Get.bottomSheet(
-    const _MessageSearchSheet(),
+    Builder(builder: (context) {
+      const sheet = _MessageSearchSheet();
+      if (!AppRole.isClient()) return sheet;
+      return Theme(data: ThemeRes.clientTheme(context), child: sheet);
+    }),
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
   );
@@ -50,9 +58,11 @@ class _MessageSearchSheetState extends State<_MessageSearchSheet> {
     return SafeArea(
       child: Container(
         height: height,
-        decoration: const BoxDecoration(
-          color: Color(0xFFFFF4F8),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        decoration: BoxDecoration(
+          color: AppRole.isClient()
+              ? ClientColors.surface
+              : const Color(0xFFFFF4F8),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
         ),
         child: Column(
           children: [
@@ -61,7 +71,7 @@ class _MessageSearchSheetState extends State<_MessageSearchSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: ColorRes.crimson.withValues(alpha: 0.22),
+                color: StyleRes.brandAccent.withValues(alpha: 0.22),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -87,7 +97,9 @@ class _MessageSearchSheetState extends State<_MessageSearchSheet> {
                     child: Text(
                       LKey.cancel.tr,
                       style: TextStyleCustom.outFitMedium500(
-                        color: ColorRes.roseMuted,
+                        color: AppRole.isClient()
+                            ? ClientColors.secondary
+                            : ColorRes.roseMuted,
                         fontSize: 14,
                       ),
                     ),
@@ -127,12 +139,12 @@ class _MessageSearchSheetState extends State<_MessageSearchSheet> {
                               Get.back();
                               openNewDirectChatSheet();
                             },
-                            icon: const Icon(Icons.person_add_alt_1_rounded,
-                                color: ColorRes.crimson),
+                            icon: Icon(Icons.person_add_alt_1_rounded,
+                                color: StyleRes.brandAccent),
                             label: Text(
                               LKey.newChat.tr,
                               style: TextStyleCustom.outFitMedium500(
-                                color: ColorRes.crimson,
+                                color: StyleRes.brandAccent,
                                 fontSize: 14,
                               ),
                             ),

@@ -117,86 +117,111 @@ class _StreamerGalleryProfileState extends State<StreamerGalleryProfile> {
             final isMe = user.id == SessionManager.instance.getUserID();
             const galleryH = 68.0;
 
+            final bottomPad = widget.showBack ? 12.0 : 88.0;
+
             return SizedBox(
               height: size.height,
               width: size.width,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: heroH,
-                    child: _HeroPager(
-                      user: user,
-                      slides: slides,
-                      pager: _pager,
-                      onPage: (i) {
-                        controller.galleryIndex.value = i;
-                        if (i >= slides.length - 3) {
-                          controller.fetchPost();
-                          controller.fetchReel();
-                        }
-                      },
-                    ),
-                  ),
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: heroH,
-                    child: const IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0x88000000),
-                              Colors.transparent,
-                              Colors.transparent,
-                              Color(0xCC000000),
-                            ],
-                            stops: [0, 0.16, 0.52, 1],
+                  Column(
+                    children: [
+                      Expanded(
+                        child: CustomScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                height: heroH,
+                                width: size.width,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    _HeroPager(
+                                      user: user,
+                                      slides: slides,
+                                      pager: _pager,
+                                      onPage: (i) {
+                                        controller.galleryIndex.value = i;
+                                        if (i >= slides.length - 3) {
+                                          controller.fetchPost();
+                                          controller.fetchReel();
+                                        }
+                                      },
+                                    ),
+                                    const IgnorePointer(
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Color(0x88000000),
+                                              Colors.transparent,
+                                              Colors.transparent,
+                                              Color(0xCC000000),
+                                            ],
+                                            stops: [0, 0.16, 0.52, 1],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: 14,
+                                      right: 14,
+                                      bottom: slides.isNotEmpty
+                                          ? galleryH + 12
+                                          : 18,
+                                      child: _HeroChrome(
+                                        user: user,
+                                        isMe: isMe,
+                                        controller: controller,
+                                      ),
+                                    ),
+                                    if (slides.isNotEmpty)
+                                      Positioned(
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 8,
+                                        height: galleryH,
+                                        child: _GalleryStrip(
+                                          slides: slides,
+                                          selected: index,
+                                          onSelect: (i) =>
+                                              _goTo(i, slides.length),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SliverToBoxAdapter(
+                              child: _InfoSheet(
+                                user: user,
+                                controller: controller,
+                                isMe: isMe,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ColoredBox(
+                        color: _sheet,
+                        child: SafeArea(
+                          top: false,
+                          bottom: bottomPad < 40,
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(16, 10, 16, bottomPad),
+                            child: _BottomActions(
+                              user: user,
+                              controller: controller,
+                              isMe: isMe,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: heroH - 28,
-                    bottom: 0,
-                    child: _InfoSheet(
-                      user: user,
-                      controller: controller,
-                      isMe: isMe,
-                      extraBottom: widget.showBack ? 12 : 88,
-                    ),
-                  ),
-                  if (slides.isNotEmpty)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      top: heroH - galleryH + 6,
-                      height: galleryH,
-                      child: _GalleryStrip(
-                        slides: slides,
-                        selected: index,
-                        onSelect: (i) => _goTo(i, slides.length),
-                      ),
-                    ),
-                  Positioned(
-                    left: 14,
-                    right: 14,
-                    top: heroH - galleryH - (slides.isNotEmpty ? 58 : 18),
-                    child: _HeroChrome(
-                      user: user,
-                      isMe: isMe,
-                      controller: controller,
-                    ),
+                    ],
                   ),
                   Positioned(
                     top: 0,
@@ -349,13 +374,11 @@ class _InfoSheet extends StatelessWidget {
   final User user;
   final ProfileScreenController controller;
   final bool isMe;
-  final double extraBottom;
 
   const _InfoSheet({
     required this.user,
     required this.controller,
     required this.isMe,
-    this.extraBottom = 12,
   });
 
   @override
@@ -365,68 +388,43 @@ class _InfoSheet extends StatelessWidget {
         color: _sheet,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        child: SafeArea(
-          top: false,
-          bottom: extraBottom < 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 44, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _IdentityBlock(user: user, controller: controller),
-                      const SizedBox(height: 12),
-                      if (AppRole.isStreamer(user)) ...[
-                        if (user.streamerAverage != null) ...[
-                          _StreamerAvgCard(
-                            avg: user.streamerAverage!,
-                            showBars: isMe,
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        _ImpressionCard(
-                          user: user,
-                          controller: controller,
-                          isMe: isMe,
-                        ),
-                      ],
-                      if ((user.bio ?? '').trim().isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        Text(
-                          user.bio!.trim(),
-                          style: TextStyleCustom.outFitRegular400(
-                            color: Colors.white70,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                      if ((user.levelTitle ?? '').trim().isNotEmpty ||
-                          (user.levelNumber ?? 0) > 0) ...[
-                        const SizedBox(height: 14),
-                        _LevelBar(user: user),
-                      ],
-                    ],
-                  ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _IdentityBlock(user: user, controller: controller),
+            const SizedBox(height: 12),
+            if (AppRole.isStreamer(user)) ...[
+              if (user.streamerAverage != null) ...[
+                _StreamerAvgCard(
+                  avg: user.streamerAverage!,
+                  showBars: isMe,
                 ),
+                const SizedBox(height: 12),
+              ],
+              _ImpressionCard(
+                user: user,
+                controller: controller,
+                isMe: isMe,
               ),
-              ColoredBox(
-                color: _sheet,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 10, 16, extraBottom),
-                  child: _BottomActions(
-                    user: user,
-                    controller: controller,
-                    isMe: isMe,
-                  ),
+            ],
+            if ((user.bio ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Text(
+                user.bio!.trim(),
+                style: TextStyleCustom.outFitRegular400(
+                  color: Colors.white70,
+                  fontSize: 13,
                 ),
               ),
             ],
-          ),
+            if ((user.levelTitle ?? '').trim().isNotEmpty ||
+                (user.levelNumber ?? 0) > 0) ...[
+              const SizedBox(height: 14),
+              _LevelBar(user: user),
+            ],
+          ],
         ),
       ),
     );

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/message_screen/message_screen_controller.dart';
 import 'package:krimson/screen/support_chat/support_chat_controller.dart';
 import 'package:krimson/screen/support_chat/support_chat_screen.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -62,7 +64,9 @@ class SupportChatCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyleCustom.outFitMedium500(
                               fontSize: 15,
-                              color: ColorRes.textDarkGrey,
+                              color: AppRole.isClient()
+                                  ? ClientColors.text
+                                  : ColorRes.textDarkGrey,
                             ),
                           ),
                         ),
@@ -81,7 +85,9 @@ class SupportChatCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyleCustom.outFitRegular400(
                         fontSize: 13,
-                        color: ColorRes.textLightGrey,
+                        color: AppRole.isClient()
+                            ? ClientColors.textMuted
+                            : ColorRes.textLightGrey,
                       ),
                     ),
                   ],

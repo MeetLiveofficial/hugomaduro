@@ -14,7 +14,9 @@ import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart
 import 'package:krimson/screen/home_screen/widget/home_mode_switcher.dart';
 import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/live_stream/live_active_discovery/live_active_discovery_controller.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// LIVE discovery: grid 2 columnas (solo lives activos) + búsqueda.
@@ -96,7 +98,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                     color: Colors.white,
                     fontSize: 15,
                   ),
-                  cursorColor: ColorRes.themeAccentSolid,
+                  cursorColor: StyleRes.brandAccent,
                   decoration: InputDecoration(
                     hintText: LKey.searchHere.tr,
                     hintStyle: TextStyleCustom.outFitRegular400(
@@ -175,8 +177,10 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                 }
 
                 return RefreshIndicator(
-                  color: ColorRes.themeAccentSolid,
-                  backgroundColor: Colors.white,
+                  color: StyleRes.brandAccent,
+                  backgroundColor: AppRole.isClient()
+                      ? ClientColors.surface
+                      : Colors.white,
                   onRefresh: controller.refreshList,
                   child: GridView.builder(
                     padding: const EdgeInsets.fromLTRB(10, 4, 10, 20),
@@ -322,8 +326,12 @@ class _LiveGridCard extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: stream.type == LivestreamType.battle
-                      ? ColorRes.baseRaspberry
-                      : ColorRes.themeAccentSolid,
+                      ? (AppRole.isClient()
+                          ? ClientColors.primaryActive
+                          : ColorRes.baseRaspberry)
+                      : (AppRole.isClient()
+                          ? ClientColors.primary
+                          : ColorRes.themeAccentSolid),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(

@@ -10,9 +10,9 @@ import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.
 import 'package:krimson/screen/wallet_history_screen/wallet_history_screen.dart';
 import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/role_colors.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
 
 class CoinWalletTopView extends StatelessWidget {
   const CoinWalletTopView({super.key});
@@ -46,7 +46,7 @@ class CoinWalletTopView extends StatelessWidget {
                 Text(
                   LKey.balance.tr,
                   style: TextStyleCustom.outFitRegular400(
-                    color: whitePure(context).withValues(alpha: 0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 12,
                   ),
                 ),
@@ -63,7 +63,7 @@ class CoinWalletTopView extends StatelessWidget {
                           balance.fullNumberFormat,
                           maxLines: 1,
                           style: TextStyleCustom.unboundedSemiBold600(
-                            color: whitePure(context),
+                            color: Colors.white,
                             fontSize: 22,
                           ).copyWith(
                             height: 1.4,
@@ -81,7 +81,7 @@ class CoinWalletTopView extends StatelessWidget {
                     estimated.fullCurrencyFormat,
                     maxLines: 1,
                     style: TextStyleCustom.outFitLight300(
-                      color: whitePure(context).withValues(alpha: 0.85),
+                      color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 13,
                     ),
                   ),
@@ -126,8 +126,8 @@ class CoinWalletTopView extends StatelessWidget {
                     child: TextButtonCustom(
                       onTap: () => Get.to(() => const WalletHistoryScreen()),
                       title: LKey.walletHistory.tr,
-                      backgroundColor: bgGrey(context),
-                      titleColor: textDarkGrey(context),
+                      backgroundColor: RolePalette.surfaceAlt,
+                      titleColor: RolePalette.text,
                       btnHeight: 34,
                       horizontalMargin: 0,
                       margin: EdgeInsets.zero,
@@ -140,8 +140,8 @@ class CoinWalletTopView extends StatelessWidget {
                     child: TextButtonCustom(
                       onTap: () => Get.to(() => const WithdrawalsScreen()),
                       title: LKey.withdrawals.tr,
-                      backgroundColor: bgGrey(context),
-                      titleColor: textDarkGrey(context),
+                      backgroundColor: RolePalette.surfaceAlt,
+                      titleColor: RolePalette.text,
                       btnHeight: 34,
                       horizontalMargin: 0,
                       margin: EdgeInsets.zero,
@@ -169,7 +169,7 @@ class _StatChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         decoration: BoxDecoration(
-          color: bgLightGrey(context),
+          color: RolePalette.surfaceAlt,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -180,7 +180,7 @@ class _StatChip extends StatelessWidget {
                 value,
                 maxLines: 1,
                 style: TextStyleCustom.unboundedMedium500(
-                  color: textDarkGrey(context),
+                  color: RolePalette.text,
                   fontSize: 12,
                 ).copyWith(
                   height: 1.4,
@@ -192,7 +192,7 @@ class _StatChip extends StatelessWidget {
             Text(
               label,
               style: TextStyleCustom.outFitRegular400(
-                color: textLightGrey(context),
+                color: RolePalette.textMuted,
                 fontSize: 10,
               ),
               textAlign: TextAlign.center,
