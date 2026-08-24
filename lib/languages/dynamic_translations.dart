@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
+import 'package:krimson/languages/app_fallbacks.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/languages/lkey_catalog.dart';
 
 class DynamicTranslations extends Translations {
   final Map<String, Map<String, String>> _keys = {};
@@ -14,33 +16,45 @@ class DynamicTranslations extends Translations {
   /// `.tr` sigue devolviendo la clave en inglés aunque el locale sea ru/es/pt.
   void addTranslations(Map<String, Map<String, String>> map) {
     map.forEach((lang, translations) {
+      final aligned = LKeyCatalog.align(translations);
       if (_keys.containsKey(lang)) {
-        _keys[lang]?.addAll(translations);
+        _keys[lang]?.addAll(aligned);
       } else {
-        _keys[lang] = Map<String, String>.from(translations);
+        _keys[lang] = Map<String, String>.from(aligned);
       }
+      Get.appendTranslations({lang: aligned});
     });
-    Get.appendTranslations(map);
-    ensureLiveFallbacks();
+    ensureAllFallbacks();
   }
 
-  /// Claves nuevas del LIVE aunque el CSV del servidor aún no las tenga.
-  void ensureLiveFallbacks() {
-    final fallbacks = <String, Map<String, String>>{
-      'en': _liveEn,
-      'es': _liveEs,
-      'pt': _livePt,
-      'ar': _liveAr,
-      'ru': _liveRu,
-      'uk': _liveUk,
-      'zh': _liveZh,
-    };
+  void ensureAllFallbacks() {
+    ensureLiveFallbacks();
+    ensureTaskFallbacks();
+    ensureAgencyFallbacks();
+    ensureCallFallbacks();
+    ensureAppFallbacks();
+  }
+
+  void _mergeMissing(
+    Map<String, Map<String, String>> fallbacks, {
+    Map<String, String>? english,
+    bool overwrite = false,
+  }) {
     final toAppend = <String, Map<String, String>>{};
     fallbacks.forEach((lang, map) {
       final existing = _keys[lang] ?? const <String, String>{};
       final missing = <String, String>{};
       map.forEach((k, v) {
-        if (!existing.containsKey(k)) missing[k] = v;
+        final current = existing[k];
+        final englishVal = english?[k];
+        final shouldFill = current == null ||
+            (current == k && v != k) ||
+            (englishVal != null && current == englishVal && v != current);
+        if (overwrite) {
+          if (current != v) missing[k] = v;
+        } else if (shouldFill) {
+          missing[k] = v;
+        }
       });
       if (missing.isEmpty) return;
       toAppend[lang] = missing;
@@ -53,6 +67,72 @@ class DynamicTranslations extends Translations {
     if (toAppend.isNotEmpty) {
       Get.appendTranslations(toAppend);
     }
+  }
+
+  /// Cubre todas las LKey aunque el CSV del servidor aún no se haya re-subido.
+  ///
+  /// `overwrite: true` pisa filas viejas del panel (p. ej. 平衡, 硬币, identity EN)
+  /// con el mapa generado; si no, el CSV del API deja traducciones incorrectas.
+  void ensureAppFallbacks() {
+    _mergeMissing({
+      'en': appFallbackEn,
+      'es': appFallbackEs,
+      'pt': appFallbackPt,
+      'ar': appFallbackAr,
+      'ru': appFallbackRu,
+      'uk': appFallbackUk,
+      'zh': appFallbackZh,
+    }, english: appFallbackEn, overwrite: true);
+  }
+
+  /// Claves nuevas del LIVE aunque el CSV del servidor aún no las tenga.
+  void ensureLiveFallbacks() {
+    _mergeMissing({
+      'en': _liveEn,
+      'es': _liveEs,
+      'pt': _livePt,
+      'ar': _liveAr,
+      'ru': _liveRu,
+      'uk': _liveUk,
+      'zh': _liveZh,
+    });
+  }
+
+  /// Claves de Tareas aunque el CSV del servidor aún no las tenga.
+  void ensureTaskFallbacks() {
+    _mergeMissing({
+      'en': _taskEn,
+      'es': _taskEs,
+      'pt': _taskPt,
+      'ar': _taskEn,
+      'ru': _taskEn,
+      'uk': _taskEn,
+      'zh': _taskEn,
+    });
+  }
+
+  void ensureAgencyFallbacks() {
+    _mergeMissing({
+      'en': _agencyEn,
+      'es': _agencyEs,
+      'pt': _agencyPt,
+      'ar': _agencyEn,
+      'ru': _agencyEn,
+      'uk': _agencyEn,
+      'zh': _agencyEn,
+    });
+  }
+
+  void ensureCallFallbacks() {
+    _mergeMissing({
+      'en': _callEn,
+      'es': _callEs,
+      'pt': _callPt,
+      'ar': _callEn,
+      'ru': _callEn,
+      'uk': _callEn,
+      'zh': _callEn,
+    });
   }
 }
 
@@ -89,6 +169,34 @@ const _liveEn = <String, String>{
   LKey.options: 'Options',
   LKey.later: 'Later',
   LKey.invitesYouToLive: 'invites you to their LIVE',
+  LKey.continueAsGuest: 'Continue as Guest',
+  LKey.joinToContinue: 'Link your account',
+  LKey.joinToContinueDescription:
+      'You can keep using the app as Guest. Link an email if you want to recover this account later.',
+  LKey.joinNow: 'Link now',
+  LKey.guestAccountExpires:
+      'Guest accounts do not expire. Same privileges as a regular client.',
+  LKey.coinWallet: 'Wallet',
+  LKey.walletHistory: 'Wallet history',
+  LKey.walletIncome: 'income',
+  LKey.walletWithdrawLabel: 'withdraw',
+  LKey.walletGiftFrom: 'Gift from @name',
+  LKey.walletGiftLiveFrom: 'LIVE gift from @name',
+  LKey.walletGiftChatFrom: 'Chat gift from @name',
+  LKey.walletGiftCallFrom: 'Call gift from @name',
+  LKey.walletPrivateCallWith: 'Private Call with @name',
+  LKey.walletMatchWith: 'Match with @name',
+  LKey.walletNoHistory: 'No movements',
+  LKey.walletNoHistoryDesc:
+      'Gifts from LIVE, chat and calls will appear here.',
+  LKey.walletFilterAll: 'All',
+  LKey.walletFilterLive: 'LIVE',
+  LKey.walletFilterChat: 'Chat',
+  LKey.walletFilterCalls: 'Calls',
+  LKey.walletFilterGifts: 'Gifts',
+  LKey.walletRechargeItem: 'Coin recharge',
+  LKey.walletWithdrawItem: 'Withdrawal',
+  LKey.walletExchangeRate: 'Exchange rate: @coins Coins = @currency1',
 };
 
 const _liveEs = <String, String>{
@@ -124,6 +232,34 @@ const _liveEs = <String, String>{
   LKey.options: 'Opciones',
   LKey.later: 'Más tarde',
   LKey.invitesYouToLive: 'te invita a su LIVE',
+  LKey.continueAsGuest: 'Continuar como invitado',
+  LKey.joinToContinue: 'Vincular cuenta',
+  LKey.joinToContinueDescription:
+      'Puedes seguir usando la app como Guest. Vincula un email si quieres recuperar esta cuenta más adelante.',
+  LKey.joinNow: 'Vincular ahora',
+  LKey.guestAccountExpires:
+      'Las cuentas Guest no caducan. Tienen los mismos privilegios que un cliente.',
+  LKey.coinWallet: 'Monedero',
+  LKey.walletHistory: 'Historial de monedero',
+  LKey.walletIncome: 'ingresos',
+  LKey.walletWithdrawLabel: 'retiros',
+  LKey.walletGiftFrom: 'Regalo de @name',
+  LKey.walletGiftLiveFrom: 'Regalo en LIVE de @name',
+  LKey.walletGiftChatFrom: 'Regalo en chat de @name',
+  LKey.walletGiftCallFrom: 'Regalo en llamada de @name',
+  LKey.walletPrivateCallWith: 'Llamada privada con @name',
+  LKey.walletMatchWith: 'Match con @name',
+  LKey.walletNoHistory: 'Sin movimientos',
+  LKey.walletNoHistoryDesc:
+      'Aquí verás las monedas de LIVE, chat, llamadas y otros regalos.',
+  LKey.walletFilterAll: 'Todos',
+  LKey.walletFilterLive: 'LIVE',
+  LKey.walletFilterChat: 'Chat',
+  LKey.walletFilterCalls: 'Llamadas',
+  LKey.walletFilterGifts: 'Regalos',
+  LKey.walletRechargeItem: 'Recarga de monedas',
+  LKey.walletWithdrawItem: 'Retiro',
+  LKey.walletExchangeRate: 'Tasa de cambio: @coins Coins = @currency1',
 };
 
 const _livePt = <String, String>{
@@ -299,4 +435,196 @@ const _liveZh = <String, String>{
   LKey.options: '选项',
   LKey.later: '稍后',
   LKey.invitesYouToLive: '邀请你进入直播',
+};
+
+const _taskEn = <String, String>{
+  LKey.tasksEndToday: "Today's tasks end in",
+  LKey.liveMinutesLabel: 'LIVE time',
+  LKey.taskCoinsLabel: 'Coins',
+  LKey.goDoTask: 'Go',
+  LKey.goToLiveCategory: 'Go LIVE',
+  LKey.goToMatchCategory: 'Go to Match',
+  LKey.goToChatCategory: 'Go to Chat',
+  LKey.goToProfileCategory: 'Go to Profile',
+  LKey.goToExploreCategory: 'Go to Explore',
+  LKey.goToFeedCategory: 'Create post',
+  LKey.nextTaskUnlocked: 'Next task unlocked',
+  LKey.completeFirstTaskToContinue: 'Complete task 1 to go to this category',
+  LKey.claim: 'Claim',
+  LKey.claimed: 'Claimed',
+};
+
+const _taskEs = <String, String>{
+  LKey.tasksEndToday: 'Las tareas de hoy terminan en',
+  LKey.liveMinutesLabel: 'Tiempo LIVE',
+  LKey.taskCoinsLabel: 'Coins',
+  LKey.goDoTask: 'Ir',
+  LKey.goToLiveCategory: 'Ir a LIVE',
+  LKey.goToMatchCategory: 'Ir a Match',
+  LKey.goToChatCategory: 'Ir a Chat',
+  LKey.goToProfileCategory: 'Ir a Perfil',
+  LKey.goToExploreCategory: 'Ir a Explorar',
+  LKey.goToFeedCategory: 'Crear publicación',
+  LKey.nextTaskUnlocked: 'Siguiente tarea desbloqueada',
+  LKey.completeFirstTaskToContinue:
+      'Completa la Tarea 1 para ir a esta categoría',
+  LKey.claim: 'Reclamar',
+  LKey.claimed: 'Reclamado',
+};
+
+const _taskPt = <String, String>{
+  LKey.tasksEndToday: 'As tarefas de hoje terminam em',
+  LKey.liveMinutesLabel: 'Tempo LIVE',
+  LKey.taskCoinsLabel: 'Coins',
+  LKey.goDoTask: 'Ir',
+  LKey.goToLiveCategory: 'Ir ao LIVE',
+  LKey.goToMatchCategory: 'Ir ao Match',
+  LKey.goToChatCategory: 'Ir ao Chat',
+  LKey.goToProfileCategory: 'Ir ao Perfil',
+  LKey.goToExploreCategory: 'Ir a Explorar',
+  LKey.goToFeedCategory: 'Criar publicação',
+  LKey.nextTaskUnlocked: 'Próxima tarefa desbloqueada',
+  LKey.completeFirstTaskToContinue:
+      'Conclua a Tarefa 1 para ir a esta categoria',
+  LKey.claim: 'Resgatar',
+  LKey.claimed: 'Resgatado',
+};
+
+const _agencyEn = <String, String>{
+  LKey.newFollowers: 'New Followers',
+  LKey.walletAgencyShareFrom: 'Agency share from @name',
+  LKey.agencyStreamers: 'Streamers',
+  LKey.agencyDashboardTitle: 'Agency',
+  LKey.agencyYourStreamers: 'Your affiliated streamers',
+  LKey.agencyNoStreamers: "You don't have streamers yet",
+  LKey.agencyCreateStreamerHint:
+      'Create a Streamer account affiliated to your agency.',
+  LKey.agencyCreateStreamer: 'Create streamer',
+  LKey.agencyStreamerEarned: 'Streamer earned',
+  LKey.agencyYourShare: 'Your share',
+  LKey.agencyToday: 'Today',
+  LKey.agencyWeek: 'This week',
+  LKey.agencyMonth: 'This month',
+  LKey.agencyLifetime: 'Total',
+  LKey.agencyWalletHint: '10% of the App margin from your streamers',
+};
+
+const _agencyEs = <String, String>{
+  LKey.newFollowers: 'Nuevos seguidores',
+  LKey.walletAgencyShareFrom: 'Comisión de @name',
+  LKey.agencyStreamers: 'Streamers',
+  LKey.agencyDashboardTitle: 'Agencia',
+  LKey.agencyYourStreamers: 'Tus streamers afiliados',
+  LKey.agencyNoStreamers: 'Aún no tienes streamers',
+  LKey.agencyCreateStreamerHint:
+      'Crea una cuenta Streamer afiliada a tu agencia.',
+  LKey.agencyCreateStreamer: 'Crear streamer',
+  LKey.agencyStreamerEarned: 'Ganó el streamer',
+  LKey.agencyYourShare: 'Tu comisión',
+  LKey.agencyToday: 'Hoy',
+  LKey.agencyWeek: 'Esta semana',
+  LKey.agencyMonth: 'Este mes',
+  LKey.agencyLifetime: 'Total',
+  LKey.agencyWalletHint: '10% del margen App de tus streamers',
+};
+
+const _agencyPt = <String, String>{
+  LKey.newFollowers: 'Novos seguidores',
+  LKey.walletAgencyShareFrom: 'Comissão de @name',
+  LKey.agencyStreamers: 'Streamers',
+  LKey.agencyDashboardTitle: 'Agência',
+  LKey.agencyYourStreamers: 'Seus streamers afiliados',
+  LKey.agencyNoStreamers: 'Você ainda não tem streamers',
+  LKey.agencyCreateStreamerHint:
+      'Crie uma conta Streamer afiliada à sua agência.',
+  LKey.agencyCreateStreamer: 'Criar streamer',
+  LKey.agencyStreamerEarned: 'O streamer ganhou',
+  LKey.agencyYourShare: 'Sua comissão',
+  LKey.agencyToday: 'Hoje',
+  LKey.agencyWeek: 'Esta semana',
+  LKey.agencyMonth: 'Este mês',
+  LKey.agencyLifetime: 'Total',
+  LKey.agencyWalletHint: '10% da margem App dos seus streamers',
+};
+
+const _callEn = <String, String>{
+  LKey.callStreamerInCall: 'This streamer is already in a call',
+  LKey.callStreamerOffline: 'This streamer is offline',
+  LKey.onlineNow: 'Online',
+  LKey.callOnlyFromLive: 'Join the LIVE to call this streamer',
+  LKey.joinThisLive: 'Join LIVE',
+  LKey.callEndedInsufficientCoins: 'Not enough coins to continue the call',
+  LKey.callEndedClientNoCoins: 'The call ended: the client ran out of coins',
+  LKey.liveBadge: 'LIVE',
+  LKey.peopleWatching: '@count watching',
+  LKey.lastCallMinutesAgo: 'LAST CALL @min MIN AGO',
+  LKey.lastCallHoursAgo: 'LAST CALL @hours H AGO',
+  LKey.impression: 'Impression',
+  LKey.rankLabel: 'Rank: @grade',
+  LKey.rateImpression: 'Rate',
+  LKey.saveRating: 'Save',
+  LKey.herTraits: 'How she defines herself',
+  LKey.otherTraits: 'More traits',
+  LKey.maxTraitsHint: 'Choose up to @count',
+  LKey.ratingSaved: 'Thanks for rating',
+  LKey.offlineBadge: 'Off',
+  LKey.wompiLocalChargeHint:
+      'The charge will be processed in local currency (COP) at the current exchange rate equivalent to \$@amount USD.',
+  LKey.continueToPayment: 'Continue to payment',
+};
+
+const _callEs = <String, String>{
+  LKey.callStreamerInCall: 'Esta streamer está en una llamada',
+  LKey.callStreamerOffline: 'Esta streamer está desconectada',
+  LKey.onlineNow: 'En línea',
+  LKey.callOnlyFromLive: 'Entra al LIVE para llamarla',
+  LKey.joinThisLive: 'Unirse al LIVE',
+  LKey.callEndedInsufficientCoins:
+      'No tienes coins suficientes para continuar la llamada',
+  LKey.callEndedClientNoCoins:
+      'La llamada terminó: el cliente no tiene coins',
+  LKey.liveBadge: 'En vivo',
+  LKey.peopleWatching: '@count personas viendo',
+  LKey.lastCallMinutesAgo: 'ULTIMA LLAMADA HACE @min MIN',
+  LKey.lastCallHoursAgo: 'ULTIMA LLAMADA HACE @hours H',
+  LKey.impression: 'Impresión',
+  LKey.rankLabel: 'Rango: @grade',
+  LKey.rateImpression: 'Calificar',
+  LKey.saveRating: 'Guardar',
+  LKey.herTraits: 'Así se define',
+  LKey.otherTraits: 'Más cualidades',
+  LKey.maxTraitsHint: 'Elige hasta @count',
+  LKey.ratingSaved: 'Gracias por calificar',
+  LKey.offlineBadge: 'Off',
+  LKey.wompiLocalChargeHint:
+      'El cobro se procesará en moneda local (COP) según la tasa de cambio actual equivalente a \$@amount USD.',
+  LKey.continueToPayment: 'Continuar al pago',
+};
+
+const _callPt = <String, String>{
+  LKey.callStreamerInCall: 'Esta streamer já está em uma chamada',
+  LKey.callStreamerOffline: 'Esta streamer está offline',
+  LKey.onlineNow: 'Online',
+  LKey.callOnlyFromLive: 'Entre no LIVE para ligar',
+  LKey.joinThisLive: 'Entrar no LIVE',
+  LKey.callEndedInsufficientCoins:
+      'Você não tem coins suficientes para continuar a chamada',
+  LKey.callEndedClientNoCoins:
+      'A chamada terminou: o cliente ficou sem coins',
+  LKey.liveBadge: 'Ao vivo',
+  LKey.peopleWatching: '@count assistindo',
+  LKey.lastCallMinutesAgo: 'ÚLTIMA CHAMADA HÁ @min MIN',
+  LKey.lastCallHoursAgo: 'ÚLTIMA CHAMADA HÁ @hours H',
+  LKey.impression: 'Impressão',
+  LKey.rankLabel: 'Rank: @grade',
+  LKey.rateImpression: 'Avaliar',
+  LKey.saveRating: 'Salvar',
+  LKey.herTraits: 'Como ela se define',
+  LKey.otherTraits: 'Mais qualidades',
+  LKey.maxTraitsHint: 'Escolha até @count',
+  LKey.ratingSaved: 'Obrigado por avaliar',
+  LKey.offlineBadge: 'Off',
+  LKey.wompiLocalChargeHint:
+      'A cobrança será processada em moeda local (COP) conforme a taxa de câmbio atual equivalente a \$@amount USD.',
+  LKey.continueToPayment: 'Continuar para o pagamento',
 };

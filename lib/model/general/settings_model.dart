@@ -104,11 +104,16 @@ class Setting {
   /// Segundos de preview Match P2P (cliente).
   int matchFreeSeconds;
   int matchInitialCoins;
+  int matchRandomCoins;
+  int matchGoddessCoins;
   int matchGraceSeconds;
   List<MatchTier> matchTiers;
   bool wompiEnabled;
   bool nowpaymentsEnabled;
   int matchDailyFreeQuota;
+  double hostSharePercentLive;
+  double hostSharePercentStandard;
+  double agencySharePercent;
 
   Setting({
     this.id,
@@ -176,13 +181,18 @@ class Setting {
     this.dummyLives,
     this.reportReason,
     this.deepARFilters,
-    this.matchFreeSeconds = 30,
-    this.matchInitialCoins = 0,
-    this.matchGraceSeconds = 40,
+    this.matchFreeSeconds = 40,
+    this.matchInitialCoins = 50,
+    this.matchRandomCoins = 50,
+    this.matchGoddessCoins = 150,
+    this.matchGraceSeconds = 10,
     List<MatchTier>? matchTiers,
     this.wompiEnabled = true,
     this.nowpaymentsEnabled = true,
     this.matchDailyFreeQuota = 2,
+    this.hostSharePercentLive = 35,
+    this.hostSharePercentStandard = 30,
+    this.agencySharePercent = 10,
   }) : matchTiers = matchTiers ?? MatchTier.defaults;
 
   factory Setting.fromJson(Map<String, dynamic> json) {
@@ -312,19 +322,32 @@ class Setting {
                 json["deepARFilters"]?.map((x) => DeepARFilters.fromJson(x))),
         matchFreeSeconds: _asInt(json["match_free_seconds"]) ??
             _asInt(cfg["initial_seconds"]) ??
-            30,
-        matchInitialCoins: _asInt(json["match_initial_coins"]) ??
+            40,
+        matchRandomCoins: _asInt(json["match_random_coins"]) ??
+            _asInt(cfg["random_coins"]) ??
+            50,
+        matchGoddessCoins: _asInt(json["match_goddess_coins"]) ??
+            _asInt(cfg["goddess_coins"]) ??
+            150,
+        matchInitialCoins: _asInt(json["match_random_coins"]) ??
+            _asInt(cfg["random_coins"]) ??
+            _asInt(json["match_initial_coins"]) ??
             _asInt(cfg["initial_coins"]) ??
-            0,
+            50,
         matchGraceSeconds: _asInt(json["match_grace_seconds"]) ??
             _asInt(cfg["grace_seconds"]) ??
-            40,
+            10,
         matchTiers: MatchTier.listFrom(cfg["tiers"] ?? json["match_tiers"]),
         wompiEnabled: (_asInt(json["wompi_enabled"]) ?? 1) != 0,
         nowpaymentsEnabled: (_asInt(json["nowpayments_enabled"]) ?? 1) != 0,
         matchDailyFreeQuota: _asInt(json["match_daily_free_quota"]) ??
             _asInt(cfg["daily_free_quota"]) ??
             2,
+        hostSharePercentLive:
+            _asDouble(json["host_share_percent_live"]) ?? 35,
+        hostSharePercentStandard:
+            _asDouble(json["host_share_percent_standard"]) ?? 30,
+        agencySharePercent: _asDouble(json["agency_share_percent"]) ?? 10,
       );
   }
 
@@ -418,11 +441,16 @@ class Setting {
             : List<dynamic>.from(deepARFilters!.map((x) => x.toJson())),
         "match_free_seconds": matchFreeSeconds,
         "match_initial_coins": matchInitialCoins,
+        "match_random_coins": matchRandomCoins,
+        "match_goddess_coins": matchGoddessCoins,
         "match_grace_seconds": matchGraceSeconds,
         "match_daily_free_quota": matchDailyFreeQuota,
         "match_tiers": matchTiers.map((t) => t.toJson()).toList(),
         "wompi_enabled": wompiEnabled,
         "nowpayments_enabled": nowpaymentsEnabled,
+        "host_share_percent_live": hostSharePercentLive,
+        "host_share_percent_standard": hostSharePercentStandard,
+        "agency_share_percent": agencySharePercent,
       };
 
   static int? _asInt(dynamic v) {
@@ -455,8 +483,8 @@ class MatchTier {
 
   static const List<MatchTier> defaults = [
     MatchTier(tier: 1, seconds: 300, coins: 150),
-    MatchTier(tier: 2, seconds: 480, coins: 250),
-    MatchTier(tier: 3, seconds: 780, coins: 400),
+    MatchTier(tier: 2, seconds: 600, coins: 250),
+    MatchTier(tier: 3, seconds: 900, coins: 400),
   ];
 
   factory MatchTier.fromJson(Map<String, dynamic> json) => MatchTier(
@@ -614,6 +642,7 @@ class Gift {
   int? id;
   int? categoryId;
   int? coinPrice;
+  String? title;
   String? image;
   /// 1 = ocupa el 100% de la pantalla; 0 = tamaño original (180).
   int isFullscreen;
@@ -624,6 +653,7 @@ class Gift {
     this.id,
     this.categoryId,
     this.coinPrice,
+    this.title,
     this.image,
     this.isFullscreen = 0,
     this.createdAt,
@@ -636,6 +666,7 @@ class Gift {
             Setting._asInt(json["categoryId"]),
         coinPrice: Setting._asInt(json["coin_price"]) ??
             Setting._asInt(json["coinPrice"]),
+        title: json["title"]?.toString(),
         image: json["image"]?.toString(),
         isFullscreen: Setting._asInt(json["is_fullscreen"]) ??
             Setting._asInt(json["isFullscreen"]) ??
@@ -652,6 +683,7 @@ class Gift {
         "id": id,
         "category_id": categoryId,
         "coin_price": coinPrice,
+        "title": title,
         "image": image,
         "is_fullscreen": isFullscreen,
         "created_at": createdAt?.toIso8601String(),
@@ -659,6 +691,11 @@ class Gift {
       };
 
   bool get fullscreen => isFullscreen == 1;
+
+  String get displayTitle {
+    final t = (title ?? '').trim();
+    return t;
+  }
 }
 
 class GiftCategory {

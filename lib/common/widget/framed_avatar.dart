@@ -85,38 +85,50 @@ class FramedAvatar extends StatelessWidget {
   }) {
     final dressing = (user.equippedFrameImage ?? '').trim();
     final badge = (user.equippedBadgeImage ?? '').trim();
-    final localGrade = dressing.isEmpty
-        ? AssetRes.streamerBadgeForGrade(user.effectiveStreamerGrade)
+    final isStreamer = (user.appRole ?? '').toLowerCase() == 'streamer';
+    final isClient = (user.appRole ?? '').toLowerCase() == 'client';
+    final localFrame = dressing.isEmpty
+        ? (isStreamer
+            ? AssetRes.streamerBadgeForGrade(user.effectiveStreamerGrade)
+            : isClient
+                ? AssetRes.clientFrameForLevel(user.levelNumber ?? 1)
+                : null)
         : null;
     final surround = dressing.isNotEmpty ? dressing : '';
     final cornerBadge = dressing.isNotEmpty ? badge : '';
-    if (surround.isNotEmpty || (localGrade ?? '').isNotEmpty) {
+    if (surround.isNotEmpty || (localFrame ?? '').isNotEmpty) {
       final gradeKey = (user.equippedFrame?['unlock_grade'] ??
               user.effectiveStreamerGrade)
           ?.toString();
-      final isGradeFrame = localGrade != null ||
-          (user.equippedFrame?['unlock_grade']
-                  ?.toString()
-                  .trim()
-                  .isNotEmpty ??
-              false) ||
-          (user.equippedFrame?['slug']?.toString().startsWith('streamer_') ??
-              false);
+      final slug = user.equippedFrame?['slug']?.toString() ?? '';
+      final isGradeFrame = isStreamer &&
+          (localFrame != null ||
+              (user.equippedFrame?['unlock_grade']
+                      ?.toString()
+                      .trim()
+                      .isNotEmpty ??
+                  false) ||
+              slug.startsWith('streamer_'));
+      final isClientFrame = isClient &&
+          (slug.startsWith('client_frame_') || localFrame != null);
       final ratio = isGradeFrame
           ? AssetRes.streamerBadgePhotoRatio(gradeKey)
-          : user.framePhotoRatio;
+          : isClientFrame
+              ? (user.equippedFrame?['photo_ratio'] is num
+                  ? (user.equippedFrame!['photo_ratio'] as num).toDouble()
+                  : AssetRes.clientFramePhotoRatio(user.levelNumber ?? 1))
+              : user.framePhotoRatio;
       final totalSize = compact ? 96.0 : size.clamp(80.0, 128.0);
-      final label = isGradeFrame
-          ? AssetRes.streamerBadgeLabel(gradeKey)
-          : '';
       return FramedAvatar.fitted(
         key: key,
         size: totalSize,
         image: user.profilePhoto,
         fullName: user.fullname ?? user.username,
         frameImage: surround.isEmpty ? null : surround,
-        localFrame: localGrade,
-        badgeImage: cornerBadge.isEmpty ? null : cornerBadge,
+        localFrame: localFrame,
+        badgeImage: (isGradeFrame || isClientFrame)
+            ? null
+            : (cornerBadge.isEmpty ? null : cornerBadge),
         onTap: onTap,
         glowColor: glowColor,
         photoRatio: ratio,
@@ -125,7 +137,6 @@ class FramedAvatar extends StatelessWidget {
             : Offset.zero,
         photoOnTop: false,
         compact: compact,
-        gradeLabel: label.isEmpty ? null : label,
       );
     }
     return FramedAvatar(

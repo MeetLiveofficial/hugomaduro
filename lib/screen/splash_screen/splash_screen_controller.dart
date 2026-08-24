@@ -99,7 +99,7 @@ class SplashScreenController extends BaseController {
           languages.where((element) => element.status == 1).toList();
       if (downloadLanguages.isEmpty) {
         showSnackBar(AppRes.languageAdd, second: 5);
-        // Sin idiomas del server, igual permitir continuar.
+        translations.ensureAllFallbacks();
         Get.offAll(() => const LoginScreen(), routeName: '/login');
         return;
       }

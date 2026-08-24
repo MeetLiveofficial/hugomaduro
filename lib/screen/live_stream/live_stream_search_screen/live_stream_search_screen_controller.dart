@@ -11,6 +11,7 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
@@ -557,6 +558,28 @@ class LiveStreamSearchScreenController extends BaseController {
     coverImageUploaded.value = null;
   }
 
+  /// Sube la portada desde bytes (Web y nativo). No usa dart:io File.
+  Future<String?> _uploadCoverIfNeeded() async {
+    final existing = (coverImageUploaded.value ?? '').trim();
+    if (existing.isNotEmpty) return existing;
+    final bytes = coverImageBytes.value;
+    if (bytes == null || bytes.isEmpty) return null;
+    final uploadFile = XFile.fromData(
+      bytes,
+      mimeType: 'image/jpeg',
+      name: 'live_cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+    final uploaded = await CommonService.instance.uploadFileGivePath(uploadFile);
+    if (uploaded.status != true ||
+        uploaded.data == null ||
+        uploaded.data!.isEmpty) {
+      throw Exception(uploaded.message ?? 'Upload de portada falló');
+    }
+    coverImageUploaded.value = uploaded.data;
+    Loggers.info('Live cover uploaded: ${uploaded.data}');
+    return uploaded.data;
+  }
+
   List<LiveGiftIncentive> get configuredGiftIncentives => giftIncentiveSlots
       .where((e) => e.isConfigured)
       .map((e) => e.copyWith(message: e.trimmedMessage))
@@ -579,7 +602,7 @@ class LiveStreamSearchScreenController extends BaseController {
     if (position < 0 || position >= giftIncentiveSlots.length) return;
     final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
     if (gifts.isEmpty) {
-      showSnackBar('No hay regalos en el catálogo');
+      showSnackBar(LKey.noGiftsInCatalog.tr);
       return;
     }
     final selected = await Get.bottomSheet<Gift>(
@@ -621,41 +644,17 @@ class LiveStreamSearchScreenController extends BaseController {
 
     showLoader();
     try {
-      String? coverPath = coverImageUploaded.value;
-      final localCover = coverImageLocalPath.value;
-      final bytes = coverImageBytes.value;
-      if (coverPath == null &&
-          ((localCover ?? '').isNotEmpty || (bytes?.isNotEmpty ?? false))) {
-        try {
-          XFile uploadFile;
-          if ((localCover ?? '').isNotEmpty &&
-              !kIsWeb &&
-              File(localCover!).existsSync()) {
-            uploadFile = XFile(localCover);
-          } else if (bytes != null && bytes.isNotEmpty) {
-            final dir = await PlatformPathExtension.localPath;
-            final path =
-                '${dir}live_cover_upload_${DateTime.now().millisecondsSinceEpoch}.jpg';
-            await File(path).writeAsBytes(bytes, flush: true);
-            uploadFile = XFile(path);
-            coverImageLocalPath.value = path;
-          } else {
-            throw Exception('Archivo de portada no encontrado');
-          }
-          final uploaded =
-              await CommonService.instance.uploadFileGivePath(uploadFile);
-          if (uploaded.status != true ||
-              (uploaded.data == null || uploaded.data!.isEmpty)) {
-            throw Exception(uploaded.message ?? 'Upload de portada falló');
-          }
-          coverPath = uploaded.data;
-          coverImageUploaded.value = coverPath;
-        } catch (e) {
-          stopLoader();
-          showSnackBar('No se pudo subir la portada: $e');
-          return;
-        }
+      String? coverPath;
+      try {
+        coverPath = await _uploadCoverIfNeeded();
+      } catch (e) {
+        stopLoader();
+        showSnackBar('No se pudo subir la portada: $e');
+        return;
       }
+      // Si no eligió portada, usar foto de perfil para no repetir otra cover.
+      coverPath ??= (user.profilePhoto ?? '').trim();
+      if (coverPath.isEmpty) coverPath = null;
 
       final now = DateTime.now().millisecondsSinceEpoch;
       final coHosts = invitedIds.toList();
@@ -677,6 +676,7 @@ class LiveStreamSearchScreenController extends BaseController {
           restrictToJoin: 0,
           isDummyLive: 0,
           coHostIds: coHosts,
+          coverImage: coverPath,
         );
         stream.giftIncentives = configuredGiftIncentives;
         final hostState = user.streamState(
@@ -1109,7 +1109,7 @@ class _IncentiveSlotCard extends StatelessWidget {
                     right: 4,
                     bottom: 4,
                     child: Text(
-                      '${slot.coinPrice}',
+                      '${HostShare.displayCoins(slot.coinPrice ?? 0)}',
                       style: TextStyleCustom.outFitMedium500(
                         fontSize: 10,
                         color: ColorRes.themeAccentSolid,
@@ -1226,7 +1226,7 @@ class _GiftPickerSheet extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${g.coinPrice ?? 0}',
+                          '${HostShare.displayCoins(g.coinPrice ?? 0)}',
                           style: TextStyleCustom.outFitMedium500(
                             color: ColorRes.themeAccentSolid,
                             fontSize: 11,

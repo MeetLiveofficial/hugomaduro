@@ -16,7 +16,7 @@ class HomeModeSwitcher extends StatelessWidget {
     final dash = Get.find<DashboardScreenController>();
     const active = Colors.white;
     final inactive = Colors.white.withValues(alpha: 0.72);
-    const firstLabel = 'LIVE';
+    final firstLabel = LKey.liveTab.tr;
 
     return Obx(() {
       final mode = dash.homeTabMode.value;

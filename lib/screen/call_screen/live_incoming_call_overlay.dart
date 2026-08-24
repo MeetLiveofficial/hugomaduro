@@ -15,11 +15,6 @@ class LiveIncomingCallOverlay {
     if (callId != null) {
       IncomingCallController.forceDismiss(callId);
     }
-    try {
-      if (Get.isDialogOpen == true) {
-        Get.back();
-      }
-    } catch (_) {}
   }
 
   /// `true` si se presentó el diálogo (o ya estaba abierto el mismo call).

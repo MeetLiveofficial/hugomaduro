@@ -69,7 +69,7 @@ class LiveHostActionBar extends StatelessWidget {
               Icon(Icons.tune_rounded, color: fg, size: 18),
               const SizedBox(width: 6),
               Text(
-                'Options',
+                LKey.options.tr,
                 style: TextStyleCustom.outFitMedium500(
                   color: fg,
                   fontSize: 12,
@@ -133,10 +133,10 @@ void openLiveHostOptionsMenu({
                           icon: paused
                               ? Icons.play_arrow_rounded
                               : Icons.pause_rounded,
-                          title: paused ? 'Reanudar' : 'Pausar',
+                          title: paused ? LKey.resumeLive.tr : LKey.pauseLive.tr,
                           subtitle: paused
-                              ? 'Continuar la transmisión'
-                              : 'Pausar video temporalmente',
+                              ? LKey.resumeLiveSubtitle.tr
+                              : LKey.pauseLiveSubtitle.tr,
                           onTap: () {
                             Get.back();
                             onPause();
@@ -148,11 +148,11 @@ void openLiveHostOptionsMenu({
                               ? Icons.mic_off_rounded
                               : Icons.mic_rounded,
                           title: muted
-                              ? 'Activar micrófono'
-                              : 'Silenciar micrófono',
+                              ? LKey.unmuteMic.tr
+                              : LKey.muteMic.tr,
                           subtitle: muted
-                              ? 'El mic está muteado'
-                              : 'El mic está abierto',
+                              ? LKey.micMutedSubtitle.tr
+                              : LKey.micOpenSubtitle.tr,
                           onTap: () {
                             Get.back();
                             onMic();
@@ -164,9 +164,9 @@ void openLiveHostOptionsMenu({
                               ? Icons.videocam_rounded
                               : Icons.videocam_off_rounded,
                           title: (cameraOn ?? true)
-                              ? 'Apagar cámara'
-                              : 'Encender cámara',
-                          subtitle: 'Control de video en vivo',
+                              ? LKey.turnOffCamera.tr
+                              : LKey.enableCamera.tr,
+                          subtitle: LKey.liveVideoControl.tr,
                           onTap: () {
                             Get.back();
                             onCamera();
@@ -175,10 +175,11 @@ void openLiveHostOptionsMenu({
                       if (onQuality != null)
                         _HostOptionTile(
                           icon: Icons.high_quality_rounded,
-                          title: 'Calidad de video',
+                          title: LKey.videoQuality.tr,
                           subtitle: qualityLabel != null
-                              ? 'Actual: $qualityLabel'
-                              : 'Baja / Media / Alta',
+                              ? LKey.currentQuality.trParams(
+                                  {'quality': qualityLabel})
+                              : LKey.qualityLowMediumHigh.tr,
                           onTap: () {
                             Get.back();
                             onQuality();
@@ -187,9 +188,9 @@ void openLiveHostOptionsMenu({
                       if (onGiftSenders != null)
                         _HostOptionTile(
                           icon: Icons.card_giftcard_rounded,
-                          title: 'Regalos recibidos',
+                          title: LKey.giftsReceived.tr,
                           subtitle: giftSendersSubtitle ??
-                              'Ver quién te envió regalos',
+                              LKey.seeGiftSenders.tr,
                           onTap: () {
                             Get.back();
                             onGiftSenders();
@@ -386,7 +387,7 @@ Future<void> openLiveInviteSheet({
                 if (onSearch != null) onSearch(v.trim());
               },
               decoration: InputDecoration(
-                hintText: 'Search users…',
+                hintText: LKey.searchUsersEllipsis.tr,
                 prefixIcon: const Icon(Icons.search, size: 20),
                 isDense: true,
                 contentPadding:
@@ -481,7 +482,7 @@ Future<void> openLiveInviteSheet({
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                'LIVE',
+                                LKey.liveTab.tr,
                                 style: TextStyleCustom.outFitMedium500(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -492,7 +493,7 @@ Future<void> openLiveInviteSheet({
                         ],
                       ),
                       subtitle: Text(
-                        '${user.fullname ?? ''} · ${user.isActive == 1 ? 'Activa' : 'Inactiva'}',
+                        '${user.fullname ?? ''} · ${user.isActive == 1 ? LKey.statusActive.tr : LKey.statusInactive.tr}',
                       ),
                       trailing: TextButton(
                         onPressed: invited ? null : () => onInvite(user),
@@ -632,7 +633,7 @@ class _LiveTasksSheetState extends State<_LiveTasksSheet> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'No hay tareas por ahora',
+                  LKey.noTasksForNow.tr,
                   style: TextStyleCustom.outFitRegular400(
                     color: textLightGrey(context),
                     fontSize: 13,

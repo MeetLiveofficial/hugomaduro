@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/manager/content_protection.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/share_manager.dart';
 import 'package:krimson/common/widget/framed_avatar.dart';
 import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
-import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -63,9 +63,6 @@ class ProfileUserHeader extends StatelessWidget {
       }
 
       final isMe = user.id == SessionManager.instance.getUserID();
-      // Si estoy en la app mirando mi perfil, soy ACTIVE sí o sí.
-      final isPresent =
-          isMe || user.isActive == 1 || user.isLive == 1;
       final stories = user.stories ?? [];
       final hasStories = stories.isNotEmpty;
       final links = user.links ?? [];
@@ -100,7 +97,7 @@ class ProfileUserHeader extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: FullNameWithBlueTick(
+                            child:                             FullNameWithBlueTick(
                               username: user.fullname ?? user.username,
                               isVerify: user.isVerify,
                               isVip: user.isVip,
@@ -110,15 +107,6 @@ class ProfileUserHeader extends StatelessWidget {
                                 fontSize: 15,
                               ).copyWith(height: 1.2),
                               mainAxisAlignment: MainAxisAlignment.start,
-                              child: (user.equippedBadgeImage ?? '').isEmpty
-                                  ? null
-                                  : GiftMedia(
-                                      path: user.equippedBadgeImage,
-                                      width: 18,
-                                      height: 18,
-                                      fit: BoxFit.contain,
-                                      placeholder: const SizedBox.shrink(),
-                                    ),
                             ),
                           ),
                           if (isMe)
@@ -142,71 +130,27 @@ class ProfileUserHeader extends StatelessWidget {
                             ),
                           ),
                         ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (user.isLive == 1 && AppRole.isStreamer(user))
-                            InkWell(
-                              onTap: () => controller.openUserLiveIfAny(),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: ColorRes.themeAccentSolid,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  'LIVE',
-                                  style: TextStyleCustom.outFitMedium500(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          Container(
-                            key: const ValueKey('presence_badge'),
+                      if (user.isLive == 1 && AppRole.isStreamer(user)) ...[
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () => controller.openUserLiveIfAny(),
+                          child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: isPresent
-                                  ? const Color(0xFF22C55E)
-                                      .withValues(alpha: 0.15)
-                                  : const Color(0xFF9CA3AF)
-                                      .withValues(alpha: 0.18),
+                              color: ColorRes.themeAccentSolid,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: BoxDecoration(
-                                    color: isPresent
-                                        ? const Color(0xFF22C55E)
-                                        : const Color(0xFF9CA3AF),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  isPresent ? 'Activa' : 'Inactiva',
-                                  style: TextStyleCustom.outFitMedium500(
-                                    color: isPresent
-                                        ? const Color(0xFF15803D)
-                                        : const Color(0xFF6B7280),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              'LIVE',
+                              style: TextStyleCustom.outFitMedium500(
+                                color: Colors.white,
+                                fontSize: 11,
+                              ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -398,13 +342,7 @@ class ProfileVideoCallFab extends StatelessWidget {
 
   bool get _canReceive => AppRole.canReceivePaidCalls(user);
 
-  int get _cost {
-    if (user.levelTitle != null || user.levelNumber != null) {
-      return user.callRequestCoins;
-    }
-    final fromLevel = user.getLevel.callRequestCoins;
-    return user.callRequestCoins > 0 ? user.callRequestCoins : fromLevel;
-  }
+  int get _cost => CallAvailability.callCost(user);
 
   @override
   Widget build(BuildContext context) {
@@ -657,8 +595,8 @@ class _Avatar extends StatelessWidget {
               ),
             ),
           Positioned(
-            right: 14,
-            bottom: 22,
+            right: 10,
+            bottom: 10,
             child: Builder(
               builder: (context) {
                 final isMe = user.id == SessionManager.instance.getUserID();
@@ -669,7 +607,7 @@ class _Avatar extends StatelessWidget {
                   height: 14,
                   decoration: BoxDecoration(
                     color: isPresent
-                        ? const Color(0xFFFF6B6B)
+                        ? const Color(0xFF22C55E)
                         : const Color(0xFF9CA3AF),
                     shape: BoxShape.circle,
                     border: Border.all(
@@ -793,7 +731,7 @@ class _ActionButtons extends StatelessWidget {
                 Expanded(
                   child: TextButtonCustom(
                     onTap: () => Get.to(() => const MatchScreen()),
-                    title: 'Match',
+                    title: LKey.matchLabel.tr,
                     backgroundColor: ColorRes.coralRed,
                     titleColor: whitePure(context),
                     btnHeight: 36,

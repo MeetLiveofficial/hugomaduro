@@ -62,11 +62,18 @@ class LeaderboardScreen extends StatelessWidget {
                         : 0;
                     // Un solo scroll: podio + lista 4+ (evita solape del ranking
                     // sobre las tarjetas TOP 3).
+                    final podiumKey =
+                        '${controller.typeParam}_${controller.periodParam}_'
+                        '${controller.users.take(3).map((e) => '${e.id}:${e.score}').join('|')}';
                     return CustomScrollView(
+                      key: ValueKey(podiumKey),
                       physics: const BouncingScrollPhysics(),
                       slivers: [
                         SliverToBoxAdapter(
-                          child: _PodiumStage(users: controller.users),
+                          child: _PodiumStage(
+                            key: ValueKey('podium_$podiumKey'),
+                            users: List<LeaderboardEntry>.from(controller.users),
+                          ),
                         ),
                         const SliverToBoxAdapter(child: SizedBox(height: 14)),
                         SliverPadding(
@@ -76,8 +83,10 @@ class LeaderboardScreen extends StatelessWidget {
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 6),
                             itemBuilder: (context, index) {
+                              final entry = controller.users[index + 3];
                               return _RankRow(
-                                entry: controller.users[index + 3],
+                                key: ValueKey('rank-${entry.id}'),
+                                entry: entry,
                               );
                             },
                           ),
@@ -177,8 +186,8 @@ class _Header extends StatelessWidget {
                         color: Colors.white, fontSize: 16),
                   ),
                   content: Text(
-                    '${LKey.clientsRanking.tr}: regalos enviados.\n'
-                    '${LKey.streamersRanking.tr}: regalos recibidos.',
+                    '${LKey.clientsRanking.tr}: ${LKey.giftsSent.tr}.\n'
+                    '${LKey.streamersRanking.tr}: ${LKey.giftsReceived.tr}.',
                     style: TextStyleCustom.outFitRegular400(
                         color: Colors.white70, fontSize: 14),
                   ),
@@ -213,9 +222,9 @@ class _TypeTabs extends StatelessWidget {
     return Obx(() {
       final tab = controller.tab.value;
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Container(
-          height: 34,
+          height: 38,
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: const Color(0xFF120814),
@@ -226,14 +235,14 @@ class _TypeTabs extends StatelessWidget {
             children: [
               Expanded(
                 child: _TypeChip(
-                  label: 'Envían',
+                  label: LKey.clientsRanking.tr,
                   selected: tab == LeaderboardTab.clients,
                   onTap: () => controller.setTab(LeaderboardTab.clients),
                 ),
               ),
               Expanded(
                 child: _TypeChip(
-                  label: 'Reciben',
+                  label: LKey.streamersRanking.tr,
                   selected: tab == LeaderboardTab.streamers,
                   onTap: () => controller.setTab(LeaderboardTab.streamers),
                 ),
@@ -280,9 +289,9 @@ class _TypeChip extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: selected
               ? TextStyleCustom.outFitBold700(
-                  color: _Epic.tabText, fontSize: 12)
+                  color: _Epic.tabText, fontSize: 10)
               : TextStyleCustom.outFitMedium500(
-                  color: Colors.white70, fontSize: 12),
+                  color: Colors.white70, fontSize: 10),
         ),
       ),
     );
@@ -314,19 +323,19 @@ class _PeriodFilters extends StatelessWidget {
               ),
             ),
             _PeriodChip(
-              label: 'Hoy',
+              label: LKey.today.tr,
               selected: p == LeaderboardPeriod.today,
               onTap: () => controller.setPeriod(LeaderboardPeriod.today),
             ),
             const SizedBox(width: 6),
             _PeriodChip(
-              label: 'Semana',
+              label: LKey.week.tr,
               selected: p == LeaderboardPeriod.week,
               onTap: () => controller.setPeriod(LeaderboardPeriod.week),
             ),
             const SizedBox(width: 6),
             _PeriodChip(
-              label: 'Mes',
+              label: LKey.month.tr,
               selected: p == LeaderboardPeriod.month,
               onTap: () => controller.setPeriod(LeaderboardPeriod.month),
             ),
@@ -514,7 +523,7 @@ class _ArenaPainter extends CustomPainter {
 // ───────────────────────────────────────────── Podium (fixed equal columns)
 
 class _PodiumStage extends StatelessWidget {
-  const _PodiumStage({required this.users});
+  const _PodiumStage({super.key, required this.users});
 
   final List<LeaderboardEntry> users;
 
@@ -535,63 +544,63 @@ class _PodiumStage extends StatelessWidget {
       return const SizedBox(height: 12);
     }
 
-    // Altura justa al card #1 (el más alto): sin hueco vacío arriba ni
-    // recorte de las banners de score que se solapaban con el ranking 4+.
-    const figure1 = 120.0;
-    const figureArea1 = figure1 + 36;
-    const badgeH = 22.0;
-    const bannerH = 86.0;
-    const cardH = figureArea1 + 4 + badgeH + 6 + bannerH;
-    const stageH = cardH + 16;
+    // Arte nuevo (marco + banner), ~80% del ancho para que no tape el ranking 4+.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const scale = 0.80;
+        const gap = 6.0;
+        final usable = (constraints.maxWidth - 12) * scale;
+        final w1 = usable * 0.36;
+        final wSide = (usable - w1 - gap * 2) / 2;
+        final h1 = w1 * _PodiumArt.aspect(1);
+        final h2 = wSide * _PodiumArt.aspect(2);
+        final h3 = wSide * _PodiumArt.aspect(3);
+        final stageH = math.max(h1, math.max(h2, h3)) + 8;
 
-    return SizedBox(
-      height: stageH,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Positioned.fill(
-            child: CustomPaint(painter: _PodiumFloorPainter()),
+        return SizedBox(
+          height: stageH,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Positioned.fill(
+                child: CustomPaint(painter: _PodiumFloorPainter()),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  SizedBox(
+                    width: wSide,
+                    child: _ChampionCard(
+                      key: ValueKey('podium-2-${second?.id}'),
+                      entry: second,
+                      place: 2,
+                    ),
+                  ),
+                  const SizedBox(width: gap),
+                  SizedBox(
+                    width: w1,
+                    child: _ChampionCard(
+                      key: ValueKey('podium-1-${first?.id}'),
+                      entry: first,
+                      place: 1,
+                    ),
+                  ),
+                  const SizedBox(width: gap),
+                  SizedBox(
+                    width: wSide,
+                    child: _ChampionCard(
+                      key: ValueKey('podium-3-${third?.id}'),
+                      entry: third,
+                      place: 3,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: _ChampionCard(
-                    entry: second,
-                    place: 2,
-                    colors: _Epic.place2,
-                    accent: const Color(0xFF7EB6FF),
-                    figureSize: 96,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _ChampionCard(
-                    entry: first,
-                    place: 1,
-                    colors: _Epic.place1,
-                    accent: _Epic.gold,
-                    figureSize: figure1,
-                    elevated: true,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _ChampionCard(
-                    entry: third,
-                    place: 3,
-                    colors: _Epic.place3,
-                    accent: const Color(0xFFC9A0FF),
-                    figureSize: 96,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -645,251 +654,195 @@ class _PodiumFloorPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+class _PodiumArt {
+  const _PodiumArt._();
+
+  static String asset(int place) {
+    switch (place) {
+      case 1:
+        return AssetRes.icRankPodium1;
+      case 2:
+        return AssetRes.icRankPodium2;
+      default:
+        return AssetRes.icRankPodium3;
+    }
+  }
+
+  /// Alto / ancho del PNG recortado.
+  static double aspect(int place) {
+    switch (place) {
+      case 1:
+        return 900 / 593;
+      case 2:
+        return 900 / 578;
+      default:
+        return 900 / 569;
+    }
+  }
+
+  /// Hueco del avatar (fracción del PNG), medido en el ecuador interno del marco.
+  static ({double cx, double cy, double diam, double bannerTop, double bannerBot})
+      hole(int place) {
+    switch (place) {
+      case 1:
+        return (
+          cx: 0.501,
+          cy: 0.326,
+          diam: 0.614,
+          bannerTop: 0.54,
+          bannerBot: 0.82,
+        );
+      case 2:
+        return (
+          cx: 0.494,
+          cy: 0.328,
+          diam: 0.625,
+          bannerTop: 0.50,
+          bannerBot: 0.82,
+        );
+      default:
+        return (
+          cx: 0.508,
+          cy: 0.347,
+          diam: 0.655,
+          bannerTop: 0.53,
+          bannerBot: 0.82,
+        );
+    }
+  }
+}
+
 class _ChampionCard extends StatelessWidget {
   const _ChampionCard({
+    super.key,
     required this.entry,
     required this.place,
-    required this.colors,
-    required this.accent,
-    required this.figureSize,
-    this.elevated = false,
   });
 
   final LeaderboardEntry? entry;
   final int place;
-  final List<Color> colors;
-  final Color accent;
-  final double figureSize;
-  final bool elevated;
-
-  static const double _bannerH = 86;
-  static const double _badgeH = 22;
 
   @override
   Widget build(BuildContext context) {
-    if (entry == null) {
-      return SizedBox(height: figureSize + _badgeH + _bannerH + 20);
-    }
+    final aspect = _PodiumArt.aspect(place);
+    final hole = _PodiumArt.hole(place);
 
-    // Figura + badge + banner con alturas fijas → #2/#3 siempre al mismo nivel
-    final figureAreaH = elevated ? figureSize + 36 : figureSize + 18;
+    return AspectRatio(
+      aspectRatio: 1 / aspect,
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final w = c.maxWidth;
+          final h = c.maxHeight;
+          final d = w * hole.diam;
+          final cx = w * hole.cx;
+          final cy = h * hole.cy;
+          final nameSize = place == 1 ? 11.0 : 10.0;
+          final scoreSize = place == 1 ? 11.0 : 10.0;
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: figureAreaH,
-          width: double.infinity,
-          child: Stack(
-            alignment: Alignment.bottomCenter,
+          return Stack(
             clipBehavior: Clip.none,
             children: [
-              Align(
-                alignment: Alignment.center,
-                child: CustomPaint(
-                  size: Size(figureSize * 1.4, figureSize * 0.55),
-                  painter: _WingsPainter(color: accent, place: place),
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: _RankFigure(
-                  entry: entry!,
-                  place: place,
-                  size: figureSize,
-                ),
-              ),
-              if (place == 1)
-                const Align(
-                  alignment: Alignment.topCenter,
-                  child: Icon(
-                    Icons.workspace_premium,
-                    color: _Epic.gold,
-                    size: 24,
+              if (entry != null)
+                Positioned(
+                  left: cx - d / 2,
+                  top: cy - d / 2,
+                  width: d,
+                  height: d,
+                  child: ClipOval(
+                    child: CustomImage(
+                      size: Size(d, d),
+                      radius: d / 2,
+                      image: entry!.profilePhoto?.addBaseURL(),
+                      fullName: entry!.displayName,
+                      strokeWidth: 0,
+                      fit: BoxFit.cover,
+                      webPreferHtmlElement: false,
+                    ),
                   ),
                 ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        SizedBox(
-          height: _badgeH,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.75),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: accent, width: 1),
-              ),
-              child: Text(
-                '${LKey.top.tr} $place',
-                style: TextStyleCustom.outFitBold700(
-                  color: Colors.white,
-                  fontSize: 10,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          width: double.infinity,
-          height: _bannerH,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [colors.first, colors.last],
-            ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: place == 1 ? _Epic.gold : accent.withValues(alpha: 0.75),
-              width: place == 1 ? 1.8 : 1.3,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: colors.first.withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                entry!.displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyleCustom.outFitBold700(
-                  color: Colors.white,
-                  fontSize: elevated ? 12 : 11,
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (entry!.isSvip == 1) ...[
-                    Text(
-                      'SVIP',
-                      style: TextStyleCustom.outFitBold700(
-                        color: _Epic.gold,
-                        fontSize: 9,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  Flexible(
-                    child: Text(
-                      'Lv.${entry!.levelNumber}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyleCustom.outFitRegular400(
-                        color: Colors.white70,
-                        fontSize: 10,
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ShineSweep.masked(
+                    child: SizedBox.expand(
+                      child: Image.asset(
+                        _PodiumArt.asset(place),
+                        fit: BoxFit.fill,
+                        alignment: Alignment.topCenter,
+                        filterQuality: FilterQuality.high,
+                        gaplessPlayback: true,
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.local_fire_department,
-                    color: place == 1 ? _Epic.gold : const Color(0xFFFFB347),
-                    size: 14,
-                  ),
-                  const SizedBox(width: 2),
-                  Flexible(
-                    child: Text(
-                      entry!.score.numberFormat,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyleCustom.outFitBold700(
-                        color: Colors.white,
-                        fontSize: elevated ? 12 : 11,
+              if (entry != null)
+                Positioned(
+                  left: w * 0.14,
+                  right: w * 0.14,
+                  top: h * hole.bannerTop,
+                  bottom: h * (1 - hole.bannerBot),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        entry!.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyleCustom.outFitBold700(
+                          color: Colors.white,
+                          fontSize: nameSize,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          if (entry!.isSvip == 1) 'SVIP',
+                          'Lv.${entry!.levelNumber}',
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyleCustom.outFitBold700(
+                          color: _Epic.gold,
+                          fontSize: 9,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.local_fire_department,
+                            color: place == 1
+                                ? _Epic.gold
+                                : const Color(0xFFFFB347),
+                            size: 12,
+                          ),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              entry!.score.numberFormat,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyleCustom.outFitBold700(
+                                color: Colors.white,
+                                fontSize: scoreSize,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
             ],
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
-}
-
-class _WingsPainter extends CustomPainter {
-  _WingsPainter({required this.color, required this.place});
-
-  final Color color;
-  final int place;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height * 0.6;
-
-    void wing(bool left) {
-      final dir = left ? -1.0 : 1.0;
-      final path = Path()
-        ..moveTo(cx, cy * 0.55)
-        ..cubicTo(
-          cx + dir * size.width * 0.12,
-          cy - size.height * 0.55,
-          cx + dir * size.width * 0.52,
-          cy - size.height * 0.2,
-          cx + dir * size.width * 0.5,
-          cy + size.height * 0.2,
-        )
-        ..cubicTo(
-          cx + dir * size.width * 0.38,
-          cy + size.height * 0.45,
-          cx + dir * size.width * 0.1,
-          cy + size.height * 0.3,
-          cx,
-          cy * 0.75,
-        )
-        ..close();
-
-      canvas.drawPath(
-        path,
-        Paint()
-          ..shader = ui.Gradient.radial(
-            Offset(cx, cy),
-            size.width * 0.55,
-            [
-              color.withValues(alpha: 0.65),
-              color.withValues(alpha: 0.22),
-              color.withValues(alpha: 0),
-            ],
-            const [0.1, 0.55, 1],
-          ),
-      );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = place == 1 ? 1.8 : 1.2
-          ..color = color.withValues(alpha: 0.8)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
-      );
-    }
-
-    wing(true);
-    wing(false);
-  }
-
-  @override
-  bool shouldRepaint(covariant _WingsPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.place != place;
 }
 
 // ───────────────────────────────────────────── Avatar figure
@@ -923,11 +876,11 @@ class _RankFigure extends StatelessWidget {
   static double _avatarRatio(int place) {
     switch (place) {
       case 1:
-        return 0.58;
+        return 0.56;
       case 2:
         return 0.62;
       case 3:
-        return 0.58;
+        return 0.62;
       default:
         return 0.68;
     }
@@ -936,26 +889,13 @@ class _RankFigure extends StatelessWidget {
   static Offset _avatarOffset(int place, double size) {
     switch (place) {
       case 1:
-        return Offset(0, size * 0.02);
-      case 2:
         return Offset(0, size * 0.01);
+      case 2:
+        return Offset(0, size * 0.038);
       case 3:
-        return Offset(0, size * -0.02);
+        return Offset(0, size * 0.016);
       default:
         return Offset.zero;
-    }
-  }
-
-  static Color _ringColor(int place) {
-    switch (place) {
-      case 1:
-        return const Color(0xFFFFD56B);
-      case 2:
-        return const Color(0xFFFF8A5C);
-      case 3:
-        return const Color(0xFF7EB6FF);
-      default:
-        return Colors.white54;
     }
   }
 
@@ -967,7 +907,6 @@ class _RankFigure extends StatelessWidget {
       final ratio = _avatarRatio(place);
       final avatarSize = size * ratio;
       final offset = _avatarOffset(place, size);
-      final ring = _ringColor(place);
 
       return SizedBox(
         width: size,
@@ -978,14 +917,7 @@ class _RankFigure extends StatelessWidget {
           children: [
             Transform.translate(
               offset: offset,
-              child: Container(
-                width: avatarSize,
-                height: avatarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: ring, width: place == 1 ? 2.2 : 1.8),
-                ),
-                clipBehavior: Clip.antiAlias,
+              child: ClipOval(
                 child: CustomImage(
                   size: Size(avatarSize, avatarSize),
                   image: entry.profilePhoto?.addBaseURL(),
@@ -1015,13 +947,25 @@ class _RankFigure extends StatelessWidget {
 
     final dressingFrame = (entry.frameImage ?? '').trim();
     if (dressingFrame.isNotEmpty) {
+      final grade = (entry.unlockGrade ?? '').trim();
+      final ratio = () {
+        final r = entry.photoRatio;
+        if (r != null && r > 0.15 && r < 0.9) return r;
+        if (grade.isNotEmpty) return AssetRes.streamerBadgePhotoRatio(grade);
+        if ((entry.appRole ?? '').toLowerCase() == 'client') {
+          return AssetRes.clientFramePhotoRatio(entry.levelNumber);
+        }
+        return 0.40;
+      }();
       return FramedAvatar.fitted(
         size: size,
         image: entry.profilePhoto,
         fullName: entry.displayName,
         frameImage: dressingFrame,
-        badgeImage: entry.badgeImage,
-        photoRatio: 0.62,
+        photoRatio: ratio,
+        photoOffset: grade.isNotEmpty
+            ? AssetRes.streamerBadgePhotoOffset(grade, outer: size)
+            : Offset.zero,
         photoOnTop: false,
       );
     }
@@ -1055,7 +999,7 @@ class _RankFigure extends StatelessWidget {
 }
 
 class _RankRow extends StatelessWidget {
-  const _RankRow({required this.entry});
+  const _RankRow({super.key, required this.entry});
 
   final LeaderboardEntry entry;
 
@@ -1063,9 +1007,9 @@ class _RankRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final place = entry.rank ?? 4;
     return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      clipBehavior: Clip.antiAlias,
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      clipBehavior: Clip.none,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: const Color(0x99161024),
@@ -1092,7 +1036,7 @@ class _RankRow extends StatelessWidget {
           _RankFigure(
             entry: entry,
             place: place,
-            size: 34,
+            size: 42,
             showFrame: false,
           ),
           const SizedBox(width: 10),

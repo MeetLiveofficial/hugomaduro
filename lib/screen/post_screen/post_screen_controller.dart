@@ -190,6 +190,7 @@ class PostScreenController extends BaseController {
   void onGiftTap(Post? post) {
     GiftManager.openGiftSheet(
       userId: post?.userId ?? -1,
+      giftSource: 'post',
       onCompletion: (giftManager) {
         GiftManager.showAnimationDialog(giftManager.gift);
         GiftManager.sendNotification(post);

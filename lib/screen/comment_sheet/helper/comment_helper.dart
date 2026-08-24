@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/functions/debounce_action.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/post_service.dart';
 import 'package:krimson/common/service/api/search_service.dart';
@@ -167,6 +168,7 @@ class CommentHelper {
     required CommentType commentType,
     required Function(Comment comment, bool isReplyComment) onUpdateComment,
   }) async {
+    if (GuestGate.block()) return;
     String description = detectableTextController.text.trim();
 
     if (description.isEmpty) {

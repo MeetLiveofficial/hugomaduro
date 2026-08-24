@@ -89,10 +89,16 @@ class Params {
   static const String notifyGiftReceived = 'notify_gift_received';
   static const String notifyChat = 'notify_chat';
   static const String giftId = 'gift_id';
+  static const String source = 'source';
+  static const String startDate = 'start_date';
+  static const String endDate = 'end_date';
+  static const String filter = 'filter';
   static const String musicId = 'music_id';
   static const String appLastUsedAt = 'app_last_used_at';
   static const String region = 'region';
   static const String regionName = 'regionName';
   static const String timezone = 'timezone';
   static const String metadata = 'metadata';
+  static const String streamerId = 'streamer_id';
+  static const String traitIds = 'trait_ids';
 }

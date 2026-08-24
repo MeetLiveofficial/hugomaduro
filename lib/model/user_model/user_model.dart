@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/post_story/story/story_model.dart';
+import 'package:krimson/model/user_model/streamer_average.dart';
 
 class UserModel {
   UserModel({
@@ -57,6 +60,7 @@ class User {
       {this.id,
       this.identity,
       this.isDummy,
+      this.isAnonymous,
       this.fullname,
       this.username,
       this.userEmail,
@@ -119,14 +123,21 @@ class User {
       this.canReceiveCalls = 0,
       this.canGoLive = 0,
       this.appRole,
+      this.agencyId,
+      this.agencyName,
+      this.isAgencyWorker = 0,
       this.weeklyCallGrade,
       this.levelBenefits = const [],
+      this.impressionQualities = const [],
+      this.impressionRating,
+      this.streamerAverage,
       this.equippedFrame,
       this.equippedBadge});
 
   User copyWith({
     int? id,
     int? isDummy,
+    int? isAnonymous,
     String? identity,
     String? fullname,
     String? username,
@@ -192,12 +203,16 @@ class User {
     String? appRole,
     String? weeklyCallGrade,
     List<String>? levelBenefits,
+    List<ImpressionQuality>? impressionQualities,
+    double? impressionRating,
+    StreamerAverage? streamerAverage,
     Map<String, dynamic>? equippedFrame,
     Map<String, dynamic>? equippedBadge,
   }) =>
       User(
         id: id ?? this.id,
         isDummy: isDummy ?? this.isDummy,
+        isAnonymous: isAnonymous ?? this.isAnonymous,
         identity: identity ?? this.identity,
         fullname: fullname ?? this.fullname,
         username: username ?? this.username,
@@ -262,6 +277,9 @@ class User {
         appRole: appRole ?? this.appRole,
         weeklyCallGrade: weeklyCallGrade ?? this.weeklyCallGrade,
         levelBenefits: levelBenefits ?? this.levelBenefits,
+        impressionQualities: impressionQualities ?? this.impressionQualities,
+        impressionRating: impressionRating ?? this.impressionRating,
+        streamerAverage: streamerAverage ?? this.streamerAverage,
         equippedFrame: equippedFrame ?? this.equippedFrame,
         equippedBadge: equippedBadge ?? this.equippedBadge,
       );
@@ -283,6 +301,7 @@ class User {
     id = _asInt(json['id']);
     identity = json['identity']?.toString();
     isDummy = _asInt(json['is_dummy']);
+    isAnonymous = _asInt(json['is_anonymous']);
     fullname = json['fullname']?.toString();
     username = json['username']?.toString();
     userEmail = json['user_email']?.toString();
@@ -348,10 +367,16 @@ class User {
     canReceiveCalls = _asInt(json['can_receive_calls']) ?? 0;
     canGoLive = _asInt(json['can_go_live']) ?? 0;
     appRole = json['app_role']?.toString();
+    agencyId = _asInt(json['agency_id']);
+    agencyName = json['agency_name']?.toString();
+    isAgencyWorker = _asInt(json['is_agency_worker']) ?? 0;
     weeklyCallGrade = json['weekly_call_grade']?.toString();
     isLive = _asInt(json['is_live']) ?? 0;
     liveRoomId = json['live_room_id']?.toString();
     isActive = _asInt(json['is_active']) ?? 0;
+    inCall = _asInt(json['in_call']) ?? 0;
+    lastCallAt = json['last_call_at']?.toString();
+    liveViewers = _asInt(json['live_viewers']) ?? 0;
     isVip = _asInt(json['is_vip']) ?? 0;
     vipExpiresAt = json['vip_expires_at']?.toString();
     dailyFreeMatchesQuota = _asInt(json['daily_free_matches_quota']) ?? 2;
@@ -391,11 +416,17 @@ class User {
     if (json['equipped_badge'] is Map) {
       equippedBadge = Map<String, dynamic>.from(json['equipped_badge']);
     }
+    impressionQualities = ImpressionQuality.listFrom(json['impression_qualities']);
+    impressionRating = _asNum(json['impression_rating'])?.toDouble();
+    if (json['streamer_average'] is Map) {
+      streamerAverage = StreamerAverage.fromJson(json['streamer_average']);
+    }
   }
 
   int? id;
   String? identity;
   int? isDummy;
+  int? isAnonymous;
   String? fullname;
   String? username;
   String? userEmail;
@@ -469,19 +500,28 @@ class User {
   int callRequestCoins = 0;
   int canReceiveCalls = 0;
   int canGoLive = 0;
-  /// `streamer` | `client` (default client en app si viene vacío).
+  /// `streamer` | `client` | `agency`
   String? appRole;
-  /// Rango semanal de llamadas: NEW, D, C, B, A, S, SS.
+  int? agencyId;
+  String? agencyName;
+  int isAgencyWorker = 0;
+  /// Rango de rendimiento (AVG 30 días): NEW, B, C, A, S.
   String? weeklyCallGrade;
   List<String> levelBenefits = const [];
   int isLive = 0;
   String? liveRoomId;
   int isActive = 0;
+  int inCall = 0;
+  String? lastCallAt;
+  int liveViewers = 0;
   int isVip = 0;
   String? vipExpiresAt;
   int dailyFreeMatchesQuota = 2;
   int dailyFreeMatchesUsed = 0;
   int dailyFreeMatchesRemaining = 2;
+  List<ImpressionQuality> impressionQualities = const [];
+  double? impressionRating;
+  StreamerAverage? streamerAverage;
   Map<String, dynamic>? equippedFrame;
   Map<String, dynamic>? equippedBadge;
 
@@ -507,6 +547,8 @@ class User {
 
   bool get isVipActive => isVip == 1;
 
+  bool get isAnonymousUser => (isAnonymous ?? 0) == 1;
+
   String? get equippedBadgeImage {
     final v = equippedBadge?['image']?.toString().trim();
     return (v == null || v.isEmpty) ? null : v;
@@ -516,6 +558,7 @@ class User {
     final map = <String, dynamic>{};
     map['id'] = id;
     map['is_dummy'] = isDummy;
+    map['is_anonymous'] = isAnonymous;
     map['identity'] = identity;
     map['fullname'] = fullname;
     map['username'] = username;
@@ -576,16 +619,26 @@ class User {
     map['can_receive_calls'] = canReceiveCalls;
     map['can_go_live'] = canGoLive;
     map['app_role'] = appRole;
+    map['agency_id'] = agencyId;
+    map['agency_name'] = agencyName;
+    map['is_agency_worker'] = isAgencyWorker;
     map['weekly_call_grade'] = weeklyCallGrade;
     map['level_benefits'] = levelBenefits;
     map['is_live'] = isLive;
     map['live_room_id'] = liveRoomId;
     map['is_active'] = isActive;
+    map['in_call'] = inCall;
+    map['last_call_at'] = lastCallAt;
+    map['live_viewers'] = liveViewers;
     map['is_vip'] = isVip;
     map['vip_expires_at'] = vipExpiresAt;
     map['daily_free_matches_quota'] = dailyFreeMatchesQuota;
     map['daily_free_matches_used'] = dailyFreeMatchesUsed;
     map['daily_free_matches_remaining'] = dailyFreeMatchesRemaining;
+    map['impression_qualities'] =
+        impressionQualities.map((e) => e.toJson()).toList();
+    map['impression_rating'] = impressionRating;
+    map['streamer_average'] = streamerAverage?.toJson();
     map['equipped_frame'] = equippedFrame;
     map['equipped_badge'] = equippedBadge;
     map["following_ids"] = followingIds;
@@ -666,6 +719,81 @@ class Link {
     map['created_at'] = createdAt;
     map['updated_at'] = updatedAt;
     return map;
+  }
+}
+
+class ImpressionQuality {
+  final int? id;
+  final String label;
+  final int stars;
+  final int votes;
+  final bool isPick;
+  final bool checked;
+
+  const ImpressionQuality({
+    required this.label,
+    this.id,
+    this.stars = 0,
+    this.votes = 0,
+    this.isPick = false,
+    this.checked = false,
+  });
+
+  ImpressionQuality copyWith({bool? checked}) {
+    return ImpressionQuality(
+      id: id,
+      label: label,
+      stars: stars,
+      votes: votes,
+      isPick: isPick,
+      checked: checked ?? this.checked,
+    );
+  }
+
+  int get clampedStars => stars.clamp(0, 5);
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'label': label,
+        'stars': clampedStars,
+        'votes': votes,
+        'is_pick': isPick ? 1 : 0,
+        'checked': checked ? 1 : 0,
+      };
+
+  static List<ImpressionQuality> listFrom(dynamic raw) {
+    List<dynamic> rows = const [];
+    if (raw is List) {
+      rows = raw;
+    } else if (raw is String && raw.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) rows = decoded;
+      } catch (_) {}
+    }
+    final out = <ImpressionQuality>[];
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final label = (row['label'] ?? row['name'])?.toString().trim() ?? '';
+      if (label.isEmpty) continue;
+      final stars = User._asInt(row['stars'] ?? row['rating']) ?? 0;
+      final votes = User._asInt(row['votes'] ?? row['vote_count']) ?? 0;
+      final isPick = row['is_pick'] == true ||
+          row['is_pick'] == 1 ||
+          '${row['is_pick']}' == '1';
+      final checked = row['checked'] == true ||
+          row['checked'] == 1 ||
+          '${row['checked']}' == '1';
+      out.add(ImpressionQuality(
+        id: User._asInt(row['id']),
+        label: label,
+        stars: stars.clamp(0, 5),
+        votes: votes < 0 ? 0 : votes,
+        isPick: isPick,
+        checked: checked,
+      ));
+    }
+    return out;
   }
 }
 

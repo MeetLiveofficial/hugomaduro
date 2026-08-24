@@ -8,6 +8,9 @@ import 'package:krimson/common/extensions/list_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/call_availability.dart';
+import 'package:krimson/common/manager/coin_gate.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/moderator_service.dart';
@@ -48,6 +51,7 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
   RxBool isPostLoading = false.obs;
   final PageController pageController = PageController();
   RxBool isUserNotFound = false.obs;
+  RxInt galleryIndex = 0.obs;
   Setting? settingData = SessionManager.instance.getSettings();
   RxBool isFollowUnFollowInProcess = false.obs;
   late ProfileController profileController;
@@ -432,18 +436,29 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
   }
 
   Future<void> requestVideoCall() async {
+    if (GuestGate.block()) return;
     final user = userData.value;
     final userId = user?.id;
     if (userId == null) return;
 
-    final canReceive = AppRole.canReceivePaidCalls(user);
-    if (!canReceive) {
-      showSnackBar(LKey.callCannotReceive.tr);
+    if (CallAvailability.isLive(user) &&
+        !CallAvailability.isWatchingThisLive(user)) {
+      await openUserLiveIfAny();
       return;
     }
 
-    final cost = user?.callRequestCoins ?? user?.getLevel.callRequestCoins ?? 0;
-    // Pantalla saliente tipo WhatsApp (sin loader modal que se queda colgado).
+    if (!CallAvailability.canPlaceCall(user)) {
+      showSnackBar(
+        CallAvailability.blockMessage(user) ?? LKey.callCannotReceive.tr,
+      );
+      return;
+    }
+
+    final cost = CallAvailability.callCost(user);
+    if (cost > 0 &&
+        !CoinGate.ensureEnough(cost, message: 'Moneda insuficiente')) {
+      return;
+    }
     Get.to(() => OutgoingCallScreen(callee: user!, cost: cost));
   }
 

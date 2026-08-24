@@ -15,6 +15,7 @@ import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/functions/media_picker_helper.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/chat_service.dart';
@@ -233,6 +234,7 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   }
 
   void onSendTextMessage() async {
+    if (GuestGate.block()) return;
     String text = textController.text.trim();
     textController.clear();
     isTextEmpty.value = true;
@@ -252,6 +254,7 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
       String? postMessage,
       String? storyReplyMessage,
       List<double>? waveData}) async {
+    if (GuestGate.block()) return;
     if (!useFirebase) {
       await _sendMessageViaLaravel(
         type: type,
@@ -693,6 +696,7 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
 
     GiftManager.openGiftSheet(
         userId: userId == -1 ? -1 : userId,
+        giftSource: 'chat',
         onCompletion: (giftManager) {
           sendMessageToFireStore(
               type: MessageType.gift,

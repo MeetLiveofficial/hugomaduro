@@ -184,52 +184,28 @@ class CallsListView extends StatelessWidget {
                       ),
                     ),
                     if (item.isPending && incoming) ...[
-                      TextButtonCustom(
+                      _CallActionButton(
                         onTap: () => controller.answer(item),
                         title: LKey.accept.tr,
-                        backgroundColor: themeAccentSolid(context),
-                        titleColor: whitePure(context),
-                        btnHeight: 32,
-                        btnWidth: 72,
-                        fontSize: 12,
-                        horizontalMargin: 0,
-                        margin: EdgeInsets.zero,
+                        filled: true,
                       ),
                       const SizedBox(width: 6),
-                      TextButtonCustom(
+                      _CallActionButton(
                         onTap: () => controller.reject(item),
                         title: LKey.refuse.tr,
-                        backgroundColor: bgGrey(context),
-                        titleColor: textDarkGrey(context),
-                        btnHeight: 32,
-                        btnWidth: 72,
-                        fontSize: 12,
-                        horizontalMargin: 0,
-                        margin: EdgeInsets.zero,
+                        filled: false,
                       ),
                     ] else if (item.isPending && !incoming)
-                      TextButtonCustom(
+                      _CallActionButton(
                         onTap: () => controller.cancel(item),
                         title: LKey.cancelCall.tr,
-                        backgroundColor: bgGrey(context),
-                        titleColor: textDarkGrey(context),
-                        btnHeight: 32,
-                        btnWidth: 72,
-                        fontSize: 12,
-                        horizontalMargin: 0,
-                        margin: EdgeInsets.zero,
+                        filled: false,
                       )
                     else if (item.isAccepted)
-                      TextButtonCustom(
+                      _CallActionButton(
                         onTap: () => controller.joinAccepted(item),
                         title: LKey.videoCall.tr,
-                        backgroundColor: themeAccentSolid(context),
-                        titleColor: whitePure(context),
-                        btnHeight: 32,
-                        btnWidth: 72,
-                        fontSize: 12,
-                        horizontalMargin: 0,
-                        margin: EdgeInsets.zero,
+                        filled: true,
                       ),
                   ],
                 ),
@@ -239,5 +215,34 @@ class CallsListView extends StatelessWidget {
         ),
       );
     });
+  }
+}
+
+class _CallActionButton extends StatelessWidget {
+  const _CallActionButton({
+    required this.onTap,
+    required this.title,
+    required this.filled,
+  });
+
+  final VoidCallback onTap;
+  final String title;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButtonCustom(
+      onTap: onTap,
+      title: title,
+      backgroundColor:
+          filled ? themeAccentSolid(context) : bgGrey(context),
+      titleColor: filled ? whitePure(context) : textDarkGrey(context),
+      btnHeight: 32,
+      fontSize: 12,
+      radius: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      horizontalMargin: 0,
+      margin: EdgeInsets.zero,
+    );
   }
 }

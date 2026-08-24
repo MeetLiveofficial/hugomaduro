@@ -1,3 +1,5 @@
+import 'package:krimson/model/user_model/streamer_average.dart';
+
 class StreamerWorkStats {
   StreamerWorkStats({
     required this.user,
@@ -5,6 +7,7 @@ class StreamerWorkStats {
     required this.weeklyLevel,
     required this.benefits,
     this.callPricing,
+    this.average,
   });
 
   factory StreamerWorkStats.fromJson(Map<String, dynamic> json) {
@@ -23,6 +26,9 @@ class StreamerWorkStats {
           ? WorkCallPricing.fromJson(
               Map<String, dynamic>.from(json['call_pricing']))
           : null,
+      average: json['streamer_average'] is Map
+          ? StreamerAverage.fromJson(json['streamer_average'])
+          : null,
     );
   }
 
@@ -31,6 +37,7 @@ class StreamerWorkStats {
   final WorkWeeklyLevel weeklyLevel;
   final List<String> benefits;
   final WorkCallPricing? callPricing;
+  final StreamerAverage? average;
 }
 
 class WorkCallPricing {
@@ -163,9 +170,11 @@ class WorkTodayStats {
 }
 
 class WorkWeeklyLevel {
+  static const List<String> kGrades = ['NEW', 'B', 'C', 'A', 'S'];
+
   WorkWeeklyLevel({
     this.grade = 'NEW',
-    this.grades = const ['D', 'C', 'NEW', 'B', 'A', 'S', 'SS'],
+    this.grades = kGrades,
     this.goalMet = false,
     WorkWeekSlice? thisWeek,
     WorkWeekSlice? lastWeek,
@@ -173,11 +182,13 @@ class WorkWeeklyLevel {
         lastWeek = lastWeek ?? WorkWeekSlice();
 
   factory WorkWeeklyLevel.fromJson(Map<String, dynamic> json) {
+    var grade = (json['grade']?.toString() ?? 'NEW').toUpperCase().trim();
+    if (grade == 'SS') grade = 'S';
+    if (grade == 'D') grade = 'NEW';
+    if (!kGrades.contains(grade)) grade = 'NEW';
     return WorkWeeklyLevel(
-      grade: json['grade']?.toString() ?? 'NEW',
-      grades: (json['grades'] as List? ?? ['D', 'C', 'NEW', 'B', 'A', 'S', 'SS'])
-          .map((e) => e.toString())
-          .toList(),
+      grade: grade,
+      grades: kGrades,
       goalMet: json['goal_met'] == true,
       thisWeek: WorkWeekSlice.fromJson(
           Map<String, dynamic>.from(json['this_week'] as Map? ?? {})),

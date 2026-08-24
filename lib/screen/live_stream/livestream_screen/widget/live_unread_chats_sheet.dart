@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/service/api/chat_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/model/chat/message_data.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -140,10 +141,10 @@ class _LiveUnreadChatsSheetState extends State<LiveUnreadChatsSheet> {
                   Expanded(
                     child: Text(
                       _active == null
-                          ? 'Chats sin leer'
+                          ? LKey.unreadChats.tr
                           : (_active!.chatUser?.fullname ??
                               _active!.chatUser?.username ??
-                              'Chat'),
+                              LKey.chat.tr),
                       style: TextStyleCustom.outFitMedium500(
                         color: Colors.white,
                         fontSize: 16,
@@ -282,7 +283,7 @@ class _LiveUnreadChatsSheetState extends State<LiveUnreadChatsSheet> {
             ),
             child: Text(
               (t.lastMsg ?? '').trim().isEmpty
-                  ? 'Toca para responder…'
+                  ? LKey.tapToReply.tr
                   : t.lastMsg!,
               style: TextStyleCustom.outFitRegular400(
                 color: Colors.white70,

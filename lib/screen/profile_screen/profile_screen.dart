@@ -13,6 +13,7 @@ import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/profile_page_view.dart';
 import 'package:krimson/screen/profile_screen/widget/profile_tab_bar_view.dart';
 import 'package:krimson/screen/profile_screen/widget/profile_user_header.dart';
+import 'package:krimson/screen/profile_screen/widget/streamer_gallery_profile.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -41,23 +42,36 @@ class ProfileScreen extends StatelessWidget {
             : "${DateTime.now().millisecondsSinceEpoch}");
 
     return Scaffold(
+      backgroundColor: const Color(0xFF0B0B0F),
       body: PopScope(
         onPopInvokedWithResult: (didPop, result) {
           controller.adsController
               .showInterstitialAdIfAvailable(isPopScope: true);
         },
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              Obx(() => _TopViewForOtherUser(
-                  user: controller.userData.value,
-                  isTopBarVisible: isTopBarVisible,
-                  controller: controller)),
-              Expanded(
-                child: Stack(
-                  children: [
-                    DefaultTabController(
+        child: Obx(() {
+          final profileUser = controller.userData.value;
+          final isClientProfile = profileUser != null &&
+              AppRole.isClient(profileUser) &&
+              !AppRole.canReceivePaidCalls(profileUser) &&
+              profileUser.isLive != 1;
+
+          final Widget content;
+          if (!isClientProfile) {
+            content = StreamerGalleryProfile(
+              controller: controller,
+              showBack: isTopBarVisible,
+            );
+          } else {
+            content = SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  _TopViewForOtherUser(
+                      user: profileUser,
+                      isTopBarVisible: isTopBarVisible,
+                      controller: controller),
+                  Expanded(
+                    child: DefaultTabController(
                       length: 2,
                       child: MyRefreshIndicator(
                         depth: 2,
@@ -72,106 +86,82 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ];
                           },
-                          body: Obx(() {
-                            final profileUser = controller.userData.value;
-                            // Perfil visitado de un client: sin Posts/Reels de creador.
-                            if (AppRole.isClient(profileUser)) {
-                              return const _ClientProfileEmptyBody();
-                            }
-                            return Column(
-                              children: [
-                                ProfileTabs(controller: controller),
-                                ProfilePageView(controller: controller)
-                              ],
-                            );
-                          }),
+                          body: AppRole.isClient(profileUser)
+                              ? const _ClientProfileEmptyBody()
+                              : Column(
+                                  children: [
+                                    ProfileTabs(controller: controller),
+                                    ProfilePageView(controller: controller)
+                                  ],
+                                ),
                         ),
                       ),
                     ),
-                    Obx(() {
-                      final user = controller.userData.value;
-                      if (user == null || user.isFreez == 1) {
-                        return const SizedBox.shrink();
-                      }
-                      final isMe =
-                          user.id == SessionManager.instance.getUserID();
-                      if (isMe) return const SizedBox.shrink();
-                      // Clientes no ofrecen videollamada de pago.
-                      if (!AppRole.canReceivePaidCalls(user)) {
-                        return const SizedBox.shrink();
-                      }
-                      return Positioned(
-                        right: 16,
-                        bottom: MediaQuery.paddingOf(context).bottom + 20,
-                        child: ProfileVideoCallFab(
-                          user: user,
-                          onTap: controller.requestVideoCall,
-                        ),
-                      );
-                    }),
-                    Obx(() {
-                      User? user = controller.userData.value;
-                      if (user?.isFreez != 1) {
-                        return const SizedBox();
-                      }
-                      return Container(
-                        color: scaffoldBackgroundColor(context)
-                            .withValues(alpha: 0.4),
-                        child: ClipRRect(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.lock_person_rounded,
-                                    size: 80, color: textLightGrey(context)),
-                                const SizedBox(height: 20),
-                                Text(
-                                  LKey.profileUnavailable.tr,
-                                  style: TextStyleCustom.unboundedSemiBold600(
-                                      color: textLightGrey(context),
-                                      fontSize: 18),
-                                ),
-                                const SizedBox(height: 10),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 30.0),
-                                  child: Text(
-                                    LKey.profileTemporarilyFrozen.tr,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyleCustom.outFitMedium500(
-                                        color: textLightGrey(context),
-                                        fontSize: 16),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Obx(() {
-                                  bool isModerator = SessionManager
-                                          .instance.isModerator.value ==
-                                      1;
-                                  if (!isModerator) {
-                                    return const SizedBox();
-                                  }
-                                  return TextButtonCustom(
-                                    onTap: () =>
-                                        controller.freezeUnfreezeUser(true),
-                                    title: LKey.unFreeze.tr,
-                                    titleColor: whitePure(context),
-                                    backgroundColor: textDarkGrey(context),
-                                  );
-                                })
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    })
-                  ],
-                ),
+                  ),
+                ],
               ),
+            );
+          }
+
+          return Stack(
+            children: [
+              content,
+              if (profileUser?.isFreez == 1)
+                Positioned.fill(
+                  child: Container(
+                    color: scaffoldBackgroundColor(context)
+                        .withValues(alpha: 0.4),
+                    child: ClipRRect(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock_person_rounded,
+                                size: 80, color: textLightGrey(context)),
+                            const SizedBox(height: 20),
+                            Text(
+                              LKey.profileUnavailable.tr,
+                              style: TextStyleCustom.unboundedSemiBold600(
+                                  color: textLightGrey(context), fontSize: 18),
+                            ),
+                            const SizedBox(height: 10),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 30.0),
+                              child: Text(
+                                LKey.profileTemporarilyFrozen.tr,
+                                textAlign: TextAlign.center,
+                                style: TextStyleCustom.outFitMedium500(
+                                    color: textLightGrey(context),
+                                    fontSize: 16),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Obx(() {
+                              bool isModerator = SessionManager
+                                      .instance.isModerator.value ==
+                                  1;
+                              if (!isModerator) {
+                                return const SizedBox();
+                              }
+                              return TextButtonCustom(
+                                onTap: () =>
+                                    controller.freezeUnfreezeUser(true),
+                                title: LKey.unFreeze.tr,
+                                titleColor: whitePure(context),
+                                backgroundColor: textDarkGrey(context),
+                              );
+                            })
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
-          ),
-        ),
+          );
+        }),
       ),
     );
   }

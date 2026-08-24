@@ -47,6 +47,8 @@ class LeaderboardController extends BaseController {
   Future<void> setTab(LeaderboardTab value) async {
     if (tab.value == value) return;
     tab.value = value;
+    users.clear();
+    me.value = null;
     await load();
   }
 

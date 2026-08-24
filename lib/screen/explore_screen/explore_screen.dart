@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
@@ -9,7 +10,6 @@ import 'package:krimson/common/widget/my_refresh_indicator.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/countries_model.dart';
-import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/explore_screen/explore_screen_controller.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -49,8 +49,8 @@ class ExploreScreen extends StatelessWidget {
                           showShow: !isLoading && !hasData,
                           title: LKey.searchPageEmptyTitle.tr,
                           description: viewerIsStreamer
-                              ? 'No hay clientes con estos filtros'
-                              : 'No hay streamers con estos filtros',
+                              ? LKey.noClientsWithFilters
+                              : LKey.noStreamersWithFilters,
                           child: GridView.builder(
                             controller: controller.scrollController,
                             padding: const EdgeInsets.fromLTRB(10, 4, 10, 24),
@@ -119,21 +119,18 @@ class _ExploreHeader extends StatelessWidget {
                 color: textDarkGrey(context),
               ),
               decoration: BrandControls.search(
-                hint: viewerIsStreamer
-                    ? 'Buscar clientes…'
-                    : 'Buscar streamers…',
+                hint: LKey.searchUsers.tr,
                 hintColor: textLightGrey(context),
                 prefix: const Icon(Icons.search,
                     color: ColorRes.crimson, size: 22),
                 suffix: Obx(() {
                   final hasFilter =
                       controller.selectedCountryCode.value != null ||
-                          controller.selectedLanguageCode.value != null ||
                           controller.presenceFilter.value != 'all' ||
                           controller.searchText.value.trim().isNotEmpty;
                   if (!hasFilter) return const SizedBox.shrink();
                   return IconButton(
-                    tooltip: 'Limpiar',
+                    tooltip: LKey.clearFilters.tr,
                     onPressed: controller.clearFilters,
                     icon: const Icon(Icons.close,
                         size: 18, color: ColorRes.crimson),
@@ -141,99 +138,57 @@ class _ExploreHeader extends StatelessWidget {
                 }),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Obx(() {
               final presence = controller.presenceFilter.value;
-              // Streamers exploran clientes: no aplica "En vivo".
-              if (viewerIsStreamer) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: BrandSegmentChip(
-                        label: 'Todos',
-                        active: presence == 'all',
-                        onTap: () => controller.selectPresence('all'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: BrandSegmentChip(
-                        label: 'Activos',
-                        active: presence == 'active',
-                        accent: const Color(0xFF22C55E),
-                        icon: Icons.circle,
-                        onTap: () => controller.selectPresence('active'),
-                      ),
-                    ),
-                  ],
-                );
-              }
               return Row(
                 children: [
                   Expanded(
                     child: BrandSegmentChip(
-                      label: 'Todos',
+                      compact: true,
+                      label: LKey.all.tr,
                       active: presence == 'all',
                       onTap: () => controller.selectPresence('all'),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: BrandSegmentChip(
-                      label: 'En vivo',
-                      active: presence == 'live',
-                      accent: ColorRes.themeAccentSolid,
-                      icon: Icons.videocam,
-                      onTap: () => controller.selectPresence('live'),
+                  if (!viewerIsStreamer) ...[
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: BrandSegmentChip(
+                        compact: true,
+                        label: LKey.liveBadge.tr,
+                        active: presence == 'live',
+                        accent: ColorRes.themeAccentSolid,
+                        icon: Icons.videocam,
+                        onTap: () => controller.selectPresence('live'),
+                      ),
                     ),
-                  ),
+                  ],
                   const SizedBox(width: 6),
                   Expanded(
                     child: BrandSegmentChip(
-                      label: 'Activos',
+                      compact: true,
+                      label: LKey.activeFilter.tr,
                       active: presence == 'active',
                       accent: const Color(0xFF22C55E),
                       icon: Icons.circle,
                       onTap: () => controller.selectPresence('active'),
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: BrandFilterChip(
+                      compact: true,
+                      label: controller.selectedCountryName.value ??
+                          LKey.country.tr,
+                      active: controller.selectedCountryCode.value != null,
+                      icon: Icons.public,
+                      onTap: () => _pickCountry(context, controller),
+                    ),
+                  ),
                 ],
               );
             }),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Obx(() => BrandFilterChip(
-                        label: controller.selectedCountryName.value ?? 'País',
-                        active: controller.selectedCountryCode.value != null,
-                        icon: Icons.public,
-                        onTap: () => _pickCountry(context, controller),
-                      )),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Obx(() {
-                    final code = controller.selectedLanguageCode.value;
-                    var label = 'Idioma';
-                    if (code != null) {
-                      final lang = controller.languages
-                          .firstWhereOrNull((l) => l.code == code);
-                      label = (lang?.localizedTitle ??
-                              lang?.title ??
-                              code)
-                          .toString();
-                    }
-                    return BrandFilterChip(
-                      label: label,
-                      active: code != null,
-                      icon: Icons.translate,
-                      onTap: () => _pickLanguage(context, controller),
-                    );
-                  }),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -271,7 +226,7 @@ Future<void> _pickCountry(
               children: [
                 Expanded(
                   child: Text(
-                    'Filtrar por país',
+                    LKey.filterByCountry.tr,
                     style: TextStyleCustom.outFitSemiBold600(
                       color: textDarkGrey(context),
                       fontSize: 16,
@@ -280,7 +235,7 @@ Future<void> _pickCountry(
                 ),
                 TextButton(
                   onPressed: () => Get.back(result: '__clear__'),
-                  child: const Text('Todos'),
+                  child: Text(LKey.all.tr),
                 ),
               ],
             ),
@@ -344,85 +299,6 @@ Future<void> _pickCountry(
   }
 }
 
-Future<void> _pickLanguage(
-    BuildContext context, ExploreScreenController c) async {
-  final result = await Get.bottomSheet<Object>(
-    Container(
-      decoration: BoxDecoration(
-        color: scaffoldBackgroundColor(context),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: bgGrey(context),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Filtrar por idioma',
-                      style: TextStyleCustom.outFitSemiBold600(
-                        color: textDarkGrey(context),
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Get.back(result: '__clear__'),
-                    child: const Text('Todos'),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: c.languages.length,
-                itemBuilder: (_, i) {
-                  final lang = c.languages[i];
-                  final active = c.selectedLanguageCode.value == lang.code;
-                  final title =
-                      (lang.localizedTitle ?? lang.title ?? lang.code ?? '')
-                          .toString();
-                  return ListTile(
-                    dense: true,
-                    title: Text(title),
-                    subtitle: Text(lang.code ?? ''),
-                    trailing: active
-                        ? const Icon(Icons.check,
-                            color: ColorRes.themeAccentSolid)
-                        : null,
-                    onTap: () => Get.back(result: lang),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    ),
-    isScrollControlled: true,
-  );
-
-  if (result == '__clear__') {
-    c.selectLanguage(null);
-  } else if (result is Language) {
-    c.selectLanguage(result);
-  }
-}
-
 class _StreamerExploreCard extends StatelessWidget {
   final User user;
   final bool showCallButton;
@@ -445,9 +321,11 @@ class _StreamerExploreCard extends StatelessWidget {
         ? '@${user.username}'
         : (user.country ?? user.appLanguage ?? '');
     final photo = (user.profilePhoto ?? '').trim().addBaseURL();
-    final canCall = showCallButton && AppRole.canReceivePaidCalls(user);
-    final isLive = user.isLive == 1;
-    final isActive = !isLive && user.isActive == 1;
+    final isLive = CallAvailability.isLive(user);
+    final canCall = showCallButton && CallAvailability.canPlaceCall(user);
+    final inCall = CallAvailability.isInCall(user);
+    final isActive = !isLive && !inCall && user.isActive == 1;
+    final isOffline = !isLive && !inCall && !isActive;
 
     return GestureDetector(
       onTap: onTap,
@@ -500,7 +378,31 @@ class _StreamerExploreCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (isLive)
+                  if (inCall)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6EA580C),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.videocam_rounded,
+                              color: Colors.white, size: 11),
+                          const SizedBox(width: 3),
+                          Text(
+                            LKey.inCall.tr,
+                            style: TextStyleCustom.outFitMedium500(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (isLive)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 7, vertical: 3),
@@ -521,7 +423,7 @@ class _StreamerExploreCard extends StatelessWidget {
                               color: Colors.white, size: 11),
                           const SizedBox(width: 3),
                           Text(
-                            'LIVE',
+                            LKey.liveBadge.tr,
                             style: TextStyleCustom.outFitMedium500(
                               color: Colors.white,
                               fontSize: 10,
@@ -545,13 +447,29 @@ class _StreamerExploreCard extends StatelessWidget {
                               color: Color(0xFF4ADE80), size: 8),
                           const SizedBox(width: 4),
                           Text(
-                            'Activo',
+                            LKey.statusActive.tr,
                             style: TextStyleCustom.outFitMedium500(
                               color: Colors.white,
                               fontSize: 10,
                             ),
                           ),
                         ],
+                      ),
+                    )
+                  else if (isOffline)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE63F3F46),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        LKey.offlineBadge.tr,
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
                       ),
                     ),
                 ],
@@ -615,7 +533,7 @@ class _StreamerExploreCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.18),
                     shape: const CircleBorder(),
                     child: PopupMenuButton<String>(
-                      tooltip: 'Opciones',
+                      tooltip: LKey.options.tr,
                       color: ColorRes.whitePure,
                       padding: EdgeInsets.zero,
                       icon: const Icon(Icons.more_vert_rounded,
@@ -633,7 +551,7 @@ class _StreamerExploreCard extends StatelessWidget {
                                   color: ColorRes.textDarkGrey, size: 18),
                               const SizedBox(width: 10),
                               Text(
-                                'Chat',
+                                LKey.chat.tr,
                                 style: TextStyleCustom.outFitMedium500(
                                   color: ColorRes.textDarkGrey,
                                   fontSize: 14,
@@ -642,7 +560,28 @@ class _StreamerExploreCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        if (showCallButton)
+                        if (showCallButton && isLive)
+                          PopupMenuItem(
+                            value: 'call',
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.live_tv_rounded,
+                                  color: ColorRes.mlPurple,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  LKey.joinThisLive.tr,
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: ColorRes.textDarkGrey,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (showCallButton)
                           PopupMenuItem(
                             value: 'call',
                             enabled: canCall,
@@ -657,7 +596,7 @@ class _StreamerExploreCard extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
-                                  'Llamar',
+                                  LKey.callAction.tr,
                                   style: TextStyleCustom.outFitMedium500(
                                     color: canCall
                                         ? ColorRes.textDarkGrey

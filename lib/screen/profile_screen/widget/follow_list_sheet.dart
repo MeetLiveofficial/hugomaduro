@@ -48,6 +48,8 @@ class FollowListSheet extends StatelessWidget {
       FollowListSheet(userId: userId),
       isScrollControlled: true,
       ignoreSafeArea: false,
+      backgroundColor: Colors.white,
+      barrierColor: Colors.black54,
     ).whenComplete(() {
       if (Get.isRegistered<FollowListController>(tag: tag)) {
         Get.delete<FollowListController>(tag: tag, force: true);
@@ -63,6 +65,7 @@ class FollowListSheet extends StatelessWidget {
 
     return Container(
       height: sheetHeight,
+      clipBehavior: Clip.antiAlias,
       decoration: ShapeDecoration(
         color: whitePure(context),
         shape: const SmoothRectangleBorder(

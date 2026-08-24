@@ -97,7 +97,7 @@ class ChatConversationUserCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         BrandStatusPill(
-                          label: active ? 'Activa' : 'Inactiva',
+                          label: active ? LKey.statusActive.tr : LKey.statusInactive.tr,
                           color: active
                               ? const Color(0xFF22C55E)
                               : const Color(0xFFBFA8B8),

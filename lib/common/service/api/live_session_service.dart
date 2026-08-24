@@ -139,8 +139,8 @@ class LiveSessionService {
     );
   }
 
-  /// Registra regalo en la sesión (coins desde DB). Devuelve lista actualizada.
-  Future<List<LiveGiftSender>> recordGift({
+  /// Registra regalo en la sesión (coins desde DB). Devuelve lista + marcador PK.
+  Future<LiveRecordGiftResult> recordGift({
     required String roomId,
     required int giftId,
     int coins = 0,
@@ -166,23 +166,43 @@ class LiveSessionService {
     }
     final data = json['data'];
     final list = (data is Map ? data['gift_senders'] : null);
-    if (list is! List) return const [];
-    return list.map((e) {
-      final m = Map<String, dynamic>.from(e as Map);
-      return LiveGiftSender(
-        userId: m['user_id'] is num
-            ? (m['user_id'] as num).toInt()
-            : int.tryParse('${m['user_id']}') ?? 0,
-        userName: '${m['user_name'] ?? 'User'}',
-        totalCoins: m['total_coins'] is num
-            ? (m['total_coins'] as num).toInt()
-            : int.tryParse('${m['total_coins']}') ?? 0,
-        giftCount: m['gift_count'] is num
-            ? (m['gift_count'] as num).toInt()
-            : int.tryParse('${m['gift_count']}') ?? 0,
-        lastGiftImage: m['last_gift_image']?.toString(),
-      );
-    }).toList();
+    final senders = list is List
+        ? list.map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            return LiveGiftSender(
+              userId: m['user_id'] is num
+                  ? (m['user_id'] as num).toInt()
+                  : int.tryParse('${m['user_id']}') ?? 0,
+              userName: '${m['user_name'] ?? 'User'}',
+              totalCoins: m['total_coins'] is num
+                  ? (m['total_coins'] as num).toInt()
+                  : int.tryParse('${m['total_coins']}') ?? 0,
+              giftCount: m['gift_count'] is num
+                  ? (m['gift_count'] as num).toInt()
+                  : int.tryParse('${m['gift_count']}') ?? 0,
+              lastGiftImage: m['last_gift_image']?.toString(),
+            );
+          }).toList()
+        : const <LiveGiftSender>[];
+    int? hostCoin;
+    int? oppCoin;
+    if (data is Map) {
+      if (data['battle_host_coin'] != null) {
+        hostCoin = data['battle_host_coin'] is num
+            ? (data['battle_host_coin'] as num).toInt()
+            : int.tryParse('${data['battle_host_coin']}');
+      }
+      if (data['battle_opponent_coin'] != null) {
+        oppCoin = data['battle_opponent_coin'] is num
+            ? (data['battle_opponent_coin'] as num).toInt()
+            : int.tryParse('${data['battle_opponent_coin']}');
+      }
+    }
+    return LiveRecordGiftResult(
+      senders: senders,
+      battleHostCoin: hostCoin,
+      battleOpponentCoin: oppCoin,
+    );
   }
 
   Future<LiveChatMessage?> sendComment({
@@ -388,6 +408,18 @@ class LiveLikeResult {
 
   const LiveLikeResult({
     required this.likeCount,
+    this.battleHostCoin,
+    this.battleOpponentCoin,
+  });
+}
+
+class LiveRecordGiftResult {
+  final List<LiveGiftSender> senders;
+  final int? battleHostCoin;
+  final int? battleOpponentCoin;
+
+  const LiveRecordGiftResult({
+    required this.senders,
     this.battleHostCoin,
     this.battleOpponentCoin,
   });
