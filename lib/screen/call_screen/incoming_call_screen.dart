@@ -12,6 +12,7 @@ import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/role_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -46,9 +47,9 @@ class IncomingCallScreen extends StatelessWidget {
           child: Container(
             width: double.infinity,
             height: h * 0.5,
-            decoration: const BoxDecoration(
-              color: Color(0xFF0B0F14),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            decoration: BoxDecoration(
+              color: RolePalette.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
             ),
             child: SafeArea(
               top: false,
@@ -266,7 +267,7 @@ class IncomingCallScreen extends StatelessWidget {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0B0F14),
+        backgroundColor: RolePalette.bg,
         body: content,
       ),
     );

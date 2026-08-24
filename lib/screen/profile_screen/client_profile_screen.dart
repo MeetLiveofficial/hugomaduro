@@ -328,6 +328,7 @@ class _MenuTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: ClientColors.surface,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: ClientColors.border),
           ),
           child: Row(
             children: [

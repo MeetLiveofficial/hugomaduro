@@ -18,6 +18,7 @@ import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/role_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -83,7 +84,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen> {
         await controller.cancelAndClose();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF0B0F14),
+        backgroundColor: RolePalette.bg,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

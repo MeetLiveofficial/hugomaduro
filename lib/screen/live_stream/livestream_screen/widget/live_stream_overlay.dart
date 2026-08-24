@@ -11,6 +11,7 @@ import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_c
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/level_avatar_style.dart';
+import 'package:krimson/utilities/role_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 String _liveJoinLabel(LiveChatMessage message) {
@@ -507,7 +508,7 @@ class LivePausedForCallPane extends StatelessWidget {
       final failed = controller.statusMessage.value.contains('Reintentar') ||
           controller.statusMessage.value.contains('Sin video');
       return ColoredBox(
-        color: const Color(0xFF140E18),
+        color: RolePalette.bg,
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 28),

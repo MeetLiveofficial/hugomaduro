@@ -4,8 +4,8 @@ import 'package:krimson/utilities/streamer_colors.dart';
 
 /// Meet&Live — paletas por rol.
 ///
-/// Streamer: cian/turquesa [StreamerColors] (`streamer-50` … `streamer-950`).
-/// Cliente: [ClientColors] (`client-50` … `client-950`).
+/// Cliente: cian/turquesa [ClientColors] (`client-50` … `client-950`).
+/// Streamer: [StreamerColors] (`streamer-50` … `streamer-950`).
 class ColorRes {
   static const Color blackPure = Color(0xFF000000);
   static const Color whitePure = Color(0xFFFFFFFF);
@@ -81,6 +81,20 @@ class ColorRes {
   static const Color client900 = ClientColors.client900;
   static const Color client950 = ClientColors.client950;
 
+  /// Tokens semánticos cliente: 400 / hover 500 / active 600.
+  static const Color clientPrimary = ClientColors.primary;
+  static const Color clientPrimaryHover = ClientColors.primaryHover;
+  static const Color clientPrimaryActive = ClientColors.primaryActive;
+  static const Color clientSecondary = ClientColors.secondary;
+  static const Color clientSecondarySoft = ClientColors.secondarySoft;
+  static const Color clientBg = ClientColors.bg;
+  static const Color clientSurface = ClientColors.surface;
+  static const Color clientSurfaceAlt = ClientColors.surfaceAlt;
+  static const Color clientBorder = ClientColors.border;
+  static const Color clientText = ClientColors.text;
+  static const Color clientTextMuted = ClientColors.textMuted;
+
+  /// Alias legacy → tokens cian.
   static const Color clientMagenta = ClientColors.primary;
   static const Color clientIndigo = ClientColors.primaryActive;
   static const Color clientTeal = ClientColors.secondary;

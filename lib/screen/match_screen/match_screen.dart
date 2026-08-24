@@ -13,6 +13,7 @@ import 'package:krimson/screen/match_screen/match_web_video.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/role_colors.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
@@ -236,7 +237,7 @@ class _CameraPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFF140E18),
+      color: RolePalette.bg,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

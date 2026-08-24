@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/utilities/role_colors.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 /// Renderiza el video de un [Participant] con [VideoTrackRenderer].
@@ -193,7 +194,7 @@ class _CallWaitingPhoto extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         ColoredBox(
-          color: const Color(0xFF140E18),
+          color: RolePalette.bg,
           child: CustomImage(
             size: const Size(double.infinity, double.infinity),
             image: imageUrl,

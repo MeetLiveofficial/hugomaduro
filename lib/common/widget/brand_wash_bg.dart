@@ -3,7 +3,7 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/streamer_colors.dart';
 
-/// Fondo dusk: streamer `--streamer-950` + cian; cliente `--client-950`.
+/// Fondo dusk: cliente `--client-950`; streamer `--streamer-950`.
 class BrandWashBg extends StatelessWidget {
   const BrandWashBg({super.key, this.vivid = true});
 

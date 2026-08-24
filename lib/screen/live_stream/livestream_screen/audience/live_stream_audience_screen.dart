@@ -6,6 +6,7 @@ import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_split_view.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_stream_overlay.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:video_player/video_player.dart';
@@ -153,7 +154,7 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                     }
                     if (c.hostInCall.value) {
                       return ColoredBox(
-                        color: const Color(0xFF140E18),
+                        color: ClientColors.bg,
                         child: Center(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 28),

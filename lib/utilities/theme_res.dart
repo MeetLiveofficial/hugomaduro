@@ -49,10 +49,18 @@ class ThemeRes {
     return ThemeData();
   }
 
-  /// Dashboard y chrome del **usuario cliente** (`client-50` … `client-950`).
+  /// Dashboard y chrome del **usuario cliente** (cian/turquesa `client-50` … `client-950`).
   static ThemeData clientTheme(BuildContext context) {
     return ThemeData(
       brightness: Brightness.dark,
+      colorScheme: const ColorScheme.dark(
+        primary: ClientColors.primary,
+        onPrimary: ClientColors.text,
+        secondary: ClientColors.secondary,
+        onSecondary: ClientColors.bg,
+        surface: ClientColors.surface,
+        onSurface: ClientColors.text,
+      ),
       scaffoldBackgroundColor: ClientColors.bg,
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: ClientColors.surface),
