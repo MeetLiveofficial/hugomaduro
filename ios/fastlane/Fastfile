@@ -2,36 +2,64 @@ default_platform(:ios)
 
 BUNDLE_ID = "com.krimson.app"
 TEAM_ID_DEFAULT = "WGTZ762S3W"
+CI_KEYCHAIN = "fastlane_tmp_keychain"
 
 platform :ios do
   desc "Firma IPA App Store y lo sube a TestFlight"
   lane :release do
-    setup_ci if ENV["CI"]
-
     key_id = ENV.fetch("APP_STORE_CONNECT_KEY_ID")
     issuer_id = ENV.fetch("APP_STORE_CONNECT_ISSUER_ID")
-    key_content = ENV.fetch("APP_STORE_CONNECT_PRIVATE_KEY")
+    key_content = ENV.fetch("APP_STORE_CONNECT_PRIVATE_KEY").gsub("\\n", "\n")
     team_id = ENV.fetch("APPLE_TEAM_ID", TEAM_ID_DEFAULT)
+    key_is_base64 = !key_content.include?("BEGIN PRIVATE KEY")
+
+    if is_ci
+      # setup_ci activa MATCH_READONLY y no encaja con cert/sigh.
+      # Keychain propio, sin timeout, para instalar el cert generado.
+      create_keychain(
+        name: CI_KEYCHAIN,
+        password: CI_KEYCHAIN,
+        default_keychain: true,
+        unlock: true,
+        timeout: 0,
+        lock_when_sleeps: false,
+        add_to_search_list: true
+      )
+    end
 
     api_key = app_store_connect_api_key(
       key_id: key_id,
       issuer_id: issuer_id,
       key_content: key_content,
-      is_key_content_base64: false,
+      is_key_content_base64: key_is_base64,
       in_house: false
     )
 
     certs_dir = File.expand_path("certificates", __dir__)
     FileUtils.mkdir_p(certs_dir)
 
-    # Certificado + perfil vía App Store Connect API (sin cache de .p12).
-    get_certificates(
+    wwdr_path = File.join(certs_dir, "AppleWWDRCAG3.cer")
+    sh("curl", "-fsSL", "-o", wwdr_path, "https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer")
+    if is_ci
+      import_certificate(
+        certificate_path: wwdr_path,
+        keychain_path: CI_KEYCHAIN,
+        keychain_password: CI_KEYCHAIN
+      )
+    end
+
+    cert_opts = {
       api_key: api_key,
       team_id: team_id,
       development: false,
       output_path: certs_dir,
       filename: "distribution"
-    )
+    }
+    if is_ci
+      cert_opts[:keychain_path] = CI_KEYCHAIN
+      cert_opts[:keychain_password] = CI_KEYCHAIN
+    end
+    get_certificates(**cert_opts)
 
     get_provisioning_profile(
       api_key: api_key,
