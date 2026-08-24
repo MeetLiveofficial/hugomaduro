@@ -205,6 +205,7 @@ class LivestreamScreenController extends BaseController {
   Timer? _callPoll;
   Timer? _hostConnectWatchdog;
   DateTime? _lastPresenceHeartbeat;
+  int _hostSessionMissingCount = 0;
   static const int hostConnectTimeoutSecs = 75;
   int _lastCommentServerId = 0;
   bool _commentPollBusy = false;
@@ -1071,11 +1072,15 @@ class LivestreamScreenController extends BaseController {
         if (!isHost) {
           await leaveAndRedirectToNextLive();
         } else {
-          showSnackBar('El LIVE se cerró');
-          await endOrLeave();
+          _hostSessionMissingCount++;
+          if (_hostSessionMissingCount >= 3) {
+            showSnackBar('El LIVE se cerró');
+            await endOrLeave();
+          }
         }
         return;
       }
+      _hostSessionMissingCount = 0;
       var watch = payload.session.watchingCount ?? 0;
       if (isHost && liveKit != null) {
         final remotes = liveKit!.remoteParticipants.length;
