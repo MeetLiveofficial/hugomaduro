@@ -5,28 +5,40 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/streamer_colors.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 class StyleRes {
-  static const Gradient _streamerGradient = StreamerColors.primaryGradient;
+  static const Gradient _streamerGradient = LinearGradient(
+    colors: [
+      ColorRes.themeGradient1,
+      ColorRes.themeGradientMid,
+      ColorRes.themeGradient2,
+    ],
+    stops: [0.0, 0.48, 1.0],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
   static const Gradient _streamerGradientVertical = LinearGradient(
     colors: [
-      StreamerColors.streamer400,
-      StreamerColors.streamer500,
-      StreamerColors.streamer600,
+      ColorRes.themeGradient1,
+      ColorRes.themeGradientMid,
+      ColorRes.themeGradient2,
     ],
     stops: [0.0, 0.48, 1.0],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
-  /// Marca sólida: cliente `--client-400`; streamer `--color-400`.
-  static Color get brandAccent =>
-      AppRole.isClient() ? ClientColors.primary : StreamerColors.primary;
+  /// Marca coral → magenta (login, splash, streamer). Nunca paleta cliente.
+  static const Gradient streamerGradient = _streamerGradient;
 
-  /// Streamer: `streamer-400` → `600`. Cliente: `client-400` → `600`.
+  /// Marca sólida: cliente `--color-400`; streamer magenta.
+  /// Solo si el usuario logueado es **cliente**.
+  static Color get brandAccent =>
+      AppRole.isClient() ? ClientColors.primary : ColorRes.crimson;
+
+  /// Streamer: coral → magenta. Cliente (logueado): `client-400` → `client-600`.
   static Gradient get themeGradient =>
       AppRole.isClient() ? ClientColors.primaryGradient : _streamerGradient;
 
@@ -38,11 +50,6 @@ class StyleRes {
   static const Gradient clientGradient = ClientColors.primaryGradient;
 
   static const Gradient clientSurfaceGradient = ClientColors.surfaceGradient;
-
-  /// Streamer: `--streamer-400` → `--streamer-600`.
-  static const Gradient streamerGradient = StreamerColors.primaryGradient;
-
-  static const Gradient streamerSurfaceGradient = StreamerColors.surfaceGradient;
 
   /// Dusk: Magenta → Purple → Deep violet.
   static Gradient duskGradient = const LinearGradient(
@@ -100,9 +107,9 @@ class StyleRes {
             ClientColors.client600,
           ]
         : const [
-            StreamerColors.streamer400,
-            StreamerColors.streamer500,
-            StreamerColors.streamer600,
+            ColorRes.themeGradient1,
+            ColorRes.themeGradientMid,
+            ColorRes.themeGradient2,
           ];
     return ui.Gradient.linear(
       const Offset(70, 50),

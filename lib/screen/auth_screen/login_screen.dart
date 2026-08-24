@@ -104,6 +104,7 @@ class LoginScreen extends StatelessWidget {
                               btnHeight: 50,
                               horizontalMargin: 0,
                               gradient: true,
+                              forceStreamerPalette: true,
                               titleColor: ColorRes.whitePure,
                               radius: 25)
                         ],

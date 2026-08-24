@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/gift_wallet_service.dart';
@@ -16,7 +17,8 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/utilities/app_res.dart';
-import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
+import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -121,107 +123,130 @@ class CoinWalletScreenController extends BaseController {
   }
 
   void _showPaymentMethodSheet(CoinPlan offer) {
-    Get.bottomSheet(
-      SafeArea(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          decoration: BoxDecoration(
-            color: Get.theme.scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(4),
+    final ctx = Get.context;
+    final client = AppRole.isClient();
+    Widget sheet = SafeArea(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        decoration: BoxDecoration(
+          color: client
+              ? ClientColors.surface
+              : Get.theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: client
+                      ? ClientColors.border
+                      : Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              LKey.paymentMethod.tr,
+              textAlign: TextAlign.center,
+              style: TextStyleCustom.outFitMedium500(
+                color: client
+                    ? ClientColors.text
+                    : textDarkGrey(Get.context!),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              offer.priceString.isEmpty
+                  ? LKey.coinsCount.trParams({'count': '${offer.coin}'})
+                  : '${CatalogI18n.packageName(offer.name)} · ${LKey.coinsCount.trParams({'count': '${offer.coin}'})} · ${offer.usdLabel}',
+              textAlign: TextAlign.center,
+              style: TextStyleCustom.outFitRegular400(
+                color: client
+                    ? ClientColors.textMuted
+                    : textLightGrey(Get.context!),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (settings?.wompiEnabled != false)
+              ListTile(
+                leading: Icon(
+                  Icons.credit_card,
+                  color: client ? ClientColors.secondary : null,
+                ),
+                title: Text(LKey.payCardPseNequi.tr),
+                subtitle: Text(
+                  offer.usdAmountText.isEmpty
+                      ? LKey.payWompi.tr
+                      : LKey.wompiLocalChargeHint.trParams(
+                          {'amount': offer.usdAmountText},
+                        ),
+                ),
+                onTap: () {
+                  Get.back();
+                  Future<void>.delayed(
+                    const Duration(milliseconds: 180),
+                    () => onPurchaseWompi(offer),
+                  );
+                },
+              ),
+            if (settings?.nowpaymentsEnabled != false)
+              ListTile(
+                leading: Icon(
+                  Icons.currency_bitcoin,
+                  color: client ? ClientColors.secondary : null,
+                ),
+                title: Text(LKey.cryptocurrencies.tr),
+                subtitle: Text(LKey.usdtNowPayments.tr),
+                onTap: () {
+                  Get.back();
+                  onPurchaseCrypto(offer);
+                },
+              ),
+            if (offer.canPurchaseViaStore)
+              ListTile(
+                leading: Icon(
+                  Icons.phone_android,
+                  color: client ? ClientColors.secondary : null,
+                ),
+                title: Text(LKey.appStorePlayStore.tr),
+                subtitle: Text(LKey.inAppPurchase.tr),
+                onTap: () {
+                  Get.back();
+                  onPurchaseStore(offer);
+                },
+              ),
+            if (settings?.wompiEnabled == false &&
+                settings?.nowpaymentsEnabled == false &&
+                !offer.canPurchaseViaStore)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  LKey.noPaymentMethods.tr,
+                  textAlign: TextAlign.center,
+                  style: TextStyleCustom.outFitRegular400(
+                    color: client
+                        ? ClientColors.textMuted
+                        : textLightGrey(Get.context!),
+                    fontSize: 13,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                LKey.paymentMethod.tr,
-                textAlign: TextAlign.center,
-                style: TextStyleCustom.outFitMedium500(
-                  color: textDarkGrey(Get.context!),
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                offer.priceString.isEmpty
-                    ? LKey.coinsCount.trParams({'count': '${offer.coin}'})
-                    : '${CatalogI18n.packageName(offer.name)} · ${LKey.coinsCount.trParams({'count': '${offer.coin}'})} · ${offer.usdLabel}',
-                textAlign: TextAlign.center,
-                style: TextStyleCustom.outFitRegular400(
-                  color: textLightGrey(Get.context!),
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (settings?.wompiEnabled != false)
-                ListTile(
-                  leading: const Icon(Icons.credit_card),
-                  title: Text(LKey.payCardPseNequi.tr),
-                  subtitle: Text(
-                    offer.usdAmountText.isEmpty
-                        ? LKey.payWompi.tr
-                        : LKey.wompiLocalChargeHint.trParams(
-                            {'amount': offer.usdAmountText},
-                          ),
-                  ),
-                  onTap: () {
-                    Get.back();
-                    Future<void>.delayed(
-                      const Duration(milliseconds: 180),
-                      () => onPurchaseWompi(offer),
-                    );
-                  },
-                ),
-              if (settings?.nowpaymentsEnabled != false)
-                ListTile(
-                  leading: const Icon(Icons.currency_bitcoin),
-                  title: Text(LKey.cryptocurrencies.tr),
-                  subtitle: Text(LKey.usdtNowPayments.tr),
-                  onTap: () {
-                    Get.back();
-                    onPurchaseCrypto(offer);
-                  },
-                ),
-              if (offer.canPurchaseViaStore)
-                ListTile(
-                  leading: const Icon(Icons.phone_android),
-                  title: Text(LKey.appStorePlayStore.tr),
-                  subtitle: Text(LKey.inAppPurchase.tr),
-                  onTap: () {
-                    Get.back();
-                    onPurchaseStore(offer);
-                  },
-                ),
-              if (settings?.wompiEnabled == false &&
-                  settings?.nowpaymentsEnabled == false &&
-                  !offer.canPurchaseViaStore)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    LKey.noPaymentMethods.tr,
-                    textAlign: TextAlign.center,
-                    style: TextStyleCustom.outFitRegular400(
-                      color: textLightGrey(Get.context!),
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );
+    if (client && ctx != null) {
+      sheet = Theme(data: ThemeRes.clientTheme(ctx), child: sheet);
+    }
+    Get.bottomSheet(sheet);
   }
 
   void onPurchaseStore(CoinPlan offer) {
@@ -562,7 +587,7 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
           onPressed: () => Get.back(),
           child: Text(
             failed ? 'Cerrar' : 'Seguir en segundo plano',
-            style: TextStyle(color: ColorRes.themeAccentSolid),
+            style: TextStyle(color: StyleRes.brandAccent),
           ),
         ),
         if (!failed && (widget.checkoutUrl ?? '').isNotEmpty)
@@ -572,7 +597,7 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
               widget.kind == _PaymentKind.wompi
                   ? 'Abrir Wompi'
                   : 'Abrir pago',
-              style: TextStyle(color: ColorRes.themeAccentSolid),
+              style: TextStyle(color: StyleRes.brandAccent),
             ),
           ),
         if (!failed)
@@ -580,7 +605,7 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
             onPressed: _poll,
             child: Text(
               'Verificar ahora',
-              style: TextStyle(color: ColorRes.themeAccentSolid),
+              style: TextStyle(color: StyleRes.brandAccent),
             ),
           ),
       ],

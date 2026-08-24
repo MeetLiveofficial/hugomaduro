@@ -47,7 +47,7 @@ class RegistrationScreen extends StatelessWidget {
                               color: textDarkGrey(context),
                             ).copyWith(letterSpacing: -.2)),
                         GradientText(LKey.startJourney.tr.toUpperCase(),
-                            gradient: StyleRes.themeGradient,
+                            gradient: StyleRes.streamerGradient,
                             style: TextStyleCustom.unboundedBlack900(
                               fontSize: 25,
                               color: textDarkGrey(context),
@@ -144,6 +144,7 @@ class RegistrationScreen extends StatelessWidget {
                       onTap: controller.onCreateAccount,
                       title: LKey.createAccount.tr,
                       gradient: true,
+                      forceStreamerPalette: true,
                       horizontalMargin: 20,
                       titleColor: whitePure(context),
                       radius: 25),

@@ -2,21 +2,30 @@ import 'package:flutter/material.dart';
 
 /// Paleta corporativa del **Usuario Cliente** (`client-50` … `client-950`).
 ///
-/// Equivale a las variables CSS `--client-50` … `--client-950`.
+/// Equivale a `--color-*` / `--client-*` (Tailwind-scale). No usar en streamers.
+///
+/// | Token | Hex | Uso |
+/// |---|---|---|
+/// | 400 | `#27D3F5` | Primario (CTA, marca) |
+/// | 500 / 600 | `#0BCDF4` / `#09A8C8` | Hover / active |
+/// | 300 / 200 | `#63DFF8` / `#8FE8FA` | Acentos, badges, bordes |
+/// | 950 / 900 / 800 | `#011418` / `#033944` / `#055E70` | Fondo, modales, cards |
+/// | 700 | `#07839C` | Divisores |
+/// | 50 / 100 | `#E7FAFE` / `#BBF1FC` | Texto / subtítulos |
 class ClientColors {
   ClientColors._();
 
-  static const Color client50 = Color(0xFFE7F7FE);
-  static const Color client100 = Color(0xFFBBE8FC);
-  static const Color client200 = Color(0xFF8FDAFA);
-  static const Color client300 = Color(0xFF63CBF8);
-  static const Color client400 = Color(0xFF27B7F5);
-  static const Color client500 = Color(0xFF0BAEF4);
-  static const Color client600 = Color(0xFF098FC8);
-  static const Color client700 = Color(0xFF076F9C);
-  static const Color client800 = Color(0xFF055070);
-  static const Color client900 = Color(0xFF033144);
-  static const Color client950 = Color(0xFF011118);
+  static const Color client50 = Color(0xFFE7FAFE);
+  static const Color client100 = Color(0xFFBBF1FC);
+  static const Color client200 = Color(0xFF8FE8FA);
+  static const Color client300 = Color(0xFF63DFF8);
+  static const Color client400 = Color(0xFF27D3F5);
+  static const Color client500 = Color(0xFF0BCDF4);
+  static const Color client600 = Color(0xFF09A8C8);
+  static const Color client700 = Color(0xFF07839C);
+  static const Color client800 = Color(0xFF055E70);
+  static const Color client900 = Color(0xFF033944);
+  static const Color client950 = Color(0xFF011418);
 
   /// Acción principal / marca (`--color-400`).
   static const Color primary = client400;

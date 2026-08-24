@@ -3,7 +3,6 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/font_res.dart';
-import 'package:krimson/utilities/streamer_colors.dart';
 
 class ThemeRes {
   /// Theme light mode
@@ -86,45 +85,10 @@ class ThemeRes {
     );
   }
 
-  /// Dashboard y chrome del **usuario streamer** (`streamer-50` … `streamer-950`).
-  static ThemeData streamerTheme(BuildContext context) {
-    return ThemeData(
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: StreamerColors.bg,
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: StreamerColors.surface),
-      appBarTheme: const AppBarTheme(backgroundColor: StreamerColors.surface),
-      fontFamily: FontRes.outFitRegular400,
-      bottomSheetTheme:
-          const BottomSheetThemeData(backgroundColor: StreamerColors.surface),
-      sliderTheme: const SliderThemeData(
-          trackHeight: 2.5,
-          trackShape: RectangularSliderTrackShape(),
-          overlayShape: RoundSliderOverlayShape(overlayRadius: 0),
-          overlayColor: Colors.transparent),
-      textTheme: const TextTheme(
-        titleLarge: TextStyle(color: StreamerColors.text),
-        titleMedium: TextStyle(color: StreamerColors.text),
-        titleSmall: TextStyle(color: StreamerColors.textMuted),
-        labelSmall: TextStyle(color: StreamerColors.primary),
-        labelLarge: TextStyle(color: ColorRes.disabledGrey),
-      ),
-      textSelectionTheme:
-          const TextSelectionThemeData(selectionColor: StreamerColors.border),
-      cardTheme: const CardThemeData(color: StreamerColors.surfaceAlt),
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      primaryColor: StreamerColors.primary,
-      dividerColor: StreamerColors.border,
-      cardColor: StreamerColors.surfaceAlt,
-      primaryColorDark: StreamerColors.text,
-      canvasColor: StreamerColors.bg,
-      useMaterial3: false,
-    );
-  }
-
-  static ThemeData roleTheme(BuildContext context) {
-    return AppRole.isClient() ? clientTheme(context) : streamerTheme(context);
+  /// Aplica [clientTheme] solo si el usuario es cliente.
+  static Widget applyIfClient(BuildContext context, Widget child) {
+    if (!AppRole.isClient()) return child;
+    return Theme(data: clientTheme(context), child: child);
   }
 }
 
