@@ -12,8 +12,17 @@ import 'package:krimson/utilities/app_platform.dart';
 extension Number on num {
   String get numberFormat => NumberFormat.compact().format(this);
 
+  /// Cifra completa con miles (sin abreviar a 100M).
+  String get fullNumberFormat => NumberFormat('#,##0', 'en_US').format(round());
+
+  String get fullDecimalFormat =>
+      NumberFormat('#,##0.00', 'en_US').format(this);
+
   String get currencyFormat =>
       '${SessionManager.instance.getCurrency()}${NumberFormat.compact().format(this)}';
+
+  String get fullCurrencyFormat =>
+      '${SessionManager.instance.getCurrency()}$fullDecimalFormat';
 
   int get convertInt => toInt();
 

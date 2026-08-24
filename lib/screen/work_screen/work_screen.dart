@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/framed_avatar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/work/streamer_work_stats_model.dart';
+import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/screen/work_screen/work_screen_controller.dart';
@@ -54,6 +56,8 @@ class WorkScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
               children: [
                 _Header(data: data, controller: controller),
+                const SizedBox(height: 12),
+                const _RankingsEntry(),
                 const SizedBox(height: 16),
                 _MainGrid(data: data),
                 const SizedBox(height: 12),
@@ -103,11 +107,15 @@ class _Header extends StatelessWidget {
               icon: const Icon(Icons.arrow_back_ios_new,
                   color: Colors.white, size: 18),
             ),
-            CustomImage(
-              size: const Size(42, 42),
+            FramedAvatar.fitted(
+              size: 72,
               image: data.user.profilePhoto,
               fullName: data.user.fullname,
-              radius: 21,
+              localFrame: AssetRes.streamerBadgeForGrade(grade),
+              photoRatio: AssetRes.streamerBadgePhotoRatio(grade),
+              photoOffset: AssetRes.streamerBadgePhotoOffset(grade, outer: 72),
+              photoOnTop: false,
+              gradeLabel: AssetRes.streamerBadgeLabel(grade),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -168,6 +176,57 @@ class _Header extends StatelessWidget {
   }
 }
 
+class _RankingsEntry extends StatelessWidget {
+  const _RankingsEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: WorkScreen._card,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => Get.to(() => const LeaderboardScreen()),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Image.asset(
+                AssetRes.icRanking,
+                width: 26,
+                height: 26,
+                color: WorkScreen._gold,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.emoji_events_outlined,
+                  color: WorkScreen._gold,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  LKey.leaderboard.tr,
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: Colors.white,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              Text(
+                '>',
+                style: TextStyleCustom.outFitMedium500(
+                  color: WorkScreen._yellow,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _GradeProgress extends StatelessWidget {
   const _GradeProgress({
     required this.grades,
@@ -187,14 +246,34 @@ class _GradeProgress extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             for (final g in grades)
-              Text(
-                g,
-                style: TextStyleCustom.outFitSemiBold600(
-                  color: g == current
-                      ? WorkScreen._yellow
-                      : Colors.white.withValues(alpha: 0.45),
-                  fontSize: 12,
-                ),
+              Column(
+                children: [
+                  Image.asset(
+                    AssetRes.streamerBadgeForGrade(g) ?? AssetRes.streamerBadgeNew,
+                    width: g == current ? 36 : 26,
+                    height: g == current ? 36 : 26,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Text(
+                      g,
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: g == current
+                            ? WorkScreen._yellow
+                            : Colors.white.withValues(alpha: 0.45),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    g,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: g == current
+                          ? WorkScreen._yellow
+                          : Colors.white.withValues(alpha: 0.45),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ),
           ],
         ),
@@ -220,30 +299,31 @@ class _MainGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gems = (data.user.coinCollectedLifetime / 100).toStringAsFixed(2);
+    final gems =
+        (data.user.coinCollectedLifetime / 100).fullDecimalFormat;
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
-      childAspectRatio: 1.55,
+      childAspectRatio: 1.28,
       children: [
         _StatCard(
           label: LKey.todaysCalls.tr,
-          value: '${data.today.calls}',
+          value: data.today.calls.fullNumberFormat,
           color: WorkScreen._pink,
           icon: Icons.videocam_outlined,
         ),
         _StatCard(
           label: LKey.coins.tr,
-          value: '${data.user.coinWallet}',
+          value: data.user.coinWallet.fullNumberFormat,
           color: WorkScreen._gold,
           iconAsset: AssetRes.icCoin,
         ),
         _StatCard(
           label: LKey.diamonds.tr,
-          value: '${data.user.withdrawalPoints}',
+          value: data.user.withdrawalPoints.fullNumberFormat,
           color: ColorRes.baseLavender,
           icon: Icons.diamond_outlined,
         ),
@@ -294,14 +374,22 @@ class _StatCard extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Text(
-            value,
-            style: TextStyleCustom.unboundedSemiBold600(
-              color: color,
-              fontSize: 22,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyleCustom.unboundedSemiBold600(
+                color: color,
+                fontSize: 22,
+              ).copyWith(
+                height: 1.4,
+                leadingDistribution: TextLeadingDistribution.even,
+              ),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             label,
             maxLines: 1,

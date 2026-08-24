@@ -20,6 +20,7 @@ class LiveChatMessage {
     this.userLevel,
     this.levelTitle,
     this.isSvip = false,
+    this.isVip = false,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -45,6 +46,7 @@ class LiveChatMessage {
   /// Título del nivel (ej. "Oro", "SVIP").
   final String? levelTitle;
   final bool isSvip;
+  final bool isVip;
   final DateTime createdAt;
 
   String get displayText => (text ?? '').trim();
@@ -61,6 +63,7 @@ class LiveChatMessage {
   /// Entrada destacada: nivel alto, SVIP o video de entrada.
   bool get isNotableJoin {
     if (type != 'join') return false;
+    if (isVip) return true;
     if (isSvip) return true;
     if ((entranceVideo ?? '').trim().isNotEmpty) return true;
     return (userLevel ?? 0) >= 4;
@@ -88,6 +91,7 @@ class LiveChatMessage {
       userLevel: userLevel,
       levelTitle: levelTitle,
       isSvip: isSvip,
+      isVip: isVip,
       createdAt: createdAt,
     );
   }
@@ -110,6 +114,7 @@ class LiveChatMessage {
         'user_level': userLevel,
         'level_title': levelTitle,
         'is_svip': isSvip ? 1 : 0,
+        'is_vip': isVip ? 1 : 0,
         'ts': createdAt.millisecondsSinceEpoch,
       };
 
@@ -143,6 +148,7 @@ class LiveChatMessage {
       userLevel: asInt(json['user_level']),
       levelTitle: json['level_title']?.toString(),
       isSvip: asBool(json['is_svip']),
+      isVip: asBool(json['is_vip']),
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         json['ts'] is num
             ? (json['ts'] as num).toInt()

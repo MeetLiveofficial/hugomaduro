@@ -119,7 +119,10 @@ class User {
       this.canReceiveCalls = 0,
       this.canGoLive = 0,
       this.appRole,
-      this.levelBenefits = const []});
+      this.weeklyCallGrade,
+      this.levelBenefits = const [],
+      this.equippedFrame,
+      this.equippedBadge});
 
   User copyWith({
     int? id,
@@ -187,7 +190,10 @@ class User {
     int? canReceiveCalls,
     int? canGoLive,
     String? appRole,
+    String? weeklyCallGrade,
     List<String>? levelBenefits,
+    Map<String, dynamic>? equippedFrame,
+    Map<String, dynamic>? equippedBadge,
   }) =>
       User(
         id: id ?? this.id,
@@ -254,7 +260,10 @@ class User {
         canReceiveCalls: canReceiveCalls ?? this.canReceiveCalls,
         canGoLive: canGoLive ?? this.canGoLive,
         appRole: appRole ?? this.appRole,
+        weeklyCallGrade: weeklyCallGrade ?? this.weeklyCallGrade,
         levelBenefits: levelBenefits ?? this.levelBenefits,
+        equippedFrame: equippedFrame ?? this.equippedFrame,
+        equippedBadge: equippedBadge ?? this.equippedBadge,
       );
 
   static num? _asNum(dynamic v) {
@@ -339,9 +348,19 @@ class User {
     canReceiveCalls = _asInt(json['can_receive_calls']) ?? 0;
     canGoLive = _asInt(json['can_go_live']) ?? 0;
     appRole = json['app_role']?.toString();
+    weeklyCallGrade = json['weekly_call_grade']?.toString();
     isLive = _asInt(json['is_live']) ?? 0;
     liveRoomId = json['live_room_id']?.toString();
     isActive = _asInt(json['is_active']) ?? 0;
+    isVip = _asInt(json['is_vip']) ?? 0;
+    vipExpiresAt = json['vip_expires_at']?.toString();
+    dailyFreeMatchesQuota = _asInt(json['daily_free_matches_quota']) ?? 2;
+    dailyFreeMatchesUsed = _asInt(json['daily_free_matches_used']) ?? 0;
+    dailyFreeMatchesRemaining =
+        _asInt(json['daily_free_matches_remaining']) ??
+            (dailyFreeMatchesQuota - dailyFreeMatchesUsed)
+                .clamp(0, dailyFreeMatchesQuota)
+                .toInt();
     if (json['level_benefits'] is List) {
       levelBenefits = (json['level_benefits'] as List)
           .map((e) => e.toString())
@@ -365,6 +384,12 @@ class User {
         s.user = this;
         stories?.add(s);
       });
+    }
+    if (json['equipped_frame'] is Map) {
+      equippedFrame = Map<String, dynamic>.from(json['equipped_frame']);
+    }
+    if (json['equipped_badge'] is Map) {
+      equippedBadge = Map<String, dynamic>.from(json['equipped_badge']);
     }
   }
 
@@ -446,10 +471,46 @@ class User {
   int canGoLive = 0;
   /// `streamer` | `client` (default client en app si viene vacío).
   String? appRole;
+  /// Rango semanal de llamadas: NEW, D, C, B, A, S, SS.
+  String? weeklyCallGrade;
   List<String> levelBenefits = const [];
   int isLive = 0;
   String? liveRoomId;
   int isActive = 0;
+  int isVip = 0;
+  String? vipExpiresAt;
+  int dailyFreeMatchesQuota = 2;
+  int dailyFreeMatchesUsed = 0;
+  int dailyFreeMatchesRemaining = 2;
+  Map<String, dynamic>? equippedFrame;
+  Map<String, dynamic>? equippedBadge;
+
+  String? get equippedFrameImage {
+    final v = equippedFrame?['image']?.toString().trim();
+    return (v == null || v.isEmpty) ? null : v;
+  }
+
+  double get framePhotoRatio {
+    final v = equippedFrame?['photo_ratio'];
+    if (v is num && v > 0.15 && v < 0.9) {
+      return v.toDouble();
+    }
+    return 0.62;
+  }
+
+  String? get effectiveStreamerGrade {
+    final g = (weeklyCallGrade ?? '').trim();
+    if (g.isNotEmpty) return g;
+    if ((appRole ?? '').toLowerCase() == 'streamer') return 'NEW';
+    return null;
+  }
+
+  bool get isVipActive => isVip == 1;
+
+  String? get equippedBadgeImage {
+    final v = equippedBadge?['image']?.toString().trim();
+    return (v == null || v.isEmpty) ? null : v;
+  }
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -515,10 +576,18 @@ class User {
     map['can_receive_calls'] = canReceiveCalls;
     map['can_go_live'] = canGoLive;
     map['app_role'] = appRole;
+    map['weekly_call_grade'] = weeklyCallGrade;
     map['level_benefits'] = levelBenefits;
     map['is_live'] = isLive;
     map['live_room_id'] = liveRoomId;
     map['is_active'] = isActive;
+    map['is_vip'] = isVip;
+    map['vip_expires_at'] = vipExpiresAt;
+    map['daily_free_matches_quota'] = dailyFreeMatchesQuota;
+    map['daily_free_matches_used'] = dailyFreeMatchesUsed;
+    map['daily_free_matches_remaining'] = dailyFreeMatchesRemaining;
+    map['equipped_frame'] = equippedFrame;
+    map['equipped_badge'] = equippedBadge;
     map["following_ids"] = followingIds;
     if (token != null) {
       map['token'] = token?.toJson();

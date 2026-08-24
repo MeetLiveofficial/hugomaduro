@@ -1,3 +1,5 @@
+import 'dart:ui' show Offset;
+
 class AssetRes {
   static const String images = "assets/images/";
   static const String icons = "assets/icons/";
@@ -150,4 +152,102 @@ class AssetRes {
   static const String icNoInternet = '${icons}ic_no_internet.png';
   static const String icLinkPlaceholder = '${icons}ic_link_placeholder.png';
   static const String icAdd = '${icons}ic_add.png';
+
+  static const String streamerBadgeNew = '${icons}streamer_new.png';
+  static const String streamerBadgeC = '${icons}streamer_c.png';
+  static const String streamerBadgeB = '${icons}streamer_b.png';
+  static const String streamerBadgeA = '${icons}streamer_a.png';
+  static const String streamerBadgeS = '${icons}streamer_s.png';
+
+  static String? streamerBadgeForGrade(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'NEW':
+        return streamerBadgeNew;
+      case 'D':
+      case 'C':
+        return streamerBadgeC;
+      case 'B':
+        return streamerBadgeB;
+      case 'A':
+        return streamerBadgeA;
+      case 'S':
+      case 'SS':
+        return streamerBadgeS;
+      default:
+        return null;
+    }
+  }
+
+  static double streamerBadgePhotoRatio(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'NEW':
+        return 0.38;
+      case 'D':
+      case 'C':
+        return 0.36;
+      case 'B':
+        return 0.38;
+      case 'A':
+        return 0.43;
+      case 'S':
+      case 'SS':
+        return 0.45;
+      default:
+        return 0.38;
+    }
+  }
+
+  static double streamerBadgeHoleDx(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'NEW':
+        return 0.005;
+      case 'B':
+        return -0.010;
+      default:
+        return 0;
+    }
+  }
+
+  static double streamerBadgeHoleDy(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'NEW':
+        return 0.040;
+      case 'D':
+      case 'C':
+        return 0.085;
+      case 'B':
+        return 0.059;
+      case 'A':
+        return 0.069;
+      case 'S':
+      case 'SS':
+        return 0.037;
+      default:
+        return 0.04;
+    }
+  }
+
+  static Offset streamerBadgePhotoOffset(String? grade, {double outer = 120}) {
+    return Offset(
+      outer * streamerBadgeHoleDx(grade),
+      outer * streamerBadgeHoleDy(grade),
+    );
+  }
+
+  static String streamerBadgeLabel(String? grade) {
+    switch ((grade ?? '').toUpperCase().trim()) {
+      case 'D':
+        return 'C';
+      case 'SS':
+        return 'S';
+      case 'NEW':
+      case 'C':
+      case 'B':
+      case 'A':
+      case 'S':
+        return (grade ?? 'NEW').toUpperCase().trim();
+      default:
+        return '';
+    }
+  }
 }

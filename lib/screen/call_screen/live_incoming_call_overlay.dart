@@ -10,6 +10,18 @@ class LiveIncomingCallOverlay {
 
   static bool _opening = false;
 
+  /// Cierra overlay/dialog de llamada entrante si sigue abierto.
+  static void dismiss({int? callId}) {
+    if (callId != null) {
+      IncomingCallController.forceDismiss(callId);
+    }
+    try {
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+    } catch (_) {}
+  }
+
   /// `true` si se presentó el diálogo (o ya estaba abierto el mismo call).
   static Future<bool> show(CallRequestModel call) async {
     final id = call.id;
@@ -19,7 +31,17 @@ class LiveIncomingCallOverlay {
     if (Get.isRegistered<IncomingCallController>(tag: tag)) return true;
     if (_opening) return false;
     if (Get.isDialogOpen == true) return false;
-    if (OutgoingCallController.activeInstance != null) return false;
+    if (OutgoingCallController.activeInstance != null) {
+      final outgoing = OutgoingCallController.activeInstance!;
+      if (outgoing.isMatch && call.isMatchSession) {
+        final peerId = outgoing.callee.id;
+        if (call.callerId == peerId || call.calleeId == peerId) {
+          OutgoingCallController.handleCrossedMatch(call);
+          return true;
+        }
+      }
+      return false;
+    }
     if (Get.currentRoute.contains('VideoCall') ||
         Get.currentRoute.contains('OutgoingCall')) {
       return false;

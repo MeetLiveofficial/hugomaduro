@@ -49,8 +49,15 @@ enum ChatAction {
     }
   }
 
-  static List<ChatAction> getChatActions({required bool isGiphyEnabled}) {
+  static List<ChatAction> getChatActions({
+    required bool isGiphyEnabled,
+    bool includeGift = true,
+  }) {
     // Stickers/emojis removed from chat input by product request.
-    return const [ChatAction.gift, ChatAction.audio, ChatAction.media];
+    return [
+      if (includeGift) ChatAction.gift,
+      ChatAction.audio,
+      ChatAction.media,
+    ];
   }
 }

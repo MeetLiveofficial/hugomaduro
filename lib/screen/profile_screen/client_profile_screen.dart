@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
-import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/user_service.dart';
-import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/framed_avatar.dart';
 import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
+import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
@@ -32,12 +32,25 @@ class ClientProfileScreen extends StatefulWidget {
 
 class _ClientProfileScreenState extends State<ClientProfileScreen> {
   late Rx<User?> userData;
+  Worker? _sessionUserWorker;
 
   @override
   void initState() {
     super.initState();
     userData = (widget.user ?? SessionManager.instance.getUser()).obs;
+    _sessionUserWorker = ever<User?>(SessionManager.instance.userRx, (u) {
+      if (!mounted) return;
+      if (u != null && u.id == SessionManager.instance.getUserID()) {
+        userData.value = u;
+      }
+    });
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    _sessionUserWorker?.dispose();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -52,7 +65,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         userData.value = fresh;
         SessionManager.instance.setUser(fresh);
       }
-    } catch (_) {}
+    } catch (_) {    }
+  }
+
+  Future<void> _openWallet() async {
+    await Get.to(() => const CoinWalletScreen());
+    await _refresh();
   }
 
   @override
@@ -72,31 +90,29 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        LevelAvatarRing(
-                          user: user,
-                          padding: 3.5,
-                          child: CustomImage(
-                            size: const Size(72, 72),
-                            image: user.profilePhoto?.addBaseURL(),
-                            fullName: user.fullname ?? user.username,
-                            radius: 36,
-                            strokeWidth: 2,
-                            strokeColor: scaffoldBackgroundColor(context),
+                        FramedAvatar.fromUser(
+                          user,
+                          size: 112,
+                          ring: (child) => LevelAvatarRing(
+                            user: user,
+                            padding: 3.5,
+                            child: child,
                           ),
                         ),
                         Positioned(
-                          right: 2,
-                          bottom: 2,
+                          right: 6,
+                          bottom: 18,
                           child: Container(
-                            width: 16,
-                            height: 16,
+                            width: 18,
+                            height: 18,
                             decoration: BoxDecoration(
                               gradient: isPresent
                                   ? const LinearGradient(
@@ -193,7 +209,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                 ),
                                 const SizedBox(width: 5),
                                 Text(
-                                  isPresent ? 'ACTIVE' : 'INACTIVE',
+                                  isPresent ? 'Activa' : 'Inactiva',
                                   style: TextStyleCustom.outFitMedium500(
                                     color: isPresent
                                         ? Colors.white
@@ -228,56 +244,15 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 28),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-                  decoration: BoxDecoration(
-                    gradient: StyleRes.themeGradient,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        LKey.coinWallet.tr,
-                        style: TextStyleCustom.outFitMedium500(
-                          color: whitePure(context).withValues(alpha: 0.9),
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Image.asset(AssetRes.icCoin, height: 28, width: 28),
-                          const SizedBox(width: 10),
-                          Text(
-                            coins.numberFormat,
-                            style: TextStyleCustom.unboundedSemiBold600(
-                              color: whitePure(context),
-                              fontSize: 28,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      TextButtonCustom(
-                        onTap: () => Get.to(() => const CoinWalletScreen()),
-                        title: LKey.recharge.tr,
-                        backgroundColor: whitePure(context),
-                        titleColor: themeAccentSolid(context),
-                        btnHeight: 46,
-                        fontSize: 15,
-                        horizontalMargin: 0,
-                        margin: EdgeInsets.zero,
-                      ),
-                    ],
-                  ),
+                _WalletShineCard(
+                  coinsLabel: coins.fullNumberFormat,
+                  onRecharge: () => _openWallet(),
                 ),
                 const SizedBox(height: 20),
                 _MenuTile(
                   icon: AssetRes.icWallet,
                   title: LKey.coinWallet.tr,
-                  onTap: () => Get.to(() => const CoinWalletScreen()),
+                  onTap: _openWallet,
                 ),
                 _MenuTile(
                   icon: AssetRes.icGift,
@@ -307,6 +282,92 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+class _WalletShineCard extends StatelessWidget {
+  const _WalletShineCard({
+    required this.coinsLabel,
+    required this.onRecharge,
+  });
+
+  final String coinsLabel;
+  final VoidCallback onRecharge;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Stack(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+            decoration: BoxDecoration(
+              gradient: StyleRes.themeGradient,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: ColorRes.coralRed.withValues(alpha: 0.35),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  LKey.coinWallet.tr,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: whitePure(context).withValues(alpha: 0.9),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Image.asset(AssetRes.icCoin, height: 28, width: 28),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          coinsLabel,
+                          maxLines: 1,
+                          style: TextStyleCustom.unboundedSemiBold600(
+                            color: whitePure(context),
+                            fontSize: 28,
+                          ).copyWith(
+                            height: 1.4,
+                            leadingDistribution: TextLeadingDistribution.even,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                TextButtonCustom(
+                  onTap: onRecharge,
+                  title: LKey.recharge.tr,
+                  backgroundColor: whitePure(context),
+                  titleColor: themeAccentSolid(context),
+                  btnHeight: 46,
+                  fontSize: 15,
+                  horizontalMargin: 0,
+                  margin: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+          const Positioned.fill(
+            child: IgnorePointer(child: ShineSweep()),
+          ),
+        ],
       ),
     );
   }

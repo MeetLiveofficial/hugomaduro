@@ -29,6 +29,9 @@ class AppRole {
     return (u?.canReceiveCalls == 1) || (u?.getLevel.canReceiveCalls == 1);
   }
 
+  /// Solo clientes envían regalos (chats, LIVE, llamadas).
+  static bool canSendGifts([User? user]) => isClient(user);
+
   /// Solo clientes recargan coins; streamers ganan y retiran.
   static bool canRecharge([User? user]) => isClient(user);
 

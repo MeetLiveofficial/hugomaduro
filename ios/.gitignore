@@ -27,6 +27,18 @@ Flutter/flutter_export_environment.sh
 ServiceDefinitions.json
 Runner/GeneratedPluginRegistrant.*
 
+# Signing / Fastlane (never commit keys)
+fastlane/AuthKey*.p8
+fastlane/certificates/
+fastlane/ExportOptions.plist
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/README.md
+*.mobileprovision
+*.p12
+*.cer
+*.certSigningRequest
+
 # Exceptions to above rules.
 !default.mode1v3
 !default.mode2v3

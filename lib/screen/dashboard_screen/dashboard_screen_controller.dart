@@ -11,6 +11,7 @@ import 'package:krimson/common/controller/ads_controller.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
@@ -129,6 +130,20 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     _startIncomingCallPoll();
     _subscribeFollowUserIds();
     updateDummyUsers();
+    _promptCoinPackagesOnce();
+  }
+
+  static bool _packagesPromptShown = false;
+
+  void _promptCoinPackagesOnce() {
+    if (_packagesPromptShown) return;
+    if (!SessionManager.instance.isLogin()) return;
+    if (AppRole.isStreamer(user)) return;
+    _packagesPromptShown = true;
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (isClosed) return;
+      CoinGate.openCoinShopSheet();
+    });
   }
 
   Timer? _liveInvitePollTimer;
@@ -164,7 +179,36 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     }
     // LIVE ya tiene su propio poll de llamadas.
     if (LivestreamScreenController.activeInstance != null) return;
-    if (OutgoingCallController.activeInstance != null) return;
+    final outgoing = OutgoingCallController.activeInstance;
+    if (outgoing != null) {
+      if (!outgoing.isMatch) return;
+      _incomingCallPollBusy = true;
+      try {
+        final inbox = await CallService.instance.inbox();
+        final peerId = outgoing.callee.id;
+        for (final item in [...inbox.received, ...inbox.sent]) {
+          if (!item.isMatchSession) continue;
+          if (item.callerId != peerId && item.calleeId != peerId) continue;
+          if (item.isAccepted && (item.roomId ?? '').trim().isNotEmpty) {
+            OutgoingCallController.handleRemoteAccepted(
+              callRequestId: item.id,
+              roomId: item.roomId,
+              call: item,
+            );
+            break;
+          }
+          if (item.isPending) {
+            OutgoingCallController.handleCrossedMatch(item);
+            break;
+          }
+        }
+      } catch (e) {
+        Loggers.error('dashboard crossed match poll: $e');
+      } finally {
+        _incomingCallPollBusy = false;
+      }
+      return;
+    }
     if (Get.currentRoute.contains('VideoCall') ||
         Get.currentRoute.contains('OutgoingCall') ||
         Get.currentRoute.contains('IncomingCall')) {

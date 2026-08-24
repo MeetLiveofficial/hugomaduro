@@ -328,29 +328,9 @@ class _LevelCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isCurrent
-                      ? accent
-                      : textLightGrey(context).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Lv ${level.level}',
-                  style: TextStyleCustom.outFitBold700(
-                    color: isCurrent ? Colors.white : textDarkGrey(context),
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  level.title?.isNotEmpty == true
-                      ? level.title!
-                      : '${LKey.level.tr} ${level.level}',
+                  '${LKey.level.tr} ${level.level}',
                   style: TextStyleCustom.outFitSemiBold600(
                     color: isCurrent ? accent : textDarkGrey(context),
                     fontSize: 15,

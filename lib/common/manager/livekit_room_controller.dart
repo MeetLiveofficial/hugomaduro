@@ -70,7 +70,10 @@ class LiveKitRoomController extends GetxController {
     LiveKitQualityProfile? forceProfile,
     bool forceReconnect = false,
   }) async {
-    if (isConnecting.value) return;
+    if (isConnecting.value) {
+      if (!forceReconnect) return;
+      isConnecting.value = false;
+    }
 
     // Si ya estamos en otra sala (o hay que forzar), cerrar antes.
     // Evita el no-op que dejaba la cámara en la sala vieja del PK.
@@ -270,6 +273,7 @@ class LiveKitRoomController extends GetxController {
       _service.publishDataBytes(bytes, topic: topic);
 
   Future<void> disconnect({bool silent = false}) async {
+    isConnecting.value = false;
     if (!silent) {
       statusMessage.value = 'Leaving…';
     }

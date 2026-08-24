@@ -1,0 +1,58 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter run -d web-server --web-hostname=0.0.0.0 --web-port=7009
+
+## exception
+
+DartDevelopmentServiceException: DartDevelopmentServiceException: WebSocketChannelException: WebSocketException: Connection to 'http://127.0.0.1:57684/zxePEHPONZs=/ws#' was not upgraded to websocket
+
+```
+```
+
+## flutter doctor
+
+```
+[✓] Flutter (Channel stable, 3.44.6, on Microsoft Windows [Versi¢n 10.0.26200.9168], locale es-VE) [1.156ms]
+    • Flutter version 3.44.6 on channel stable at C:\Users\Asus\flutter
+    • Upstream repository https://github.com/flutter/flutter.git
+    • Framework revision ee80f08bbf (5 weeks ago), 2026-07-08 15:02:06 -0700
+    • Engine revision 83675ed276
+    • Dart version 3.12.2
+    • DevTools version 2.57.0
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, enable-swift-package-manager, omit-legacy-version-file, enable-lldb-debugging, enable-uiscene-migration
+
+[✓] Windows Version (11 Home 64-bit, 25H2, 2009) [5,9s]
+
+[✓] Android toolchain - develop for Android devices (Android SDK version 37.0.0) [5,6s]
+    • Android SDK at C:\Users\Asus\AppData\Local\Android\sdk
+    • Emulator version 36.5.10.0 (build_id 15081367) (CL:N/A)
+    • Platform android-37.0, build-tools 37.0.0
+    • Java binary at: C:\Program Files\Android\Android Studio\jbr\bin\java
+      This is the JDK bundled with the latest Android Studio installation on this machine.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    • Java version OpenJDK Runtime Environment (build 21.0.10+-14961533-b1163.108)
+    • All Android licenses accepted.
+
+[✓] Chrome - develop for the web [505ms]
+    • Chrome at C:\Program Files\Google\Chrome\Application\chrome.exe
+
+[✓] Visual Studio - develop Windows apps (Visual Studio Professional 2026 Insiders [11605.296]) [503ms]
+    • Visual Studio at C:\Program Files\Microsoft Visual Studio\18\Insiders
+    • Visual Studio Professional 2026 version 18.5.11605.296
+    • The current Visual Studio installation is a pre-release version. It may not be supported by Flutter yet.
+    • Windows 10 SDK version 10.0.26100.0
+
+[✓] Connected device (4 available) [2,7s]
+    • Windows (desktop) • windows    • windows-x64    • Microsoft Windows [Versi¢n 10.0.26200.9168]
+    • Web Server (web)  • web-server • web-javascript • Flutter Tools
+    • Chrome (web)      • chrome     • web-javascript • Google Chrome 151.0.7922.138
+    • Edge (web)        • edge       • web-javascript • Microsoft Edge 151.0.4129.59
+
+[✓] Network resources [72,8s]
+    • All expected network resources are available.
+
+• No issues found!
+```

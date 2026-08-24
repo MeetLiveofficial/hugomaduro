@@ -45,7 +45,7 @@ class LoginLanguageDropdown extends StatelessWidget {
       decoration: BoxDecoration(
         color: ColorRes.whitePure,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: ColorRes.bgGrey, width: 1.2),
+        border: Border.all(color: ColorRes.menuBorder, width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.12),
@@ -60,7 +60,7 @@ class LoginLanguageDropdown extends StatelessWidget {
           dropdownColor: ColorRes.whitePure,
           borderRadius: BorderRadius.circular(14),
           menuMaxHeight: 320,
-          iconEnabledColor: ColorRes.coralRed,
+          iconEnabledColor: ColorRes.crimson,
           style: TextStyleCustom.outFitMedium500(
             color: ColorRes.textDarkGrey,
             fontSize: 14,
@@ -101,7 +101,7 @@ class LoginLanguageDropdown extends StatelessWidget {
                       '${e.label} (${e.code.toUpperCase()})',
                       style: TextStyleCustom.outFitRegular400(
                         color: e.code == selected
-                            ? ColorRes.coralRed
+                            ? ColorRes.crimson
                             : ColorRes.textDarkGrey,
                         fontSize: 14,
                       ),

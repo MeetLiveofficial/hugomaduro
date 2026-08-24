@@ -2,6 +2,7 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/widget/custom_divider.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/screen/home_screen/home_screen_controller.dart';
 import 'package:krimson/screen/home_screen/widget/home_mode_switcher.dart';
 import 'package:krimson/screen/reels_screen/reels_screen.dart';
@@ -18,9 +19,10 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(HomeScreenController());
     return Scaffold(
-      backgroundColor: blackPure(context),
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          const Positioned.fill(child: BrandWashBg()),
           ReelsScreen(
             pageType: ReelPageType.home,
             reels: controller.reels,
@@ -123,27 +125,42 @@ class HomeTopCenterWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const HomeModeSwitcher(),
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: controller.onToggleDropDown,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Obx(() => Text(
-                    controller.selectedReelCategory.value.title.toUpperCase(),
-                    style: TextStyleCustom.unboundedBold700(
-                        fontSize: 16, color: whitePure(context)))),
-                const SizedBox(width: 5),
-                Image.asset(AssetRes.icDownArrow,
-                    color: whitePure(context), height: 12, width: 12),
-              ],
-            ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+        child: SizedBox(
+          height: 44,
+          child: Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: InkWell(
+                    onTap: controller.onToggleDropDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Obx(() => Text(
+                              controller.selectedReelCategory.value.title
+                                  .toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyleCustom.unboundedBold700(
+                                  fontSize: 13, color: whitePure(context)))),
+                        ),
+                        const SizedBox(width: 5),
+                        Image.asset(AssetRes.icDownArrow,
+                            color: whitePure(context), height: 10, width: 10),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const HomeModeSwitcher(),
+              const Expanded(child: SizedBox()),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

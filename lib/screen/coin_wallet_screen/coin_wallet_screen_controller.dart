@@ -82,10 +82,20 @@ class CoinWalletScreenController extends BaseController {
           (apiPrice == null
               ? ''
               : '$currency${_formatPrice(apiPrice)}');
+      final base = data.coinAmount ?? 0;
+      final pct = data.bonusPercent ?? 0;
+      final bonus = data.bonusCoins ??
+          (pct > 0 ? (base * pct / 100).round() : 0);
+      final total = data.totalCoins ?? (base + bonus);
 
       coinPlans.add(
         CoinPlan(
-          coin: data.coinAmount ?? 0,
+          coin: total,
+          baseCoins: base,
+          bonusCoins: bonus,
+          bonusPercent: pct,
+          name: data.name,
+          slug: data.slug,
           coinPackageId: data.id ?? -1,
           id: matched?.storeProduct.identifier ??
               data.playStoreProductId ??
@@ -144,7 +154,7 @@ class CoinWalletScreenController extends BaseController {
               Text(
                 offer.priceString.isEmpty
                     ? '${offer.coin} monedas'
-                    : '${offer.coin} monedas · ${offer.priceString}',
+                    : '${offer.name ?? ''} · ${offer.coin} monedas · ${offer.priceString}',
                 textAlign: TextAlign.center,
                 style: TextStyleCustom.outFitRegular400(
                   color: textLightGrey(Get.context!),
@@ -156,10 +166,13 @@ class CoinWalletScreenController extends BaseController {
                 ListTile(
                   leading: const Icon(Icons.credit_card),
                   title: const Text('Tarjeta / PSE / Nequi'),
-                  subtitle: const Text('Wompi · Colombia'),
+                  subtitle: const Text('Wompi · Colombia e Internacional'),
                   onTap: () {
                     Get.back();
-                    onPurchaseWompi(offer);
+                    Future<void>.delayed(
+                      const Duration(milliseconds: 180),
+                      () => onPurchaseWompi(offer),
+                    );
                   },
                 ),
               if (settings?.nowpaymentsEnabled != false)
@@ -277,11 +290,14 @@ class CoinWalletScreenController extends BaseController {
 
     final launched = await invoiceUrl.lunchUrl;
     if (launched.status != true) {
-      showSnackBar('No se pudo abrir la página de pago.');
-      return;
+      showSnackBar('Abre el pago con el botón del siguiente diálogo.');
     }
 
-    await _showPaymentPendingDialog(orderId, _PaymentKind.crypto);
+    await _showPaymentPendingDialog(
+      orderId,
+      _PaymentKind.crypto,
+      checkoutUrl: invoiceUrl,
+    );
   }
 
   Future<void> onPurchaseWompi(CoinPlan offer) async {
@@ -291,8 +307,15 @@ class CoinWalletScreenController extends BaseController {
     }
 
     showLoader(barrierDismissible: false);
-    final result = await GiftWalletService.instance
-        .createWompiPayment(coinPackageId: offer.coinPackageId);
+    Map<String, dynamic> result;
+    try {
+      result = await GiftWalletService.instance
+          .createWompiPayment(coinPackageId: offer.coinPackageId);
+    } catch (_) {
+      stopLoader();
+      showSnackBar('No se pudo iniciar el pago con tarjeta. Intenta de nuevo.');
+      return;
+    }
     stopLoader();
 
     if (result['ok'] != true) {
@@ -310,28 +333,36 @@ class CoinWalletScreenController extends BaseController {
       return;
     }
 
-    final invoiceUrl = (created['invoice_url'] ?? '').toString();
+    final invoiceUrl = (created['invoice_url'] ??
+            created['checkout_url'] ??
+            '')
+        .toString();
     final orderId = (created['order_id'] ?? '').toString();
     if (invoiceUrl.isEmpty || orderId.isEmpty) {
       showSnackBar(LKey.somethingWentWrong.tr);
       return;
     }
 
-    final launched = await invoiceUrl.lunchUrl;
-    if (launched.status != true) {
-      showSnackBar('No se pudo abrir la página de pago.');
-      return;
-    }
-
-    await _showPaymentPendingDialog(orderId, _PaymentKind.wompi);
+    // En Web el navegador bloquea popups tras el await de la API.
+    // En Android se intenta abrir igual; si falla, el diálogo tiene el botón.
+    await invoiceUrl.lunchUrl;
+    await _showPaymentPendingDialog(
+      orderId,
+      _PaymentKind.wompi,
+      checkoutUrl: invoiceUrl,
+    );
   }
 
   Future<void> _showPaymentPendingDialog(
-      String orderId, _PaymentKind kind) async {
+    String orderId,
+    _PaymentKind kind, {
+    String? checkoutUrl,
+  }) async {
     await Get.dialog(
       _PaymentPendingDialog(
         orderId: orderId,
         kind: kind,
+        checkoutUrl: checkoutUrl,
         onFinished: (user) {
           if (user != null) {
             myUser.value = user;
@@ -349,12 +380,14 @@ enum _PaymentKind { crypto, wompi }
 class _PaymentPendingDialog extends StatefulWidget {
   final String orderId;
   final _PaymentKind kind;
+  final String? checkoutUrl;
   final void Function(User? user) onFinished;
 
   const _PaymentPendingDialog({
     required this.orderId,
     required this.kind,
     required this.onFinished,
+    this.checkoutUrl,
   });
 
   @override
@@ -491,6 +524,16 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
             style: TextStyle(color: ColorRes.themeAccentSolid),
           ),
         ),
+        if (!failed && (widget.checkoutUrl ?? '').isNotEmpty)
+          TextButton(
+            onPressed: () => widget.checkoutUrl!.lunchUrl,
+            child: Text(
+              widget.kind == _PaymentKind.wompi
+                  ? 'Abrir Wompi'
+                  : 'Abrir pago',
+              style: TextStyle(color: ColorRes.themeAccentSolid),
+            ),
+          ),
         if (!failed)
           TextButton(
             onPressed: _poll,
@@ -506,6 +549,11 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
 
 class CoinPlan {
   final int coin;
+  final int baseCoins;
+  final int bonusCoins;
+  final num bonusPercent;
+  final String? name;
+  final String? slug;
   final int coinPackageId;
   final String id;
   final String priceString;
@@ -517,6 +565,11 @@ class CoinPlan {
     required this.coinPackageId,
     required this.id,
     required this.priceString,
+    this.baseCoins = 0,
+    this.bonusCoins = 0,
+    this.bonusPercent = 0,
+    this.name,
+    this.slug,
     this.image,
     this.canPurchaseViaStore = false,
   });

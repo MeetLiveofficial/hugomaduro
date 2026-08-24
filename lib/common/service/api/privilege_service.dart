@@ -186,6 +186,8 @@ class LeaderboardEntry {
     this.country,
     this.countryCode,
     this.score = 0,
+    this.frameImage,
+    this.badgeImage,
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
@@ -214,6 +216,12 @@ class LeaderboardEntry {
       score: json['score'] is num
           ? (json['score'] as num).toInt()
           : int.tryParse('${json['score'] ?? 0}') ?? 0,
+      frameImage: json['equipped_frame'] is Map
+          ? json['equipped_frame']['image']?.toString()
+          : json['frame_image']?.toString(),
+      badgeImage: json['equipped_badge'] is Map
+          ? json['equipped_badge']['image']?.toString()
+          : json['badge_image']?.toString(),
     );
   }
 
@@ -229,6 +237,8 @@ class LeaderboardEntry {
   final String? country;
   final String? countryCode;
   final int score;
+  final String? frameImage;
+  final String? badgeImage;
 
   String get displayName {
     final n = (fullname ?? '').trim();

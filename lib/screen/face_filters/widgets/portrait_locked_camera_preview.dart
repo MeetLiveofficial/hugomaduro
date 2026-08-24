@@ -49,13 +49,20 @@ class PortraitLockedCameraPreview extends StatelessWidget {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return child;
     }
-    // Mismo mapa que camera_preview.dart, pero fijado a portraitUp → 0.
+    // Emuladores (BlueStacks) reportan landscape con UI portrait → forzar 0.
+    // En un móvil real hay que respetar portraitDown (si no, selfie de cabeza).
+    final reported = controller.value.deviceOrientation;
+    final orientation =
+        (reported == DeviceOrientation.landscapeLeft ||
+                reported == DeviceOrientation.landscapeRight)
+            ? _orientation
+            : reported;
     const turns = <DeviceOrientation, int>{
       DeviceOrientation.portraitUp: 0,
       DeviceOrientation.landscapeRight: 1,
       DeviceOrientation.portraitDown: 2,
       DeviceOrientation.landscapeLeft: 3,
     };
-    return RotatedBox(quarterTurns: turns[_orientation]!, child: child);
+    return RotatedBox(quarterTurns: turns[orientation] ?? 0, child: child);
   }
 }

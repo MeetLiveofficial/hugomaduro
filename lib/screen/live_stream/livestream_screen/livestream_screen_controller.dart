@@ -89,6 +89,10 @@ class LivestreamScreenController extends BaseController {
   final RxBool isEnding = false.obs;
   final RxBool mediaReady = false.obs;
   final RxString statusMessage = ''.obs;
+  /// Cliente/host salió a videollamada: hay que reconectar LiveKit al colgar.
+  final RxBool pausedForCall = false.obs;
+  bool _resumingAfterCall = false;
+  DateTime? _lastResumeAfterCallAt;
 
   final RxBool beautyOn = false.obs;
   final RxDouble whiten = 50.0.obs;
@@ -412,13 +416,16 @@ class LivestreamScreenController extends BaseController {
     final levelNum = me.levelNumber ?? level.level ?? 1;
     final levelTitle = (me.levelTitle ?? level.title ?? '').trim();
     final isSvip = level.isSvipLevel == 1;
+    final isVip = me.isVipActive;
     // Video desde el nivel del usuario o catálogo settings (LV 5/6, etc.).
     final entranceVideo =
         (_entranceVideoForLevelNumber(levelNum) ?? (level.entranceVideo ?? ''))
             .trim();
-    final joinText = isSvip || levelNum >= 8
-        ? LKey.arrivedInStyle.tr
-        : (levelNum >= 4 ? LKey.joinedShort.tr : LKey.joinedTheLive.tr);
+    final joinText = isVip
+        ? '👑 VIP ha entrado al LIVE'
+        : (isSvip || levelNum >= 8
+            ? LKey.arrivedInStyle.tr
+            : (levelNum >= 4 ? LKey.joinedShort.tr : LKey.joinedTheLive.tr));
     final msg = LiveChatMessage(
       id: clientId,
       userId: me.id!,
@@ -427,8 +434,9 @@ class LivestreamScreenController extends BaseController {
       text: joinText,
       entranceVideo: entranceVideo.isEmpty ? null : entranceVideo,
       userLevel: levelNum,
-      levelTitle: levelTitle.isEmpty ? null : levelTitle,
+      levelTitle: isVip ? 'VIP' : (levelTitle.isEmpty ? null : levelTitle),
       isSvip: isSvip,
+      isVip: isVip,
     );
     _appendChatMessage(msg);
     try {
@@ -439,7 +447,7 @@ class LivestreamScreenController extends BaseController {
         clientId: clientId,
         type: 'text',
         text:
-            '👋JOIN|$levelNum|${isSvip ? 1 : 0}|$safeVideo|$name $joinText',
+            '👋JOIN|$levelNum|${isSvip ? 1 : 0}|$safeVideo|$name $joinText|${isVip ? 1 : 0}',
       );
     } catch (_) {}
     try {
@@ -987,7 +995,7 @@ class LivestreamScreenController extends BaseController {
     if (!msg.isNotableJoin) return;
     joinBanner.value = msg;
     _joinBannerTimer?.cancel();
-    final secs = msg.isSvip || (msg.userLevel ?? 0) >= 8 ? 5 : 4;
+    final secs = msg.isVip || msg.isSvip || (msg.userLevel ?? 0) >= 8 ? 5 : 4;
     _joinBannerTimer = Timer(Duration(seconds: secs), () {
       if (joinBanner.value?.id == msg.id) {
         joinBanner.value = null;
@@ -1158,6 +1166,7 @@ class LivestreamScreenController extends BaseController {
       _dataSub?.cancel();
       _dataSub = liveKit!.onDataReceived.listen(_onLiveData);
       if (liveKit!.isConnected.value) {
+        pausedForCall.value = false;
         statusMessage.value = '';
       }
     } catch (e) {
@@ -1463,7 +1472,8 @@ class LivestreamScreenController extends BaseController {
       );
     }
     final joinMeta =
-        RegExp(r'JOIN\|(\d+)\|([01])\|([^|]*)\|(.*)').firstMatch(text);
+        RegExp(r'JOIN\|(\d+)\|([01])\|([^|]*)\|(.*?)(?:\|([01]))?$')
+            .firstMatch(text);
     if (joinMeta != null ||
         lower.contains('entró al live') ||
         lower.contains('entro al live') ||
@@ -1475,6 +1485,7 @@ class LivestreamScreenController extends BaseController {
           ? int.tryParse(joinMeta.group(1) ?? '')
           : null;
       final isSvip = joinMeta?.group(2) == '1';
+      final isVip = joinMeta?.group(5) == '1' || msg.isVip;
       var video = (joinMeta?.group(3) ?? '').trim().replaceAll('%7C', '|');
       if (video.isEmpty && levelNum != null) {
         video = _entranceVideoForLevelNumber(levelNum) ?? '';
@@ -1500,8 +1511,9 @@ class LivestreamScreenController extends BaseController {
         text: joinText,
         entranceVideo: video.isEmpty ? null : video,
         userLevel: levelNum ?? msg.userLevel,
-        levelTitle: msg.levelTitle,
+        levelTitle: isVip ? 'VIP' : msg.levelTitle,
         isSvip: isSvip || msg.isSvip,
+        isVip: isVip,
         createdAt: msg.createdAt,
       );
     }
@@ -1536,13 +1548,14 @@ class LivestreamScreenController extends BaseController {
 
     if (msg.type == 'join') {
       final video = _resolveEntranceVideo(msg);
-      if (video != null && video.isNotEmpty) {
+      if ((video != null && video.isNotEmpty) || msg.isVip) {
         LevelEntranceOverlay.show(
           video,
           userName: msg.userName,
           level: msg.userLevel,
-          levelTitle: msg.levelTitle,
+          levelTitle: msg.isVip ? 'VIP' : msg.levelTitle,
           isSvip: msg.isSvip,
+          isVip: msg.isVip,
         );
       }
       _showJoinBanner(msg);
@@ -2089,6 +2102,7 @@ class LivestreamScreenController extends BaseController {
           host: hostApp,
           cost: cost,
           onConfirm: () {
+            Get.back();
             Get.to(() => OutgoingCallScreen(callee: hostUser, cost: cost));
           },
         ),
@@ -2417,54 +2431,117 @@ class LivestreamScreenController extends BaseController {
   /// Libera cámara/mic del LIVE sin salir de la sesión (para videollamada).
   Future<void> pauseLiveKitForCall() async {
     hostInCall.value = true;
+    pausedForCall.value = true;
     try {
       await liveKit?.disconnect(silent: true);
     } catch (e) {
       Loggers.error('pauseLiveKitForCall: $e');
     } finally {
       statusMessage.value = '';
+      update();
     }
   }
 
   /// Reconecta al LIVE tras colgar la videollamada.
   Future<void> resumeLiveKitAfterCall() async {
+    if (_resumingAfterCall) return;
+    _resumingAfterCall = true;
     hostInCall.value = false;
-    statusMessage.value = '';
-    if (isDummy || liveKit == null) {
-      update();
-      return;
-    }
-    final me = SessionManager.instance.getUser();
-    if (me == null) return;
+    pausedForCall.value = true;
+    statusMessage.value = isHost ? 'Reconectando LIVE…' : 'Reconectando…';
+    update();
     try {
-      if (liveKit!.isConnected.value) {
-        await liveKit!.setCameraEnabled(shouldPublishAv);
-        await liveKit!.setMicrophoneEnabled(shouldPublishAv);
+      if (isDummy) {
+        pausedForCall.value = false;
         statusMessage.value = '';
         update();
         return;
       }
-      statusMessage.value = isHost ? 'Reconectando LIVE…' : 'Reconectando…';
-      await liveKit!.connect(
-        roomName: avRoomId,
-        identity: '${me.id}',
-        name: me.fullname ?? me.username ?? 'user',
-        publishCamera: shouldPublishAv,
-        publishMicrophone: shouldPublishAv,
-        wsUrl: liveKitWsUrl,
-        forceReconnect: true,
-      );
-      _connectedLiveKitRoom = avRoomId;
-      if (isHost) {
-        await applyBeauty();
+      final me = SessionManager.instance.getUser();
+      if (me == null) {
+        statusMessage.value = 'Sin video. Toca Reintentar.';
+        update();
+        return;
       }
-      statusMessage.value = '';
+
+      Future<void> join() async {
+        if (liveKit == null) {
+          await _joinLiveKit();
+          return;
+        }
+        try {
+          await liveKit!.disconnect(silent: true);
+        } catch (_) {}
+        liveKit!.isConnecting.value = false;
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await liveKit!.connect(
+          roomName: avRoomId,
+          identity: '${me.id}',
+          name: me.fullname ?? me.username ?? 'user',
+          publishCamera: shouldPublishAv,
+          publishMicrophone: shouldPublishAv,
+          wsUrl: liveKitWsUrl,
+          forceReconnect: true,
+        );
+        _connectedLiveKitRoom = avRoomId;
+        _dataSub?.cancel();
+        _dataSub = liveKit!.onDataReceived.listen(_onLiveData);
+        if (isHost) {
+          await applyBeauty();
+        }
+      }
+
+      try {
+        await join();
+      } catch (e) {
+        Loggers.error('resumeLiveKitAfterCall first try: $e');
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        await join();
+      }
+
+      // El host puede tardar un poco en volver a publicar.
+      if (!isHost && liveKit != null) {
+        for (var i = 0; i < 10; i++) {
+          if (liveKit!.isConnected.value &&
+              liveKit!.remoteParticipants.isNotEmpty) {
+            break;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        }
+      }
+
+      if (liveKit?.isConnected.value == true) {
+        pausedForCall.value = false;
+        statusMessage.value = '';
+      } else {
+        statusMessage.value = 'Sin video. Toca Reintentar.';
+      }
       update();
     } catch (e) {
       Loggers.error('resumeLiveKitAfterCall: $e');
       statusMessage.value = 'Sin video. Toca Reintentar.';
       update();
+    } finally {
+      _resumingAfterCall = false;
+      _lastResumeAfterCallAt = DateTime.now();
     }
+  }
+
+  /// Si el LIVE volvió a verse tras una llamada y el video no está, reconecta.
+  Future<void> ensureLiveKitAfterCallIfNeeded() async {
+    if (!pausedForCall.value || _resumingAfterCall || isEnding.value) return;
+    if (liveKit?.isConnected.value == true) {
+      pausedForCall.value = false;
+      if (statusMessage.value.isNotEmpty) statusMessage.value = '';
+      update();
+      return;
+    }
+    final last = _lastResumeAfterCallAt;
+    if (last != null &&
+        DateTime.now().difference(last) < const Duration(seconds: 3)) {
+      return;
+    }
+    await resumeLiveKitAfterCall();
   }
 
   Future<void> sendGif(String gifUrl) async {

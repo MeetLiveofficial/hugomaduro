@@ -34,18 +34,7 @@
 
   <title>Meet&Live</title>
   <link rel="manifest" href="manifest.json">
-  <style>
-    html, body {
-      height: 100%;
-      width: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background-color: #000000;
-      -webkit-text-size-adjust: 100%;
-      touch-action: manipulation;
-    }
-  </style>
+  <style>html, body { margin: 0; background: #120E18; }</style>
   <script>
     // Fuerza la versión JS que FlutterFire espera.
     window.flutterfire_web_sdk_version = '12.15.0';
@@ -61,31 +50,38 @@
   </script>
 </head>
 <body>
-  <!-- Precarga Firebase ES modules antes de Flutter (más estable en móvil). -->
+  <!-- Precarga Firebase en paralelo; Flutter arranca ya (sin overlay de texto). -->
   <script type="module">
-    try {
-      const version = window.flutterfire_web_sdk_version || '12.15.0';
-      const [firebase_core, firebase_auth, firebase_firestore, firebase_messaging] =
-        await Promise.all([
-          import(`https://www.gstatic.com/firebasejs/${version}/firebase-app.js`),
-          import(`https://www.gstatic.com/firebasejs/${version}/firebase-auth.js`),
-          import(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore.js`),
-          import(`https://www.gstatic.com/firebasejs/${version}/firebase-messaging.js`),
-        ]);
-      window.firebase_core = firebase_core;
-      window.firebase_auth = firebase_auth;
-      window.firebase_firestore = firebase_firestore;
-      window.firebase_messaging = firebase_messaging;
-      window.__krimsonFirebasePreloaded = true;
-    } catch (e) {
-      console.error('Firebase preload failed', e);
-      window.__krimsonFirebasePreloaded = false;
-    } finally {
+    const bootFlutter = () => {
+      if (window.__krimsonFlutterBooted) return;
+      window.__krimsonFlutterBooted = true;
       const s = document.createElement('script');
       s.src = 'flutter_bootstrap.js?v=' + Date.now();
       s.async = true;
       document.body.appendChild(s);
-    }
+    };
+    const preloadFirebase = async () => {
+      try {
+        const version = window.flutterfire_web_sdk_version || '12.15.0';
+        const [firebase_core, firebase_auth, firebase_firestore, firebase_messaging] =
+          await Promise.all([
+            import(`https://www.gstatic.com/firebasejs/${version}/firebase-app.js`),
+            import(`https://www.gstatic.com/firebasejs/${version}/firebase-auth.js`),
+            import(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore.js`),
+            import(`https://www.gstatic.com/firebasejs/${version}/firebase-messaging.js`),
+          ]);
+        window.firebase_core = firebase_core;
+        window.firebase_auth = firebase_auth;
+        window.firebase_firestore = firebase_firestore;
+        window.firebase_messaging = firebase_messaging;
+        window.__krimsonFirebasePreloaded = true;
+      } catch (e) {
+        console.error('Firebase preload failed', e);
+        window.__krimsonFirebasePreloaded = false;
+      }
+    };
+    preloadFirebase();
+    bootFlutter();
   </script>
 </body>
 </html>

@@ -6,10 +6,16 @@ class CallRequestModel {
     this.coinsCost = 0,
     this.userLevel = 1,
     this.status,
+    this.matchPhase,
     this.roomId,
     this.matchSeconds = 0,
     this.isMatch = false,
     this.respondedAt,
+    this.startedAt,
+    this.phaseEndsAt,
+    this.graceEndsAt,
+    this.secondsLeft = 0,
+    this.graceSecondsLeft = 0,
     this.endedAt,
     this.createdAt,
     this.caller,
@@ -41,12 +47,22 @@ class CallRequestModel {
           ? (json['user_level'] as num).toInt()
           : int.tryParse('${json['user_level'] ?? 1}') ?? 1,
       status: json['status']?.toString(),
+      matchPhase: json['match_phase']?.toString(),
       roomId: roomId,
       matchSeconds: matchSeconds > 0
           ? matchSeconds
           : (matchSecondsFromRoomId(roomId) ?? 0),
       isMatch: isMatchFlag,
       respondedAt: json['responded_at']?.toString(),
+      startedAt: json['started_at']?.toString(),
+      phaseEndsAt: json['phase_ends_at']?.toString(),
+      graceEndsAt: json['grace_ends_at']?.toString(),
+      secondsLeft: json['seconds_left'] is num
+          ? (json['seconds_left'] as num).toInt()
+          : int.tryParse('${json['seconds_left'] ?? 0}') ?? 0,
+      graceSecondsLeft: json['grace_seconds_left'] is num
+          ? (json['grace_seconds_left'] as num).toInt()
+          : int.tryParse('${json['grace_seconds_left'] ?? 0}') ?? 0,
       endedAt: json['ended_at']?.toString(),
       createdAt: json['created_at']?.toString(),
       caller: json['caller'] is Map
@@ -71,11 +87,17 @@ class CallRequestModel {
   final int coinsCost;
   final int userLevel;
   final String? status;
+  final String? matchPhase;
   final String? roomId;
   /// Ventana Match planificada (s). >0 o [isMatch] = llamada Match.
   final int matchSeconds;
   final bool isMatch;
   final String? respondedAt;
+  final String? startedAt;
+  final String? phaseEndsAt;
+  final String? graceEndsAt;
+  final int secondsLeft;
+  final int graceSecondsLeft;
   final String? endedAt;
   final String? createdAt;
   final CallParty? caller;
@@ -87,6 +109,12 @@ class CallRequestModel {
       (status ?? '').toLowerCase().trim() == 'accepted';
   bool get isRejected =>
       (status ?? '').toLowerCase().trim() == 'rejected';
+  bool get isEnded =>
+      (status ?? '').toLowerCase().trim() == 'ended' ||
+      (status ?? '').toLowerCase().trim() == 'cancelled' ||
+      (status ?? '').toLowerCase().trim() == 'expired';
+  bool get isExtensionWindow =>
+      (matchPhase ?? '').toLowerCase().trim() == 'extension_window';
 
   /// True si viene del flujo Match (misma lógica de llamada, naming distinto).
   bool get isMatchSession =>
@@ -101,10 +129,16 @@ class CallRequestModel {
     int? coinsCost,
     int? userLevel,
     String? status,
+    String? matchPhase,
     String? roomId,
     int? matchSeconds,
     bool? isMatch,
     String? respondedAt,
+    String? startedAt,
+    String? phaseEndsAt,
+    String? graceEndsAt,
+    int? secondsLeft,
+    int? graceSecondsLeft,
     String? endedAt,
     String? createdAt,
     CallParty? caller,
@@ -117,10 +151,16 @@ class CallRequestModel {
       coinsCost: coinsCost ?? this.coinsCost,
       userLevel: userLevel ?? this.userLevel,
       status: status ?? this.status,
+      matchPhase: matchPhase ?? this.matchPhase,
       roomId: roomId ?? this.roomId,
       matchSeconds: matchSeconds ?? this.matchSeconds,
       isMatch: isMatch ?? this.isMatch,
       respondedAt: respondedAt ?? this.respondedAt,
+      startedAt: startedAt ?? this.startedAt,
+      phaseEndsAt: phaseEndsAt ?? this.phaseEndsAt,
+      graceEndsAt: graceEndsAt ?? this.graceEndsAt,
+      secondsLeft: secondsLeft ?? this.secondsLeft,
+      graceSecondsLeft: graceSecondsLeft ?? this.graceSecondsLeft,
       endedAt: endedAt ?? this.endedAt,
       createdAt: createdAt ?? this.createdAt,
       caller: caller ?? this.caller,

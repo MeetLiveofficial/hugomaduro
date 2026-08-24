@@ -14,6 +14,7 @@ import 'package:krimson/screen/reels_screen/reel/widget/side_bar_list.dart';
 import 'package:krimson/screen/reels_screen/reel/widget/user_information.dart';
 import 'package:krimson/screen/reels_screen/reels_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/theme_res.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -147,8 +148,8 @@ class _ReelPageState extends State<ReelPage> {
                       child: Container(
                         height: 60,
                         width: 60,
-                        decoration: const BoxDecoration(
-                          color: Colors.black45,
+                        decoration: BoxDecoration(
+                          color: ColorRes.crimson.withValues(alpha: 0.72),
                           shape: BoxShape.circle,
                         ),
                         alignment: const Alignment(0.25, 0),

@@ -49,6 +49,9 @@ class _Privilege {
 class _Call {
   String create = "${apiURL}call/create";
   String findMatch = "${apiURL}call/findMatch";
+  String joinMatch = "${apiURL}call/joinMatch";
+  String leaveMatch = "${apiURL}call/leaveMatch";
+  String matchHeartbeat = "${apiURL}call/matchHeartbeat";
   String inbox = "${apiURL}call/inbox";
   String status = "${apiURL}call/status";
   String accept = "${apiURL}call/accept";
@@ -56,6 +59,8 @@ class _Call {
   String cancel = "${apiURL}call/cancel";
   String end = "${apiURL}call/end";
   String extendMatch = "${apiURL}call/extendMatch";
+  String matchConfig = "${apiURL}call/matchConfig";
+  String unlockMatch = "${apiURL}call/unlockMatch";
   String workStats = "${apiURL}call/workStats";
   String updateCallPrice = "${apiURL}call/updateCallPrice";
 }

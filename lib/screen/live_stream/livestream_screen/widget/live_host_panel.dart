@@ -492,7 +492,7 @@ Future<void> openLiveInviteSheet({
                         ],
                       ),
                       subtitle: Text(
-                        '${user.fullname ?? ''} · ${user.isActive == 1 ? 'ACTIVE' : 'INACTIVE'}',
+                        '${user.fullname ?? ''} · ${user.isActive == 1 ? 'Activa' : 'Inactiva'}',
                       ),
                       trailing: TextButton(
                         onPressed: invited ? null : () => onInvite(user),

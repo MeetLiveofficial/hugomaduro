@@ -102,13 +102,16 @@ class SendGiftSheet extends StatelessWidget {
                 style: TextStyleCustom.outFitRegular400(
                     fontSize: 15, color: textLightGrey(context))),
             Obx(() {
-              final cats = controller.categories;
+              // Hay que leer el id aquí: ListView.itemBuilder corre
+              // fuera del tracker de Obx y el pill activo no se movía.
+              final selectedId = controller.selectedCategoryId.value;
+              final cats = controller.categories.toList();
               if (cats.isEmpty) return const SizedBox(height: 10);
               return Column(
                 children: [
                   const SizedBox(height: 12),
                   SizedBox(
-                    height: 34,
+                    height: 36,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -120,14 +123,14 @@ class SendGiftSheet extends StatelessWidget {
                         final label = isAll
                             ? LKey.all.tr
                             : (cats[index - 1].name ?? '');
-                        final selected =
-                            controller.selectedCategoryId.value == catId;
+                        final selected = selectedId == catId;
                         return GestureDetector(
                           onTap: () => controller.selectCategory(catId),
                           child: AnimatedContainer(
+                            key: ValueKey('gift-cat-$catId'),
                             duration: const Duration(milliseconds: 180),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 6),
+                                horizontal: 14, vertical: 7),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(20),
                               gradient: selected

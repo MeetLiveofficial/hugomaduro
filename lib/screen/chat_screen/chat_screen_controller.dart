@@ -13,6 +13,7 @@ import 'package:krimson/common/enum/chat_enum.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/functions/media_picker_helper.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -685,6 +686,9 @@ class ChatScreenController extends BlockUserController with GetTickerProviderSta
   }
 
   void pickGift() {
+    if (!AppRole.canSendGifts()) {
+      return;
+    }
     int? userId = conversationUser.value.peerUserId;
 
     GiftManager.openGiftSheet(

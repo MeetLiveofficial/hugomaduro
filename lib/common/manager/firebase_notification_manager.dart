@@ -171,6 +171,14 @@ class FirebaseNotificationManager {
         showNotification(message, isCall: true);
         _openAcceptedCallFromPush(message.data);
         return;
+      } else if (type == 'call_ended') {
+        final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+        VideoCallController.handleRemoteEnded(id);
+        return;
+      } else if (type == 'match_extension_modal') {
+        final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+        VideoCallController.handleExtensionModal(id);
+        return;
       } else if (type == NotificationType.liveStream.type) {
         showNotification(message);
         // App en foreground: diálogo Unirse / Más tarde (no auto-navegar).
@@ -269,6 +277,16 @@ class FirebaseNotificationManager {
     if (dataType == 'call_cancelled') {
       final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
       IncomingCallController.handleRemoteCancelled(id);
+      return;
+    }
+    if (dataType == 'call_ended') {
+      final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+      VideoCallController.handleRemoteEnded(id);
+      return;
+    }
+    if (dataType == 'match_extension_modal') {
+      final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+      VideoCallController.handleExtensionModal(id);
       return;
     }
     if (dataType == 'call_accepted') {

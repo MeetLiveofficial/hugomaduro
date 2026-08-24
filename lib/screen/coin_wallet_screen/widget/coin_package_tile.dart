@@ -1,0 +1,106 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/text_button_custom.dart';
+import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
+import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
+
+class CoinPackageTile extends StatelessWidget {
+  final CoinPlan plan;
+  final VoidCallback onPurchase;
+  final Color? buttonColor;
+
+  const CoinPackageTile({
+    super.key,
+    required this.plan,
+    required this.onPurchase,
+    this.buttonColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = buttonColor ?? themeAccentSolid(context);
+    final hasBonus = plan.bonusCoins > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: bgLightGrey(context),
+        borderRadius: BorderRadius.circular(12),
+        border: hasBonus
+            ? Border.all(color: accent.withValues(alpha: 0.35))
+            : null,
+      ),
+      child: Row(
+        children: [
+          CustomImage(
+            size: const Size(42, 42),
+            strokeWidth: 0,
+            image: (plan.image ?? '').isNotEmpty
+                ? plan.image!.addBaseURL()
+                : null,
+            radius: 10,
+            fit: BoxFit.cover,
+            isShowPlaceHolder: true,
+            fullName: '${plan.coin}',
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if ((plan.name ?? '').isNotEmpty)
+                  Text(
+                    plan.name!,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: textDarkGrey(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                Row(
+                  children: [
+                    Image.asset(AssetRes.icCoin, height: 16, width: 16),
+                    const SizedBox(width: 5),
+                    Text(
+                      plan.coin.numberFormat,
+                      style: TextStyleCustom.unboundedMedium500(
+                        color: textDarkGrey(context),
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  hasBonus
+                      ? '${plan.baseCoins.numberFormat} + ${plan.bonusPercent.toStringAsFixed(0)}% (${plan.bonusCoins.numberFormat}) · ${plan.priceString}'
+                      : plan.priceString,
+                  style: TextStyleCustom.outFitRegular400(
+                    color: textLightGrey(context),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButtonCustom(
+            onTap: onPurchase,
+            title: LKey.purchase.tr,
+            backgroundColor: accent,
+            titleColor: whitePure(context),
+            btnHeight: 32,
+            btnWidth: 88,
+            fontSize: 12,
+            horizontalMargin: 0,
+            margin: EdgeInsets.zero,
+            radius: 8,
+          ),
+        ],
+      ),
+    );
+  }
+}

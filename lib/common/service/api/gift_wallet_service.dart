@@ -161,22 +161,38 @@ class GiftWalletService {
   /// Crea checkout Wompi (tarjeta / PSE / Nequi).
   Future<Map<String, dynamic>> createWompiPayment(
       {required int coinPackageId}) async {
-    final json = await ApiService.instance.call(
-      url: WebService.giftWallet.createWompiPayment,
-      fromJson: (j) => j,
-      param: {Params.coinPackageId: coinPackageId},
-    );
-    if (json['status'] == true && json['data'] is Map) {
+    try {
+      final json = await ApiService.instance.call(
+        url: WebService.giftWallet.createWompiPayment,
+        fromJson: (j) => j,
+        param: {Params.coinPackageId: coinPackageId},
+      );
+      if (json['status'] == true && json['data'] is Map) {
+        return {
+          'ok': true,
+          'data': Map<String, dynamic>.from(json['data'] as Map),
+        };
+      }
       return {
-        'ok': true,
-        'data': Map<String, dynamic>.from(json['data'] as Map),
+        'ok': false,
+        'message': (json['message'] ?? 'No se pudo iniciar el pago con tarjeta')
+            .toString(),
+      };
+    } catch (e) {
+      var msg = e.toString();
+      if (msg.startsWith('Exception: ')) {
+        msg = msg.substring(11);
+      }
+      if (msg.length > 180) {
+        msg = '${msg.substring(0, 180)}…';
+      }
+      return {
+        'ok': false,
+        'message': msg.isNotEmpty
+            ? msg
+            : 'No se pudo iniciar el pago con tarjeta. Intenta de nuevo.',
       };
     }
-    return {
-      'ok': false,
-      'message': (json['message'] ?? 'No se pudo iniciar el pago con tarjeta')
-          .toString(),
-    };
   }
 
   Future<Map<String, dynamic>?> checkWompiPayment(

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
-import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/content_protection.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/share_manager.dart';
-import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/framed_avatar.dart';
 import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
+import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -17,11 +17,13 @@ import 'package:krimson/screen/privilege_screen/privilege_hub_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/user_link_sheet.dart';
+import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/settings_screen/settings_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
-import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
+import 'package:krimson/screen/work_screen/work_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/language_display.dart';
 import 'package:krimson/utilities/level_avatar_style.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -68,10 +70,13 @@ class ProfileUserHeader extends StatelessWidget {
       final hasStories = stories.isNotEmpty;
       final links = user.links ?? [];
 
+      final tags = _profileTagLabels(user, isMe: isMe);
+      final bio = (user.bio ?? '').trim();
+      final handle = (user.username ?? '').trim();
+
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -87,123 +92,158 @@ class ProfileUserHeader extends StatelessWidget {
                     }
                   },
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Clientes no publican: no mostrar Posts/Likes de creador.
-                      if (AppRole.isStreamer(user)) ...[
-                        _StatColumn(
-                          value: controller.posts.length,
-                          label: LKey.posts.tr,
-                        ),
-                        _StatColumn(
-                          value: user.totalPostLikesCount ?? 0,
-                          label: LKey.likes.tr,
-                        ),
-                      ],
-                      _StatColumn(
-                        value: (user.followerCount ?? 0).toInt(),
-                        label: LKey.followers.tr,
-                        onTap: () => controller.openFollowList(
-                          FollowListType.followers,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FullNameWithBlueTick(
+                              username: user.fullname ?? user.username,
+                              isVerify: user.isVerify,
+                              isVip: user.isVip,
+                              fontSize: 15,
+                              style: TextStyleCustom.unboundedMedium500(
+                                color: textDarkGrey(context),
+                                fontSize: 15,
+                              ).copyWith(height: 1.2),
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              child: (user.equippedBadgeImage ?? '').isEmpty
+                                  ? null
+                                  : GiftMedia(
+                                      path: user.equippedBadgeImage,
+                                      width: 18,
+                                      height: 18,
+                                      fit: BoxFit.contain,
+                                      placeholder: const SizedBox.shrink(),
+                                    ),
+                            ),
+                          ),
+                          if (isMe)
+                            _HeaderEditButton(
+                              onTap: () => Get.to(
+                                () => SettingsScreen(
+                                  onUpdateUser: controller.onUpdateUser,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      _StatColumn(
-                        value: (user.followingCount ?? 0).toInt(),
-                        label: LKey.following.tr,
-                        onTap: () => controller.openFollowList(
-                          FollowListType.following,
+                      if (handle.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            '@$handle',
+                            style: TextStyleCustom.outFitRegular400(
+                              color: textLightGrey(context),
+                              fontSize: 13,
+                            ),
+                          ),
                         ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (user.isLive == 1 && AppRole.isStreamer(user))
+                            InkWell(
+                              onTap: () => controller.openUserLiveIfAny(),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: ColorRes.themeAccentSolid,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  'LIVE',
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Container(
+                            key: const ValueKey('presence_badge'),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isPresent
+                                  ? const Color(0xFF22C55E)
+                                      .withValues(alpha: 0.15)
+                                  : const Color(0xFF9CA3AF)
+                                      .withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: isPresent
+                                        ? const Color(0xFF22C55E)
+                                        : const Color(0xFF9CA3AF),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  isPresent ? 'Activa' : 'Inactiva',
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: isPresent
+                                        ? const Color(0xFF15803D)
+                                        : const Color(0xFF6B7280),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            FullNameWithBlueTick(
-              username: user.fullname ?? user.username,
-              isVerify: user.isVerify,
-              fontSize: 16,
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (user.isLive == 1 && AppRole.isStreamer(user))
-                  InkWell(
-                    onTap: () => controller.openUserLiveIfAny(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: ColorRes.themeAccentSolid,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'LIVE',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ),
-                // Siempre visible: ACTIVE o INACTIVE (nunca se oculta).
-                Container(
-                  key: const ValueKey('presence_badge'),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isPresent
-                        ? const Color(0xFF22C55E).withValues(alpha: 0.15)
-                        : const Color(0xFF9CA3AF).withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: isPresent
-                              ? const Color(0xFF22C55E)
-                              : const Color(0xFF9CA3AF),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        isPresent ? 'ACTIVE' : 'INACTIVE',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: isPresent
-                              ? const Color(0xFF15803D)
-                              : const Color(0xFF6B7280),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
+            const SizedBox(height: 10),
+            _StatsRow(controller: controller, user: user),
+            const SizedBox(height: 8),
+            if (bio.isNotEmpty)
+              Text(
+                bio,
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitRegular400(
+                  color: textDarkGrey(context),
+                  fontSize: 14,
                 ),
-              ],
-            ),
-            // Tags idioma / país (pills).
-            if (_profileTagLabels(user, isMe: isMe).isNotEmpty)
+              )
+            else if (isMe)
+              _GhostPill(
+                icon: Icons.add,
+                label: 'Añade descripción',
+                onTap: () => Get.to(
+                  () => SettingsScreen(onUpdateUser: controller.onUpdateUser),
+                ),
+              ),
+            if (tags.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: 10),
                 child: Wrap(
+                  alignment: WrapAlignment.center,
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final tag in _profileTagLabels(user, isMe: isMe))
+                    for (final tag in tags)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: tag.$2,
                           borderRadius: BorderRadius.circular(20),
@@ -220,90 +260,46 @@ class ProfileUserHeader extends StatelessWidget {
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: 8),
               child: Wrap(
+                alignment: WrapAlignment.center,
                 spacing: 6,
                 runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   InkWell(
                     onTap: () =>
                         Get.to(() => LevelScreen(userLevels: user.getLevel)),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color:
-                            themeAccentSolid(context).withValues(alpha: .12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}'
-                        '${(user.levelTitle ?? user.getLevel.title)?.isNotEmpty == true ? ' · ${user.levelTitle ?? user.getLevel.title}' : ''}',
-                        style: TextStyleCustom.outFitMedium500(
-                          color: themeAccentSolid(context),
-                          fontSize: 12,
-                        ),
-                      ),
+                    child: _SoftPill(
+                      label:
+                          '${LKey.level.tr} ${user.levelNumber ?? user.getLevel.level ?? 1}',
+                      color: themeAccentSolid(context),
                     ),
                   ),
                   if (isMe && AppRole.canAccessTasks())
                     InkWell(
                       onTap: () async {
                         await Get.to(() => const TasksScreen());
-                        // Refresca saldo tras reclamaciones / auto-claim en Tasks.
                         await controller.fetchUserDetail();
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: ColorRes.brandMagenta.withValues(alpha: .12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${LKey.withdrawalPoints.tr}: ${user.withdrawalPoints ?? 0}',
-                          style: TextStyleCustom.outFitMedium500(
-                            color: ColorRes.brandMagenta,
-                            fontSize: 12,
-                          ),
-                        ),
+                      child: _SoftPill(
+                        label:
+                            '${LKey.withdrawalPoints.tr}: ${user.withdrawalPoints ?? 0}',
+                        color: ColorRes.brandMagenta,
                       ),
                     ),
                 ],
               ),
             ),
-            if ((user.username ?? '').isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  '@${user.username}',
-                  style: TextStyleCustom.outFitRegular400(
-                    color: textLightGrey(context),
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            if ((user.bio ?? '').trim().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  user.bio!,
-                  style: TextStyleCustom.outFitRegular400(
-                    color: textDarkGrey(context),
-                    fontSize: 14,
-                  ),
-                ),
-              ),
             if (links.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: 10),
                 child: InkWell(
                   onTap: () => Get.bottomSheet(
                     UserLinkSheet(links: links),
                     isScrollControlled: true,
                   ),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Image.asset(
@@ -335,19 +331,18 @@ class ProfileUserHeader extends StatelessWidget {
                   ),
                 ),
               ),
-            const SizedBox(height: 14),
-            // SVIP: solo streamers en su propio perfil.
+            const SizedBox(height: 10),
             if (isMe && AppRole.isStreamer(user)) ...[
               InkWell(
                 onTap: () => Get.to(() => const PrivilegeHubScreen()),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(20),
                 child: Container(
                   width: double.infinity,
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     gradient: StyleRes.themeGradient,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(22),
                     boxShadow: [
                       BoxShadow(
                         color: ColorRes.brandMagenta.withValues(alpha: 0.35),
@@ -374,7 +369,7 @@ class ProfileUserHeader extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      Icon(Icons.workspace_premium,
+                      const Icon(Icons.workspace_premium,
                           color: ColorRes.whitePure, size: 18),
                     ],
                   ),
@@ -458,6 +453,155 @@ class ProfileVideoCallFab extends StatelessWidget {
   }
 }
 
+class _StatsRow extends StatelessWidget {
+  final ProfileScreenController controller;
+  final User user;
+
+  const _StatsRow({required this.controller, required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Widget>[];
+    void addStat(_StatColumn stat) {
+      if (items.isNotEmpty) {
+        items.add(
+          Container(
+            width: 1,
+            height: 28,
+            color: textLightGrey(context).withValues(alpha: 0.28),
+          ),
+        );
+      }
+      items.add(Expanded(child: stat));
+    }
+
+    if (AppRole.isStreamer(user)) {
+      addStat(_StatColumn(
+        value: controller.posts.length,
+        label: LKey.posts.tr,
+      ));
+      addStat(_StatColumn(
+        value: user.totalPostLikesCount ?? 0,
+        label: LKey.likes.tr,
+      ));
+    }
+    addStat(_StatColumn(
+      value: (user.followerCount ?? 0).toInt(),
+      label: LKey.followers.tr,
+      onTap: () => controller.openFollowList(FollowListType.followers),
+    ));
+    addStat(_StatColumn(
+      value: (user.followingCount ?? 0).toInt(),
+      label: LKey.following.tr,
+      onTap: () => controller.openFollowList(FollowListType.following),
+    ));
+
+    return Row(children: items);
+  }
+}
+
+class _HeaderEditButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _HeaderEditButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        height: 34,
+        width: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: StyleRes.themeGradient,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: ColorRes.crimson.withValues(alpha: 0.28),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Image.asset(
+          AssetRes.icEdit,
+          height: 16,
+          width: 16,
+          color: ColorRes.whitePure,
+        ),
+      ),
+    );
+  }
+}
+
+class _GhostPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _GhostPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: bgGrey(context),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: textDarkGrey(context)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyleCustom.outFitMedium500(
+                color: textDarkGrey(context),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SoftPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _SoftPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyleCustom.outFitMedium500(
+          color: color,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
 class _Avatar extends StatelessWidget {
   final User user;
   final bool hasStories;
@@ -472,8 +616,6 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLive = user.isLive == 1;
-    final isClient = AppRole.isClient(user);
-    final useLevelRing = isClient && !isLive && !hasStories;
 
     return InkWell(
       onTap: onTap,
@@ -481,38 +623,14 @@ class _Avatar extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: isLive
-                  ? const LinearGradient(
-                      colors: [Color(0xFFFF003F), Color(0xFFFF6B8A)],
-                    )
-                  : useLevelRing
-                      ? LevelAvatarStyle.forUser(user)
-                      : (hasStories ? StyleRes.themeGradient : null),
-              border: (!isLive && !hasStories && !useLevelRing)
-                  ? Border.all(color: bgGrey(context), width: 1.5)
-                  : null,
-              boxShadow: useLevelRing
-                  ? [
-                      BoxShadow(
-                        color: LevelAvatarStyle.forUser(user)
-                            .colors
-                            .last
-                            .withValues(alpha: 0.35),
-                        blurRadius: 10,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: CustomImage(
-              size: const Size(82, 82),
-              image: user.profilePhoto?.addBaseURL(),
-              fullName: user.fullname,
-              strokeWidth: (isLive || hasStories || useLevelRing) ? 2 : 0,
-              strokeColor: scaffoldBackgroundColor(context),
+          FramedAvatar.fromUser(
+            user,
+            size: 96,
+            compact: true,
+            ring: (child) => LevelAvatarRing(
+              user: user,
+              padding: 3,
+              child: child,
             ),
           ),
           if (isLive)
@@ -539,8 +657,8 @@ class _Avatar extends StatelessWidget {
               ),
             ),
           Positioned(
-            right: 2,
-            bottom: isLive ? 14 : 4,
+            right: 14,
+            bottom: 22,
             child: Builder(
               builder: (context) {
                 final isMe = user.id == SessionManager.instance.getUserID();
@@ -551,7 +669,7 @@ class _Avatar extends StatelessWidget {
                   height: 14,
                   decoration: BoxDecoration(
                     color: isPresent
-                        ? const Color(0xFF22C55E)
+                        ? const Color(0xFFFF6B6B)
                         : const Color(0xFF9CA3AF),
                     shape: BoxShape.circle,
                     border: Border.all(
@@ -582,14 +700,21 @@ class _StatColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Column(
       children: [
-        Text(
-          value.numberFormat,
-          style: TextStyleCustom.unboundedSemiBold600(
-            color: textDarkGrey(context),
-            fontSize: 15,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value.numberFormat,
+            maxLines: 1,
+            style: TextStyleCustom.unboundedSemiBold600(
+              color: textDarkGrey(context),
+              fontSize: 17,
+            ).copyWith(
+              height: 1.2,
+              leadingDistribution: TextLeadingDistribution.even,
+            ),
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           label,
           style: TextStyleCustom.outFitRegular400(
@@ -630,20 +755,6 @@ class _ActionButtons extends StatelessWidget {
       final canPublish = AppRole.canPublish(user);
       return Column(
         children: [
-          // Streamers ganan (retiros); no recargan. Clientes usan ClientProfileScreen.
-          if (canPublish) ...[
-            TextButtonCustom(
-              onTap: () => Get.to(() => const WithdrawalsScreen()),
-              title: LKey.withdrawals.tr,
-              backgroundColor: ColorRes.bgGrey,
-              titleColor: ColorRes.textDarkGrey,
-              btnHeight: 42,
-              fontSize: 15,
-              horizontalMargin: 0,
-              margin: EdgeInsets.zero,
-            ),
-            const SizedBox(height: 8),
-          ],
           Row(
             children: [
               if (canPublish)
@@ -653,8 +764,9 @@ class _ActionButtons extends StatelessWidget {
                     title: LKey.publish.tr,
                     backgroundColor: themeAccentSolid(context),
                     titleColor: whitePure(context),
-                    btnHeight: 42,
+                    btnHeight: 36,
                     fontSize: 15,
+                    radius: 22,
                     horizontalMargin: 0,
                     margin: EdgeInsets.zero,
                   ),
@@ -669,12 +781,33 @@ class _ActionButtons extends StatelessWidget {
                     title: LKey.settings.tr,
                     backgroundColor: themeAccentSolid(context),
                     titleColor: whitePure(context),
-                    btnHeight: 42,
+                    btnHeight: 36,
                     fontSize: 15,
+                    radius: 22,
                     horizontalMargin: 0,
                     margin: EdgeInsets.zero,
                   ),
                 ),
+              if (AppRole.isStreamer(user)) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButtonCustom(
+                    onTap: () => Get.to(() => const MatchScreen()),
+                    title: 'Match',
+                    backgroundColor: ColorRes.coralRed,
+                    titleColor: whitePure(context),
+                    btnHeight: 36,
+                    fontSize: 15,
+                    radius: 22,
+                    horizontalMargin: 0,
+                    margin: EdgeInsets.zero,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _WorkIconAction(
+                  onTap: () => Get.to(() => const WorkScreen()),
+                ),
+              ],
               if (ContentProtection.canShare) ...[
                 const SizedBox(width: 8),
                 _IconAction(
@@ -685,13 +818,6 @@ class _ActionButtons extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(width: 8),
-              _IconAction(
-                icon: AssetRes.icEdit,
-                onTap: () => Get.to(
-                  () => SettingsScreen(onUpdateUser: controller.onUpdateUser),
-                ),
-              ),
             ],
           ),
         ],
@@ -709,13 +835,14 @@ class _ActionButtons extends StatelessWidget {
               backgroundColor: following
                   ? ColorRes.bgGrey
                   : ColorRes.brandMagenta,
-              titleColor: following
-                  ? ColorRes.textDarkGrey
-                  : ColorRes.whitePure,
-              btnHeight: 42,
-              fontSize: 15,
-              horizontalMargin: 0,
-              margin: EdgeInsets.zero,
+                    titleColor: following
+                        ? ColorRes.textDarkGrey
+                        : ColorRes.whitePure,
+                    btnHeight: 36,
+                    fontSize: 15,
+                    radius: 22,
+                    horizontalMargin: 0,
+                    margin: EdgeInsets.zero,
             );
           }),
         ),
@@ -726,8 +853,9 @@ class _ActionButtons extends StatelessWidget {
             title: LKey.message.tr,
             backgroundColor: bgGrey(context),
             titleColor: textDarkGrey(context),
-            btnHeight: 42,
+            btnHeight: 36,
             fontSize: 15,
+            radius: 22,
             horizontalMargin: 0,
             margin: EdgeInsets.zero,
           ),
@@ -798,20 +926,62 @@ class _IconAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(21),
       child: Container(
-        height: 42,
-        width: 42,
+        height: 36,
+        width: 36,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: bgGrey(context),
-          borderRadius: BorderRadius.circular(10),
+          gradient: StyleRes.themeGradient,
+          borderRadius: BorderRadius.circular(21),
+          boxShadow: [
+            BoxShadow(
+              color: ColorRes.crimson.withValues(alpha: 0.28),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Image.asset(
           icon,
           height: 20,
           width: 20,
-          color: textDarkGrey(context),
+          color: ColorRes.whitePure,
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkIconAction extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _WorkIconAction({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(21),
+      child: Container(
+        height: 36,
+        width: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: StyleRes.themeGradient,
+          borderRadius: BorderRadius.circular(21),
+          boxShadow: [
+            BoxShadow(
+              color: ColorRes.crimson.withValues(alpha: 0.28),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.work_outline_rounded,
+          size: 22,
+          color: ColorRes.whitePure,
         ),
       ),
     );
@@ -823,8 +993,8 @@ List<(String, Color)> _profileTagLabels(User user, {required bool isMe}) {
   final tags = <(String, Color)>[];
   // En el propio perfil, el locale de sesión es la fuente de verdad (Settings).
   final code = isMe ? SessionManager.instance.getLang() : user.appLanguage;
-  final lang = _languageDisplayName(code);
-  if (lang != null) {
+  final lang = LanguageDisplay.name(code);
+  if (lang.isNotEmpty) {
     tags.add((lang, const Color(0xFF60A5FA)));
   }
   final country = (user.country ?? '').trim();
@@ -832,35 +1002,4 @@ List<(String, Color)> _profileTagLabels(User user, {required bool isMe}) {
     tags.add((country, const Color(0xFFA78BFA)));
   }
   return tags;
-}
-
-String? _languageDisplayName(String? code) {
-  if (code == null || code.trim().isEmpty) return null;
-  final c = code.trim().toLowerCase().split(RegExp(r'[_-]')).first;
-
-  final fromSettings = SessionManager.instance
-      .getActiveLanguages()
-      .firstWhereOrNull((l) => (l.code ?? '').toLowerCase() == c);
-  if (fromSettings != null) {
-    final title =
-        (fromSettings.localizedTitle ?? fromSettings.title ?? '').trim();
-    if (title.isNotEmpty) return title;
-  }
-
-  const map = {
-    'es': 'Español',
-    'en': 'English',
-    'pt': 'Português',
-    'fr': 'Français',
-    'de': 'Deutsch',
-    'it': 'Italiano',
-    'ar': 'العربية',
-    'hi': 'हिन्दी',
-    'zh': '中文',
-    'ja': '日本語',
-    'ko': '한국어',
-    'ru': 'Русский',
-    'uk': 'Українська',
-  };
-  return map[c] ?? c.toUpperCase();
 }
