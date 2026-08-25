@@ -45,6 +45,7 @@ platform :ios do
     match(
       type: "appstore",
       app_identifier: BUNDLE_ID,
+      git_url: ENV.fetch("MATCH_GIT_URL"),
       api_key: api_key,
       readonly: false,
       force_for_new_devices: false,
