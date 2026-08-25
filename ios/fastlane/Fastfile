@@ -61,7 +61,8 @@ platform :ios do
       team_id: team_id,
       development: false,
       output_path: certs_dir,
-      filename: "distribution"
+      filename: "distribution",
+      create_if_needed: false
     }
     if is_ci
       cert_opts[:keychain_path] = keychain_path
