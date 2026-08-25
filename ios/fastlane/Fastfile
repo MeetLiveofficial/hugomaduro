@@ -1,6 +1,6 @@
 default_platform(:ios)
 
-BUNDLE_ID = ENV.fetch("APP_BUNDLE_ID", "com.krimson.app")
+BUNDLE_ID = ENV.fetch("APP_BUNDLE_ID", "com.krimson.app.528CZ6T823")
 TEAM_ID_DEFAULT = "WGTZ762S3W"
 CI_KEYCHAIN = "fastlane_tmp_keychain"
 
