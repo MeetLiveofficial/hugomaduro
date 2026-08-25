@@ -15,7 +15,6 @@ platform :ios do
 
     keychain_path = nil
     if is_ci
-      # setup_ci activa MATCH_READONLY y no encaja con cert/sigh.
       create_keychain(
         name: CI_KEYCHAIN,
         password: CI_KEYCHAIN,
@@ -25,7 +24,6 @@ platform :ios do
         lock_when_sleeps: false,
         add_to_search_list: true
       )
-      # get_certificates exige ruta absoluta, no el nombre del keychain.
       keychain_path = File.expand_path(
         lane_context[SharedValues::KEYCHAIN_PATH] ||
           "~/Library/Keychains/#{CI_KEYCHAIN}"
@@ -43,44 +41,17 @@ platform :ios do
       in_house: false
     )
 
-    certs_dir = File.expand_path("certificates", __dir__)
-    FileUtils.mkdir_p(certs_dir)
-
-    wwdr_path = File.join(certs_dir, "AppleWWDRCAG3.cer")
-    sh("curl", "-fsSL", "-o", wwdr_path, "https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer")
-    if is_ci
-      import_certificate(
-        certificate_path: wwdr_path,
-        keychain_path: keychain_path,
-        keychain_password: CI_KEYCHAIN
-      )
-    end
-
-    cert_opts = {
-      api_key: api_key,
-      team_id: team_id,
-      development: false,
-      output_path: certs_dir,
-      filename: "distribution"
-    }
-    if is_ci
-      cert_opts[:keychain_path] = keychain_path
-      cert_opts[:keychain_password] = CI_KEYCHAIN
-    end
-    get_certificates(**cert_opts)
-
-    get_provisioning_profile(
-      api_key: api_key,
+    # Usar match para crear/sincronizar certificados y perfiles automáticamente
+    match(
+      type: "appstore",
       app_identifier: BUNDLE_ID,
-      team_id: team_id,
-      provisioning_name: "Krimson App Store",
-      filename: "Krimson_AppStore.mobileprovision",
-      output_path: certs_dir,
-      force: true
+      api_key: api_key,
+      readonly: false,
+      force_for_new_devices: false,
+      verbose: true
     )
 
-    profile_name = lane_context[SharedValues::SIGH_NAME]
-    UI.success("Provisioning profile: #{profile_name}")
+    profile_name = "Krimson App Store"
 
     update_code_signing_settings(
       use_automatic_signing: false,
