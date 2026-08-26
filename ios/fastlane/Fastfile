@@ -1,7 +1,7 @@
 default_platform(:ios)
 
 BUNDLE_ID = ENV.fetch("APP_BUNDLE_ID", "com.krimson.app.528CZ6T823")
-TEAM_ID_DEFAULT = "WGTZ762S3W"
+TEAM_ID_DEFAULT = "528CZ6T823"
 CI_KEYCHAIN = "fastlane_tmp_keychain"
 
 platform :ios do
@@ -10,8 +10,10 @@ platform :ios do
     key_id = ENV.fetch("APP_STORE_CONNECT_KEY_ID")
     issuer_id = ENV.fetch("APP_STORE_CONNECT_ISSUER_ID")
     key_content = ENV.fetch("APP_STORE_CONNECT_PRIVATE_KEY").gsub("\\n", "\n")
-    team_id = ENV.fetch("APPLE_TEAM_ID", TEAM_ID_DEFAULT)
+    team_id = ENV["APPLE_TEAM_ID"].to_s.strip
+    team_id = TEAM_ID_DEFAULT if team_id.empty? || team_id == "WGTZ762S3W"
     key_is_base64 = !key_content.include?("BEGIN PRIVATE KEY")
+    UI.message("Signing team: #{team_id} / bundle: #{BUNDLE_ID}")
 
     keychain_path = nil
     if is_ci
@@ -84,6 +86,8 @@ platform :ios do
     end
     get_certificates(**cert_opts)
 
+    enable_app_id_capabilities(BUNDLE_ID)
+
     get_provisioning_profile(
       api_key: api_key,
       app_identifier: BUNDLE_ID,
@@ -94,9 +98,17 @@ platform :ios do
       force: true
     )
 
+    profile_path = lane_context[SharedValues::SIGH_PROFILE_PATH]
+    install_provisioning_profile(path: profile_path) if profile_path
+
     profile_name = lane_context[SharedValues::SIGH_NAME]
     profile_uuid = lane_context[SharedValues::SIGH_UUID]
     UI.success("Provisioning profile: #{profile_name} (#{profile_uuid})")
+
+    update_project_team(
+      path: "Runner.xcodeproj",
+      teamid: team_id
+    )
 
     update_code_signing_settings(
       use_automatic_signing: false,
@@ -147,6 +159,11 @@ platform :ios do
     )
 
     repo_root = File.expand_path("../..", __dir__)
+    if is_ci && keychain_path
+      unlock_keychain(path: keychain_path, password: CI_KEYCHAIN)
+      sh("security", "default-keychain", "-s", keychain_path)
+      sh("security", "list-keychains", "-d", "user", "-s", keychain_path)
+    end
     Dir.chdir(repo_root) do
       sh("mkdir", "-p", "build/ios/SourcePackages")
       sh(
@@ -171,6 +188,39 @@ platform :ios do
         distribute_external: false,
         changelog: "Meet&Live #{ENV.fetch('FLUTTER_BUILD_NAME', '')} (#{ENV.fetch('FLUTTER_BUILD_NUMBER', '')})"
       )
+    end
+  end
+end
+
+def enable_app_id_capabilities(bundle_identifier)
+  require "spaceship"
+  type = Spaceship::ConnectAPI::BundleIdCapability::Type
+  caps = [
+    type::PUSH_NOTIFICATIONS,
+    type::ASSOCIATED_DOMAINS,
+    type::APPLE_ID_AUTH
+  ]
+  bundle = Spaceship::ConnectAPI::BundleId.all.find { |b| b.identifier == bundle_identifier }
+  unless bundle
+    UI.important("App ID #{bundle_identifier} not found; skipping capabilities")
+    return
+  end
+  existing = []
+  begin
+    existing = Array(bundle.get_capabilities).map { |c| c.capability_type.to_s }
+  rescue StandardError
+    existing = []
+  end
+  caps.each do |cap|
+    if existing.any? { |e| e.include?(cap.to_s) }
+      UI.message("#{cap} already on #{bundle_identifier}")
+      next
+    end
+    begin
+      bundle.create_capability!(cap)
+      UI.success("Enabled #{cap}")
+    rescue StandardError => e
+      UI.important("Could not enable #{cap}: #{e.message}")
     end
   end
 end

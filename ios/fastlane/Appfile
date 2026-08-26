@@ -1,4 +1,4 @@
 app_identifier("com.krimson.app.528CZ6T823")
 apple_id(ENV["APPLE_ID"])
-team_id(ENV.fetch("APPLE_TEAM_ID", "WGTZ762S3W"))
+team_id(ENV.fetch("APPLE_TEAM_ID", "528CZ6T823"))
 itc_team_id(ENV["APP_STORE_CONNECT_TEAM_ID"]) if ENV["APP_STORE_CONNECT_TEAM_ID"].to_s.strip != ""
