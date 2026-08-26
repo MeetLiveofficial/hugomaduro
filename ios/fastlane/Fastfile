@@ -49,15 +49,10 @@ platform :ios do
 
     wwdr_path = File.join(certs_dir, "AppleWWDRCAG3.cer")
     sh("curl", "-fsSL", "-o", wwdr_path, "https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer")
-    if is_ci
-      import_certificate(
-        certificate_path: wwdr_path,
-        keychain_path: keychain_path,
-        keychain_password: CI_KEYCHAIN
-      )
+    if is_ci && keychain_path
+      sh("security", "import", wwdr_path, "-k", keychain_path, "-A", log: true)
     end
 
-    p12_password = ENV.fetch("IOS_DIST_CERTIFICATE_PASSWORD", "")
     if ENV["IOS_DIST_CERTIFICATE_P12"].to_s.strip != ""
       require "base64"
       secret_p12 = File.join(certs_dir, "distribution.p12")
@@ -65,42 +60,21 @@ platform :ios do
       UI.message("Wrote distribution .p12 from GitHub secret")
     end
 
-    reused_p12 = false
-    cert_id = nil
-    Dir[File.join(certs_dir, "*.p12")].each do |p12|
-      next unless is_ci
-      begin
-        import_certificate(
-          certificate_path: p12,
-          certificate_password: p12_password,
-          keychain_path: keychain_path,
-          keychain_password: CI_KEYCHAIN
-        )
-        reused_p12 = true
-        base = File.basename(p12, ".p12")
-        cert_id = base if base.match?(/\A[A-Z0-9]{10}\z/)
-        UI.success("Reusing #{File.basename(p12)} (no new Apple Distribution cert)")
-      rescue StandardError => e
-        UI.important("Could not import #{File.basename(p12)}: #{e.message}")
-      end
+    # cert writes "#{id}.p12" as a PEM private key (not PKCS#12) plus a .cer.
+    # Always call get_certificates so it can pair those files in the CI keychain.
+    cert_opts = {
+      api_key: api_key,
+      team_id: team_id,
+      development: false,
+      output_path: certs_dir,
+      filename: "distribution"
+    }
+    if is_ci
+      cert_opts[:keychain_path] = keychain_path
+      cert_opts[:keychain_password] = CI_KEYCHAIN
     end
-
-    unless reused_p12
-      cert_opts = {
-        api_key: api_key,
-        team_id: team_id,
-        development: false,
-        output_path: certs_dir,
-        filename: "distribution"
-      }
-      if is_ci
-        cert_opts[:keychain_path] = keychain_path
-        cert_opts[:keychain_password] = CI_KEYCHAIN
-      end
-      UI.message("No local .p12; get_certificates will create or match one")
-      get_certificates(**cert_opts)
-      cert_id = lane_context[SharedValues::CERT_CERTIFICATE_ID]
-    end
+    get_certificates(**cert_opts)
+    cert_id = lane_context[SharedValues::CERT_CERTIFICATE_ID]
 
     if is_ci && keychain_path
       use_ci_keychain!(keychain_path)
@@ -221,7 +195,12 @@ def use_ci_keychain!(path)
   return if path.to_s.empty?
   unlock_keychain(path: path, password: CI_KEYCHAIN)
   sh("security", "default-keychain", "-s", path)
-  sh("security", "list-keychains", "-d", "user", "-s", path)
+  login = File.expand_path("~/Library/Keychains/login.keychain-db")
+  if File.exist?(login)
+    sh("security", "list-keychains", "-d", "user", "-s", path, login)
+  else
+    sh("security", "list-keychains", "-d", "user", "-s", path)
+  end
 end
 
 def enable_app_id_capabilities(bundle_identifier)
