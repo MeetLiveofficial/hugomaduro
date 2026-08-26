@@ -33,6 +33,7 @@ platform :ios do
       db_path = "#{keychain_path}-db"
       keychain_path = db_path if File.exist?(db_path)
       UI.message("CI keychain: #{keychain_path}")
+      use_ci_keychain!(keychain_path)
     end
 
     api_key = app_store_connect_api_key(
@@ -65,6 +66,7 @@ platform :ios do
     end
 
     reused_p12 = false
+    cert_id = nil
     Dir[File.join(certs_dir, "*.p12")].each do |p12|
       next unless is_ci
       begin
@@ -75,6 +77,8 @@ platform :ios do
           keychain_password: CI_KEYCHAIN
         )
         reused_p12 = true
+        base = File.basename(p12, ".p12")
+        cert_id = base if base.match?(/\A[A-Z0-9]{10}\z/)
         UI.success("Reusing #{File.basename(p12)} (no new Apple Distribution cert)")
       rescue StandardError => e
         UI.important("Could not import #{File.basename(p12)}: #{e.message}")
@@ -95,11 +99,17 @@ platform :ios do
       end
       UI.message("No local .p12; get_certificates will create or match one")
       get_certificates(**cert_opts)
+      cert_id = lane_context[SharedValues::CERT_CERTIFICATE_ID]
+    end
+
+    if is_ci && keychain_path
+      use_ci_keychain!(keychain_path)
+      sh("security", "find-identity", "-v", "-p", "codesigning", keychain_path)
     end
 
     enable_app_id_capabilities(BUNDLE_ID)
 
-    get_provisioning_profile(
+    sigh_opts = {
       api_key: api_key,
       app_identifier: BUNDLE_ID,
       team_id: team_id,
@@ -107,7 +117,13 @@ platform :ios do
       filename: "Krimson_AppStore.mobileprovision",
       output_path: certs_dir,
       force: true
-    )
+    }
+    if cert_id.to_s.strip != ""
+      sigh_opts[:cert_id] = cert_id
+      sigh_opts[:skip_certificate_verification] = true
+      UI.message("Provisioning profile will use cert #{cert_id}")
+    end
+    get_provisioning_profile(**sigh_opts)
 
     profile_path = lane_context[SharedValues::SIGH_PROFILE_PATH]
     UI.user_error!("No se descargó el provisioning profile") if profile_path.to_s.empty?
@@ -172,11 +188,7 @@ platform :ios do
     )
 
     repo_root = File.expand_path("../..", __dir__)
-    if is_ci && keychain_path
-      unlock_keychain(path: keychain_path, password: CI_KEYCHAIN)
-      sh("security", "default-keychain", "-s", keychain_path)
-      sh("security", "list-keychains", "-d", "user", "-s", keychain_path)
-    end
+    use_ci_keychain!(keychain_path) if is_ci && keychain_path
     Dir.chdir(repo_root) do
       sh("mkdir", "-p", "build/ios/SourcePackages")
       sh(
@@ -203,6 +215,13 @@ platform :ios do
       )
     end
   end
+end
+
+def use_ci_keychain!(path)
+  return if path.to_s.empty?
+  unlock_keychain(path: path, password: CI_KEYCHAIN)
+  sh("security", "default-keychain", "-s", path)
+  sh("security", "list-keychains", "-d", "user", "-s", path)
 end
 
 def enable_app_id_capabilities(bundle_identifier)
