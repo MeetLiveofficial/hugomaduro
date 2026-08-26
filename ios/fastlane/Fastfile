@@ -95,16 +95,19 @@ platform :ios do
     )
 
     profile_name = lane_context[SharedValues::SIGH_NAME]
-    UI.success("Provisioning profile: #{profile_name}")
+    profile_uuid = lane_context[SharedValues::SIGH_UUID]
+    UI.success("Provisioning profile: #{profile_name} (#{profile_uuid})")
 
     update_code_signing_settings(
       use_automatic_signing: false,
       path: "Runner.xcodeproj",
+      bundle_identifier: BUNDLE_ID,
       team_id: team_id,
       targets: ["Runner"],
-      build_configurations: ["Release"],
+      build_configurations: ["Release", "Profile"],
       code_sign_identity: "Apple Distribution",
-      profile_name: profile_name
+      profile_name: profile_name,
+      profile_uuid: profile_uuid
     )
 
     export_plist = File.expand_path("ExportOptions.plist", __dir__)
@@ -116,7 +119,9 @@ platform :ios do
         <plist version="1.0">
         <dict>
           <key>method</key>
-          <string>app-store</string>
+          <string>app-store-connect</string>
+          <key>destination</key>
+          <string>export</string>
           <key>teamID</key>
           <string>#{team_id}</string>
           <key>signingStyle</key>
@@ -129,6 +134,8 @@ platform :ios do
           <true/>
           <key>uploadSymbols</key>
           <true/>
+          <key>manageAppVersionAndBuildNumber</key>
+          <false/>
           <key>provisioningProfiles</key>
           <dict>
             <key>#{BUNDLE_ID}</key>
@@ -142,13 +149,20 @@ platform :ios do
     repo_root = File.expand_path("../..", __dir__)
     Dir.chdir(repo_root) do
       sh("mkdir", "-p", "build/ios/SourcePackages")
-      sh(
+      flutter_args = [
         "flutter",
         "build",
         "ipa",
         "--release",
-        "--export-options-plist=ios/fastlane/ExportOptions.plist"
-      )
+        "--export-options-plist=ios/fastlane/ExportOptions.plist",
+        "--",
+        "CODE_SIGN_STYLE=Manual",
+        "DEVELOPMENT_TEAM=#{team_id}",
+        "CODE_SIGN_IDENTITY=Apple Distribution",
+        "PROVISIONING_PROFILE_SPECIFIER=#{profile_name}"
+      ]
+      flutter_args << "OTHER_CODE_SIGN_FLAGS=--keychain #{keychain_path}" if keychain_path
+      sh(*flutter_args)
     end
 
     ipa = Dir[File.expand_path("../../build/ios/ipa/*.ipa", __dir__)].first
