@@ -1,4 +1,4 @@
-#import <Flutter/Flutter.h>
+#import "GpuPixelPlugin.h"
 #import <AVFoundation/AVFoundation.h>
 #import <CoreVideo/CoreVideo.h>
 #include <cstring>
@@ -252,9 +252,6 @@
 }
 #endif
 
-@end
-
-@interface GpuPixelPlugin : NSObject <FlutterPlugin>
 @end
 
 @implementation GpuPixelPlugin {

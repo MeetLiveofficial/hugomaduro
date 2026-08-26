@@ -15,6 +15,7 @@ Pod::Spec.new do |s|
   s.author           = { 'Krimson' => 'dev@meetlive.online' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*.{h,m,mm}'
+  s.public_header_files = 'Classes/**/*.h'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
 
