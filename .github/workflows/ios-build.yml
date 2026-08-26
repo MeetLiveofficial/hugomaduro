@@ -70,12 +70,12 @@ jobs:
         run: flutter config --no-enable-swift-package-manager
 
       - name: Restore distribution certificates
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ios/fastlane/certificates
-          key: ios-distribution-p12-v2
+          key: ios-distribution-p12-v3-${{ github.run_id }}
           restore-keys: |
-            ios-distribution-p12-v2
+            ios-distribution-p12-v3-
 
       - name: Install Fastlane
         run: sudo gem install fastlane
@@ -84,7 +84,15 @@ jobs:
         working-directory: ios
         run: fastlane release
 
+      - name: Save distribution certificates
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ios/fastlane/certificates
+          key: ios-distribution-p12-v3-${{ github.run_id }}
+
       - name: Upload IPA artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: krimson-ios-appstore
