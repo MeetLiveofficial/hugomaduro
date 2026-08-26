@@ -54,6 +54,23 @@ platform :ios do
       )
     end
 
+    p12_password = ENV.fetch("IOS_DIST_CERTIFICATE_PASSWORD", "")
+    if ENV["IOS_DIST_CERTIFICATE_P12"].to_s.strip != ""
+      require "base64"
+      secret_p12 = File.join(certs_dir, "distribution.p12")
+      File.binwrite(secret_p12, Base64.decode64(ENV["IOS_DIST_CERTIFICATE_P12"]))
+      UI.message("Imported distribution .p12 from GitHub secret")
+    end
+    Dir[File.join(certs_dir, "*.p12")].each do |p12|
+      next unless is_ci
+      import_certificate(
+        certificate_path: p12,
+        certificate_password: p12_password,
+        keychain_path: keychain_path,
+        keychain_password: CI_KEYCHAIN
+      )
+    end
+
     cert_opts = {
       api_key: api_key,
       team_id: team_id,

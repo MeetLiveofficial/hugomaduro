@@ -21,6 +21,8 @@ jobs:
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
       APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY || '' }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || 'WGTZ762S3W' }}
+      IOS_DIST_CERTIFICATE_P12: ${{ secrets.IOS_DIST_CERTIFICATE_P12 || '' }}
+      IOS_DIST_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DIST_CERTIFICATE_PASSWORD || '' }}
       SKIP_UPLOAD: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.skip_upload == 'true' }}
 
     steps:
@@ -66,6 +68,14 @@ jobs:
 
       - name: Use CocoaPods (disable SPM)
         run: flutter config --no-enable-swift-package-manager
+
+      - name: Restore distribution certificates
+        uses: actions/cache@v4
+        with:
+          path: ios/fastlane/certificates
+          key: ios-distribution-p12-v2
+          restore-keys: |
+            ios-distribution-p12-v2
 
       - name: Install Fastlane
         run: sudo gem install fastlane
