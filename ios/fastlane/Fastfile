@@ -99,7 +99,9 @@ platform :ios do
     )
 
     profile_path = lane_context[SharedValues::SIGH_PROFILE_PATH]
-    install_provisioning_profile(path: profile_path) if profile_path
+    UI.user_error!("No se descargó el provisioning profile") if profile_path.to_s.empty?
+    install_provisioning_profile(path: profile_path)
+    assert_profile_has_entitlements(profile_path)
 
     profile_name = lane_context[SharedValues::SIGH_NAME]
     profile_uuid = lane_context[SharedValues::SIGH_UUID]
@@ -195,32 +197,63 @@ end
 def enable_app_id_capabilities(bundle_identifier)
   require "spaceship"
   type = Spaceship::ConnectAPI::BundleIdCapability::Type
-  caps = [
-    type::PUSH_NOTIFICATIONS,
-    type::ASSOCIATED_DOMAINS,
-    type::APPLE_ID_AUTH
-  ]
-  bundle = Spaceship::ConnectAPI::BundleId.all.find { |b| b.identifier == bundle_identifier }
-  unless bundle
-    UI.important("App ID #{bundle_identifier} not found; skipping capabilities")
-    return
-  end
-  existing = []
-  begin
-    existing = Array(bundle.get_capabilities).map { |c| c.capability_type.to_s }
-  rescue StandardError
-    existing = []
-  end
-  caps.each do |cap|
-    if existing.any? { |e| e.include?(cap.to_s) }
-      UI.message("#{cap} already on #{bundle_identifier}")
-      next
-    end
+  settings_mod = Spaceship::ConnectAPI::BundleIdCapability::Settings
+  options_mod = Spaceship::ConnectAPI::BundleIdCapability::Options
+
+  bundle = Spaceship::ConnectAPI::BundleId.find(bundle_identifier)
+  UI.user_error!("App ID #{bundle_identifier} no existe en App Store Connect / Developer Portal") unless bundle
+  UI.success("App ID: #{bundle.name} (#{bundle.id})")
+
+  apple_signin_settings = [{
+    key: settings_mod::APPLE_ID_AUTH_APP_CONSENT,
+    options: [{ key: options_mod::PRIMARY_APP_CONSENT }]
+  }]
+  desired = {
+    type::PUSH_NOTIFICATIONS => [],
+    type::ASSOCIATED_DOMAINS => [],
+    type::APPLE_ID_AUTH => apple_signin_settings
+  }
+
+  desired.each do |cap, settings|
     begin
-      bundle.create_capability!(cap)
+      bundle.update_capability(cap, enabled: true, settings: settings)
       UI.success("Enabled #{cap}")
     rescue StandardError => e
-      UI.important("Could not enable #{cap}: #{e.message}")
+      begin
+        bundle.create_capability(cap, settings: settings)
+        UI.success("Created #{cap}")
+      rescue StandardError => e2
+        msg = "#{e.message} / #{e2.message}"
+        if msg.downcase.include?("already") || msg.include?("409")
+          UI.message("#{cap} already enabled")
+        else
+          UI.user_error!(
+            "No se pudo activar #{cap} en #{bundle_identifier}: #{msg}. " \
+            "Actívala a mano en https://developer.apple.com/account/resources/identifiers/list"
+          )
+        end
+      end
     end
   end
+end
+
+def assert_profile_has_entitlements(profile_path)
+  require "plist"
+  xml = sh("security", "cms", "-D", "-i", profile_path, log: false)
+  entitlements = (Plist.parse_xml(xml) || {})["Entitlements"] || {}
+  UI.message("Profile entitlements: #{entitlements.keys.join(', ')}")
+  required = [
+    "aps-environment",
+    "com.apple.developer.applesignin",
+    "com.apple.developer.associated-domains"
+  ]
+  missing = required.reject { |key| entitlements.key?(key) }
+  return if missing.empty?
+
+  UI.user_error!(
+    "El perfil no incluye #{missing.join(', ')}. " \
+    "En https://developer.apple.com/account/resources/identifiers/list abre " \
+    "#{BUNDLE_ID} y activa Push Notifications, Associated Domains y Sign In with Apple. " \
+    "Luego relanza el workflow."
+  )
 end
