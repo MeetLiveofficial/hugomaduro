@@ -84,17 +84,6 @@ platform :ios do
     end
     get_certificates(**cert_opts)
 
-    # El App ID no existe en Developer Portal (sí hay ficha en App Store Connect).
-    produce(
-      api_key: api_key,
-      app_identifier: BUNDLE_ID,
-      app_name: "Meet&Live",
-      language: "en-US",
-      sku: "MEETLIVE_CLUB_APP",
-      team_id: team_id,
-      skip_itc: true
-    )
-
     get_provisioning_profile(
       api_key: api_key,
       app_identifier: BUNDLE_ID,
