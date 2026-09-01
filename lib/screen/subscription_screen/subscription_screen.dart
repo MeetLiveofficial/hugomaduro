@@ -36,6 +36,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         coinValue > 0 ? (priceUsd / coinValue).ceil().clamp(1, 999999999) : 0;
     final wallet = SessionManager.instance.getUser()?.coinWallet ?? 0;
     final alreadyPlus = SessionManager.instance.getUser()?.isVerify == 1;
+    final accent = StyleRes.brandAccent;
 
     return Scaffold(
       backgroundColor: whitePure(context),
@@ -92,9 +93,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _Benefit(text: 'Verified PLUS+ badge on profile'),
-                  _Benefit(text: 'Exclusive membership status'),
-                  _Benefit(text: 'Ad-free experience'),
+                  _Benefit(text: 'Verified PLUS+ badge on profile', accent: accent),
+                  _Benefit(text: 'Exclusive membership status', accent: accent),
+                  _Benefit(text: 'Ad-free experience', accent: accent),
                   const SizedBox(height: 12),
                   Text(
                     LKey.yourBalanceCoins.trParams(
@@ -120,7 +121,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     Text(
                       '${LKey.youAre.tr} ${LKey.plus.tr} ${LKey.member.tr}',
                       style: TextStyleCustom.outFitMedium500(
-                        color: ColorRes.themeAccentSolid,
+                        color: accent,
                         fontSize: 15,
                       ),
                     )
@@ -138,7 +139,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       title: loading
                           ? '…'
                           : 'Subscribe · $currency${priceUsd.toStringAsFixed(2)}',
-                      backgroundColor: ColorRes.themeAccentSolid,
+                      backgroundColor: accent,
                       titleColor: Colors.white,
                       horizontalMargin: 0,
                       margin: EdgeInsets.zero,
@@ -176,8 +177,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
 class _Benefit extends StatelessWidget {
   final String text;
+  final Color accent;
 
-  const _Benefit({required this.text});
+  const _Benefit({required this.text, required this.accent});
 
   @override
   Widget build(BuildContext context) {
@@ -185,8 +187,7 @@ class _Benefit extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          const Icon(Icons.check_circle,
-              color: ColorRes.themeAccentSolid, size: 20),
+          Icon(Icons.check_circle, color: accent, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

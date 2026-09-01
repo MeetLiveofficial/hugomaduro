@@ -28,6 +28,8 @@ class OutgoingCallScreen extends StatefulWidget {
   final int cost;
   final bool isMatch;
   final int matchFreeSeconds;
+  /// Si create falla por "already in a call" y venimos del LIVE, redirigir.
+  final bool onBusyRedirectToNextLive;
 
   const OutgoingCallScreen({
     super.key,
@@ -35,6 +37,7 @@ class OutgoingCallScreen extends StatefulWidget {
     required this.cost,
     this.isMatch = false,
     this.matchFreeSeconds = 40,
+    this.onBusyRedirectToNextLive = false,
   });
 
   @override
@@ -59,6 +62,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen> {
         cost: widget.cost,
         isMatch: widget.isMatch,
         matchFreeSeconds: widget.matchFreeSeconds,
+        onBusyRedirectToNextLive: widget.onBusyRedirectToNextLive,
       ),
       tag: _tag,
     );
@@ -210,6 +214,7 @@ class OutgoingCallController extends BaseController {
     required this.cost,
     this.isMatch = false,
     this.matchFreeSeconds = 40,
+    this.onBusyRedirectToNextLive = false,
   }) : subtitle = (isMatch ? 'Match…' : LKey.calling.tr).obs;
 
   /// Instancia activa para cerrar desde FCM `call_rejected` / `call_accepted`.
@@ -219,6 +224,7 @@ class OutgoingCallController extends BaseController {
   final int cost;
   final bool isMatch;
   final int matchFreeSeconds;
+  final bool onBusyRedirectToNextLive;
 
   final RxString subtitle;
   final RxnString errorText = RxnString();
@@ -545,11 +551,27 @@ class OutgoingCallController extends BaseController {
         errorText.value = LKey.callOnlyFromLive.tr;
         subtitle.value = LKey.callOnlyFromLive.tr;
       }
+      final busy = msg.toLowerCase().contains('already in a call');
+      if (busy) {
+        errorText.value = LKey.callStreamerInCall.tr;
+        subtitle.value = LKey.callStreamerInCall.tr;
+      }
       if (msg.toLowerCase().contains('insufficient') ||
           msg.toLowerCase().contains('coin')) {
         CoinGate.ensureEnough(cost, message: 'Moneda insuficiente');
       }
-      await Future.delayed(const Duration(milliseconds: 1200));
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (busy && onBusyRedirectToNextLive) {
+        if (!_closing && Get.key.currentState?.canPop() == true) {
+          Get.back();
+        }
+        final live = LivestreamScreenController.activeInstance;
+        if (live != null) {
+          unawaited(live.leaveAndRedirectToNextLive());
+        }
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 300));
       if (!_closing && Get.key.currentState?.canPop() == true) {
         Get.back();
       }

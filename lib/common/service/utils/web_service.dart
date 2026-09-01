@@ -61,6 +61,7 @@ class _Call {
   String extendMatch = "${apiURL}call/extendMatch";
   String matchConfig = "${apiURL}call/matchConfig";
   String unlockMatch = "${apiURL}call/unlockMatch";
+  String purchaseCameraFeature = "${apiURL}call/purchaseCameraFeature";
   String workStats = "${apiURL}call/workStats";
   String updateCallPrice = "${apiURL}call/updateCallPrice";
   String sendComment = "${apiURL}call/sendComment";

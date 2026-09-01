@@ -62,10 +62,15 @@ class CreateFeedScreenController extends BaseController {
   RxInt selectedImageIndex = 0.obs;
   CreateFeedType createType;
   Rx<PostStoryContent?> content;
+  final List<XFile>? initialImages;
 
   Rx<Setting?> setting = Rx(null);
 
-  CreateFeedScreenController(this.createType, this.content);
+  CreateFeedScreenController(
+    this.createType,
+    this.content, {
+    this.initialImages,
+  });
 
   UploadType _lastUploadType = UploadType.none;
 
@@ -75,6 +80,16 @@ class CreateFeedScreenController extends BaseController {
   Future<void> onInit() async {
     localPath = await PlatformPathExtension.localPath;
     super.onInit();
+    _seedInitialImages();
+  }
+
+  void _seedInitialImages() {
+    final seed = initialImages;
+    if (seed == null || seed.isEmpty) return;
+    images.assignAll(
+      seed.map((f) => ImageWithFilter(media: f, thumbnail: f)),
+    );
+    feedPostType.value = FeedPostType.image;
   }
 
   @override

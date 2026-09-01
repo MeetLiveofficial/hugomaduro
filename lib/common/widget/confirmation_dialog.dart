@@ -1,8 +1,11 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/utilities/client_colors.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -28,6 +31,13 @@ class ConfirmationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final sheetBg = client ? ClientColors.surface : ColorRes.whitePure;
+    final titleColor = client ? ClientColors.textOnSurface : ColorRes.textDarkGrey;
+    final bodyColor = client ? ClientColors.textMuted : ColorRes.textLightGrey;
+    final handleColor = client ? ClientColors.border : bgGrey(context);
+    final btnBg = client ? ClientColors.primary : ColorRes.textDarkGrey;
+
     return Wrap(
       children: [
         Container(
@@ -36,7 +46,7 @@ class ConfirmationSheet extends StatelessWidget {
               shape: const SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.vertical(
                       top: SmoothRadius(cornerRadius: 40, cornerSmoothing: 1))),
-              color: whitePure(context)),
+              color: sheetBg),
           child: SafeArea(
             top: false,
             child: Padding(
@@ -48,7 +58,7 @@ class ConfirmationSheet extends StatelessWidget {
                     child: Container(
                         height: 1,
                         width: 100,
-                        color: bgGrey(context),
+                        color: handleColor,
                         margin: const EdgeInsets.only(top: 10)),
                   ),
                   const SizedBox(height: 20),
@@ -58,7 +68,7 @@ class ConfirmationSheet extends StatelessWidget {
                       Expanded(
                         child: Text(title,
                             style: TextStyleCustom.unboundedMedium500(
-                                color: textDarkGrey(context), fontSize: 15)),
+                                color: titleColor, fontSize: 15)),
                       ),
                       if (isDismissible)
                         InkWell(
@@ -67,7 +77,7 @@ class ConfirmationSheet extends StatelessWidget {
                                 Get.back();
                               },
                           child: Icon(Icons.close_rounded,
-                              color: textDarkGrey(context), size: 25),
+                              color: titleColor, size: 25),
                         )
                     ],
                   ),
@@ -75,7 +85,7 @@ class ConfirmationSheet extends StatelessWidget {
                   Text(
                     '$description\n\n${description2 ?? LKey.proceedConfirmation.tr}',
                     style: TextStyleCustom.outFitLight300(
-                        fontSize: 16, color: textLightGrey(context)),
+                        fontSize: 16, color: bodyColor),
                   ),
                   const SizedBox(height: 50),
                   TextButtonCustom(
@@ -84,9 +94,9 @@ class ConfirmationSheet extends StatelessWidget {
                       onTap();
                     },
                     title: positiveText ?? LKey.continueText.tr,
-                    backgroundColor: textDarkGrey(context),
+                    backgroundColor: btnBg,
                     margin: EdgeInsets.zero,
-                    titleColor: whitePure(context),
+                    titleColor: ColorRes.whitePure,
                   ),
                   const SizedBox(height: 20),
                 ],

@@ -30,7 +30,7 @@ class CoinPackageTile extends StatelessWidget {
     final client = AppRole.isClient();
     final accent = buttonColor ??
         (client ? ClientColors.primary : themeAccentSolid(context));
-    final titleCol = client ? ClientColors.text : textDarkGrey(context);
+    final titleCol = client ? ClientColors.textOnSurface : textDarkGrey(context);
     final mutedCol = client ? ClientColors.textMuted : textLightGrey(context);
     final hasBonus = plan.bonusCoins > 0;
     return Container(
@@ -102,7 +102,7 @@ class CoinPackageTile extends StatelessWidget {
             onTap: onPurchase,
             title: LKey.purchase.tr,
             backgroundColor: accent,
-            titleColor: client ? ClientColors.bg : whitePure(context),
+            titleColor: client ? ClientColors.textOnDark : whitePure(context),
             btnHeight: 32,
             btnWidth: 88,
             fontSize: 12,

@@ -23,6 +23,8 @@ class LiveKitRoomController extends GetxController {
   final RxBool isConnected = false.obs;
   final RxBool cameraEnabled = false.obs;
   final RxBool microphoneEnabled = false.obs;
+  /// frontal = true, trasera = false (solo informativo para UI).
+  final RxBool cameraIsFront = true.obs;
   /// Mute local del audio remoto (audiencia silencia el mic del host).
   final RxBool remoteAudioMuted = false.obs;
   /// Pausa local: host corta cam/mic; audiencia congela video + audio.
@@ -165,6 +167,7 @@ class LiveKitRoomController extends GetxController {
       cameraEnabled.value = lp.isCameraEnabled();
       microphoneEnabled.value = lp.isMicrophoneEnabled();
     }
+    cameraIsFront.value = _service.cameraPosition == CameraPosition.front;
     mediaRevision.value++;
   }
 
@@ -181,6 +184,12 @@ class LiveKitRoomController extends GetxController {
   }
 
   Future<void> toggleCamera() => setCameraEnabled(!cameraEnabled.value);
+
+  Future<void> switchCamera() async {
+    await _service.switchCamera();
+    cameraIsFront.value = _service.cameraPosition == CameraPosition.front;
+    _syncFromService();
+  }
 
   Future<void> toggleMicrophone() =>
       setMicrophoneEnabled(!microphoneEnabled.value);

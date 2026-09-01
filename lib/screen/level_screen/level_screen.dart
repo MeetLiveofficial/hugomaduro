@@ -7,7 +7,6 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/utilities/asset_res.dart';
-import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -421,7 +420,7 @@ class _MetaChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: emphasized
-            ? ColorRes.themeAccentSolid.withValues(alpha: 0.1)
+            ? themeAccentSolid(context).withValues(alpha: 0.1)
             : bgMediumGrey(context),
         borderRadius: BorderRadius.circular(20),
       ),
@@ -430,7 +429,7 @@ class _MetaChip extends StatelessWidget {
         style: TextStyleCustom.outFitMedium500(
           fontSize: 11,
           color: emphasized
-              ? ColorRes.themeAccentSolid
+              ? themeAccentSolid(context)
               : textDarkGrey(context).withValues(alpha: 0.8),
         ),
       ),

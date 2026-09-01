@@ -101,7 +101,7 @@ class BrandSegmentChip extends StatelessWidget {
     final client = AppRole.isClient();
     final onColor = active
         ? ColorRes.whitePure
-        : (client ? ClientColors.text : ColorRes.textDarkGrey);
+        : (client ? ClientColors.textOnSurface : ColorRes.textDarkGrey);
     final iconColor = active
         ? ColorRes.whitePure
         : (accent ?? (client ? ClientColors.secondary : ColorRes.crimson));
@@ -171,7 +171,7 @@ class BrandFilterChip extends StatelessWidget {
     final client = AppRole.isClient();
     final fg = active
         ? ColorRes.whitePure
-        : (client ? ClientColors.text : ColorRes.textDarkGrey);
+        : (client ? ClientColors.textOnSurface : ColorRes.textDarkGrey);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -270,7 +270,7 @@ class BrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
-    return Container(
+    final panel = Container(
       margin: margin ?? const EdgeInsets.fromLTRB(12, 8, 12, 4),
       padding: padding ?? EdgeInsets.zero,
       decoration: BoxDecoration(
@@ -291,6 +291,22 @@ class BrandPanel extends StatelessWidget {
         ],
       ),
       child: child,
+    );
+    if (!client) return panel;
+    return Theme(
+      data: Theme.of(context).copyWith(
+        textTheme: Theme.of(context).textTheme.copyWith(
+              titleMedium:
+                  const TextStyle(color: ClientColors.textOnSurface),
+              titleSmall: const TextStyle(color: ClientColors.client700),
+            ),
+        iconTheme: const IconThemeData(color: ClientColors.textOnSurface),
+        listTileTheme: const ListTileThemeData(
+          textColor: ClientColors.textOnSurface,
+          iconColor: ClientColors.textOnSurface,
+        ),
+      ),
+      child: panel,
     );
   }
 }

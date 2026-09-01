@@ -675,6 +675,7 @@ class LKeyCatalog {
     LKey.waitingBattleResponse,
     LKey.waitingForUser,
     LKey.paused,
+    LKey.liveStreamPausedHint,
     LKey.inCall,
     LKey.pkDraw,
     LKey.pkResult,

@@ -26,10 +26,21 @@ import 'package:krimson/screen/subscription_screen/subscription_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/screen/term_and_privacy_screen/term_and_privacy_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
+
+/// Iconos de filas: magenta/rosa en streamer; cyan/teal en cliente.
+Color settingRowIcon(Color streamerColor) {
+  if (!AppRole.isClient()) return streamerColor;
+  if (streamerColor == ColorRes.crimsonAlt) return ClientColors.primaryActive;
+  if (streamerColor == ColorRes.roseBorder) return ClientColors.client300;
+  if (streamerColor == ColorRes.mlPurple) return ClientColors.secondary;
+  if (streamerColor == ColorRes.darkPurple) return ClientColors.client600;
+  return ClientColors.primary;
+}
 
 class SettingsScreen extends StatelessWidget {
   final Function(User? user)? onUpdateUser;
@@ -48,7 +59,11 @@ class SettingsScreen extends StatelessWidget {
     }
     final controller = Get.put(SettingsScreenController());
     final isAgency = AppRole.isAgency();
-    return Scaffold(
+    final logoutColor =
+        AppRole.isClient() ? ClientColors.primary : ColorRes.crimsonAlt;
+    final page = Scaffold(
+        backgroundColor:
+            AppRole.isClient() ? ClientColors.bg : null,
         body: Column(
       children: [
         CustomAppBar(title: LKey.settings.tr, showBack: showBack),
@@ -67,7 +82,7 @@ class SettingsScreen extends StatelessWidget {
                   children: [
               SettingIconTextWithArrow(
                 icon: AssetRes.icEdit,
-                iconColor: ColorRes.crimson,
+                iconColor: settingRowIcon(ColorRes.crimson),
                 title: LKey.editProfile,
                 onTap: () {
                   Get.to(() => EditProfileScreen(onUpdateUser: onUpdateUser));
@@ -75,7 +90,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               SettingIconTextWithArrow(
                 icon: AssetRes.icLanguage_1,
-                iconColor: ColorRes.mlPurple,
+                iconColor: settingRowIcon(ColorRes.mlPurple),
                 title: LKey.languages,
                 onTap: () {
                   Get.to(() => const SelectLanguageScreen(
@@ -86,7 +101,7 @@ class SettingsScreen extends StatelessWidget {
               if (!isAgency)
                 SettingIconTextWithArrow(
                   icon: AssetRes.icBlock,
-                  iconColor: ColorRes.crimsonAlt,
+                  iconColor: settingRowIcon(ColorRes.crimsonAlt),
                   title: LKey.blockedUsers,
                   onTap: () {
                     Get.to(() => const BlockedUserScreen());
@@ -95,7 +110,7 @@ class SettingsScreen extends StatelessWidget {
               if (!isAgency && ContentProtection.canShare)
                 SettingIconTextWithArrow(
                   icon: AssetRes.icQrCode_1,
-                  iconColor: ColorRes.roseBorder,
+                  iconColor: settingRowIcon(ColorRes.roseBorder),
                   title: LKey.myQrCode,
                   onTap: () {
                     Get.to(() => const QrCodeScreen());
@@ -103,7 +118,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
               SettingIconTextWithArrow(
                 icon: AssetRes.icWallet,
-                iconColor: ColorRes.mlPurple,
+                iconColor: settingRowIcon(ColorRes.mlPurple),
                 title: LKey.coinWallet,
                 onTap: () async {
                   await Get.to(() => const CoinWalletScreen());
@@ -112,7 +127,7 @@ class SettingsScreen extends StatelessWidget {
               if (AppRole.canWithdraw())
                 SettingIconTextWithArrow(
                   icon: AssetRes.icWallet,
-                  iconColor: ColorRes.crimson,
+                  iconColor: settingRowIcon(ColorRes.crimson),
                   title: LKey.withdrawals,
                   onTap: () {
                     Get.to(() => const WithdrawalsScreen());
@@ -121,7 +136,7 @@ class SettingsScreen extends StatelessWidget {
               if (AppRole.isStreamer())
                 SettingIconTextWithArrow(
                   icon: AssetRes.icHeart,
-                  iconColor: ColorRes.crimsonAlt,
+                  iconColor: settingRowIcon(ColorRes.crimsonAlt),
                   title: LKey.matchLabel,
                   onTap: () {
                     Get.to(() => const MatchScreen());
@@ -130,7 +145,7 @@ class SettingsScreen extends StatelessWidget {
               if (AppRole.isStreamer())
                 SettingIconTextWithArrow(
                   icon: AssetRes.icVideoCamera,
-                  iconColor: ColorRes.mlPurple,
+                  iconColor: settingRowIcon(ColorRes.mlPurple),
                   title: LKey.editCalls,
                   onTap: () {
                     Get.to(() => const CallPriceScreen());
@@ -139,7 +154,7 @@ class SettingsScreen extends StatelessWidget {
               if (AppRole.canAccessTasks())
                 SettingIconTextWithArrow(
                   icon: AssetRes.icVideoRequest,
-                  iconColor: ColorRes.crimson,
+                  iconColor: settingRowIcon(ColorRes.crimson),
                   title: LKey.tasks,
                   onTap: () {
                     Get.to(() => const TasksScreen());
@@ -148,7 +163,7 @@ class SettingsScreen extends StatelessWidget {
               if (!isAgency)
                 SettingIconTextWithArrow(
                   icon: AssetRes.icVideoRequest,
-                  iconColor: ColorRes.darkPurple,
+                  iconColor: settingRowIcon(ColorRes.darkPurple),
                   title: LKey.privilegeHub,
                   onTap: () {
                     Get.to(() => const PrivilegeHubScreen());
@@ -166,7 +181,7 @@ class SettingsScreen extends StatelessWidget {
                 Obx(
                   () => SettingIconTextWithArrow(
                     icon: AssetRes.icEye_1,
-                    iconColor: ColorRes.crimson,
+                    iconColor: settingRowIcon(ColorRes.crimson),
                     title: LKey.whoCanSeePosts,
                     widget: CustomDropDownBtn<WhoCanSeePost>(
                       items: WhoCanSeePost.values,
@@ -175,7 +190,10 @@ class SettingsScreen extends StatelessWidget {
                           : controller.onChangedWhoCanSeePost,
                       selectedValue: controller.selectedWhoCanSeePost.value,
                       style: TextStyleCustom.outFitRegular400(
-                          fontSize: 15, color: textLightGrey(context)),
+                          fontSize: 15,
+                          color: AppRole.isClient()
+                              ? ClientColors.textOnSurface
+                              : textLightGrey(context)),
                       getTitle: (value) => value.title,
                     ),
                   ),
@@ -185,7 +203,7 @@ class SettingsScreen extends StatelessWidget {
                   () {
                     return SettingIconTextWithArrow(
                       icon: AssetRes.icEye_1,
-                      iconColor: ColorRes.mlPurple,
+                      iconColor: settingRowIcon(ColorRes.mlPurple),
                       title: LKey.showMyFollowings,
                       widget: CustomToggle(
                         isOn:
@@ -203,7 +221,7 @@ class SettingsScreen extends StatelessWidget {
                   () {
                     return SettingIconTextWithArrow(
                       icon: AssetRes.icMessage,
-                      iconColor: ColorRes.roseBorder,
+                      iconColor: settingRowIcon(ColorRes.roseBorder),
                       title: LKey.showChatBtn,
                       widget: CustomToggle(
                         isOn:
@@ -223,7 +241,7 @@ class SettingsScreen extends StatelessWidget {
                         (controller.myUser.value?.matchEnabled ?? 1) == 1;
                     return SettingIconTextWithArrow(
                       icon: AssetRes.icEye_1,
-                      iconColor: ColorRes.crimsonAlt,
+                      iconColor: settingRowIcon(ColorRes.crimsonAlt),
                       title: LKey.receiveMatch,
                       widget: CustomToggle(
                         isOn: enabled.obs,
@@ -237,7 +255,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
               SettingIconTextWithArrow(
                 icon: AssetRes.icNotification_1,
-                iconColor: ColorRes.crimson,
+                iconColor: settingRowIcon(ColorRes.crimson),
                 title: LKey.notifications,
                 onTap: () {
                   Get.to(() => const NotificationsPage());
@@ -252,7 +270,7 @@ class SettingsScreen extends StatelessWidget {
                   children: [
               SettingIconTextWithArrow(
                 icon: AssetRes.icReport,
-                iconColor: ColorRes.mlPurple,
+                iconColor: settingRowIcon(ColorRes.mlPurple),
                 title: LKey.termsOfUse,
                 onTap: () {
                   Get.to(() => const TermAndPrivacyScreen(
@@ -261,7 +279,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               SettingIconTextWithArrow(
                 icon: AssetRes.icReport,
-                iconColor: ColorRes.darkPurple,
+                iconColor: settingRowIcon(ColorRes.darkPurple),
                 title: LKey.privacyPolicy,
                 onTap: () {
                   Get.to(() => const TermAndPrivacyScreen(
@@ -271,7 +289,7 @@ class SettingsScreen extends StatelessWidget {
               if (isAgency)
                 SettingIconTextWithArrow(
                   icon: AssetRes.icBlock,
-                  iconColor: ColorRes.crimsonAlt,
+                  iconColor: settingRowIcon(ColorRes.crimsonAlt),
                   title: LKey.deleteAccount,
                   onTap: controller.onDeleteAccount,
                 ),
@@ -283,10 +301,10 @@ class SettingsScreen extends StatelessWidget {
                 child: TextButtonCustom(
                   title: LKey.logOut.tr,
                   onTap: controller.onLogout,
-                  backgroundColor: ColorRes.crimsonAlt.withValues(alpha: 0.12),
-                  titleColor: ColorRes.crimsonAlt,
+                  backgroundColor: logoutColor.withValues(alpha: 0.12),
+                  titleColor: logoutColor,
                   borderSide: BorderSide(
-                    color: ColorRes.crimsonAlt.withValues(alpha: 0.45),
+                    color: logoutColor.withValues(alpha: 0.45),
                   ),
                   btnHeight: 48,
                   horizontalMargin: 0,
@@ -297,6 +315,7 @@ class SettingsScreen extends StatelessWidget {
         ))
       ],
     ));
+    return page;
   }
 }
 
@@ -382,7 +401,7 @@ class SettingLabel extends StatelessWidget {
       child: Text(
         title.tr.toUpperCase(),
         style: TextStyleCustom.outFitMedium500(
-                fontSize: 12, color: ColorRes.crimson)
+                fontSize: 12, color: themeAccentSolid(context))
             .copyWith(letterSpacing: 1.6),
       ),
     );

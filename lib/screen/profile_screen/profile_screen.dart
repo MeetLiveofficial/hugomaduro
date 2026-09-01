@@ -10,12 +10,21 @@ import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
-import 'package:krimson/screen/profile_screen/widget/profile_page_view.dart';
-import 'package:krimson/screen/profile_screen/widget/profile_tab_bar_view.dart';
 import 'package:krimson/screen/profile_screen/widget/profile_user_header.dart';
 import 'package:krimson/screen/profile_screen/widget/streamer_gallery_profile.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
+
+/// Texto legible sobre fondo oscuro del perfil ajeno (`#0B0B0F`).
+ThemeData _darkProfileTheme(BuildContext context) {
+  return Theme.of(context).copyWith(
+    textTheme: Theme.of(context).textTheme.copyWith(
+          titleMedium: const TextStyle(color: Colors.white),
+          titleSmall: const TextStyle(color: Color(0xFFB8B8C0)),
+        ),
+    iconTheme: const IconThemeData(color: Colors.white),
+  );
+}
 
 class ProfileScreen extends StatelessWidget {
   final User? user;
@@ -59,46 +68,32 @@ class ProfileScreen extends StatelessWidget {
           if (!isClientProfile) {
             content = StreamerGalleryProfile(
               controller: controller,
-              showBack: isTopBarVisible,
+              showBack: true,
+              isDashBoard: isDashBoard,
             );
           } else {
             content = SafeArea(
               bottom: false,
-              child: Column(
-                children: [
-                  _TopViewForOtherUser(
-                      user: profileUser,
-                      isTopBarVisible: isTopBarVisible,
-                      controller: controller),
-                  Expanded(
-                    child: DefaultTabController(
-                      length: 2,
+              child: Theme(
+                data: _darkProfileTheme(context),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _TopViewForOtherUser(
+                        user: profileUser,
+                        isTopBarVisible: isTopBarVisible,
+                        controller: controller),
+                    Expanded(
                       child: MyRefreshIndicator(
-                        depth: 2,
                         onRefresh: controller.onRefresh,
-                        child: NestedScrollView(
-                          headerSliverBuilder: (context, _) {
-                            return [
-                              SliverList(
-                                delegate: SliverChildListDelegate([
-                                  ProfileUserHeader(controller: controller)
-                                ]),
-                              ),
-                            ];
-                          },
-                          body: AppRole.isClient(profileUser)
-                              ? const _ClientProfileEmptyBody()
-                              : Column(
-                                  children: [
-                                    ProfileTabs(controller: controller),
-                                    ProfilePageView(controller: controller)
-                                  ],
-                                ),
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: ProfileUserHeader(controller: controller),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           }
@@ -202,43 +197,5 @@ class _TopViewForOtherUser extends StatelessWidget {
             ],
           )
         : const SizedBox();
-  }
-}
-
-/// Cuerpo vacío al visitar un perfil client (sin grid Posts/Reels).
-class _ClientProfileEmptyBody extends StatelessWidget {
-  const _ClientProfileEmptyBody();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(32, 24, 32, 48),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.person_outline,
-                size: 56, color: textLightGrey(context)),
-            const SizedBox(height: 14),
-            Text(
-              'Perfil de cliente',
-              style: TextStyleCustom.unboundedSemiBold600(
-                color: textDarkGrey(context),
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Este usuario no publica Posts ni Reels.',
-              textAlign: TextAlign.center,
-              style: TextStyleCustom.outFitRegular400(
-                color: textLightGrey(context),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

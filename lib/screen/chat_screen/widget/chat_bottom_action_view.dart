@@ -10,6 +10,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -22,11 +23,16 @@ class ChatBottomActionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
     return SafeArea(
       top: false,
       child: Column(
         children: [
-          const CustomDivider(),
+          CustomDivider(
+            color: client
+                ? ClientColors.accentBlue.withValues(alpha: 0.22)
+                : null,
+          ),
           const SizedBox(height: 10),
           Obx(() {
             ChatThread conversationUser = controller.conversationUser.value;
@@ -90,11 +96,17 @@ class ChatTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final accent = themeAccentSolid(context);
     return Container(
       decoration: ShapeDecoration(
         shape: SmoothRectangleBorder(
             borderRadius: SmoothBorderRadius(cornerRadius: 30),
-            side: BorderSide(color: borderColor ?? bgGrey(context))),
+            side: BorderSide(
+                color: borderColor ??
+                    (client
+                        ? ClientColors.accentBlue.withValues(alpha: 0.55)
+                        : bgGrey(context)))),
       ),
       margin: const EdgeInsets.symmetric(horizontal: 15),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -116,12 +128,11 @@ class ChatTextField extends StatelessWidget {
                         margin: const EdgeInsets.only(left: 2, right: 4),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color:
-                              ColorRes.themeAccentSolid.withValues(alpha: .16),
+                          color: accent.withValues(alpha: .16),
                         ),
                         alignment: Alignment.center,
-                        child: const Icon(Icons.photo_camera_outlined,
-                            size: 22, color: ColorRes.themeAccentSolid),
+                        child: Icon(Icons.photo_camera_outlined,
+                            size: 22, color: accent),
                       ),
                     )
                   : const SizedBox(width: 4, height: 40),
@@ -165,7 +176,7 @@ class ChatTextField extends StatelessWidget {
                         child: Icon(
                           actions[index].icon,
                           size: 24,
-                          color: ColorRes.themeAccentSolid,
+                          color: accent,
                         ),
                       ),
                     );

@@ -11,9 +11,9 @@ import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/session_restore.dart';
 import 'package:krimson/common/service/api/app_update_service.dart';
 import 'package:krimson/common/service/api/common_service.dart';
-import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/network_helper/network_helper.dart';
 import 'package:krimson/common/service/translation/chat_translator_service.dart';
 import 'package:krimson/common/widget/no_internet_sheet.dart';
@@ -75,6 +75,7 @@ class SplashScreenController extends BaseController {
         Loggers.error('fetchGlobalSettings timeout/error: $e');
         // Si hay settings en caché, seguir (p. ej. para descargar idiomas).
         if (SessionManager.instance.getSettings() == null) {
+          if (await _tryRestoreSession()) return;
           showSnackBar('Sin conexión al servidor. Revisa tu red.', second: 5);
           Get.offAll(() => const LoginScreen(), routeName: '/login');
           return;
@@ -83,6 +84,7 @@ class SplashScreenController extends BaseController {
       }
       if (!showNavigate) {
         if (SessionManager.instance.getSettings() == null) {
+          if (await _tryRestoreSession()) return;
           showSnackBar('No se pudo cargar la configuración del servidor.',
               second: 5);
           Get.offAll(() => const LoginScreen(), routeName: '/login');
@@ -98,6 +100,7 @@ class SplashScreenController extends BaseController {
       List<Language> downloadLanguages =
           languages.where((element) => element.status == 1).toList();
       if (downloadLanguages.isEmpty) {
+        if (await _tryRestoreSession()) return;
         showSnackBar(AppRes.languageAdd, second: 5);
         translations.ensureAllFallbacks();
         Get.offAll(() => const LoginScreen(), routeName: '/login');
@@ -137,43 +140,55 @@ class SplashScreenController extends BaseController {
       // No reiniciar toda la app aquí: RestartWidget + Get.off dejaba
       // navigator vacío (pantalla blanca) en emuladores.
 
-      if (SessionManager.instance.isLogin() &&
-          SessionManager.instance.hasAuthToken) {
-        try {
-          final value = await UserService.instance
-              .fetchUserDetails(userId: SessionManager.instance.getUserID());
-          if (value != null) {
-            Get.offAll(() => DashboardScreen(myUser: value),
-                routeName: '/dashboard');
-            unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
-            return;
-          }
-        } catch (e) {
-          Loggers.error('Splash session restore failed: $e');
-        }
-        SessionManager.instance.clearSomeKey();
-        Get.offAll(() => const LoginScreen(), routeName: '/login');
-        unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
-      } else {
-        if (SessionManager.instance.isLogin() &&
-            !SessionManager.instance.hasAuthToken) {
-          SessionManager.instance.clearSomeKey();
-        }
-        // Login directo (idioma en el select del Login; onboarding solo si ya
-        // se marcó como pendiente explícitamente en flujos futuros).
-        Get.offAll(() => const LoginScreen(), routeName: '/login');
-        unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
-      }
+      if (await _tryRestoreSession()) return;
+
+      Get.offAll(() => const LoginScreen(), routeName: '/login');
+      unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
     } catch (e, st) {
       Loggers.error('Splash fetchSettings error: $e\n$st');
-      final msg = '$e'.toLowerCase();
-      if (msg.contains('401') || msg.contains('unauthorized')) {
+      if (isSessionAuthFailure(e)) {
         SessionManager.instance.clearSomeKey();
         Get.offAll(() => const LoginScreen(), routeName: '/login');
         return;
       }
+      if (await _tryRestoreSession()) return;
       showSnackBar('Error de inicio: $e', second: 8);
       Get.offAll(() => const LoginScreen(), routeName: '/login');
+    }
+  }
+
+  /// Restaura sesión (Guest o usuario normal) desde almacenamiento local.
+  /// Solo cierra sesión si el token es inválido; fallos de red usan caché.
+  Future<bool> _tryRestoreSession() async {
+    if (!SessionManager.instance.isLogin()) {
+      return false;
+    }
+    if (!SessionManager.instance.hasAuthToken) {
+      SessionManager.instance.clearSomeKey();
+      return false;
+    }
+
+    final cachedUser = SessionManager.instance.getUser();
+    if (cachedUser == null || (cachedUser.id ?? 0) <= 0) {
+      SessionManager.instance.clearSomeKey();
+      return false;
+    }
+
+    try {
+      final user = await refreshSessionUser();
+      if (user == null) {
+        Get.offAll(() => DashboardScreen(myUser: cachedUser),
+            routeName: '/dashboard');
+      } else {
+        Get.offAll(() => DashboardScreen(myUser: user),
+            routeName: '/dashboard');
+      }
+      unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
+      return true;
+    } catch (e) {
+      Loggers.error('Splash session restore failed: $e');
+      SessionManager.instance.clearSomeKey();
+      return false;
     }
   }
 

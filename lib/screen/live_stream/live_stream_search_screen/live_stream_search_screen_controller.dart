@@ -13,7 +13,9 @@ import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/media_permissions.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/streamer_camera_lock.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
@@ -88,7 +90,8 @@ class LiveStreamSearchScreenController extends BaseController {
   /// True mientras se pide permiso / inicia el preview de cámara.
   final RxBool cameraPreviewLoading = false.obs;
   final Rx<FaceFilterId> selectedFilterId = FaceFilterId.none.obs;
-  final Rxn<int> selectedDeepArFilterId = Rxn<int>();
+  int _studioGeneration = 0;
+  Future<void>? _studioStopInFlight;
 
   FaceFilterCatalogStore get filterCatalog => FaceFilterCatalogStore.instance;
   bool get useDeepAr => DeepArRuntime.useDeepAr();
@@ -309,7 +312,8 @@ class LiveStreamSearchScreenController extends BaseController {
           ? selectedFilterId.value
           : FaceFilterId.none;
 
-      // Liberar GPUPixel/cámara antes de LiveKit (Camera2 debe cerrarse del todo).
+      // Match y estudio no pueden compartir Camera2.
+      await StreamerCameraLock.releaseMatchWaitIfAny();
       await stopBeautyCameraPreview();
       releaseNativeCameraIfNeeded();
       await Future.delayed(const Duration(milliseconds: 200));
@@ -329,18 +333,38 @@ class LiveStreamSearchScreenController extends BaseController {
   }
 
   Future<void> startBeautyCameraPreview({bool preferFaceBetter = false}) async {
+    if (StreamerCameraLock.matchWaitVisible) return;
     if (cameraPreviewActive.value &&
         (gpuPixelPreviewActive.value || beautyPipeline.isReady)) {
       return;
     }
     if (cameraPreviewLoading.value) return;
 
+    final gen = _studioGeneration;
     cameraPreviewLoading.value = true;
     try {
       await _startBeautyCameraPreviewBody(preferFaceBetter: preferFaceBetter);
+      if (gen != _studioGeneration || StreamerCameraLock.matchWaitVisible) {
+        await stopBeautyCameraPreview(hardwareSettleMs: 200);
+      }
     } finally {
-      cameraPreviewLoading.value = false;
+      if (gen == _studioGeneration) {
+        cameraPreviewLoading.value = false;
+      }
     }
+  }
+
+  /// Match / LIVE van a usar la cámara: soltar Camera2 del estudio.
+  Future<void> pauseStudioCamera() async {
+    _studioGeneration++;
+    cameraPreviewLoading.value = false;
+    await stopBeautyCameraPreview(hardwareSettleMs: 280);
+  }
+
+  /// Volver al tab LIVE con permiso ya concedido: encender al instante.
+  Future<void> resumeStudioCamera() async {
+    if (StreamerCameraLock.matchWaitVisible) return;
+    await startBeautyCameraPreview();
   }
 
   Future<void> _startBeautyCameraPreviewBody(
@@ -378,12 +402,33 @@ class LiveStreamSearchScreenController extends BaseController {
       return;
     }
 
-    final cam = await Permission.camera.request();
-    if (!cam.isGranted) {
+    final camOk = await MediaPermissions.ensure(camera: true);
+    if (!camOk) {
       showSnackBar(LKey.cameraMicrophonePermissionTitle.tr);
       return;
     }
 
+    Object? lastError;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        await _openNativeStudioCamera();
+        if (cameraPreviewActive.value) return;
+      } catch (e, st) {
+        lastError = e;
+        Loggers.error('startBeautyCameraPreview attempt ${attempt + 1}: $e\n$st');
+      }
+      await Future<void>.delayed(Duration(milliseconds: 220 * (attempt + 1)));
+    }
+    cameraPreviewActive.value = false;
+    gpuPixelPreviewActive.value = false;
+    if (lastError != null) {
+      showSnackBar('Error al abrir cámara: $lastError');
+    } else {
+      showSnackBar('No se pudo abrir la cámara para el preview');
+    }
+  }
+
+  Future<void> _openNativeStudioCamera() async {
     try {
       await deepAr.destroy();
       try {
@@ -431,21 +476,43 @@ class LiveStreamSearchScreenController extends BaseController {
           selectedFilterId.value = FaceFilterId.none;
         }
         await _syncBeauty();
-      } else {
-        showSnackBar('No se pudo abrir la cámara para el preview');
       }
     } catch (e, st) {
       Loggers.error('startBeautyCameraPreview: $e\n$st');
       cameraPreviewActive.value = false;
       gpuPixelPreviewActive.value = false;
-      showSnackBar('Error al abrir cámara: $e');
+      rethrow;
     }
   }
 
-  Future<void> stopBeautyCameraPreview() async {
+  Future<void> stopBeautyCameraPreview({int hardwareSettleMs = 900}) async {
+    final inFlight = _studioStopInFlight;
+    if (inFlight != null) {
+      await inFlight;
+      return;
+    }
+    final future = _stopBeautyCameraPreviewBody(
+      hardwareSettleMs: hardwareSettleMs,
+    );
+    _studioStopInFlight = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_studioStopInFlight, future)) {
+        _studioStopInFlight = null;
+      }
+    }
+  }
+
+  Future<void> _stopBeautyCameraPreviewBody({
+    required int hardwareSettleMs,
+  }) async {
+    final wasActive = cameraPreviewActive.value || gpuPixelPreviewActive.value;
     cameraPreviewActive.value = false;
     gpuPixelPreviewActive.value = false;
-    await Future.delayed(const Duration(milliseconds: 80));
+    if (wasActive) {
+      await Future.delayed(const Duration(milliseconds: 80));
+    }
     try {
       await gpuPixel.stop();
       await beautyPipeline.stop();
@@ -453,8 +520,9 @@ class LiveStreamSearchScreenController extends BaseController {
     } catch (e) {
       Loggers.error('stopBeautyCameraPreview: $e');
     }
-    // Dar tiempo a Camera2 a liberar antes de LiveKit.
-    await Future.delayed(const Duration(milliseconds: 900));
+    if (wasActive && hardwareSettleMs > 0) {
+      await Future.delayed(Duration(milliseconds: hardwareSettleMs));
+    }
   }
 
   Future<void> openPreLiveInvite() async {
@@ -634,10 +702,13 @@ class LiveStreamSearchScreenController extends BaseController {
     int? deepArFilterId,
   }) async {
     final title = titleController.text.trim();
-    final details = descriptionController.text.trim();
+    var details = descriptionController.text.trim();
     if (title.isEmpty) {
       showSnackBar(LKey.enterLiveStreamTitle.tr);
       return;
+    }
+    if (details.length > 30) {
+      details = details.substring(0, 30).trimRight();
     }
 
     final description = details.isEmpty ? title : '$title\n$details';
@@ -783,11 +854,11 @@ class _StartLiveSheet extends StatelessWidget {
         const SizedBox(height: 8),
         TextField(
           controller: controller.descriptionController,
-          maxLength: 500,
+          maxLength: 30,
           maxLines: keyboardOpen ? 2 : 2,
           minLines: 1,
           decoration: InputDecoration(
-            hintText: 'Describe your live...',
+            hintText: 'Describe your live... (max 30)',
             isDense: true,
             alignLabelWithHint: true,
             contentPadding:

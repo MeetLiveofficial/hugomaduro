@@ -34,8 +34,16 @@ class ApiService {
   static final ApiService instance = ApiService._();
 
   final Map<CancelToken, http.Client> _activeClients = {};
+  final Map<String, _ConditionalCacheEntry> _conditionalCache = {};
+
+  void clearConditionalCache() {
+    _conditionalCache.clear();
+  }
 
   Map<String, String> _buildHeaders({required bool cancelAuthToken}) {
+    if (!SessionManager.instance.hasAuthToken) {
+      _conditionalCache.clear();
+    }
     final headers = <String, String>{
       Params.apikey: apiKey,
     };
@@ -50,6 +58,7 @@ class ApiService {
     Map<String, dynamic>? param,
     CancelToken? cancelToken,
     bool cancelAuthToken = false,
+    bool conditionalGet = false,
     T Function(Map<String, dynamic> json)? fromJson,
     Function()? onError,
   }) async {
@@ -75,6 +84,17 @@ class ApiService {
     });
 
     final headers = _buildHeaders(cancelAuthToken: cancelAuthToken);
+    if (conditionalGet) {
+      final cached = _conditionalCache[url];
+      if (cached != null) {
+        if (cached.etag.isNotEmpty) {
+          headers['If-None-Match'] = cached.etag;
+        }
+        if (cached.updatedAt != null && !params.containsKey('updated_after')) {
+          params['updated_after'] = '${cached.updatedAt}';
+        }
+      }
+    }
     Loggers.info("URL: $url");
     Loggers.info("header: $headers");
     Loggers.info("Parameters: ${params.isEmpty ? "Empty" : params}");
@@ -90,9 +110,30 @@ class ApiService {
         throw Exception('Request was cancelled');
       }
 
+      if (response.statusCode == 304) {
+        final cached = _conditionalCache[url];
+        if (cached != null) {
+          Loggers.info('304 Not Modified: $url');
+          if (fromJson != null) {
+            return fromJson(cached.json);
+          }
+          return cached.json as T;
+        }
+        throw Exception('304 Not Modified');
+      }
+
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final decodedResponse =
             jsonDecode(response.body) as Map<String, dynamic>;
+
+        if (conditionalGet) {
+          _conditionalCache[url] = _ConditionalCacheEntry(
+            etag: response.headers['etag'] ?? '',
+            updatedAt: int.tryParse(
+                response.headers['x-resource-updated-at'] ?? ''),
+            json: decodedResponse,
+          );
+        }
 
         if (decodedResponse['message'] == 'this user is freezed!') {
           DebounceAction.shared.call(() {
@@ -341,4 +382,16 @@ class MultipartRequest extends http.MultipartRequest {
 
     return http.ByteStream(byteStream.transform(transformer));
   }
+}
+
+class _ConditionalCacheEntry {
+  _ConditionalCacheEntry({
+    required this.etag,
+    required this.json,
+    this.updatedAt,
+  });
+
+  final String etag;
+  final int? updatedAt;
+  final Map<String, dynamic> json;
 }

@@ -294,6 +294,14 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
     }
   }
 
+  void _setCoins(int coins) {
+    final capped = coins.clamp(0, walletCoins);
+    coinsCtrl.text = '$capped';
+    coinsCtrl.selection =
+        TextSelection.collapsed(offset: coinsCtrl.text.length);
+    setState(() => errorText = null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final hint = selectedGateway?.accountHint?.trim();
@@ -418,6 +426,15 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
+              _CoinsShortcuts(
+                walletCoins: walletCoins,
+                minCoins: minCoinsForUsd,
+                selectedCoins: coinsEntered,
+                coinValue: coinValue,
+                currency: currency,
+                onSelect: _setCoins,
+              ),
               if (coinsEntered > 0) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -475,6 +492,112 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CoinsShortcuts extends StatelessWidget {
+  const _CoinsShortcuts({
+    required this.walletCoins,
+    required this.minCoins,
+    required this.selectedCoins,
+    required this.coinValue,
+    required this.currency,
+    required this.onSelect,
+  });
+
+  final int walletCoins;
+  final int minCoins;
+  final int selectedCoins;
+  final double coinValue;
+  final String currency;
+  final ValueChanged<int> onSelect;
+
+  String _fmtCoins(int coins) {
+    if (coins >= 1000) {
+      final k = coins / 1000;
+      if (k == k.roundToDouble()) return '${k.toInt()}K';
+      return '${k.toStringAsFixed(1)}K';
+    }
+    return '$coins';
+  }
+
+  List<({String label, int coins})> get _options {
+    if (walletCoins <= 0 || minCoins <= 0 || walletCoins < minCoins) {
+      return const [];
+    }
+
+    final out = <({String label, int coins})>[];
+    void add(String label, int coins) {
+      if (coins < minCoins || coins > walletCoins) return;
+      if (out.any((e) => e.coins == coins)) return;
+      out.add((label: label, coins: coins));
+    }
+
+    add('Mín · ${_fmtCoins(minCoins)}', minCoins);
+    add('25%', (walletCoins * 0.25).floor());
+    add('50%', (walletCoins * 0.5).floor());
+    add('75%', (walletCoins * 0.75).floor());
+    add('Máx · ${_fmtCoins(walletCoins)}', walletCoins);
+
+    if (coinValue > 0) {
+      for (final usd in const [50.0, 100.0, 200.0]) {
+        final coins = (usd / coinValue).ceil();
+        add('$currency${usd.toStringAsFixed(0)}', coins);
+      }
+    }
+
+    out.sort((a, b) => a.coins.compareTo(b.coins));
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final options = _options;
+    if (options.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Atajos',
+          style: TextStyleCustom.outFitRegular400(
+            color: textLightGrey(context),
+            fontSize: 11,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: options.map((opt) {
+            final selected = selectedCoins == opt.coins;
+            return Material(
+              color: selected
+                  ? ColorRes.themeAccentSolid
+                  : bgLightGrey(context),
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                onTap: () => onSelect(opt.coins),
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  child: Text(
+                    opt.label,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: selected
+                          ? Colors.white
+                          : textDarkGrey(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }

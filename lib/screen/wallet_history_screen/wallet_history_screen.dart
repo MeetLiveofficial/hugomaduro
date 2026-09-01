@@ -12,6 +12,7 @@ import 'package:krimson/model/gift_wallet/wallet_history_model.dart';
 import 'package:krimson/screen/recharge_history_screen/recharge_history_screen.dart';
 import 'package:krimson/screen/wallet_history_screen/wallet_history_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -218,8 +219,9 @@ class _FilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
     return SizedBox(
-      height: 42,
+      height: 44,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
         scrollDirection: Axis.horizontal,
@@ -228,23 +230,37 @@ class _FilterRow extends StatelessWidget {
         itemBuilder: (context, index) {
           final key = WalletHistoryController.filters[index];
           final isSelected = selected == key;
-          return ChoiceChip(
-            label: Text(labelOf(key)),
-            selected: isSelected,
-            onSelected: (_) => onSelect(key),
-            selectedColor: themeAccentSolid(context).withValues(alpha: 0.15),
-            labelStyle: TextStyleCustom.outFitMedium500(
-              color: isSelected
-                  ? themeAccentSolid(context)
-                  : textDarkGrey(context),
-              fontSize: 12,
+          final bg = isSelected
+              ? (client ? ClientColors.primary : ColorRes.crimson)
+              : (client ? ClientColors.surfaceAlt : ColorRes.whitePure);
+          final fg = isSelected
+              ? (client ? ClientColors.bg : ColorRes.whitePure)
+              : (client ? ClientColors.textOnSurface : ColorRes.textDarkGrey);
+          final border = isSelected
+              ? (client ? ClientColors.primary : ColorRes.crimson)
+              : (client ? ClientColors.border : ColorRes.roseBorder);
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => onSelect(key),
+              borderRadius: BorderRadius.circular(20),
+              child: Ink(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: border, width: 1.2),
+                ),
+                child: Text(
+                  labelOf(key),
+                  style: TextStyleCustom.outFitMedium500(
+                    color: fg,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
             ),
-            backgroundColor: whitePure(context),
-            side: BorderSide(
-              color: isSelected ? themeAccentSolid(context) : bgGrey(context),
-            ),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           );
         },
       ),
@@ -260,12 +276,13 @@ class _HistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final income = item.isIncome;
+    final client = AppRole.isClient();
     final amountColor = income ? ColorRes.likeRed : textDarkGrey(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: whitePure(context),
+        color: client ? ClientColors.surfaceAlt : ColorRes.whitePure,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -371,11 +388,13 @@ class _TypeIcon extends StatelessWidget {
         icon = Icons.south_west;
         break;
       case 'recharge':
-        bg = ColorRes.themeAccentSolid;
+        bg = themeAccentSolid(context);
         icon = Icons.add_card_outlined;
         break;
       default:
-        bg = const Color(0xFFFF6B9D);
+        bg = AppRole.isClient()
+            ? ClientColors.primary
+            : const Color(0xFFFF6B9D);
         icon = Icons.card_giftcard;
     }
     return Container(

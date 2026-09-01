@@ -13,6 +13,7 @@ import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/host/livestream_host_screen.dart';
 import 'package:krimson/utilities/const_res.dart';
+import 'package:krimson/utilities/poll_intervals.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 
 /// Descubrimiento: solo lives en transmisión + búsqueda.
@@ -105,7 +106,7 @@ class LiveActiveDiscoveryController extends BaseController {
   void _listenLaravel() {
     _refreshLaravel(silent: false);
     _laravelPoll?.cancel();
-    _laravelPoll = Timer.periodic(const Duration(seconds: 10), (_) {
+    _laravelPoll = Timer.periodic(PollIntervals.listActive, (_) {
       _refreshLaravel(silent: true);
     });
   }

@@ -23,10 +23,13 @@ class TasksScreenController extends BaseController {
   final selectedTab = 0.obs;
   final withdrawalPoints = 0.obs;
   final categories = <TaskCategoryGroup>[].obs;
+  /// Códigos de pestaña estables (no se vacían a mitad de un reload).
+  final tabCodes = <String>[].obs;
   final eligibility = Rxn<Map<String, dynamic>>();
   final periodKey = ''.obs;
   final timezone = ''.obs;
   final pageLoading = true.obs;
+  final refreshing = false.obs;
   final remainingLabel = '--:--:--'.obs;
   final buckets = TaskBuckets(
     livePoints: 0,
@@ -39,9 +42,14 @@ class TasksScreenController extends BaseController {
 
   DateTime? _periodEndsAt;
   Timer? _countdownTimer;
+  String? _selectedCategoryCode;
+  bool _hasLoadedOnce = false;
+
+  bool get hasLoadedOnce => _hasLoadedOnce;
 
   /// Prefer API order; fallback labels for known codes.
   List<String> get visibleTabCodes {
+    if (tabCodes.isNotEmpty) return List<String>.from(tabCodes);
     final codes = categories.map((c) => c.code).toList();
     if (codes.isNotEmpty) return codes;
     return const ['live', 'other', 'private_bc'];
@@ -53,6 +61,8 @@ class TasksScreenController extends BaseController {
     if (Get.isRegistered<DynamicTranslations>()) {
       Get.find<DynamicTranslations>().ensureTaskFallbacks();
     }
+    // Pestañas visibles de inmediato (evita vacío → fallback → API).
+    tabCodes.value = ['live', 'other', 'private_bc'];
     loadTasks();
   }
 
@@ -91,16 +101,28 @@ class TasksScreenController extends BaseController {
     }
   }
 
-  Future<void> loadTasks() async {
-    pageLoading.value = true;
+  Future<void> loadTasks({bool silent = false}) async {
+    final hasData = _hasLoadedOnce || categories.isNotEmpty;
+    // Solo pantalla completa en la 1ª carga. Refresh/claim no vacían ni
+    // parpadean las categorías.
+    if (!silent && !hasData) {
+      pageLoading.value = true;
+    } else {
+      refreshing.value = true;
+    }
     try {
-      try {
-        await TaskService.instance.reportProgress(actionType: 'open_app');
-      } catch (_) {}
+      if (!silent && !hasData) {
+        try {
+          await TaskService.instance.reportProgress(actionType: 'open_app');
+        } catch (_) {}
+      }
 
       final res = await TaskService.instance.list();
       if (res.status == true && res.data != null) {
-        categories.assignAll(res.data!.categories);
+        final nextCats = List<TaskCategoryGroup>.from(res.data!.categories);
+        // Un solo notify: assignAll hace clear()+addAll() y parpadea las tabs.
+        categories.value = nextCats;
+        _syncTabCodes(nextCats);
         buckets.value = res.data!.buckets;
         weeklyCallGrade.value = res.data!.weeklyCallGrade ?? '';
         _syncWithdrawalPoints(res.data!.withdrawalPoints);
@@ -110,9 +132,8 @@ class TasksScreenController extends BaseController {
         _periodEndsAt = res.data!.periodEndsAt ??
             _fallbackPeriodEnd(res.data!.periodKey, res.data!.timezone);
         _startCountdown();
-        if (selectedTab.value >= visibleTabCodes.length) {
-          selectedTab.value = 0;
-        }
+        _restoreSelectedTab();
+        _hasLoadedOnce = true;
       } else {
         showSnackBar(res.message ?? LKey.somethingWentWrong.tr);
       }
@@ -120,7 +141,45 @@ class TasksScreenController extends BaseController {
       showSnackBar(e.toString());
     } finally {
       pageLoading.value = false;
+      refreshing.value = false;
     }
+  }
+
+  void _syncTabCodes(List<TaskCategoryGroup> cats) {
+    final next = cats.map((c) => c.code).toList();
+    if (next.isEmpty) return;
+    final cur = tabCodes.toList();
+    if (cur.length == next.length) {
+      var same = true;
+      for (var i = 0; i < next.length; i++) {
+        if (cur[i] != next[i]) {
+          same = false;
+          break;
+        }
+      }
+      if (same) return;
+    }
+    tabCodes.value = next;
+  }
+
+  void _restoreSelectedTab() {
+    final codes = visibleTabCodes;
+    if (codes.isEmpty) {
+      if (selectedTab.value != 0) selectedTab.value = 0;
+      return;
+    }
+    if (_selectedCategoryCode != null) {
+      final idx = codes.indexOf(_selectedCategoryCode!);
+      if (idx >= 0) {
+        if (selectedTab.value != idx) selectedTab.value = idx;
+        return;
+      }
+    }
+    final clamped = selectedTab.value.clamp(0, codes.length - 1);
+    if (selectedTab.value != clamped) {
+      selectedTab.value = clamped;
+    }
+    _selectedCategoryCode = codes[selectedTab.value];
   }
 
   DateTime? _fallbackPeriodEnd(String periodKey, String tz) {
@@ -192,6 +251,10 @@ class TasksScreenController extends BaseController {
 
   void onTabChanged(int index) {
     selectedTab.value = index;
+    final codes = visibleTabCodes;
+    if (index >= 0 && index < codes.length) {
+      _selectedCategoryCode = codes[index];
+    }
   }
 
   Future<void> claimTask(TaskItem task) async {
@@ -202,7 +265,7 @@ class TasksScreenController extends BaseController {
       stopLoader();
       if (res['status'] == true) {
         showSnackBar(res['message']?.toString() ?? LKey.taskRewardClaimed.tr);
-        await loadTasks();
+        await loadTasks(silent: true);
       } else {
         showSnackBar(res['message']?.toString() ?? LKey.somethingWentWrong.tr);
       }

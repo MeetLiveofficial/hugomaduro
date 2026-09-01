@@ -35,7 +35,7 @@ class NotificationsPage extends StatelessWidget {
                   BrandPanel(
                     child: SettingIconTextWithArrow(
                       icon: AssetRes.icNotification_1,
-                      iconColor: ColorRes.crimson,
+                      iconColor: settingRowIcon(ColorRes.crimson),
                       title: LKey.notifications,
                       onTap: () {
                         Get.to(() => const NotificationScreen());
@@ -50,7 +50,7 @@ class NotificationsPage extends StatelessWidget {
                           _toggle(
                             controller,
                             icon: AssetRes.icHeart,
-                            color: ColorRes.crimson,
+                            color: settingRowIcon(ColorRes.crimson),
                             title: LKey.postLikes,
                             isOn: (user?.notifyPostLike ?? 1) == 1,
                             type: SettingToggle.notifyPostLike,
@@ -58,7 +58,7 @@ class NotificationsPage extends StatelessWidget {
                           _toggle(
                             controller,
                             icon: AssetRes.icPostComment,
-                            color: ColorRes.mlPurple,
+                            color: settingRowIcon(ColorRes.mlPurple),
                             title: LKey.commentsOnPost,
                             isOn: (user?.notifyPostComment ?? 1) == 1,
                             type: SettingToggle.notifyPostComment,
@@ -66,7 +66,7 @@ class NotificationsPage extends StatelessWidget {
                           _toggle(
                             controller,
                             icon: AssetRes.icFollow,
-                            color: ColorRes.roseBorder,
+                            color: settingRowIcon(ColorRes.roseBorder),
                             title: LKey.newFollowers,
                             isOn: (user?.notifyFollow ?? 1) == 1,
                             type: SettingToggle.notifyFollow,
@@ -74,7 +74,7 @@ class NotificationsPage extends StatelessWidget {
                           _toggle(
                             controller,
                             icon: AssetRes.icComment,
-                            color: ColorRes.darkPurple,
+                            color: settingRowIcon(ColorRes.darkPurple),
                             title: LKey.mentions,
                             isOn: (user?.notifyMention ?? 1) == 1,
                             type: SettingToggle.notifyMention,
@@ -83,7 +83,7 @@ class NotificationsPage extends StatelessWidget {
                         _toggle(
                           controller,
                           icon: AssetRes.icGift,
-                          color: ColorRes.crimsonAlt,
+                          color: settingRowIcon(ColorRes.crimsonAlt),
                           title: LKey.giftsReceived,
                           isOn: (user?.notifyGiftReceived ?? 1) == 1,
                           type: SettingToggle.notifyGiftReceived,
@@ -91,7 +91,7 @@ class NotificationsPage extends StatelessWidget {
                         _toggle(
                           controller,
                           icon: AssetRes.icChat,
-                          color: ColorRes.crimson,
+                          color: settingRowIcon(ColorRes.crimson),
                           title: LKey.chatMessage,
                           isOn: (user?.notifyChat ?? 1) == 1,
                           type: SettingToggle.notifyChat,

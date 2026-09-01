@@ -30,6 +30,7 @@ import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 import 'package:krimson/screen/camera_screen/camera_screen.dart';
 import 'package:krimson/screen/feed_screen/feed_screen_controller.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet_controller.dart';
+import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_invite_dialog.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_invite_dialog.dart';
@@ -37,6 +38,7 @@ import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
+import 'package:krimson/utilities/poll_intervals.dart';
 
 class DashboardScreenController extends BaseController with GetSingleTickerProviderStateMixin {
   /// Orden bottom nav: Home · Explore · Live/Match (centro) · Chat · Profile
@@ -162,7 +164,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     _liveInvitePollTimer?.cancel();
     Future.microtask(_pollLiveInvites);
     _liveInvitePollTimer =
-        Timer.periodic(const Duration(seconds: 8), (_) => _pollLiveInvites());
+        Timer.periodic(PollIntervals.liveInvites, (_) => _pollLiveInvites());
   }
 
   /// Poll global de llamadas entrantes (badge + overlay; cubre sin FCM / BlueStacks).
@@ -171,7 +173,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     _incomingCallPollTimer?.cancel();
     Future.microtask(_pollIncomingCalls);
     _incomingCallPollTimer = Timer.periodic(
-      const Duration(seconds: 5),
+      PollIntervals.inboxDashboard,
       (_) => _pollIncomingCalls(),
     );
   }
@@ -320,12 +322,31 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
       onFeedPostScrollDown(index);
     }
     if (selectedPageIndex.value == index) return;
+    final previous = selectedPageIndex.value;
     HapticFeedback.lightImpact();
     onBottomIndexChanged?.call(index);
     selectedPageIndex.value = index;
     animationController
       ..reset()
       ..forward();
+    if (AppRole.isStreamer(user)) {
+      unawaited(_syncStreamerStudioCamera(from: previous, to: index));
+    }
+  }
+
+  Future<void> _syncStreamerStudioCamera({
+    required int from,
+    required int to,
+  }) async {
+    if (!Get.isRegistered<LiveStreamSearchScreenController>()) return;
+    final studio = Get.find<LiveStreamSearchScreenController>();
+    if (to == tabLive) {
+      await studio.resumeStudioCamera();
+      return;
+    }
+    if (from == tabLive) {
+      await studio.pauseStudioCamera();
+    }
   }
 
   void setHomeTabMode(HomeTabMode mode) {

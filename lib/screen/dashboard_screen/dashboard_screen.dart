@@ -13,6 +13,7 @@ import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart
 import 'package:krimson/screen/explore_screen/explore_screen.dart';
 import 'package:krimson/screen/home_screen/unified_home_screen.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen.dart';
+import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/message_screen/message_screen.dart';
@@ -77,7 +78,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           (controller.homeTabMode.value == HomeTabMode.reels ||
               controller.homeTabMode.value == HomeTabMode.live);
       final hideBannerMatch = _isClient && onLiveTab;
-      return Scaffold(
+      final onProfileTab = controller.selectedPageIndex.value ==
+          DashboardScreenController.tabProfile;
+      final hideNav = !_isClient && onProfileTab;
+      return PopScope(
+        canPop: !hideNav,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && hideNav) {
+            controller.onChanged(DashboardScreenController.tabExplore);
+          }
+        },
+        child: Scaffold(
         backgroundColor: Colors.transparent,
         extendBody: true,
         // En Go Live / Match el teclado no debe empujar el layout.
@@ -94,12 +105,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: _pages,
                   ),
                 ),
-                if (!hideBanner && !hideBannerMatch) const BannerAdsCustom(),
+                if (!hideBanner && !hideBannerMatch && !hideNav)
+                  const BannerAdsCustom(),
               ],
             ),
           ],
         ),
-        bottomNavigationBar: _buildBottomNavigationBar(context, controller),
+        bottomNavigationBar: hideNav
+            ? null
+            : _buildBottomNavigationBar(context, controller),
+      ),
       );
     });
     if (_isClient) {
@@ -289,7 +304,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildStreamerMatchNavItem() {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => Get.to(() => const MatchScreen()),
+      onTap: () async {
+        if (Get.isRegistered<LiveStreamSearchScreenController>()) {
+          await Get.find<LiveStreamSearchScreenController>()
+              .pauseStudioCamera();
+        }
+        Get.to(() => const MatchScreen());
+      },
       child: const SizedBox(
         width: 46,
         height: 58,
@@ -318,7 +339,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final locked = false;
       return _navHitTarget(
         selected: selected,
-        accent: ClientColors.primary,
+        accent: ClientColors.accentBlue,
         locked: locked,
         onTap: () => controller.onChanged(DashboardScreenController.tabLive),
         child: busy
@@ -329,7 +350,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   strokeWidth: 2.2,
                   color: locked
                       ? ColorRes.disabledGrey
-                      : (selected ? ClientColors.text : ClientColors.primary),
+                      : ClientColors.accentBlue,
                 ),
               )
             : Icon(
@@ -337,7 +358,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 size: 24,
                 color: locked
                     ? ColorRes.disabledGrey
-                    : (selected ? ClientColors.text : ClientColors.primary),
+                    : ClientColors.accentBlue,
               ),
       );
     });
@@ -350,15 +371,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
       final client = AppRole.isClient();
       final accent = client
-          ? ClientColors.secondary
+          ? ClientColors.accentBlue
           : ColorRes.navIconColors[
               index.clamp(0, ColorRes.navIconColors.length - 1)];
       final locked = false;
       final iconColor = locked
           ? ColorRes.disabledGrey
-          : (isSelected
-              ? (client ? ClientColors.text : ColorRes.whitePure)
-              : (client ? ClientColors.secondarySoft : accent));
+          : (client
+              ? ClientColors.accentBlue
+              : (isSelected ? ColorRes.whitePure : accent));
       final navBarBg =
           client ? ClientColors.surface : _navBarBgStreamer;
 

@@ -148,29 +148,11 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                           Text(
                             '@${user.username ?? ''}',
                             style: TextStyleCustom.outFitRegular400(
-                              color: ClientColors.textMuted,
+                              color: ClientColors.text,
                               fontSize: 13,
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Get.to(
-                        () => SettingsScreen(
-                          onUpdateUser: (u) {
-                            if (u != null) {
-                              userData.value = u;
-                              SessionManager.instance.setUser(u);
-                            }
-                          },
-                        ),
-                      ),
-                      icon: Image.asset(
-                        AssetRes.icEdit,
-                        height: 22,
-                        width: 22,
-                        color: ClientColors.text,
                       ),
                     ),
                   ],
@@ -287,7 +269,7 @@ class _WalletShineCard extends StatelessWidget {
                   onTap: onRecharge,
                   title: LKey.recharge.tr,
                   backgroundColor: Colors.white,
-                  titleColor: ClientColors.primary,
+                  titleColor: ClientColors.accentBlue,
                   btnHeight: 46,
                   fontSize: 15,
                   horizontalMargin: 0,
@@ -332,13 +314,13 @@ class _MenuTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Image.asset(icon, height: 22, width: 22, color: ClientColors.text),
+              Image.asset(icon, height: 22, width: 22, color: ClientColors.textOnSurface),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyleCustom.outFitMedium500(
-                    color: ClientColors.text,
+                    color: ClientColors.textOnSurface,
                     fontSize: 15,
                   ),
                 ),
@@ -378,7 +360,7 @@ class _GuestJoinBanner extends StatelessWidget {
           Text(
             LKey.joinToContinue.tr,
             style: TextStyleCustom.outFitSemiBold600(
-              color: ClientColors.text,
+              color: ClientColors.textOnSurface,
               fontSize: 16,
             ),
           ),

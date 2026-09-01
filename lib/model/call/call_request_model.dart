@@ -24,6 +24,8 @@ class CallRequestModel {
     this.caller,
     this.callee,
     this.myCoinWallet,
+    this.cameraFlipUnlocked = false,
+    this.cameraOffUnlocked = false,
   });
 
   factory CallRequestModel.fromJson(Map<String, dynamic> json) {
@@ -85,6 +87,12 @@ class CallRequestModel {
       myCoinWallet: json['my_coin_wallet'] is num
           ? (json['my_coin_wallet'] as num).toInt()
           : int.tryParse('${json['my_coin_wallet'] ?? ''}'),
+      cameraFlipUnlocked: json['camera_flip_unlocked'] == true ||
+          json['camera_flip_unlocked'] == 1 ||
+          '${json['camera_flip_unlocked']}' == '1',
+      cameraOffUnlocked: json['camera_off_unlocked'] == true ||
+          json['camera_off_unlocked'] == 1 ||
+          '${json['camera_off_unlocked']}' == '1',
     );
   }
 
@@ -120,6 +128,8 @@ class CallRequestModel {
   final CallParty? caller;
   final CallParty? callee;
   final int? myCoinWallet;
+  final bool cameraFlipUnlocked;
+  final bool cameraOffUnlocked;
 
   bool get isPending =>
       (status ?? '').toLowerCase().trim() == 'pending';
@@ -168,6 +178,8 @@ class CallRequestModel {
     CallParty? caller,
     CallParty? callee,
     int? myCoinWallet,
+    bool? cameraFlipUnlocked,
+    bool? cameraOffUnlocked,
   }) {
     return CallRequestModel(
       id: id ?? this.id,
@@ -194,6 +206,8 @@ class CallRequestModel {
       caller: caller ?? this.caller,
       callee: callee ?? this.callee,
       myCoinWallet: myCoinWallet ?? this.myCoinWallet,
+      cameraFlipUnlocked: cameraFlipUnlocked ?? this.cameraFlipUnlocked,
+      cameraOffUnlocked: cameraOffUnlocked ?? this.cameraOffUnlocked,
     );
   }
 }

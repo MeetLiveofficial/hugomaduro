@@ -1,6 +1,8 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -35,7 +37,13 @@ class CustomDropDownBtn<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fieldBg = bgColor ?? ColorRes.menuSelected;
+    final client = AppRole.isClient();
+    final fieldBg = bgColor ??
+        (client ? ClientColors.surfaceAlt : ColorRes.menuSelected);
+    final border = client ? ClientColors.border : ColorRes.roseBorder;
+    final accent = client ? ClientColors.primary : ColorRes.crimson;
+    final bodyText = client ? ClientColors.textOnSurface : ColorRes.textDarkGrey;
+    final menuBg = client ? ClientColors.surface : ColorRes.whitePure;
     return Container(
       height: height,
       width: width,
@@ -44,11 +52,11 @@ class CustomDropDownBtn<T> extends StatelessWidget {
         color: fieldBg,
         shape: SmoothRectangleBorder(
           borderRadius: SmoothBorderRadius(cornerRadius: 12, cornerSmoothing: 1),
-          side: const BorderSide(color: ColorRes.roseBorder, width: 1),
+          side: BorderSide(color: border, width: 1),
         ),
         shadows: [
           BoxShadow(
-            color: ColorRes.crimson.withValues(alpha: 0.08),
+            color: accent.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -63,11 +71,11 @@ class CustomDropDownBtn<T> extends StatelessWidget {
               AssetRes.icDownArrow_1,
               width: 23,
               height: 20,
-              color: ColorRes.crimson,
+              color: accent,
             )),
-        dropdownColor: ColorRes.whitePure,
+        dropdownColor: menuBg,
         style: TextStyleCustom.outFitRegular400(
-            color: ColorRes.textDarkGrey, fontSize: 15),
+            color: bodyText, fontSize: 15),
         underline: const SizedBox(),
         isDense: true,
         isExpanded: isExpanded,
@@ -83,9 +91,7 @@ class CustomDropDownBtn<T> extends StatelessWidget {
             child: Text(
               getTitle(item),
               style: TextStyleCustom.outFitRegular400(
-                color: selected
-                    ? ColorRes.crimson
-                    : ColorRes.textDarkGrey,
+                color: selected ? accent : bodyText,
                 fontSize: 15,
               ),
             ),

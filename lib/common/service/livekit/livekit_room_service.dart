@@ -1,12 +1,12 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/media_permissions.dart';
 import 'package:krimson/common/service/api/livekit_token_service.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:livekit_client/livekit_client.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 /// Perfil de calidad de publicación/suscripción LiveKit.
 enum LiveKitQualityProfile {
@@ -40,6 +40,8 @@ class LiveKitRoomService {
           _room?.connectionState == ConnectionState.reconnecting);
 
   LiveKitQualityProfile qualityProfile = LiveKitQualityProfile.medium;
+  CameraPosition _cameraPosition = CameraPosition.front;
+  CameraPosition get cameraPosition => _cameraPosition;
 
   final StreamController<void> _mediaChanges =
       StreamController<void>.broadcast();
@@ -63,6 +65,8 @@ class LiveKitRoomService {
 
   Timer? _statsTimer;
   int _lastFps = 0;
+  int _lastPingMs = 0;
+  bool _samplingStats = false;
 
   void _emitStatus(String msg) {
     if (!_status.isClosed) _status.add(msg);
@@ -70,14 +74,104 @@ class LiveKitRoomService {
 
   void _emitStats() {
     if (_stats.isClosed || _room == null) return;
-    var ping = 0;
+    _stats.add((_lastPingMs, _lastFps));
+  }
+
+  /// RTT del ping/pong de señalización. En Web suele quedar en 0
+  /// (el servidor responde `pong` y no `pongResp`, que es el que actualiza rtt).
+  int _signalRttMs() {
     try {
       // ignore: invalid_use_of_internal_member
-      ping = _room!.engine.signalClient.rtt;
+      final rtt = _room?.engine.signalClient.rtt ?? 0;
+      if (rtt > 0 && rtt < 15000) return rtt;
     } catch (_) {}
-    if (!_stats.isClosed) {
-      _stats.add((ping, _lastFps));
+    return 0;
+  }
+
+  /// Extrae RTT de WebRTC: candidate-pair (`currentRoundTripTime`, segundos)
+  /// o remote-inbound-rtp (`roundTripTime`).
+  int? _rttMsFromReports(List<dynamic> reports) {
+    int? pairMs;
+    int? rtpMs;
+    int? otherMs;
+
+    int? toMs(dynamic raw, {required bool seconds}) {
+      final n = raw is num ? raw : num.tryParse('$raw');
+      if (n == null || n <= 0) return null;
+      final ms = seconds ? (n * 1000).round() : n.round();
+      if (ms <= 0 || ms > 15000) return null;
+      return ms;
     }
+
+    for (final r in reports) {
+      Map? values;
+      var type = '';
+      try {
+        type = '${r.type}';
+        final v = r.values;
+        if (v is Map) values = v;
+      } catch (_) {
+        continue;
+      }
+      if (values == null) continue;
+
+      final crt = toMs(values['currentRoundTripTime'], seconds: true);
+      final rtt = toMs(values['roundTripTime'], seconds: true);
+      final goog = toMs(values['googRtt'], seconds: false);
+      final nominated = values['nominated'] == true ||
+          values['selected'] == true ||
+          '${values['state']}' == 'succeeded';
+
+      if (type == 'candidate-pair' || type == 'googCandidatePair') {
+        final ms = crt ?? goog ?? rtt;
+        if (ms == null) continue;
+        if (nominated) {
+          pairMs = ms;
+        } else {
+          pairMs ??= ms;
+        }
+      } else if (type == 'remote-inbound-rtp') {
+        rtpMs ??= rtt ?? crt ?? goog;
+      } else {
+        otherMs ??= crt ?? goog ?? rtt;
+      }
+    }
+    return pairMs ?? rtpMs ?? otherMs;
+  }
+
+  int? _fpsFromReports(List<dynamic> reports) {
+    for (final r in reports) {
+      try {
+        final values = r.values;
+        if (values is! Map) continue;
+        final raw = values['framesPerSecond'] ??
+            values['googFrameRateSent'] ??
+            values['googFrameRateReceived'] ??
+            values['framesPerSecondDecoded'];
+        final n = num.tryParse('$raw');
+        if (n != null && n > 0) return n.round();
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Future<List<dynamic>> _peerConnectionStats() async {
+    final reports = <dynamic>[];
+    try {
+      final room = _room;
+      if (room == null) return reports;
+      // ignore: invalid_use_of_internal_member
+      final engine = room.engine;
+      // ignore: invalid_use_of_internal_member
+      final pcs = [engine.publisher?.pc, engine.subscriber?.pc];
+      for (final pc in pcs) {
+        if (pc == null) continue;
+        try {
+          reports.addAll(await pc.getStats());
+        } catch (_) {}
+      }
+    } catch (_) {}
+    return reports;
   }
 
   Future<LiveKitQualityProfile> detectQualityProfile() async {
@@ -250,11 +344,9 @@ class LiveKitRoomService {
     required LiveKitQualityProfile profile,
   }) async {
     _emitStatus('Preparando…');
-    LocalVideoTrack? warmVideo;
-    LocalAudioTrack? warmAudio;
 
-    // Token first — never block room join on camera warm-up failures.
-    final tokenResult = await LiveKitTokenService.instance
+    // Token y cámara en paralelo: si el permiso ya está, el preview sale ya.
+    final tokenFuture = LiveKitTokenService.instance
         .createToken(
           roomName: roomName,
           identity: identity,
@@ -264,32 +356,29 @@ class LiveKitRoomService {
           roomAdmin: publishCamera || publishMicrophone,
         )
         .timeout(const Duration(seconds: 12));
+    final mediaFuture = _warmLocalMedia(
+      publishCamera: publishCamera,
+      publishMicrophone: publishMicrophone,
+      profile: profile,
+    );
 
-    if (publishCamera || publishMicrophone) {
+    late final LiveKitTokenResult tokenResult;
+    LocalVideoTrack? warmVideo;
+    LocalAudioTrack? warmAudio;
+    try {
+      tokenResult = await tokenFuture;
+      final warmed = await mediaFuture;
+      warmVideo = warmed.$1;
+      warmAudio = warmed.$2;
+    } catch (e) {
       try {
-        await _ensureMediaPermissions(
-          camera: publishCamera,
-          microphone: publishMicrophone,
-        );
-        if (publishCamera) {
-          warmVideo = await _createCameraTrackSafe(profile);
-        }
-        if (publishMicrophone) {
-          warmAudio = await _createMicTrackSafe();
-        }
-      } catch (e) {
-        Loggers.error('LiveKit media warm-up skipped: $e');
-        try {
-          await warmVideo?.stop();
-          await warmVideo?.dispose();
-        } catch (_) {}
-        try {
-          await warmAudio?.stop();
-          await warmAudio?.dispose();
-        } catch (_) {}
-        warmVideo = null;
-        warmAudio = null;
-      }
+        final warmed = await mediaFuture;
+        await warmed.$1?.stop();
+        await warmed.$1?.dispose();
+        await warmed.$2?.stop();
+        await warmed.$2?.dispose();
+      } catch (_) {}
+      rethrow;
     }
 
     final capture = _captureParams(profile);
@@ -300,7 +389,7 @@ class LiveKitRoomService {
         adaptiveStream: true,
         dynacast: true,
         defaultCameraCaptureOptions: CameraCaptureOptions(
-          cameraPosition: CameraPosition.front,
+          cameraPosition: _cameraPosition,
           params: capture,
         ),
         defaultAudioCaptureOptions: const AudioCaptureOptions(
@@ -449,38 +538,51 @@ class LiveKitRoomService {
   void _startStatsPolling() {
     _statsTimer?.cancel();
     _statsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _sampleFps();
-      _emitStats();
+      _tickStats();
     });
+    _tickStats();
   }
 
-  Future<void> _sampleFps() async {
+  Future<void> _tickStats() async {
+    if (_samplingStats) return;
+    _samplingStats = true;
     try {
-      Future<int?> readFpsFromReports(List<dynamic> reports) async {
-        for (final r in reports) {
-          final values = r.values;
-          if (values is! Map) continue;
-          final raw = values['framesPerSecond'] ??
-              values['googFrameRateSent'] ??
-              values['googFrameRateReceived'] ??
-              values['framesPerSecondDecoded'];
-          final n = num.tryParse('$raw');
-          if (n != null && n > 0) return n.round();
-        }
-        return null;
-      }
+      await _sampleRtcStats();
+      _emitStats();
+    } finally {
+      _samplingStats = false;
+    }
+  }
+
+  Future<void> _sampleRtcStats() async {
+    try {
+      final pcReports = await _peerConnectionStats();
+      final pingFromPc = _rttMsFromReports(pcReports);
+      if (pingFromPc != null) _lastPingMs = pingFromPc;
+      final fpsFromPc = _fpsFromReports(pcReports);
+      if (fpsFromPc != null) _lastFps = fpsFromPc;
 
       final lp = _room?.localParticipant;
       for (final pub in lp?.videoTrackPublications ?? []) {
         final track = pub.track;
         if (track is! LocalVideoTrack) continue;
+        try {
+          final senderStats = await track.getSenderStats();
+          for (final s in senderStats) {
+            final rtt = s.roundTripTime;
+            if (rtt != null && rtt > 0 && _lastPingMs <= 0) {
+              final ms = (rtt < 10) ? (rtt * 1000).round() : rtt.round();
+              if (ms > 0 && ms < 15000) _lastPingMs = ms;
+            }
+            final fps = s.framesPerSecond;
+            if (fps != null && fps > 0) _lastFps = fps.round();
+          }
+        } catch (_) {}
         final sender = track.sender;
         if (sender == null) continue;
-        final fps = await readFpsFromReports(await sender.getStats());
-        if (fps != null) {
-          _lastFps = fps;
-          return;
-        }
+        final reports = await sender.getStats();
+        _lastPingMs = _rttMsFromReports(reports) ?? _lastPingMs;
+        _lastFps = _fpsFromReports(reports) ?? _lastFps;
       }
       for (final p in _room?.remoteParticipants.values ??
           const Iterable<RemoteParticipant>.empty()) {
@@ -489,14 +591,17 @@ class LiveKitRoomService {
           if (track is! RemoteVideoTrack) continue;
           final receiver = track.receiver;
           if (receiver == null) continue;
-          final fps = await readFpsFromReports(await receiver.getStats());
-          if (fps != null) {
-            _lastFps = fps;
-            return;
-          }
+          final reports = await receiver.getStats();
+          _lastPingMs = _rttMsFromReports(reports) ?? _lastPingMs;
+          _lastFps = _fpsFromReports(reports) ?? _lastFps;
         }
       }
     } catch (_) {}
+
+    if (_lastPingMs <= 0) {
+      final signal = _signalRttMs();
+      if (signal > 0) _lastPingMs = signal;
+    }
   }
 
   Future<void> publishDataBytes(List<int> bytes,
@@ -510,22 +615,47 @@ class LiveKitRoomService {
     );
   }
 
+  Future<(LocalVideoTrack?, LocalAudioTrack?)> _warmLocalMedia({
+    required bool publishCamera,
+    required bool publishMicrophone,
+    required LiveKitQualityProfile profile,
+  }) async {
+    if (!publishCamera && !publishMicrophone) {
+      return (null, null);
+    }
+    LocalVideoTrack? warmVideo;
+    LocalAudioTrack? warmAudio;
+    try {
+      await _ensureMediaPermissions(
+        camera: publishCamera,
+        microphone: publishMicrophone,
+      );
+      if (publishCamera) {
+        warmVideo = await _createCameraTrackSafe(profile);
+      }
+      if (publishMicrophone) {
+        warmAudio = await _createMicTrackSafe();
+      }
+      return (warmVideo, warmAudio);
+    } catch (e) {
+      Loggers.error('LiveKit media warm-up skipped: $e');
+      try {
+        await warmVideo?.stop();
+        await warmVideo?.dispose();
+      } catch (_) {}
+      try {
+        await warmAudio?.stop();
+        await warmAudio?.dispose();
+      } catch (_) {}
+      return (null, null);
+    }
+  }
+
   Future<void> _ensureMediaPermissions({
     required bool camera,
     required bool microphone,
   }) async {
-    if (kIsWeb) return;
-    final needed = <Permission>[];
-    if (camera) needed.add(Permission.camera);
-    if (microphone) needed.add(Permission.microphone);
-    if (needed.isEmpty) return;
-
-    final statuses = await needed.request();
-    for (final entry in statuses.entries) {
-      if (!entry.value.isGranted) {
-        Loggers.error('Permission denied: ${entry.key}');
-      }
-    }
+    await MediaPermissions.ensure(camera: camera, microphone: microphone);
   }
 
   Future<LocalVideoTrack?> _createCameraTrackSafe(
@@ -543,7 +673,7 @@ class LiveKitRoomService {
       try {
         final track = await LocalVideoTrack.createCameraTrack(
           CameraCaptureOptions(
-            cameraPosition: CameraPosition.front,
+            cameraPosition: _cameraPosition,
             params: params,
           ),
         ).timeout(const Duration(seconds: 8));
@@ -606,7 +736,7 @@ class LiveKitRoomService {
             .setCameraEnabled(
               true,
               cameraCaptureOptions: CameraCaptureOptions(
-                cameraPosition: CameraPosition.front,
+                cameraPosition: _cameraPosition,
                 params: presets[i],
               ),
             )
@@ -686,6 +816,39 @@ class LiveKitRoomService {
     await setCameraEnabled(!lp.isCameraEnabled());
   }
 
+  /// Alterna frontal ↔ trasera. Requiere cámara publicada.
+  Future<void> switchCamera() async {
+    final lp = _room?.localParticipant;
+    if (lp == null || !lp.isCameraEnabled()) return;
+
+    final next = _cameraPosition.switched();
+    LocalVideoTrack? videoTrack;
+    for (final pub in lp.videoTrackPublications) {
+      final t = pub.track;
+      if (t is LocalVideoTrack) {
+        videoTrack = t;
+        break;
+      }
+    }
+    if (videoTrack == null) return;
+
+    try {
+      await videoTrack.setCameraPosition(next);
+      _cameraPosition = next;
+      _mediaChanges.add(null);
+    } catch (e) {
+      Loggers.error('switchCamera: $e');
+      // Fallback: republish with new facing mode.
+      try {
+        _cameraPosition = next;
+        await setCameraEnabled(false);
+        await setCameraEnabled(true);
+      } catch (e2) {
+        Loggers.error('switchCamera fallback: $e2');
+      }
+    }
+  }
+
   Future<void> toggleMicrophone() async {
     final lp = _room?.localParticipant;
     if (lp == null) return;
@@ -695,6 +858,8 @@ class LiveKitRoomService {
   Future<void> disconnect() async {
     _statsTimer?.cancel();
     _statsTimer = null;
+    _lastFps = 0;
+    _lastPingMs = 0;
     try {
       final lp = _room?.localParticipant;
       if (lp != null) {
@@ -756,6 +921,7 @@ class LiveKitRoomService {
       await _room?.dispose();
     } catch (_) {}
     _room = null;
+    _cameraPosition = CameraPosition.front;
     _mediaChanges.add(null);
   }
 

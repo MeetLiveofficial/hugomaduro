@@ -48,22 +48,17 @@ class ThemeRes {
     return ThemeData();
   }
 
-  /// Dashboard y chrome del **usuario cliente** (cian/turquesa `client-50` … `client-950`).
+  /// Dashboard y chrome del **usuario cliente** (cian + texto oscuro legible).
+  ///
+  /// Importante: `textDarkGrey` / `textLightGrey` / `whitePure` se usan en
+  /// pantallas con fondo blanco (chat, sheets). No mapear texto a client-50/100.
   static ThemeData clientTheme(BuildContext context) {
     return ThemeData(
-      brightness: Brightness.dark,
-      colorScheme: const ColorScheme.dark(
-        primary: ClientColors.primary,
-        onPrimary: ClientColors.text,
-        secondary: ClientColors.secondary,
-        onSecondary: ClientColors.bg,
-        surface: ClientColors.surface,
-        onSurface: ClientColors.text,
-      ),
+      brightness: Brightness.light,
       scaffoldBackgroundColor: ClientColors.bg,
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: ClientColors.surface),
-      appBarTheme: const AppBarTheme(backgroundColor: ClientColors.surface),
+      appBarTheme: const AppBarTheme(backgroundColor: ClientColors.bg),
       fontFamily: FontRes.outFitRegular400,
       bottomSheetTheme:
           const BottomSheetThemeData(backgroundColor: ClientColors.surface),
@@ -73,22 +68,50 @@ class ThemeRes {
           overlayShape: RoundSliderOverlayShape(overlayRadius: 0),
           overlayColor: Colors.transparent),
       textTheme: const TextTheme(
-        titleLarge: TextStyle(color: ClientColors.text),
+        // whitePure(): blanco real (overlays / texto sobre oscuro)
+        titleLarge: TextStyle(color: ColorRes.whitePure),
+        // textDarkGrey(): texto principal sobre fondos claros
         titleMedium: TextStyle(color: ClientColors.text),
+        // textLightGrey(): secundario legible (no cyan pálido)
         titleSmall: TextStyle(color: ClientColors.textMuted),
-        labelSmall: TextStyle(color: ClientColors.primary),
-        labelLarge: TextStyle(color: ColorRes.disabledGrey),
+        // themeAccentSolid(): azul de contraste en textos
+        labelSmall: TextStyle(color: ClientColors.accentBlue),
+        labelLarge: TextStyle(color: ClientColors.client600),
       ),
-      textSelectionTheme:
-          const TextSelectionThemeData(selectionColor: ClientColors.border),
-      cardTheme: const CardThemeData(color: ClientColors.surfaceAlt),
+      textSelectionTheme: const TextSelectionThemeData(
+          selectionColor: ClientColors.client200,
+          cursorColor: ClientColors.primaryActive),
+      cardTheme: const CardThemeData(color: ClientColors.primaryActive),
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       primaryColor: ClientColors.primary,
-      dividerColor: ClientColors.border,
-      cardColor: ClientColors.surfaceAlt,
+      // bgGrey()
+      dividerColor: ClientColors.client100,
+      // bgMediumGrey()
+      cardColor: ClientColors.client50,
+      // blackPure()
       primaryColorDark: ClientColors.text,
-      canvasColor: ClientColors.bg,
+      // themeColor()
+      canvasColor: ClientColors.surfaceDark,
+      iconTheme: const IconThemeData(color: ClientColors.text),
+      listTileTheme: const ListTileThemeData(
+        iconColor: ClientColors.text,
+        textColor: ClientColors.text,
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: ClientColors.surfaceDark,
+        titleTextStyle: TextStyle(
+          color: ClientColors.textOnDark,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          fontFamily: FontRes.outFitRegular400,
+        ),
+        contentTextStyle: TextStyle(
+          color: ClientColors.textOnDarkMuted,
+          fontSize: 15,
+          fontFamily: FontRes.outFitRegular400,
+        ),
+      ),
       useMaterial3: false,
     );
   }

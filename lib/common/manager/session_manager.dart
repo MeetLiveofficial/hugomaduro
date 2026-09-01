@@ -45,7 +45,11 @@ class SessionManager {
   }
 
   void setAuthToken(Token? token) {
-    storage.write(SessionKeys.authToken, token);
+    if (token == null) {
+      storage.remove(SessionKeys.authToken);
+      return;
+    }
+    storage.write(SessionKeys.authToken, token.toJson());
   }
 
   String getAuthToken() {
@@ -116,7 +120,7 @@ class SessionManager {
       // Re-create the User object from the modified JSON map
       User newUser = User.fromJson(json);
 
-      storage.write(SessionKeys.user, newUser);
+      storage.write(SessionKeys.user, newUser.toJson());
       userRx.value = newUser;
     }
   }
