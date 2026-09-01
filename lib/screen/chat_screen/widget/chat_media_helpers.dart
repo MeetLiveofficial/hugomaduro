@@ -10,6 +10,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/model/post_story/post_model.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_center_message_view.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -98,20 +100,32 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
     return Container(
       constraints: BoxConstraints(maxWidth: Get.width * 0.72),
       padding: padding,
       decoration: ShapeDecoration(
-        color: isMe ? null : ColorRes.bgMediumGrey,
+        color: isMe
+            ? null
+            : (client ? ClientColors.surface : ColorRes.bgMediumGrey),
         gradient: isMe
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFFFD6EC),
-                  Color(0xFFE9C4F5),
-                ],
-              )
+            ? (client
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFE8F1FE),
+                      Color(0xFFD6E6FD),
+                    ],
+                  )
+                : const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFFFD6EC),
+                      Color(0xFFE9C4F5),
+                    ],
+                  ))
             : null,
         shape: SmoothRectangleBorder(
           borderRadius: SmoothBorderRadius(cornerRadius: 14, cornerSmoothing: 1),

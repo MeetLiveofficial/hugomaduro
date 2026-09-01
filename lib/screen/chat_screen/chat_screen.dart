@@ -7,7 +7,10 @@ import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_bottom_action_view.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_center_message_view.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_top_profile_view.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class ChatScreen extends StatelessWidget {
   final ChatThread conversationUser;
@@ -26,8 +29,9 @@ class ChatScreen extends StatelessWidget {
     }
     final controller = Get.put(ChatScreenController(conversationUser.obs),
         tag: '${conversationUser.conversationId}');
-    return Scaffold(
-      backgroundColor: ColorRes.whitePure,
+    final page = Scaffold(
+      backgroundColor:
+          AppRole.isClient() ? ClientColors.bg : ColorRes.whitePure,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -37,5 +41,6 @@ class ChatScreen extends StatelessWidget {
         ],
       ),
     );
+    return ThemeRes.applyIfClient(context, page);
   }
 }

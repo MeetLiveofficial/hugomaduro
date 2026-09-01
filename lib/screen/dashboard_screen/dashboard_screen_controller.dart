@@ -38,6 +38,7 @@ import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/firebase_const.dart';
+import 'package:krimson/utilities/poll_intervals.dart';
 
 class DashboardScreenController extends BaseController with GetSingleTickerProviderStateMixin {
   /// Orden bottom nav: Home · Explore · Live/Match (centro) · Chat · Profile
@@ -163,7 +164,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     _liveInvitePollTimer?.cancel();
     Future.microtask(_pollLiveInvites);
     _liveInvitePollTimer =
-        Timer.periodic(const Duration(seconds: 8), (_) => _pollLiveInvites());
+        Timer.periodic(PollIntervals.liveInvites, (_) => _pollLiveInvites());
   }
 
   /// Poll global de llamadas entrantes (badge + overlay; cubre sin FCM / BlueStacks).
@@ -172,7 +173,7 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     _incomingCallPollTimer?.cancel();
     Future.microtask(_pollIncomingCalls);
     _incomingCallPollTimer = Timer.periodic(
-      const Duration(seconds: 5),
+      PollIntervals.inboxDashboard,
       (_) => _pollIncomingCalls(),
     );
   }

@@ -78,7 +78,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           (controller.homeTabMode.value == HomeTabMode.reels ||
               controller.homeTabMode.value == HomeTabMode.live);
       final hideBannerMatch = _isClient && onLiveTab;
-      return Scaffold(
+      final onProfileTab = controller.selectedPageIndex.value ==
+          DashboardScreenController.tabProfile;
+      final hideNav = !_isClient && onProfileTab;
+      return PopScope(
+        canPop: !hideNav,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && hideNav) {
+            controller.onChanged(DashboardScreenController.tabExplore);
+          }
+        },
+        child: Scaffold(
         backgroundColor: Colors.transparent,
         extendBody: true,
         // En Go Live / Match el teclado no debe empujar el layout.
@@ -95,12 +105,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: _pages,
                   ),
                 ),
-                if (!hideBanner && !hideBannerMatch) const BannerAdsCustom(),
+                if (!hideBanner && !hideBannerMatch && !hideNav)
+                  const BannerAdsCustom(),
               ],
             ),
           ],
         ),
-        bottomNavigationBar: _buildBottomNavigationBar(context, controller),
+        bottomNavigationBar: hideNav
+            ? null
+            : _buildBottomNavigationBar(context, controller),
+      ),
       );
     });
     if (_isClient) {
@@ -325,7 +339,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final locked = false;
       return _navHitTarget(
         selected: selected,
-        accent: ClientColors.primary,
+        accent: ClientColors.accentBlue,
         locked: locked,
         onTap: () => controller.onChanged(DashboardScreenController.tabLive),
         child: busy
@@ -336,7 +350,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   strokeWidth: 2.2,
                   color: locked
                       ? ColorRes.disabledGrey
-                      : (selected ? ClientColors.text : ClientColors.primary),
+                      : ClientColors.accentBlue,
                 ),
               )
             : Icon(
@@ -344,7 +358,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 size: 24,
                 color: locked
                     ? ColorRes.disabledGrey
-                    : (selected ? ClientColors.text : ClientColors.primary),
+                    : ClientColors.accentBlue,
               ),
       );
     });
@@ -357,15 +371,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
       final client = AppRole.isClient();
       final accent = client
-          ? ClientColors.secondary
+          ? ClientColors.accentBlue
           : ColorRes.navIconColors[
               index.clamp(0, ColorRes.navIconColors.length - 1)];
       final locked = false;
       final iconColor = locked
           ? ColorRes.disabledGrey
-          : (isSelected
-              ? (client ? ClientColors.text : ColorRes.whitePure)
-              : (client ? ClientColors.secondarySoft : accent));
+          : (client
+              ? ClientColors.accentBlue
+              : (isSelected ? ColorRes.whitePure : accent));
       final navBarBg =
           client ? ClientColors.surface : _navBarBgStreamer;
 

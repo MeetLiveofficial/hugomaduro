@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/message_data.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_media_helpers.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -22,6 +24,11 @@ class ChatGiftMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     final raw = int.tryParse(message.textMessage ?? '') ?? 0;
     final coins = HostShare.displayCoins(raw);
+    final client = AppRole.isClient();
+    final titleColor =
+        client ? ClientColors.textOnSurface : textDarkGrey(context);
+    final coinsColor =
+        client ? ClientColors.accentBlue : textLightGrey(context);
     return ChatBubble(
       isMe: isMe,
       child: Row(
@@ -47,14 +54,14 @@ class ChatGiftMessage extends StatelessWidget {
               Text(
                 LKey.gift.tr,
                 style: TextStyleCustom.outFitMedium500(
-                  color: textDarkGrey(context),
+                  color: titleColor,
                   fontSize: 13,
                 ),
               ),
               Text(
                 LKey.coinsCount.trParams({'count': '$coins'}),
                 style: TextStyleCustom.outFitRegular400(
-                  color: textLightGrey(context),
+                  color: coinsColor,
                   fontSize: 12,
                 ),
               ),

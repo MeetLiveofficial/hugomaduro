@@ -11,6 +11,7 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/session_restore.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/notification_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
@@ -55,6 +56,24 @@ class AuthScreenController extends BaseController {
       });
     }
     super.onInit();
+    unawaited(_tryAutoRestoreSession());
+  }
+
+  /// Si hay sesión guardada (Guest u otro), entrar sin pedir login de nuevo.
+  Future<void> _tryAutoRestoreSession() async {
+    if (!hasStoredSession()) return;
+    try {
+      final user = await refreshSessionUser(
+        timeout: const Duration(seconds: 12),
+      );
+      if (user != null) {
+        await _navigateScreen(user);
+      }
+    } catch (e) {
+      if (isSessionAuthFailure(e)) {
+        SessionManager.instance.clearSomeKey();
+      }
+    }
   }
 
   Future<void> _loadRegistrationOptions() async {
@@ -305,6 +324,32 @@ class AuthScreenController extends BaseController {
   }
 
   Future<void> onAnonymousTap() async {
+    // Reutilizar sesión Guest guardada (no crear cuenta nueva).
+    if (hasStoredSession() &&
+        (SessionManager.instance.getUser()?.isAnonymous ?? 0) == 1) {
+      showLoader(barrierDismissible: true);
+      try {
+        final user = await refreshSessionUser(
+          timeout: const Duration(seconds: 15),
+        );
+        stopLoader();
+        if (user != null) {
+          await _navigateScreen(user);
+          return;
+        }
+      } catch (e) {
+        stopLoader();
+        if (!isSessionAuthFailure(e)) {
+          final cached = SessionManager.instance.getUser();
+          if (cached != null) {
+            await _navigateScreen(cached);
+            return;
+          }
+        }
+        SessionManager.instance.clearSomeKey();
+      }
+    }
+
     showLoader(barrierDismissible: true);
     try {
       final deviceToken =

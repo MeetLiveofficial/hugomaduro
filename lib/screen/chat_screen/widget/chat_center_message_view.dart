@@ -2,6 +2,7 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/context_menu_widget.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/load_more_widget.dart';
@@ -64,7 +65,9 @@ class ChatMessageView extends StatelessWidget {
                       },
                       child: Container(
                         decoration: ShapeDecoration(
-                            color: scaffoldBackgroundColor(context),
+                            color: AppRole.isClient()
+                                ? Colors.transparent
+                                : scaffoldBackgroundColor(context),
                             shape: SmoothRectangleBorder(
                               borderRadius: SmoothBorderRadius(
                                   cornerRadius: 15, cornerSmoothing: 1),

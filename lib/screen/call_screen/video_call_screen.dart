@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -59,7 +60,7 @@ class VideoCallScreen extends StatelessWidget {
     );
     final client = AppRole.isClient();
     return Scaffold(
-      backgroundColor: client ? ClientColors.bg : const Color(0xFF140E18),
+      backgroundColor: client ? ClientColors.surfaceDark : const Color(0xFF140E18),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
@@ -78,7 +79,7 @@ class VideoCallScreen extends StatelessWidget {
                             match ? LKey.matchLabel.tr : LKey.videoCall.tr,
                             style: TextStyleCustom.outFitMedium500(
                                 color: client
-                                    ? ClientColors.text
+                                    ? ClientColors.textOnDark
                                     : Colors.white,
                                 fontSize: 16),
                           );
@@ -98,7 +99,7 @@ class VideoCallScreen extends StatelessWidget {
                                       ? ClientColors.primary
                                       : ColorRes.themeAccentSolid)
                                   : (client
-                                      ? ClientColors.textMuted
+                                      ? ClientColors.textOnDarkMuted
                                       : Colors.white70),
                               fontSize: match ? 18 : 13,
                             ),
@@ -161,7 +162,7 @@ class VideoCallScreen extends StatelessWidget {
                         : 'El cliente puede continuar el Match…',
                     textAlign: TextAlign.center,
                     style: TextStyleCustom.outFitMedium500(
-                      color: client ? ClientColors.text : Colors.white,
+                      color: client ? ClientColors.textOnDark : Colors.white,
                       fontSize: 12,
                     ),
                   ),
@@ -177,7 +178,7 @@ class VideoCallScreen extends StatelessWidget {
                       : 'Match termina en $left s',
                   textAlign: TextAlign.center,
                   style: TextStyleCustom.outFitMedium500(
-                    color: client ? ClientColors.text : Colors.white,
+                    color: client ? ClientColors.textOnDark : Colors.white,
                     fontSize: 12,
                   ),
                 ),
@@ -212,7 +213,7 @@ class VideoCallScreen extends StatelessWidget {
                     ),
                     if (controller.awaitingExtension.value)
                       ColoredBox(
-                        color: (client ? ClientColors.bg : Colors.black)
+                        color: (client ? ClientColors.surfaceDark : Colors.black)
                             .withValues(alpha: 0.78),
                         child: Center(
                           child: Text(
@@ -222,7 +223,7 @@ class VideoCallScreen extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: TextStyleCustom.outFitMedium500(
                               color: client
-                                  ? ClientColors.text
+                                  ? ClientColors.textOnDark
                                   : Colors.white,
                               fontSize: 16,
                             ),
@@ -236,58 +237,92 @@ class VideoCallScreen extends StatelessWidget {
                 return ClipRect(child: stage);
               }),
             ),
-            Container(
-              width: double.infinity,
-              color: client ? ClientColors.surface : const Color(0xFF1C1424),
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CallChatComposer(controller: controller),
-                  Obx(() {
-                controller.matchUi.value;
-                final hideHangup =
-                    controller.matchUi.value && !controller.isMatchCaller;
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            // Barra fuera del Expanded del video para que el HtmlElementView
+            // de LiveKit (Web) no tape mic / colgar / cámara / gift.
+            Material(
+              color: client ? ClientColors.surfaceDark : const Color(0xFF1C1424),
+              elevation: 8,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _RoundBtn(
-                      icon: controller.liveKit.microphoneEnabled.value
-                          ? Icons.mic
-                          : Icons.mic_off,
-                      color: client
-                          ? ClientColors.surfaceAlt
-                          : const Color(0xFF3A3144),
-                      onTap: controller.toggleMic,
-                    ),
-                    if (hideHangup)
-                      const SizedBox(width: 56, height: 56)
-                    else
-                      _RoundBtn(
-                        icon: Icons.call_end,
-                        color: Colors.red,
-                        onTap: controller.hangUp,
-                      ),
-                    _RoundBtn(
-                      icon: controller.liveKit.cameraEnabled.value
-                          ? Icons.videocam
-                          : Icons.videocam_off,
-                      color: client
-                          ? ClientColors.surfaceAlt
-                          : const Color(0xFF3A3144),
-                      onTap: controller.toggleCamera,
-                    ),
-                    _RoundBtn(
-                      icon: Icons.card_giftcard_rounded,
-                      color: client
-                          ? ClientColors.primary
-                          : ColorRes.themeAccentSolid.withValues(alpha: 0.9),
-                      onTap: controller.openGiftSheet,
-                    ),
+                    CallChatComposer(controller: controller),
+                    Obx(() {
+                      controller.matchUi.value;
+                      controller.liveKit.microphoneEnabled.value;
+                      controller.liveKit.cameraEnabled.value;
+                      if (kIsWeb) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          passThroughMatchVideoClicks();
+                        });
+                      }
+                      final hideHangup = controller.matchUi.value &&
+                          !controller.isMatchCaller;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _RoundBtn(
+                            icon: controller.liveKit.microphoneEnabled.value
+                                ? Icons.mic
+                                : Icons.mic_off,
+                            color: client
+                                ? ClientColors.surfaceDarkAlt
+                                : const Color(0xFF3A3144),
+                            onTap: () {
+                              if (kIsWeb) passThroughMatchVideoClicks();
+                              unawaited(controller.toggleMic());
+                            },
+                          ),
+                          if (hideHangup)
+                            const SizedBox(width: 56, height: 56)
+                          else
+                            _RoundBtn(
+                              icon: Icons.call_end,
+                              color: Colors.red,
+                              onTap: () {
+                                if (kIsWeb) passThroughMatchVideoClicks();
+                                unawaited(controller.hangUp());
+                              },
+                            ),
+                          _RoundBtn(
+                            icon: Icons.cameraswitch_rounded,
+                            color: client
+                                ? ClientColors.surfaceDarkAlt
+                                : const Color(0xFF3A3144),
+                            onTap: () {
+                              if (kIsWeb) passThroughMatchVideoClicks();
+                              unawaited(controller.flipCamera());
+                            },
+                          ),
+                          _RoundBtn(
+                            icon: controller.liveKit.cameraEnabled.value
+                                ? Icons.videocam
+                                : Icons.videocam_off,
+                            color: client
+                                ? ClientColors.surfaceDarkAlt
+                                : const Color(0xFF3A3144),
+                            onTap: () {
+                              if (kIsWeb) passThroughMatchVideoClicks();
+                              unawaited(controller.toggleCamera());
+                            },
+                          ),
+                          _RoundBtn(
+                            icon: Icons.card_giftcard_rounded,
+                            color: client
+                                ? ClientColors.primary
+                                : ColorRes.themeAccentSolid
+                                    .withValues(alpha: 0.9),
+                            onTap: () {
+                              if (kIsWeb) passThroughMatchVideoClicks();
+                              unawaited(controller.openGiftSheet());
+                            },
+                          ),
+                        ],
+                      );
+                    }),
                   ],
-                );
-              }),
-                ],
+                ),
               ),
             ),
           ],
@@ -307,15 +342,19 @@ class _RoundBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: CircleAvatar(
-        radius: 28,
-        backgroundColor: color,
-        child: Icon(
-          icon,
-          color: AppRole.isClient() ? ClientColors.text : Colors.white,
-          size: 28,
+    final iconColor =
+        AppRole.isClient() ? ClientColors.textOnDark : Colors.white;
+    // GestureDetector + hitTest opaque: InkWell solo fallaba bajo platform-views.
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Ink(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: Icon(icon, color: iconColor, size: 28),
         ),
       ),
     );
@@ -354,6 +393,8 @@ class VideoCallController extends BaseController {
   Timer? _statusPoll;
   Timer? _peerGoneTimer;
   Timer? _commentPoll;
+  /// Web: LiveKit recrea &lt;video&gt; y vuelve a tapar la barra de controles.
+  Timer? _webPointerPassTimer;
   StreamSubscription? _dataSub;
   /// Ancla compartida: `phase_ends_at` del servidor (fallback `responded_at`).
   DateTime? _syncAnchor;
@@ -372,9 +413,16 @@ class VideoCallController extends BaseController {
   int _lastCommentServerId = 0;
   bool _commentPollBusy = false;
   bool _callRoutePopped = false;
+  final RxBool cameraFlipUnlocked = false.obs;
+  final RxBool cameraOffUnlocked = false.obs;
+  bool _cameraFeatureBusy = false;
 
   String get roomId => call.roomId ?? 'call_${call.id}';
   String get _tag => 'lk_call_${call.id}';
+
+  /// Solo el caller (Cliente) paga flip / apagar cámara.
+  bool get _mustPayCameraFeatures =>
+      call.callerId == SessionManager.instance.getUserID();
 
   /// Match para caller y callee (mismo modo de UI / cronómetro).
   bool get isMatchCall {
@@ -475,8 +523,18 @@ class VideoCallController extends BaseController {
     matchSecondsLeft.value = _matchDuration;
     matchCountdownLabel.value = _formatMmSs(_matchDuration);
     matchUi.value = isMatchCall;
+    cameraFlipUnlocked.value = call.cameraFlipUnlocked;
+    cameraOffUnlocked.value = call.cameraOffUnlocked;
     liveKit = Get.put(LiveKitRoomController(), tag: _tag);
     _startStatusPoll();
+    if (kIsWeb) {
+      passThroughMatchVideoClicks();
+      _webPointerPassTimer?.cancel();
+      _webPointerPassTimer =
+          Timer.periodic(const Duration(milliseconds: 400), (_) {
+        passThroughMatchVideoClicks();
+      });
+    }
   }
 
   @override
@@ -495,6 +553,8 @@ class VideoCallController extends BaseController {
     _peerGoneTimer = null;
     _commentPoll?.cancel();
     _commentPoll = null;
+    _webPointerPassTimer?.cancel();
+    _webPointerPassTimer = null;
     unawaited(_dataSub?.cancel());
     _dataSub = null;
     commentController.dispose();
@@ -905,7 +965,9 @@ class VideoCallController extends BaseController {
         final chat = LiveChatMessage.tryParseBytes(event.data);
         if (chat != null &&
             chat.userId > 0 &&
-            (chat.type == 'text' || chat.type == 'gif')) {
+            (chat.type == 'text' ||
+                chat.type == 'gif' ||
+                chat.type == 'gift')) {
           _appendCallChat(chat);
           return;
         }
@@ -923,7 +985,108 @@ class VideoCallController extends BaseController {
 
   Future<void> toggleMic() => liveKit.toggleMicrophone();
 
-  Future<void> toggleCamera() => liveKit.toggleCamera();
+  Future<void> flipCamera() async {
+    if (!liveKit.cameraEnabled.value) {
+      showSnackBar('Enciende la cámara primero');
+      return;
+    }
+    if (_mustPayCameraFeatures && !cameraFlipUnlocked.value) {
+      final ok = await _purchaseCameraFeature('flip');
+      if (!ok) return;
+    }
+    await liveKit.switchCamera();
+  }
+
+  Future<void> toggleCamera() async {
+    final turningOff = liveKit.cameraEnabled.value;
+    if (turningOff &&
+        _mustPayCameraFeatures &&
+        !cameraOffUnlocked.value) {
+      final ok = await _purchaseCameraFeature('camera_off');
+      if (!ok) return;
+    }
+    await liveKit.toggleCamera();
+  }
+
+  Future<bool> _purchaseCameraFeature(String feature) async {
+    if (_cameraFeatureBusy) return false;
+    final id = call.id;
+    if (id == null) return false;
+
+    final settings = SessionManager.instance.getSettings();
+    final cost = feature == 'flip'
+        ? (settings?.callCameraFlipCoins ?? 20)
+        : (settings?.callCameraOffCoins ?? 30);
+
+    if (cost > 0) {
+      final label = feature == 'flip'
+          ? 'Voltear cámara ($cost coins)'
+          : 'Apagar cámara ($cost coins)';
+      final confirmed = await Get.dialog<bool>(
+            AlertDialog(
+              backgroundColor: ClientColors.surfaceDark,
+              title: Text(
+                feature == 'flip' ? 'Voltear cámara' : 'Apagar cámara',
+                style: TextStyleCustom.outFitSemiBold600(
+                  color: ClientColors.textOnDark,
+                  fontSize: 18,
+                ),
+              ),
+              content: Text(
+                'Cuesta $cost coins. ¿Continuar?',
+                style: TextStyleCustom.outFitRegular400(
+                  color: ClientColors.textOnDarkMuted,
+                  fontSize: 15,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Get.back(result: false),
+                  child: Text(
+                    LKey.cancel.tr,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: ClientColors.secondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Get.back(result: true),
+                  child: Text(
+                    LKey.confirm.tr,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: ClientColors.primary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+      if (!confirmed) return false;
+      if (!CoinGate.ensureEnough(cost, message: label)) return false;
+    }
+
+    _cameraFeatureBusy = true;
+    try {
+      final updated = await CallService.instance.purchaseCameraFeature(
+        callRequestId: id,
+        feature: feature,
+      );
+      _syncWallet(updated);
+      cameraFlipUnlocked.value = updated.cameraFlipUnlocked;
+      cameraOffUnlocked.value = updated.cameraOffUnlocked;
+      if (feature == 'flip') cameraFlipUnlocked.value = true;
+      if (feature == 'camera_off') cameraOffUnlocked.value = true;
+      return true;
+    } catch (e) {
+      showSnackBar(e.toString());
+      return false;
+    } finally {
+      _cameraFeatureBusy = false;
+    }
+  }
 
   Future<void> openGiftSheet() async {
     final peer = call.caller?.id == SessionManager.instance.getUserID()
@@ -947,8 +1110,41 @@ class VideoCallController extends BaseController {
       streamUsers: [streamUser],
       onCompletion: (gm) {
         GiftManager.showAnimationDialog(gm.gift);
+        unawaited(_broadcastCallGift(gm.gift));
       },
     );
+  }
+
+  Future<void> _broadcastCallGift(Gift gift) async {
+    final me = SessionManager.instance.getUser();
+    if (me?.id == null) return;
+    final clientId = '${me!.id}_gift_${DateTime.now().millisecondsSinceEpoch}';
+    var coins = gift.coinPrice ?? 0;
+    if (coins <= 0 && gift.id != null) {
+      final catalog = SessionManager.instance.getSettings()?.gifts ?? [];
+      for (final g in catalog) {
+        if (g.id == gift.id && (g.coinPrice ?? 0) > 0) {
+          coins = g.coinPrice!;
+          break;
+        }
+      }
+    }
+    final msg = LiveChatMessage(
+      id: clientId,
+      userId: me.id!,
+      userName: me.fullname ?? me.username ?? 'user',
+      type: 'gift',
+      text: LKey.sentAGift.tr,
+      giftId: gift.id,
+      giftImage: gift.image,
+      giftCoins: coins,
+    );
+    _appendCallChat(msg);
+    try {
+      await liveKit.publishData(msg.toBytes(), topic: 'call_chat');
+    } catch (e) {
+      Loggers.error('broadcastCallGift: $e');
+    }
   }
 
   void _startStatusPoll() {
@@ -966,6 +1162,10 @@ class VideoCallController extends BaseController {
       final fresh = await CallService.instance.status(id);
       if (_ending) return;
       _syncWallet(fresh);
+      cameraFlipUnlocked.value =
+          cameraFlipUnlocked.value || fresh.cameraFlipUnlocked;
+      cameraOffUnlocked.value =
+          cameraOffUnlocked.value || fresh.cameraOffUnlocked;
       if (fresh.isEnded) {
         _notifyInsufficientIfNeeded(fresh);
         await hangUp(forcedByPeer: true);
@@ -1000,7 +1200,7 @@ class VideoCallController extends BaseController {
   void _onCallChatBytes(List<int> bytes) {
     final msg = LiveChatMessage.tryParseBytes(bytes);
     if (msg == null) return;
-    if (msg.type != 'text' && msg.type != 'gif') return;
+    if (msg.type != 'text' && msg.type != 'gif' && msg.type != 'gift') return;
     _appendCallChat(msg);
   }
 
@@ -1009,6 +1209,17 @@ class VideoCallController extends BaseController {
     chatMessages.add(msg);
     while (chatMessages.length > maxVisibleComments) {
       chatMessages.removeAt(0);
+    }
+    if (msg.type == 'gift') {
+      final me = SessionManager.instance.getUserID();
+      if (msg.userId != me) {
+        final gift = Gift(
+          id: msg.giftId,
+          image: msg.giftImage,
+          coinPrice: msg.giftCoins,
+        );
+        GiftManager.showAnimationDialog(gift);
+      }
     }
     if (msg.type == 'text' &&
         !msg.isTranslated &&
@@ -1144,6 +1355,8 @@ class VideoCallController extends BaseController {
     _peerGoneTimer = null;
     _commentPoll?.cancel();
     _commentPoll = null;
+    _webPointerPassTimer?.cancel();
+    _webPointerPassTimer = null;
 
     final peer = call.caller?.id == SessionManager.instance.getUserID()
         ? call.callee

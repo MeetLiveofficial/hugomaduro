@@ -9,7 +9,9 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
 import 'package:krimson/model/livestream/app_user.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -21,8 +23,12 @@ class ChatTopProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final chrome = client ? ClientColors.bg : ColorRes.whitePure;
+    final onChrome = client ? ClientColors.text : ColorRes.textDarkGrey;
+    final muted = client ? ClientColors.accentBlue : ColorRes.textDarkGrey;
     return Container(
-      color: ColorRes.whitePure,
+      color: chrome,
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       child: SafeArea(
         bottom: false,
@@ -42,10 +48,10 @@ class ChatTopProfileView extends StatelessWidget {
                 onPressed: () => Get.back(),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_ios_new_rounded,
                   size: 20,
-                  color: ColorRes.textDarkGrey,
+                  color: onChrome,
                 ),
               ),
               Expanded(
@@ -83,11 +89,11 @@ class ChatTopProfileView extends StatelessWidget {
                                 username: chatUser?.username ?? '',
                                 fontSize: 13,
                                 iconSize: 18,
+                                fontColor: onChrome,
                                 isVerify: chatUser?.isVerify),
                             Text(chatUser?.fullname ?? '',
                                 style: TextStyleCustom.outFitLight300(
-                                    color: textLightGrey(context),
-                                    fontSize: 15))
+                                    color: muted, fontSize: 15))
                           ],
                         ),
                       ),
@@ -114,17 +120,19 @@ class ChatTopProfileView extends StatelessWidget {
                       height: 36,
                       width: 36,
                       decoration: BoxDecoration(
-                        color: ColorRes.whitePure,
+                        color: chrome,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: ColorRes.crimson.withValues(alpha: 0.45),
+                          color: client
+                              ? ClientColors.accentBlue.withValues(alpha: 0.55)
+                              : ColorRes.crimson.withValues(alpha: 0.45),
                         ),
                       ),
                       alignment: Alignment.center,
-                      child: const Icon(
+                      child: Icon(
                         Icons.more_horiz_rounded,
                         size: 22,
-                        color: ColorRes.textDarkGrey,
+                        color: onChrome,
                       )))
             ],
           );

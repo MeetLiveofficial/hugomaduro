@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/search_result_tile.dart';
@@ -26,12 +27,24 @@ enum CreateFeedType { feed, reel }
 class CreateFeedScreen extends StatelessWidget {
   final CreateFeedType createType;
   final PostStoryContent? content;
+  final List<XFile>? initialImages;
 
-  const CreateFeedScreen({super.key, required this.createType, this.content});
+  const CreateFeedScreen({
+    super.key,
+    required this.createType,
+    this.content,
+    this.initialImages,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(CreateFeedScreenController(createType, content.obs));
+    final controller = Get.put(
+      CreateFeedScreenController(
+        createType,
+        content.obs,
+        initialImages: initialImages,
+      ),
+    );
 
     return Scaffold(
       body: Column(

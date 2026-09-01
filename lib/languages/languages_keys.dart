@@ -819,6 +819,8 @@ class LKey {
   static const String waitingBattleResponse = "Waiting for battle response…";
   static const String waitingForUser = "Waiting for @name…";
   static const String paused = "PAUSED";
+  static const String liveStreamPausedHint =
+      "The host paused this LIVE. Please wait.";
   static const String inCall = "IN CALL";
   static const String pkDraw = "DRAW";
   static const String pkResult = "PK RESULT";
