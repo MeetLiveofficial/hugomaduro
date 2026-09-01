@@ -56,23 +56,39 @@ class TasksScreen extends StatelessWidget {
           ),
           Expanded(
             child: Obx(() {
-              if (controller.pageLoading.value) {
+              // No vaciar a loader en reload: assignAll antiguo dejaba
+              // categories vacío un frame y parpadeaba todo.
+              final showBootLoader = controller.pageLoading.value &&
+                  !controller.hasLoadedOnce &&
+                  controller.categories.isEmpty;
+              if (showBootLoader) {
                 return const LoaderWidget();
               }
-              return RefreshIndicator(
-                onRefresh: controller.loadTasks,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  children: [
-                    _CountdownBanner(controller: controller),
-                    const SizedBox(height: 12),
-                    _PointsHeader(controller: controller),
-                    const SizedBox(height: 12),
-                    _EligibilityBanner(controller: controller),
-                    const SizedBox(height: 12),
-                    _TaskList(controller: controller),
-                  ],
-                ),
+              return Stack(
+                children: [
+                  RefreshIndicator(
+                    onRefresh: () => controller.loadTasks(silent: true),
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      children: [
+                        _CountdownBanner(controller: controller),
+                        const SizedBox(height: 12),
+                        _PointsHeader(controller: controller),
+                        const SizedBox(height: 12),
+                        _EligibilityBanner(controller: controller),
+                        const SizedBox(height: 12),
+                        _TaskList(controller: controller),
+                      ],
+                    ),
+                  ),
+                  if (controller.refreshing.value)
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearProgressIndicator(minHeight: 2),
+                    ),
+                ],
               );
             }),
           ),
@@ -91,7 +107,10 @@ class _Tabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final selected = controller.selectedTab.value;
-      final codes = controller.visibleTabCodes;
+      // Solo códigos de pestaña (no el contenido de categories → sin parpadeo).
+      final codes = controller.tabCodes.isNotEmpty
+          ? controller.tabCodes.toList()
+          : controller.visibleTabCodes;
       return Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
         padding: const EdgeInsets.all(4),
@@ -102,15 +121,28 @@ class _Tabs extends StatelessWidget {
         child: Row(
           children: [
             for (var i = 0; i < codes.length; i++)
-              _tab(context, controller.tabLabel(codes[i]), i, selected == i),
+              _tab(
+                context,
+                controller.tabLabel(codes[i]),
+                i,
+                selected == i,
+                key: ValueKey('task_tab_${codes[i]}'),
+              ),
           ],
         ),
       );
     });
   }
 
-  Widget _tab(BuildContext context, String label, int index, bool active) {
+  Widget _tab(
+    BuildContext context,
+    String label,
+    int index,
+    bool active, {
+    Key? key,
+  }) {
     return Expanded(
+      key: key,
       child: InkWell(
         onTap: () => controller.onTabChanged(index),
         borderRadius: BorderRadius.circular(30),

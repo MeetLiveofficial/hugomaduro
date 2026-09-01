@@ -9,9 +9,9 @@ import 'package:flutter/material.dart';
 /// | 400 | `#27D3F5` | Primario (CTA, marca) |
 /// | 500 / 600 | `#0BCDF4` / `#09A8C8` | Hover / active |
 /// | 300 / 200 | `#63DFF8` / `#8FE8FA` | Acentos, badges, bordes |
-/// | 950 / 900 / 800 | `#011418` / `#033944` / `#055E70` | Fondo, modales, cards |
-/// | 700 | `#07839C` | Divisores |
-/// | 50 / 100 | `#E7FAFE` / `#BBF1FC` | Texto / subtítulos |
+/// | 950 / 900 / 800 | `#011418` / `#033944` / `#055E70` | Texto fuerte, modales oscuros, cards |
+/// | 700 | `#07839C` | Texto secundario legible sobre claro |
+/// | 50 / 100 | `#E7FAFE` / `#BBF1FC` | Fondos claros / chips (NO texto sobre blanco) |
 class ClientColors {
   ClientColors._();
 
@@ -26,6 +26,9 @@ class ClientColors {
   static const Color client800 = Color(0xFF055E70);
   static const Color client900 = Color(0xFF033944);
   static const Color client950 = Color(0xFF011418);
+
+  /// Azul de contraste para textos e iconos de nav (`#3a83f3`).
+  static const Color accentBlue = Color(0xFF3A83F3);
 
   /// Acción principal / marca (`--color-400`).
   static const Color primary = client400;
@@ -42,23 +45,38 @@ class ClientColors {
   /// Bordes suaves (`--color-200`).
   static const Color secondarySoft = client200;
 
-  /// Fondo de pantalla (`--color-950`).
-  static const Color bg = client950;
+  /// Fondo de pantalla (antes blanco/cian claro).
+  static const Color bg = Color(0xFF2A2A32);
 
-  /// Cards / modales (`--color-900`).
-  static const Color surface = client900;
+  /// Cards / modales claros.
+  static const Color surface = Color(0xFFFFFFFF);
 
-  /// Superficie elevada (`--color-800`).
-  static const Color surfaceAlt = client800;
+  /// Superficie elevada / chips claros.
+  static const Color surfaceAlt = client100;
 
-  /// Bordes y divisores (`--color-700`).
-  static const Color border = client700;
+  /// Bordes y divisores.
+  static const Color border = client200;
 
-  /// Texto sobre fondo oscuro (`--color-50`).
-  static const Color text = client50;
+  /// Texto principal sobre el fondo de pantalla `#2a2a32`.
+  static const Color text = Color(0xFFFFFFFF);
 
-  /// Subtítulos (`--color-100`).
-  static const Color textMuted = client100;
+  /// Texto sobre cards / sheets blancos.
+  static const Color textOnSurface = client950;
+
+  /// Subtítulos / timestamps (azul de contraste).
+  static const Color textMuted = accentBlue;
+
+  /// Texto sobre fondos oscuros (LIVE, chips teal, media).
+  static const Color textOnDark = client50;
+
+  /// Subtítulo sobre fondos oscuros.
+  static const Color textOnDarkMuted = client100;
+
+  /// Superficie oscura (header Match, badges).
+  static const Color surfaceDark = client900;
+
+  /// Chip / pill oscuro.
+  static const Color surfaceDarkAlt = client800;
 
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [client400, client500, client600],
@@ -70,6 +88,6 @@ class ClientColors {
   static const LinearGradient surfaceGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [client800, client900, client950],
+    colors: [Color(0xFF2A2A32), Color(0xFF2A2A32), Color(0xFF2A2A32)],
   );
 }
