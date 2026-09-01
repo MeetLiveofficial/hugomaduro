@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/media_permissions.dart';
 import 'package:krimson/screen/face_filters/services/face_mesh_camera_image_adapter_io.dart';
 import 'package:mediapipe_face_mesh/mediapipe_face_mesh.dart';
 
@@ -87,10 +87,7 @@ class FaceCameraService {
   }
 
   Future<bool> requestPermissions() async {
-    if (kIsWeb) return false;
-    final camera = await Permission.camera.request();
-    final mic = await Permission.microphone.request();
-    return camera.isGranted && mic.isGranted;
+    return MediaPermissions.ensure(camera: true, microphone: true);
   }
 
   Future<bool> initialize({

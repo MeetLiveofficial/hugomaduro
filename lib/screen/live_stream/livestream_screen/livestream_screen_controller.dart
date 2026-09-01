@@ -13,6 +13,7 @@ import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/streamer_camera_lock.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/chat_service.dart';
 import 'package:krimson/common/service/api/gift_wallet_service.dart';
@@ -524,6 +525,7 @@ class LivestreamScreenController extends BaseController {
         await _joinLaravelSession();
         await _loadHostFollowStatus();
       } else {
+        await StreamerCameraLock.releaseMatchWaitIfAny();
         await _refreshSessionStats(silent: true);
         // Precargar traductor: comentarios de Clientes → idioma del Streamer.
         unawaited(ChatTranslatorService.instance.preloadForUserLanguage());

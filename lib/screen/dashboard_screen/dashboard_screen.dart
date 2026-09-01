@@ -13,6 +13,7 @@ import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart
 import 'package:krimson/screen/explore_screen/explore_screen.dart';
 import 'package:krimson/screen/home_screen/unified_home_screen.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen.dart';
+import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/message_screen/message_screen.dart';
@@ -289,7 +290,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildStreamerMatchNavItem() {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => Get.to(() => const MatchScreen()),
+      onTap: () async {
+        if (Get.isRegistered<LiveStreamSearchScreenController>()) {
+          await Get.find<LiveStreamSearchScreenController>()
+              .pauseStudioCamera();
+        }
+        Get.to(() => const MatchScreen());
+      },
       child: const SizedBox(
         width: 46,
         height: 58,

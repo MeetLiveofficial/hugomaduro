@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
+import 'package:krimson/common/manager/streamer_camera_lock.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -18,30 +20,59 @@ import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Vista Match: radar de búsqueda + modos Random / Goddess.
 /// [asTab]: embebido en la barra del cliente. Sin tab, muestra atrás (Ajustes streamer).
-class MatchScreen extends StatelessWidget {
+class MatchScreen extends StatefulWidget {
   final bool asTab;
 
   const MatchScreen({super.key, this.asTab = false});
 
   @override
+  State<MatchScreen> createState() => _MatchScreenState();
+}
+
+class _MatchScreenState extends State<MatchScreen> {
+  late final MatchScreenController c;
+
+  @override
+  void initState() {
+    super.initState();
+    if (AppRole.isStreamer() && !widget.asTab) {
+      StreamerCameraLock.matchWaitVisible = true;
+    }
+    c = Get.put(MatchScreenController());
+    if (AppRole.isStreamer() && !widget.asTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(c.onWaitScreenOpened());
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    if (AppRole.isStreamer() && !widget.asTab) {
+      StreamerCameraLock.matchWaitVisible = false;
+      unawaited(c.onWaitScreenClosed());
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final c = Get.put(MatchScreenController());
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _MatchBackdrop(),
+          const _MatchBackdrop(),
           SafeArea(
             child: Padding(
-              padding: EdgeInsets.only(bottom: asTab ? 12 : 16),
+              padding: EdgeInsets.only(bottom: widget.asTab ? 12 : 16),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final radar = (constraints.maxHeight * 0.36)
                       .clamp(150.0, 240.0);
                   return Column(
                     children: [
-                      _TopBar(controller: c, showBack: !asTab),
+                      _TopBar(controller: c, showBack: !widget.asTab),
                       Expanded(
                         child: AppRole.isStreamer()
                             ? Padding(

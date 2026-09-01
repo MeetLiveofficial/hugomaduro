@@ -9,6 +9,7 @@ import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/manager/streamer_camera_lock.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -18,6 +19,7 @@ import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
+import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_preview_screen.dart';
 import 'package:krimson/screen/subscription_screen/subscription_screen.dart';
 import 'package:krimson/utilities/const_res.dart';
@@ -101,6 +103,7 @@ class MatchScreenController extends BaseController
         },
       );
     }
+    StreamerCameraLock.releaseMatchWait = leavePool;
     _lifecycle = AppLifecycleListener(
       onResume: () => unawaited(_syncPresence()),
       onHide: () {
@@ -113,6 +116,23 @@ class MatchScreenController extends BaseController
       },
     );
     unawaited(_syncPresence());
+  }
+
+  /// Match a pantalla completa (streamer): toma la cámara y entra al pool.
+  Future<void> onWaitScreenOpened() async {
+    StreamerCameraLock.matchWaitVisible = true;
+    if (!AppRole.isStreamer()) return;
+    if (streamerMatchEnabled.value) {
+      await joinPool();
+    }
+  }
+
+  /// Al salir de Match: suelta la cámara para que LIVE la encienda al instante.
+  Future<void> onWaitScreenClosed() async {
+    StreamerCameraLock.matchWaitVisible = false;
+    if (!AppRole.isStreamer()) return;
+    await leavePool();
+    await _resumeLiveStudioCamera();
   }
 
   void _syncPulse() {
@@ -138,8 +158,10 @@ class MatchScreenController extends BaseController
       return;
     }
     if (AppRole.isStreamer()) {
-      if (streamerMatchEnabled.value) {
+      if (streamerMatchEnabled.value && StreamerCameraLock.matchWaitVisible) {
         await joinPool();
+      } else if (!StreamerCameraLock.matchWaitVisible) {
+        await leavePool();
       }
       return;
     }
@@ -168,6 +190,7 @@ class MatchScreenController extends BaseController
       if (AppRole.isStreamer() && !_hasLocalWaitVideo()) {
         _joining = true;
         try {
+          await _pauseLiveStudioCamera();
           await _connectWaitCamera(null);
         } catch (e) {
           Loggers.error('Match wait camera retry: $e');
@@ -182,10 +205,18 @@ class MatchScreenController extends BaseController
       inMatchPool.value = true;
     }
     try {
+      if (AppRole.isStreamer()) {
+        await _pauseLiveStudioCamera();
+      }
+      // Cámara en paralelo con el API: si el permiso ya está, el feed sale ya.
+      final camFuture = AppRole.isStreamer()
+          ? _connectWaitCamera(null)
+          : Future<void>.value();
       final waitRoom = await CallService.instance.joinMatch();
       if (AppRole.isStreamer() && !streamerMatchEnabled.value) {
         inMatchPool.value = false;
         await CallService.instance.leaveMatch();
+        await _disconnectWaitCamera();
         return;
       }
       inMatchPool.value = true;
@@ -198,7 +229,10 @@ class MatchScreenController extends BaseController
         unawaited(_pollMatchInbox());
       });
       unawaited(_pollMatchInbox());
-      if (AppRole.isStreamer()) {
+      await camFuture;
+      if (AppRole.isStreamer() &&
+          (waitRoom ?? '').trim().isNotEmpty &&
+          !_hasLocalWaitVideo()) {
         await _connectWaitCamera(waitRoom);
       }
     } catch (e) {
@@ -230,6 +264,10 @@ class MatchScreenController extends BaseController
     final me = SessionManager.instance.getUser();
     final id = me?.id;
     if (id == null) return;
+    if (_hasLocalWaitVideo()) {
+      waitCameraOn.value = true;
+      return;
+    }
     final room = (waitRoom ?? '').trim().isNotEmpty
         ? waitRoom!.trim()
         : 'matchwait_$id';
@@ -249,15 +287,42 @@ class MatchScreenController extends BaseController
             firstVideoTrackOf(lk.localParticipant.value) == null,
       );
       var hasTrack = firstVideoTrackOf(lk.localParticipant.value) != null;
-      for (var i = 0; i < 25 && !hasTrack; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+      waitCameraOn.value = hasTrack || lk.cameraEnabled.value;
+      lk.mediaRevision.value++;
+      for (var i = 0; i < 10 && !hasTrack; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 120));
         hasTrack = firstVideoTrackOf(lk.localParticipant.value) != null;
+        waitCameraOn.value = hasTrack || lk.cameraEnabled.value;
         lk.mediaRevision.value++;
       }
       waitCameraOn.value = hasTrack || lk.isConnected.value;
     } catch (e) {
       waitCameraOn.value = false;
       Loggers.error('Match wait camera: $e');
+    }
+  }
+
+  Future<void> _pauseLiveStudioCamera() async {
+    if (!Get.isRegistered<LiveStreamSearchScreenController>()) return;
+    try {
+      await Get.find<LiveStreamSearchScreenController>().pauseStudioCamera();
+    } catch (e) {
+      Loggers.error('pauseStudioCamera: $e');
+    }
+  }
+
+  Future<void> _resumeLiveStudioCamera() async {
+    if (StreamerCameraLock.matchWaitVisible) return;
+    if (!Get.isRegistered<DashboardScreenController>()) return;
+    if (Get.find<DashboardScreenController>().selectedPageIndex.value !=
+        DashboardScreenController.tabLive) {
+      return;
+    }
+    if (!Get.isRegistered<LiveStreamSearchScreenController>()) return;
+    try {
+      await Get.find<LiveStreamSearchScreenController>().resumeStudioCamera();
+    } catch (e) {
+      Loggers.error('resumeStudioCamera: $e');
     }
   }
 
@@ -333,6 +398,10 @@ class MatchScreenController extends BaseController
 
   @override
   void onClose() {
+    if (StreamerCameraLock.releaseMatchWait == leavePool) {
+      StreamerCameraLock.releaseMatchWait = null;
+    }
+    StreamerCameraLock.matchWaitVisible = false;
     _tabWorker?.dispose();
     _lifecycle?.dispose();
     _heartbeat?.cancel();
@@ -350,7 +419,7 @@ class MatchScreenController extends BaseController
   /// Tras colgar un Match: la streamer vuelve a esperar si el radio sigue activo.
   Future<void> resumeAfterCall() async {
     if (AppRole.isStreamer()) {
-      if (streamerMatchEnabled.value) {
+      if (streamerMatchEnabled.value && StreamerCameraLock.matchWaitVisible) {
         await joinPool();
       }
       return;
