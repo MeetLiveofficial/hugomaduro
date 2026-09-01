@@ -6,12 +6,15 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/utilities/poll_intervals.dart';
 import 'package:krimson/model/call/call_request_model.dart';
+import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/incoming_call_screen.dart';
 import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
@@ -30,7 +33,7 @@ class CallsListController extends BaseController {
   void onInit() {
     super.onInit();
     refreshInbox();
-    _pollTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+    _pollTimer = Timer.periodic(PollIntervals.inboxCallsList, (_) {
       refreshInbox(silent: true);
     });
   }
@@ -158,29 +161,43 @@ class CallsListView extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    CustomImage(
-                      size: const Size(44, 44),
-                      image: peer?.profilePhoto?.addBaseURL(),
-                      fullName: peer?.fullname ?? peer?.username,
-                    ),
-                    const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            peer?.fullname ?? peer?.username ?? '-',
-                            style: TextStyleCustom.outFitMedium500(
-                                color: textDarkGrey(context), fontSize: 14),
-                          ),
-                          Text(
-                            item.isMatchSession
-                                ? 'Match · ${item.status} · ${item.coinsCost} ${LKey.coins.tr}'
-                                : '${incoming ? LKey.incomingCall.tr : LKey.outgoingCall.tr} · ${item.status} · ${item.coinsCost} ${LKey.coins.tr}',
-                            style: TextStyleCustom.outFitRegular400(
-                                color: textLightGrey(context), fontSize: 12),
-                          ),
-                        ],
+                      child: InkWell(
+                        onTap: peer?.id == null
+                            ? null
+                            : () => _openPeerProfile(peer!),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Row(
+                          children: [
+                            CustomImage(
+                              size: const Size(44, 44),
+                              image: peer?.profilePhoto?.addBaseURL(),
+                              fullName: peer?.fullname ?? peer?.username,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    peer?.fullname ?? peer?.username ?? '-',
+                                    style: TextStyleCustom.outFitMedium500(
+                                        color: textDarkGrey(context),
+                                        fontSize: 14),
+                                  ),
+                                  Text(
+                                    item.isMatchSession
+                                        ? 'Match · ${item.status} · ${item.coinsCost} ${LKey.coins.tr}'
+                                        : '${incoming ? LKey.incomingCall.tr : LKey.outgoingCall.tr} · ${item.status} · ${item.coinsCost} ${LKey.coins.tr}',
+                                    style: TextStyleCustom.outFitRegular400(
+                                        color: textLightGrey(context),
+                                        fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     if (item.isPending && incoming) ...[
@@ -215,6 +232,19 @@ class CallsListView extends StatelessWidget {
         ),
       );
     });
+  }
+
+  void _openPeerProfile(CallParty peer) {
+    NavigationService.shared.openProfileScreen(
+      User(
+        id: peer.id,
+        fullname: peer.fullname,
+        username: peer.username,
+        profilePhoto: peer.profilePhoto,
+        isVerify: peer.isVerify,
+        canReceiveCalls: peer.canReceiveCalls,
+      ),
+    );
   }
 }
 

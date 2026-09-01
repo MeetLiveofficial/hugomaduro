@@ -702,10 +702,13 @@ class LiveStreamSearchScreenController extends BaseController {
     int? deepArFilterId,
   }) async {
     final title = titleController.text.trim();
-    final details = descriptionController.text.trim();
+    var details = descriptionController.text.trim();
     if (title.isEmpty) {
       showSnackBar(LKey.enterLiveStreamTitle.tr);
       return;
+    }
+    if (details.length > 30) {
+      details = details.substring(0, 30).trimRight();
     }
 
     final description = details.isEmpty ? title : '$title\n$details';
@@ -851,11 +854,11 @@ class _StartLiveSheet extends StatelessWidget {
         const SizedBox(height: 8),
         TextField(
           controller: controller.descriptionController,
-          maxLength: 500,
+          maxLength: 30,
           maxLines: keyboardOpen ? 2 : 2,
           minLines: 1,
           decoration: InputDecoration(
-            hintText: 'Describe your live...',
+            hintText: 'Describe your live... (max 30)',
             isDense: true,
             alignLabelWithHint: true,
             contentPadding:

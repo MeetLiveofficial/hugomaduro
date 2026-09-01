@@ -1,7 +1,11 @@
 import 'dart:html' as html;
 
-/// El &lt;video&gt; de LiveKit en Web se pinta encima del canvas; sin esto
-/// tapa botones. pointer-events:none deja los toques a Flutter.
+/// El &lt;video&gt; / HtmlElementView de LiveKit en Web se pinta encima del
+/// canvas de Flutter y se come los toques (mic, colgar, gift, etc.).
+/// `pointer-events: none` en el video **y** en el host del platform-view
+/// deja los clics al canvas de Flutter.
+///
+/// No tocar todos los `flt-semantics`: Flutter Web los usa para hit-testing.
 void passThroughMatchVideoClicks() {
   for (final node in html.document.querySelectorAll('video')) {
     final el = node as html.Element;
@@ -19,12 +23,17 @@ void _raisePlatformView(html.Element video, String z) {
   video.style.zIndex = z;
   html.Element? p = video.parent;
   var hops = 0;
-  while (p != null && hops < 8) {
+  while (p != null && hops < 12) {
     final tag = p.tagName.toLowerCase();
-    if (tag.contains('flt-platform-view') || tag.contains('flt-semantics')) {
+    final isHost = tag.contains('flt-platform-view') ||
+        tag.contains('flt-platform-view-slot');
+    if (isHost) {
       p.style.zIndex = z;
       p.style.position = 'relative';
-      if (z == '40') p.style.overflow = 'hidden';
+      // Crítico: el host captura clics aunque el <video> ya tenga none.
+      // Sin ClipRect en Web el video desborda sobre la barra de controles.
+      p.style.pointerEvents = 'none';
+      p.style.overflow = 'hidden';
       break;
     }
     p = p.parent;

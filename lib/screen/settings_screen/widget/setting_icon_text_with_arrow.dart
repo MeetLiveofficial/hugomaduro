@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -22,7 +23,7 @@ class SettingIconTextWithArrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = iconColor ?? ColorRes.crimson;
+    final accent = iconColor ?? themeAccentSolid(context);
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -55,7 +56,9 @@ class SettingIconTextWithArrow extends StatelessWidget {
                 title.tr,
                 style: TextStyleCustom.outFitRegular400(
                   fontSize: 16,
-                  color: textDarkGrey(context),
+                  color: AppRole.isClient()
+                      ? ClientColors.textOnSurface
+                      : textDarkGrey(context),
                 ),
               ),
             ),

@@ -54,6 +54,7 @@ import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/const_res.dart';
+import 'package:krimson/utilities/poll_intervals.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:livekit_client/livekit_client.dart';
@@ -570,7 +571,7 @@ class LivestreamScreenController extends BaseController {
   void _startIncomingCallPolling() {
     _callPoll?.cancel();
     Future.microtask(_pollIncomingCalls);
-    _callPoll = Timer.periodic(const Duration(seconds: 5), (_) {
+    _callPoll = Timer.periodic(PollIntervals.inboxLive, (_) {
       _pollIncomingCalls();
     });
   }
@@ -711,6 +712,7 @@ class LivestreamScreenController extends BaseController {
         isStreamPaused.value = !isStreamPaused.value;
       }
       _syncElapsedTimerWithPause();
+      await _broadcastLivePause(isStreamPaused.value);
       update();
       return;
     }
@@ -719,8 +721,27 @@ class LivestreamScreenController extends BaseController {
     _syncElapsedTimerWithPause();
     if (isHost) {
       isLiveAudioMuted.value = !lk.microphoneEnabled.value;
+      await _broadcastLivePause(isStreamPaused.value);
     }
     update();
+  }
+
+  Future<void> _broadcastLivePause(bool paused) async {
+    if (!isHost) return;
+    final me = SessionManager.instance.getUser();
+    if (me?.id == null) return;
+    try {
+      final msg = LiveChatMessage(
+        id: 'pause_${DateTime.now().millisecondsSinceEpoch}',
+        userId: me!.id!.toInt(),
+        userName: _liveDisplayName(me),
+        type: 'live_pause',
+        text: paused ? '1' : '0',
+      );
+      await liveKit?.publishData(msg.toBytes());
+    } catch (e) {
+      Loggers.error('broadcast live_pause: $e');
+    }
   }
 
   Future<void> toggleLiveAudioMute() async {
@@ -1613,7 +1634,7 @@ class LivestreamScreenController extends BaseController {
 
   void _appendChatMessage(LiveChatMessage raw, {bool animateGift = false}) {
     final msg = _normalizeIncomingChat(raw);
-    if (msg.type == 'like') return;
+    if (msg.type == 'like' || msg.type == 'live_pause') return;
     if (chatMessages.any((m) => m.id == msg.id)) {
       if (msg.type == 'gift') _upgradeGiftSenderCoins(msg);
       return;
@@ -1759,6 +1780,20 @@ class LivestreamScreenController extends BaseController {
   void _onLiveData(DataReceivedEvent event) {
     final msg = LiveChatMessage.tryParseBytes(event.data);
     if (msg == null) return;
+    if (msg.type == 'live_pause') {
+      final paused = (msg.text ?? '').trim() == '1';
+      if (isStreamPaused.value == paused) return;
+      isStreamPaused.value = paused;
+      if (!isHost) {
+        unawaited(
+          liveKit?.setStreamPaused(paused: paused, asHost: false) ??
+              Future.value(),
+        );
+      }
+      _syncElapsedTimerWithPause();
+      update();
+      return;
+    }
     if (msg.type == 'like') {
       _pulseFloatingLike();
       return;
@@ -1795,7 +1830,9 @@ class LivestreamScreenController extends BaseController {
       );
       for (final msg in payload.comments) {
         // En poll inicial no animar (evita spam al entrar). Luego sí.
-        final isGiftLike = msg.type == 'gift' ||
+        final normalized = _normalizeIncomingChat(msg);
+        final isGiftLike = normalized.type == 'gift' ||
+            (msg.text ?? '').contains('GIFT|') ||
             (msg.text ?? '').contains('ðŸŽ');
         _appendChatMessage(msg, animateGift: !initial && isGiftLike);
       }
@@ -2072,7 +2109,7 @@ class LivestreamScreenController extends BaseController {
     _appendChatMessage(msg, animateGift: false);
     // Payload corto (sin URL): evita max length del API y parseo frágil.
     final encoded =
-        'ðŸŽGIFT|${gift.id ?? 0}|$coins| $name ${LKey.sentAGift.tr} · $coins ${LKey.coins.tr}';
+        'GIFT|${gift.id ?? 0}|$coins| $name ${LKey.sentAGift.tr} · $coins ${LKey.coins.tr}';
     try {
       await LiveSessionService.instance.sendComment(
         roomId: roomId,
@@ -2108,13 +2145,21 @@ class LivestreamScreenController extends BaseController {
     }
     try {
       await liveKit?.publishData(msg.toBytes());
-    } catch (_) {}
+    } catch (e) {
+      Loggers.error('broadcastGift livekit: $e');
+    }
   }
 
   Future<void> openPrivateCall({bool skipConfirmSheet = false}) async {
     if (isHost) return;
     final hostId = livestream.hostId;
     if (hostId == null) return;
+
+    if (hostInCall.value) {
+      showSnackBar(LKey.callStreamerInCall.tr);
+      unawaited(leaveAndRedirectToNextLive());
+      return;
+    }
 
     showLoader();
     try {
@@ -2123,6 +2168,12 @@ class LivestreamScreenController extends BaseController {
       stopLoader();
       if (hostUser == null) {
         showSnackBar(LKey.somethingWentWrong.tr);
+        return;
+      }
+
+      if (CallAvailability.isInCall(hostUser) || hostInCall.value) {
+        showSnackBar(LKey.callStreamerInCall.tr);
+        unawaited(leaveAndRedirectToNextLive());
         return;
       }
 
@@ -2144,7 +2195,11 @@ class LivestreamScreenController extends BaseController {
 
       void goOutgoing() {
         unawaited(pauseLiveKitForCall());
-        Get.to(() => OutgoingCallScreen(callee: hostUser, cost: cost));
+        Get.to(() => OutgoingCallScreen(
+              callee: hostUser,
+              cost: cost,
+              onBusyRedirectToNextLive: true,
+            ));
       }
 
       if (skipConfirmSheet) {
@@ -2388,6 +2443,11 @@ class LivestreamScreenController extends BaseController {
 
   void showCallInviteDialog(LiveChatMessage msg) {
     if (isHost) return;
+    if (hostInCall.value) {
+      showSnackBar(LKey.callStreamerInCall.tr);
+      unawaited(leaveAndRedirectToNextLive());
+      return;
+    }
     final cost = msg.giftCoins ?? 0;
     final name = msg.userName;
     Get.dialog(
@@ -2418,6 +2478,11 @@ class LivestreamScreenController extends BaseController {
           TextButton(
             onPressed: () {
               Get.back();
+              if (hostInCall.value) {
+                showSnackBar(LKey.callStreamerInCall.tr);
+                unawaited(leaveAndRedirectToNextLive());
+                return;
+              }
               if (cost > 0 &&
                   !CoinGate.ensureEnough(
                     cost,
@@ -3109,6 +3174,13 @@ class LivestreamScreenController extends BaseController {
     }
     if (wasHostInCall && !hostInCall.value) {
       _syncElapsedTimerWithPause();
+    }
+    // Audiencia: host acaba de entrar en llamada → otro LIVE.
+    if (!isHost &&
+        !wasHostInCall &&
+        hostInCall.value &&
+        !pausedForCall.value) {
+      unawaited(leaveAndRedirectToNextLive());
     }
 
     final wasRunning = isBattleRunning.value;

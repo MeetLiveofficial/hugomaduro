@@ -104,7 +104,7 @@ class _MatchScreenState extends State<MatchScreen> {
                                           style:
                                               TextStyleCustom.outFitMedium500(
                                             color: AppRole.isClient()
-                                                ? ClientColors.text
+                                                ? ClientColors.textOnDark
                                                 : Colors.white,
                                             fontSize: 15,
                                           ),
@@ -138,19 +138,19 @@ class _MatchBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
-    final base = client ? ClientColors.bg : ColorRes.obsidianDeep;
+    final base = client ? ClientColors.surfaceDark : ColorRes.obsidianDeep;
     final mid = client
         ? ClientColors.primary.withValues(alpha: 0.28)
         : ColorRes.mlPurple.withValues(alpha: 0.28);
     final bottom = client
-        ? ClientColors.surface.withValues(alpha: 0.82)
+        ? ClientColors.surfaceDark.withValues(alpha: 0.82)
         : ColorRes.obsidianDeep.withValues(alpha: 0.78);
     final halo = client ? ClientColors.primary : ColorRes.themeAccentSolid;
     final vignetteMid = client
         ? ClientColors.primaryActive.withValues(alpha: 0.45)
         : ColorRes.mlPurple.withValues(alpha: 0.45);
     final vignetteEnd = client
-        ? ClientColors.bg.withValues(alpha: 0.88)
+        ? ClientColors.surfaceDark.withValues(alpha: 0.88)
         : ColorRes.darkPurple.withValues(alpha: 0.78);
 
     return Stack(
@@ -329,7 +329,7 @@ class _TopBar extends StatelessWidget {
                 Obx(() => Text(
                       '${controller.coins.value}',
                       style: TextStyleCustom.outFitSemiBold600(
-                        color: ClientColors.text,
+                        color: ClientColors.textOnDark,
                         fontSize: 13,
                       ),
                     )),
@@ -348,7 +348,7 @@ class _TopBar extends StatelessWidget {
                   'quota': '$quota',
                 }),
                 style: TextStyleCustom.outFitMedium500(
-                  color: ClientColors.textMuted,
+                  color: ClientColors.textOnDark,
                   fontSize: 12,
                 ),
               );
@@ -392,7 +392,7 @@ class _ChipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: ClientColors.surfaceAlt.withValues(alpha: 0.72),
+      color: ClientColors.surfaceDarkAlt.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -459,7 +459,7 @@ class _RadarButton extends StatelessWidget {
                         )
                       : Icon(
                           Icons.touch_app_rounded,
-                          color: ClientColors.text,
+                          color: ClientColors.textOnDark,
                           size: iconSize,
                         ),
                 );
@@ -664,7 +664,7 @@ class _ModeCard extends StatelessWidget {
             ? ClientColors.primary.withValues(alpha: 0.42)
             : ColorRes.crimson.withValues(alpha: 0.42))
         : (client
-            ? ClientColors.surfaceAlt.withValues(alpha: 0.72)
+            ? ClientColors.surfaceDarkAlt.withValues(alpha: 0.72)
             : Colors.white.withValues(alpha: 0.16));
     final edge = selected
         ? (client ? ClientColors.secondary : ColorRes.themeAccentSolid.withValues(alpha: 0.85))
@@ -672,9 +672,9 @@ class _ModeCard extends StatelessWidget {
     final radio = selected
         ? (client ? ClientColors.secondary : ColorRes.themeAccentSolid)
         : Colors.white54;
-    final titleColor = client ? ClientColors.text : Colors.white;
+    final titleColor = client ? ClientColors.textOnDark : Colors.white;
     final subtitleColor =
-        client ? ClientColors.textMuted : const Color(0xFFE8D48B);
+        client ? ClientColors.textOnDarkMuted : const Color(0xFFE8D48B);
 
     return Material(
       color: fill,

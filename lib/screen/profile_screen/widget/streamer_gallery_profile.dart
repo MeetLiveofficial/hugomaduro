@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -25,6 +27,7 @@ import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/edit_profile_screen/edit_profile_screen.dart';
 import 'package:krimson/screen/post_screen/single_post_screen.dart';
 import 'package:krimson/screen/profile_screen/profile_screen_controller.dart';
+import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/profile_screen/widget/follow_list_controller.dart';
 import 'package:krimson/screen/reels_screen/reels_screen.dart';
 import 'package:krimson/screen/reels_screen/widget/reel_page_type.dart';
@@ -45,11 +48,13 @@ const _chipDark = Color(0xCC1A1A1F);
 class StreamerGalleryProfile extends StatefulWidget {
   final ProfileScreenController controller;
   final bool showBack;
+  final bool isDashBoard;
 
   const StreamerGalleryProfile({
     super.key,
     required this.controller,
     this.showBack = true,
+    this.isDashBoard = false,
   });
 
   @override
@@ -116,129 +121,161 @@ class _StreamerGalleryProfileState extends State<StreamerGalleryProfile> {
             final heroH = (size.height * 0.62).clamp(340.0, size.height * 0.70);
             final isMe = user.id == SessionManager.instance.getUserID();
             const galleryH = 68.0;
+            final hideFloatingNav = widget.isDashBoard;
+            final navClearance = 58.0 + 8.0 + 18.0;
+            final bottomPad = (widget.showBack || hideFloatingNav)
+                ? 12.0
+                : navClearance + MediaQuery.paddingOf(context).bottom;
 
-            final bottomPad = widget.showBack ? 12.0 : 88.0;
-
-            return SizedBox(
-              height: size.height,
-              width: size.width,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Column(
+            // NO usar size.height: el tab vive en Expanded (banner ads) y
+            // forzar pantalla completa mete los botones bajo la nav.
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final hostH = constraints.maxHeight.isFinite &&
+                        constraints.maxHeight > 0
+                    ? constraints.maxHeight
+                    : size.height;
+                final hostW = constraints.maxWidth.isFinite &&
+                        constraints.maxWidth > 0
+                    ? constraints.maxWidth
+                    : size.width;
+                return SizedBox(
+                  height: hostH,
+                  width: hostW,
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Expanded(
-                        child: CustomScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          slivers: [
-                            SliverToBoxAdapter(
-                              child: SizedBox(
-                                height: heroH,
-                                width: size.width,
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    _HeroPager(
-                                      user: user,
-                                      slides: slides,
-                                      pager: _pager,
-                                      onPage: (i) {
-                                        controller.galleryIndex.value = i;
-                                        if (i >= slides.length - 3) {
-                                          controller.fetchPost();
-                                          controller.fetchReel();
-                                        }
-                                      },
-                                    ),
-                                    const IgnorePointer(
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Color(0x88000000),
-                                              Colors.transparent,
-                                              Colors.transparent,
-                                              Color(0xCC000000),
-                                            ],
-                                            stops: [0, 0.16, 0.52, 1],
+                      Column(
+                        children: [
+                          Expanded(
+                            child: CustomScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              slivers: [
+                                SliverToBoxAdapter(
+                                  child: SizedBox(
+                                    height: heroH.clamp(280.0, hostH * 0.58),
+                                    width: hostW,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        _HeroPager(
+                                          user: user,
+                                          slides: slides,
+                                          pager: _pager,
+                                          onPage: (i) {
+                                            controller.galleryIndex.value = i;
+                                            if (i >= slides.length - 3) {
+                                              controller.fetchPost();
+                                              controller.fetchReel();
+                                            }
+                                          },
+                                          onEmptyTap: isMe
+                                              ? () => _showAddGalleryMedia(
+                                                    context,
+                                                    controller,
+                                                  )
+                                              : null,
+                                        ),
+                                        const IgnorePointer(
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Color(0x88000000),
+                                                  Colors.transparent,
+                                                  Colors.transparent,
+                                                  Color(0xCC000000),
+                                                ],
+                                                stops: [0, 0.16, 0.52, 1],
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      left: 14,
-                                      right: 14,
-                                      bottom: slides.isNotEmpty
-                                          ? galleryH + 12
-                                          : 18,
-                                      child: _HeroChrome(
-                                        user: user,
-                                        isMe: isMe,
-                                        controller: controller,
-                                      ),
-                                    ),
-                                    if (slides.isNotEmpty)
-                                      Positioned(
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 8,
-                                        height: galleryH,
-                                        child: _GalleryStrip(
-                                          slides: slides,
-                                          selected: index,
-                                          onSelect: (i) =>
-                                              _goTo(i, slides.length),
+                                        Positioned(
+                                          left: 14,
+                                          right: 14,
+                                          bottom: (slides.isNotEmpty || isMe)
+                                              ? galleryH + 12
+                                              : 18,
+                                          child: _HeroChrome(
+                                            user: user,
+                                            isMe: isMe,
+                                            controller: controller,
+                                          ),
                                         ),
-                                      ),
-                                  ],
+                                        if (slides.isNotEmpty || isMe)
+                                          Positioned(
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 8,
+                                            height: galleryH,
+                                            child: _GalleryStrip(
+                                              slides: slides,
+                                              selected: index,
+                                              isMe: isMe,
+                                              onSelect: (i) =>
+                                                  _goTo(i, slides.length),
+                                              onAdd: isMe
+                                                  ? () => _showAddGalleryMedia(
+                                                        context,
+                                                        controller,
+                                                      )
+                                                  : null,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                SliverToBoxAdapter(
+                                  child: _InfoSheet(
+                                    user: user,
+                                    controller: controller,
+                                    isMe: isMe,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ColoredBox(
+                            color: _sheet,
+                            child: SafeArea(
+                              top: false,
+                              bottom: widget.showBack || widget.isDashBoard,
+                              child: Padding(
+                                padding:
+                                    EdgeInsets.fromLTRB(16, 10, 16, bottomPad),
+                                child: _BottomActions(
+                                  user: user,
+                                  controller: controller,
+                                  isMe: isMe,
                                 ),
                               ),
                             ),
-                            SliverToBoxAdapter(
-                              child: _InfoSheet(
-                                user: user,
-                                controller: controller,
-                                isMe: isMe,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      ColoredBox(
-                        color: _sheet,
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
                         child: SafeArea(
-                          top: false,
-                          bottom: bottomPad < 40,
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(16, 10, 16, bottomPad),
-                            child: _BottomActions(
-                              user: user,
-                              controller: controller,
-                              isMe: isMe,
-                            ),
+                          bottom: false,
+                          child: _TopBar(
+                            showBack: widget.showBack,
+                            isDashBoard: widget.isDashBoard,
+                            controller: controller,
+                            user: user,
+                            isMe: isMe,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: SafeArea(
-                      bottom: false,
-                      child: _TopBar(
-                        showBack: widget.showBack,
-                        controller: controller,
-                        user: user,
-                        isMe: isMe,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             );
           }),
         ),
@@ -252,12 +289,14 @@ class _HeroPager extends StatelessWidget {
   final List<_GallerySlide> slides;
   final PageController pager;
   final ValueChanged<int> onPage;
+  final VoidCallback? onEmptyTap;
 
   const _HeroPager({
     required this.user,
     required this.slides,
     required this.pager,
     required this.onPage,
+    this.onEmptyTap,
   });
 
   @override
@@ -267,7 +306,7 @@ class _HeroPager extends StatelessWidget {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         final fallback = user.profilePhoto?.addBaseURL();
         if (slides.isEmpty) {
-          return CustomImage(
+          final empty = CustomImage(
             size: size,
             image: fallback,
             radius: 0,
@@ -275,6 +314,43 @@ class _HeroPager extends StatelessWidget {
             isShowPlaceHolder: true,
             fullName: user.fullname ?? user.username,
             webPreferHtmlElement: false,
+          );
+          if (onEmptyTap == null) return empty;
+          return GestureDetector(
+            onTap: onEmptyTap,
+            behavior: HitTestBehavior.opaque,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                empty,
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white38),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.add_a_photo_outlined,
+                            color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Agregar foto',
+                          style: TextStyleCustom.outFitMedium500(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           );
         }
         return PageView.builder(
@@ -508,16 +584,28 @@ void _openPost(Post post) {
 
 class _TopBar extends StatelessWidget {
   final bool showBack;
+  final bool isDashBoard;
   final ProfileScreenController controller;
   final User user;
   final bool isMe;
 
   const _TopBar({
     required this.showBack,
+    required this.isDashBoard,
     required this.controller,
     required this.user,
     required this.isMe,
   });
+
+  void _onBack() {
+    if (isDashBoard && Get.isRegistered<DashboardScreenController>()) {
+      Get.find<DashboardScreenController>()
+          .onChanged(DashboardScreenController.tabExplore);
+      return;
+    }
+    controller.adsController.showInterstitialAdIfAvailable();
+    Get.back();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -529,19 +617,21 @@ class _TopBar extends StatelessWidget {
             CustomBackButton(
               color: Colors.white,
               padding: const EdgeInsets.all(12),
-              onTap: () {
-                controller.adsController.showInterstitialAdIfAvailable();
-                Get.back();
-              },
+              onTap: _onBack,
             )
           else
             const SizedBox(width: 44, height: 44),
           const Spacer(),
-          IconButton(
-            onPressed: () =>
-                _showMoreOptions(context, controller, user, isMe),
-            icon: const Icon(Icons.more_horiz, color: Colors.white, size: 26),
-          ),
+          // Streamer (isMe): settings va abajo con icono de tuerca.
+          // Perfil ajeno: menú ⋯ (follow / report / block).
+          if (!isMe)
+            IconButton(
+              onPressed: () =>
+                  _showMoreOptions(context, controller, user, isMe),
+              icon: const Icon(Icons.more_horiz, color: Colors.white, size: 26),
+            )
+          else
+            const SizedBox(width: 44, height: 44),
         ],
       ),
     );
@@ -683,22 +773,31 @@ class _StatusBadges extends StatelessWidget {
 class _GalleryStrip extends StatelessWidget {
   final List<_GallerySlide> slides;
   final int selected;
+  final bool isMe;
   final ValueChanged<int> onSelect;
+  final VoidCallback? onAdd;
 
   const _GalleryStrip({
     required this.slides,
     required this.selected,
+    required this.isMe,
     required this.onSelect,
+    this.onAdd,
   });
 
   @override
   Widget build(BuildContext context) {
+    final showAdd = isMe && onAdd != null;
+    final count = slides.length + (showAdd ? 1 : 0);
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       scrollDirection: Axis.horizontal,
-      itemCount: slides.length,
+      itemCount: count,
       separatorBuilder: (_, __) => const SizedBox(width: 8),
       itemBuilder: (context, i) {
+        if (showAdd && i == slides.length) {
+          return _AddGalleryTile(onTap: onAdd!);
+        }
         final slide = slides[i];
         final isSelected = i == selected;
         return GestureDetector(
@@ -748,6 +847,175 @@ class _GalleryStrip extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _AddGalleryTile extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _AddGalleryTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 62,
+        height: 62,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white38, width: 1.4),
+          color: const Color(0x66000000),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+      ),
+    );
+  }
+}
+
+void _showAddGalleryMedia(
+  BuildContext context,
+  ProfileScreenController controller,
+) {
+  Get.bottomSheet(
+    SafeArea(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A1A1F),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            Text(
+              'Agregar imagen',
+              style: TextStyleCustom.outFitSemiBold600(
+                color: Colors.white,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Elige foto de perfil o publica un post desde tu galería',
+              style: TextStyleCustom.outFitRegular400(
+                color: Colors.white54,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _AddMediaOption(
+              icon: Icons.account_circle_outlined,
+              title: 'Foto de perfil',
+              subtitle: 'Cambiar tu foto de perfil desde la galería',
+              onTap: () {
+                Get.back();
+                unawaited(controller.updateProfilePhotoFromGallery());
+              },
+            ),
+            const SizedBox(height: 8),
+            _AddMediaOption(
+              icon: Icons.photo_library_outlined,
+              title: 'Publicar post',
+              subtitle: 'Subir una o más fotos como publicación',
+              onTap: () {
+                Get.back();
+                unawaited(controller.openCreatePostFromGallery());
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+  );
+}
+
+class _AddMediaOption extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _AddMediaOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFF2A2A30),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white12,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyleCustom.outFitRegular400(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: Colors.white54, size: 22),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1682,6 +1950,26 @@ class _BottomActions extends StatelessWidget {
             ),
             const SizedBox(width: 10),
           ],
+          Material(
+            color: const Color(0xFF2A2A30),
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => Get.to(() => SettingsScreen(
+                    onUpdateUser: controller.onUpdateUser,
+                  )),
+              child: const SizedBox(
+                width: 52,
+                height: 52,
+                child: Icon(
+                  Icons.settings_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Material(
               color: const Color(0xFF2A2A30),
@@ -1857,7 +2145,7 @@ void _showMoreOptions(
     SafeArea(
       child: Container(
         decoration: BoxDecoration(
-          color: whitePure(context),
+          color: ColorRes.whitePure,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -1865,8 +2153,15 @@ void _showMoreOptions(
           children: [
             if (isMe) ...[
               ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: Text(LKey.editProfile.tr),
+                leading: const Icon(Icons.edit_outlined,
+                    color: ColorRes.textDarkGrey),
+                title: Text(
+                  LKey.editProfile.tr,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: ColorRes.textDarkGrey,
+                    fontSize: 15,
+                  ),
+                ),
                 onTap: () {
                   Get.back();
                   Get.to(() => EditProfileScreen(
@@ -1875,8 +2170,15 @@ void _showMoreOptions(
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.settings_outlined),
-                title: Text(LKey.settings.tr),
+                leading: const Icon(Icons.settings_outlined,
+                    color: ColorRes.textDarkGrey),
+                title: Text(
+                  LKey.settings.tr,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: ColorRes.textDarkGrey,
+                    fontSize: 15,
+                  ),
+                ),
                 onTap: () {
                   Get.back();
                   Get.to(() => SettingsScreen(
@@ -1892,7 +2194,13 @@ void _showMoreOptions(
                       : Icons.person_add_alt,
                   color: ColorRes.textDarkGrey,
                 ),
-                title: Text(following ? LKey.unFollow.tr : LKey.follow.tr),
+                title: Text(
+                  following ? LKey.unFollow.tr : LKey.follow.tr,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: ColorRes.textDarkGrey,
+                    fontSize: 15,
+                  ),
+                ),
                 onTap: () {
                   Get.back();
                   controller.followUnFollowUser();
@@ -1902,7 +2210,13 @@ void _showMoreOptions(
                 ListTile(
                   leading:
                       Image.asset(AssetRes.icShare2, height: 22, width: 22),
-                  title: Text(LKey.share.tr),
+                  title: Text(
+                    LKey.share.tr,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: ColorRes.textDarkGrey,
+                      fontSize: 15,
+                    ),
+                  ),
                   onTap: () {
                     Get.back();
                     ShareManager.shared.showCustomShareSheet(
@@ -1913,7 +2227,13 @@ void _showMoreOptions(
                 ),
               ListTile(
                 leading: Image.asset(AssetRes.icReport, height: 22, width: 22),
-                title: Text(LKey.report.tr),
+                title: Text(
+                  LKey.report.tr,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: ColorRes.textDarkGrey,
+                    fontSize: 15,
+                  ),
+                ),
                 onTap: () {
                   Get.back();
                   controller.reportUser(user);
@@ -1921,7 +2241,13 @@ void _showMoreOptions(
               ),
               ListTile(
                 leading: Image.asset(AssetRes.icBlock, height: 22, width: 22),
-                title: Text(isBlocked ? LKey.unBlock.tr : LKey.block.tr),
+                title: Text(
+                  isBlocked ? LKey.unBlock.tr : LKey.block.tr,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: ColorRes.textDarkGrey,
+                    fontSize: 15,
+                  ),
+                ),
                 onTap: () {
                   Get.back();
                   controller.toggleBlockUnblock(isBlocked);

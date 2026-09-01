@@ -1,11 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/controller/ads_controller.dart';
 import 'package:krimson/common/controller/follow_controller.dart';
 import 'package:krimson/common/controller/profile_controller.dart';
 import 'package:krimson/common/enum/chat_enum.dart';
 import 'package:krimson/common/extensions/list_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
+import 'package:krimson/common/functions/media_picker_helper.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/call_availability.dart';
@@ -207,6 +210,68 @@ class ProfileScreenController extends BlockUserController with GetTickerProvider
 
   Future<void> onRefresh() async {
     Future.wait([fetchUserDetail(), fetchPost(isEmpty: true), fetchReel(isEmpty: true)]);
+  }
+
+  Future<void> updateProfilePhotoFromGallery() async {
+    final file =
+        await MediaPickerHelper.shared.pickImage(source: ImageSource.gallery);
+    if (file == null) return;
+
+    showLoader(barrierDismissible: true);
+    try {
+      XFile photo = file;
+      if (!kIsWeb) {
+        final compressed =
+            await MediaPickerHelper.shared.compressProfileImage(photo.path);
+        photo = compressed ?? photo;
+      }
+      final updated = await UserService.instance
+          .updateUserDetails(profilePhoto: photo)
+          .timeout(const Duration(seconds: 45));
+      if (updated != null) {
+        SessionManager.instance.setUser(updated);
+        onUpdateUser(updated);
+        profileController.updateUser(updated);
+        showSnackBar(LKey.saved.tr);
+      } else {
+        showSnackBar(LKey.somethingWentWrong.tr);
+      }
+    } catch (e) {
+      showSnackBar('$e');
+    } finally {
+      stopLoader();
+    }
+  }
+
+  /// Abre el compositor de post con imágenes ya elegidas de la galería.
+  Future<void> openCreatePostFromGallery() async {
+    if (!AppRole.canPublish()) {
+      showSnackBar('Tu rol no permite publicar.');
+      return;
+    }
+    final limit =
+        SessionManager.instance.getSettings()?.maxImagesPerPost ?? 5;
+    List<XFile> picked = [];
+    try {
+      if (limit >= 2) {
+        picked = await MediaPickerHelper.shared.multipleImages(limit: limit);
+      } else {
+        final one =
+            await MediaPickerHelper.shared.pickImage(source: ImageSource.gallery);
+        if (one != null) picked = [one];
+      }
+    } catch (e) {
+      showSnackBar('$e');
+      return;
+    }
+    if (picked.isEmpty) return;
+
+    await Get.to(() => CreateFeedScreen(
+          createType: CreateFeedType.feed,
+          initialImages: picked,
+        ));
+    // Refrescar galería al volver.
+    await fetchPost(isEmpty: true);
   }
 
   void onAddPost({Post? post, CreateFeedType? type}) {

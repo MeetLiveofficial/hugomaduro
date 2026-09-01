@@ -15,6 +15,7 @@ import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/message_screen/widget/calls_list_view.dart';
 import 'package:krimson/utilities/const_res.dart';
+import 'package:krimson/utilities/poll_intervals.dart';
 
 class MessageScreenController extends BaseController {
   /// Getter: debe llamar `.tr` en cada rebuild (si se cachea al crear el
@@ -117,7 +118,7 @@ class MessageScreenController extends BaseController {
       }
       await _refreshThreads();
       _pollTimer?.cancel();
-      _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      _pollTimer = Timer.periodic(PollIntervals.chatAndSupport, (_) {
         _refreshThreads(silent: true);
       });
     } catch (e) {

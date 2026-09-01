@@ -321,14 +321,14 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: ClientColors.bg,
+        backgroundColor: ClientColors.surfaceDark,
         body: GestureDetector(
           onHorizontalDragUpdate: _onHorizontalDragUpdate,
           onHorizontalDragEnd: _onHorizontalDragEnd,
           child: Stack(
           fit: StackFit.expand,
           children: [
-            const ColoredBox(color: ClientColors.bg),
+            const ColoredBox(color: ClientColors.surfaceDark),
             SafeArea(
               child: Column(
                 children: [
@@ -339,7 +339,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
                         IconButton(
                           onPressed: _busy ? null : Get.back,
                           icon: const Icon(Icons.close,
-                              color: ClientColors.text, size: 22),
+                              color: ClientColors.textOnDark, size: 22),
                         ),
                         CustomImage(
                           size: const Size(36, 36),
@@ -354,7 +354,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyleCustom.outFitSemiBold600(
-                              color: ClientColors.text,
+                              color: ClientColors.textOnDark,
                               fontSize: 15,
                             ),
                           ),
@@ -411,7 +411,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
                       'Desliza para otra streamer · ${_previewSeconds}s de preview',
                       textAlign: TextAlign.center,
                       style: TextStyleCustom.outFitRegular400(
-                        color: ClientColors.textMuted,
+                        color: ClientColors.textOnDarkMuted,
                         fontSize: 12,
                       ),
                     ),
@@ -522,7 +522,7 @@ class _Placeholder extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasPhoto = (photoUrl ?? '').trim().isNotEmpty;
     return ColoredBox(
-      color: ClientColors.surface,
+      color: ClientColors.surfaceDark,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -536,7 +536,7 @@ class _Placeholder extends StatelessWidget {
             )
           else
             const Center(
-              child: Icon(Icons.person, color: ClientColors.textMuted, size: 72),
+              child: Icon(Icons.person, color: ClientColors.textOnDarkMuted, size: 72),
             ),
           ColoredBox(color: Colors.black.withValues(alpha: 0.38)),
           Center(
@@ -545,7 +545,7 @@ class _Placeholder extends StatelessWidget {
               child: Text(
                 status,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: ClientColors.textMuted, fontSize: 14),
+                style: const TextStyle(color: ClientColors.textOnDarkMuted, fontSize: 14),
               ),
             ),
           ),
@@ -565,14 +565,14 @@ class _CountdownBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: ClientColors.surface.withValues(alpha: 0.88),
+        color: ClientColors.surfaceDark.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: ClientColors.secondarySoft),
       ),
       child: Text(
         '${seconds}s',
         style: TextStyleCustom.outFitSemiBold600(
-          color: ClientColors.text,
+          color: ClientColors.textOnDark,
           fontSize: 14,
         ),
       ),
@@ -596,7 +596,7 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: filled ? ClientColors.primary : ClientColors.surfaceAlt,
+      color: filled ? ClientColors.primary : ClientColors.surfaceDarkAlt,
       borderRadius: BorderRadius.circular(28),
       child: InkWell(
         onTap: onTap,
@@ -612,12 +612,12 @@ class _ActionButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: ClientColors.text, size: 22),
+              Icon(icon, color: ClientColors.textOnDark, size: 22),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyleCustom.outFitSemiBold600(
-                  color: ClientColors.text,
+                  color: ClientColors.textOnDark,
                   fontSize: 15,
                 ),
               ),

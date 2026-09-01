@@ -23,6 +23,7 @@ import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream
 import 'package:krimson/screen/match_screen/match_preview_screen.dart';
 import 'package:krimson/screen/subscription_screen/subscription_screen.dart';
 import 'package:krimson/utilities/const_res.dart';
+import 'package:krimson/utilities/poll_intervals.dart';
 
 enum MatchSearchMode { random, goddess }
 
@@ -225,7 +226,7 @@ class MatchScreenController extends BaseController
         unawaited(CallService.instance.matchHeartbeat());
       });
       _inboxPoll?.cancel();
-      _inboxPoll = Timer.periodic(const Duration(seconds: 2), (_) {
+      _inboxPoll = Timer.periodic(PollIntervals.inboxMatch, (_) {
         unawaited(_pollMatchInbox());
       });
       unawaited(_pollMatchInbox());

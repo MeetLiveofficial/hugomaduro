@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
@@ -119,9 +120,6 @@ class LiveStreamOverlay extends StatelessWidget {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
-                                    _TitleDescription(
-                                        controller: controller),
-                                    const SizedBox(height: 4),
                                     Expanded(
                                       child: _ChatList(
                                           controller: controller),
@@ -133,19 +131,30 @@ class LiveStreamOverlay extends StatelessWidget {
                           );
                         }),
                       ),
+                      // Banner lateral: solo descripción del LIVE (máx. 30).
+                      Positioned(
+                        left: 0,
+                        top: 8,
+                        child: _SideDescriptionBanner(
+                            controller: controller),
+                      ),
                       Positioned(
                         right: 4,
                         bottom: 8,
                         child: _FloatingLikes(controller: controller),
                       ),
-                      Obx(() {
-                        if (!controller.isStreamPaused.value &&
-                            !controller.pausedForCall.value &&
-                            !controller.hostInCall.value) {
-                          return const SizedBox.shrink();
-                        }
-                        return const Center(child: _PausedBadge());
-                      }),
+                      Positioned.fill(
+                        child: Obx(() {
+                          final paused = controller.isStreamPaused.value;
+                          if (!paused) return const SizedBox.shrink();
+                          // Si ya hay pane de llamada, no duplicar.
+                          if (controller.pausedForCall.value ||
+                              controller.hostInCall.value) {
+                            return const SizedBox.shrink();
+                          }
+                          return const _LivePausedOverlay();
+                        }),
+                      ),
                       Obx(() {
                         final result = controller.battleResultBanner.value;
                         if (result == null) return const SizedBox.shrink();
@@ -465,30 +474,47 @@ class _BattleWaitingBanner extends StatelessWidget {
   }
 }
 
-class _PausedBadge extends StatelessWidget {
-  const _PausedBadge();
+class _LivePausedOverlay extends StatelessWidget {
+  const _LivePausedOverlay();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.pause_circle_filled, color: Colors.white, size: 22),
-          const SizedBox(width: 8),
-          Text(
-            LKey.paused.tr,
-            style: TextStyleCustom.outFitMedium500(
-              color: Colors.white,
-              fontSize: 13,
-            ),
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.62),
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white24),
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.pause_circle_filled_rounded,
+                  color: Colors.white, size: 56),
+              const SizedBox(height: 12),
+              Text(
+                LKey.paused.tr,
+                style: TextStyleCustom.outFitBold700(
+                  color: Colors.white,
+                  fontSize: 20,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                LKey.liveStreamPausedHint.tr,
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitRegular400(
+                  color: Colors.white70,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1451,53 +1477,45 @@ class _FloatingHeartState extends State<_FloatingHeart>
   }
 }
 
-class _TitleDescription extends StatelessWidget {
+class _SideDescriptionBanner extends StatelessWidget {
+  static const int maxChars = 30;
+
   final LivestreamScreenController controller;
 
-  const _TitleDescription({required this.controller});
+  const _SideDescriptionBanner({required this.controller});
+
+  String get _text {
+    final raw = controller.liveDescription.trim();
+    if (raw.isEmpty) return '';
+    if (raw.length <= maxChars) return raw;
+    return '${raw.substring(0, maxChars).trimRight()}…';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final title = controller.liveTitle.trim();
-    final desc = controller.liveDescription.trim();
-    if (title.isEmpty && desc.isEmpty) return const SizedBox.shrink();
+    final text = _text;
+    if (text.isEmpty) return const SizedBox.shrink();
 
-    final maxW = MediaQuery.sizeOf(context).width * 0.68;
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxW),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(10),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.sizeOf(context).width * 0.42,
+      ),
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: const BorderRadius.horizontal(
+          right: Radius.circular(12),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (title.isNotEmpty)
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyleCustom.outFitSemiBold600(
-                  color: Colors.white,
-                  fontSize: 13,
-                ),
-              ),
-            if (desc.isNotEmpty) ...[
-              if (title.isNotEmpty) const SizedBox(height: 2),
-              Text(
-                desc,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyleCustom.outFitRegular400(
-                  color: Colors.white70,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ],
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyleCustom.outFitMedium500(
+              color: Colors.white,
+              fontSize: 12,
+            ),
+          ),
         ),
       ),
     );
@@ -1808,12 +1826,15 @@ class _ComposerRow extends StatelessWidget {
 
   List<Widget> _audienceActions(LivestreamScreenController c) {
     return [
-      Obx(() => _BadgeIconBtn(
-            icon: Icons.chat_bubble_outline_rounded,
-            tooltip: LKey.chats.tr,
-            badge: c.unreadChatCount.value,
-            onTap: c.openUnreadChatsSheet,
-          )),
+      if (AppRole.isClient())
+        _PrivateCallPill(controller: c)
+      else
+        Obx(() => _BadgeIconBtn(
+              icon: Icons.chat_bubble_outline_rounded,
+              tooltip: LKey.chats.tr,
+              badge: c.unreadChatCount.value,
+              onTap: c.openUnreadChatsSheet,
+            )),
       const SizedBox(width: 6),
       _CircleBtn(
         icon: Icons.high_quality_rounded,
@@ -1825,6 +1846,57 @@ class _ComposerRow extends StatelessWidget {
         onTap: c.openGiftSheet,
       ),
     ];
+  }
+}
+
+class _PrivateCallPill extends StatelessWidget {
+  final LivestreamScreenController controller;
+
+  const _PrivateCallPill({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => controller.openPrivateCall(),
+        child: Ink(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF7B2CBF), Color(0xFF5A189A)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7B2CBF).withValues(alpha: 0.35),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.call_rounded,
+                  color: Color(0xFFFFD60A), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                LKey.privateCall.tr,
+                style: TextStyleCustom.outFitSemiBold600(
+                  color: Colors.white,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

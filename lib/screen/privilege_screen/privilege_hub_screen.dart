@@ -17,7 +17,6 @@ import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/level_screen/level_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
-import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -154,9 +153,9 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                                     Get.to(() => const TasksScreen()),
                               ),
                             _HubTile(
-                              iconWidget: const PodiumIcon(
+                              iconWidget: PodiumIcon(
                                 size: 28,
-                                color: ColorRes.textDarkGrey,
+                                color: textDarkGrey(context),
                               ),
                               title: LKey.honorWall.tr,
                               subtitle: user?['honor_rank'] != null
