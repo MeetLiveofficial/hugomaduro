@@ -176,6 +176,7 @@ class CallService {
   Future<CallInboxResult> inbox() async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.call.inbox,
+      conditionalGet: true,
       fromJson: (j) => j,
     );
     if (json['status'] != true) {
@@ -321,6 +322,31 @@ class CallService {
         ? last.toInt()
         : int.tryParse('$last') ?? (afterId ?? 0);
     return LiveCommentsPayload(comments: comments, lastServerId: lastServerId);
+  }
+
+  /// Desbloquea flip o apagado de cámara (Cliente) en una llamada/Match activa.
+  /// [feature]: `flip` | `camera_off`
+  Future<CallRequestModel> purchaseCameraFeature({
+    required int callRequestId,
+    required String feature,
+  }) async {
+    final json = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.call.purchaseCameraFeature,
+      param: {
+        'call_request_id': callRequestId,
+        'feature': feature,
+      },
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'purchase failed');
+    }
+    final data = Map<String, dynamic>.from(json['data'] as Map? ?? {});
+    final callMap = data['call'];
+    if (callMap is Map) {
+      return CallRequestModel.fromJson(Map<String, dynamic>.from(callMap));
+    }
+    throw Exception('invalid purchase response');
   }
 
   Future<CallRequestModel> _mutate(String url, int callRequestId) async {

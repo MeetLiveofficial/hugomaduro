@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
 
 class BaseController extends FullLifeCycleController {
   RxBool isLoading = false.obs;
@@ -44,7 +44,7 @@ class BaseController extends FullLifeCycleController {
     final text = translate ? raw.tr : raw;
 
     Get.rawSnackbar(
-      backgroundColor: blackPure(Get.context!),
+      backgroundColor: ColorRes.obsidian,
       margin: const EdgeInsets.fromLTRB(10, 56, 10, 10),
       padding: const EdgeInsets.all(15),
       borderRadius: 10,
@@ -54,7 +54,7 @@ class BaseController extends FullLifeCycleController {
       messageText: Text(
         text,
         style: TextStyleCustom.outFitRegular400(
-            color: whitePure(Get.context!), fontSize: 17),
+            color: ColorRes.whitePure, fontSize: 17),
       ),
     );
   }

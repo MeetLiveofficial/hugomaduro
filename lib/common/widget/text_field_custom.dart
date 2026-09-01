@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/edit_profile_screen/widget/phone_codes_screen.dart';
 import 'package:krimson/screen/edit_profile_screen/widget/phone_codes_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -62,6 +64,7 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -78,16 +81,21 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
           decoration: BoxDecoration(
               color: widget.isError
                   ? ColorRes.likeRed.withValues(alpha: .1)
-                  : ColorRes.whitePure.withValues(alpha: 0.9),
+                  : (client
+                      ? ClientColors.surfaceAlt.withValues(alpha: 0.94)
+                      : ColorRes.whitePure.withValues(alpha: 0.9)),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: widget.isError
                     ? ColorRes.likeRed
-                    : ColorRes.roseBorder.withValues(alpha: 0.35),
+                    : (client
+                        ? ClientColors.border.withValues(alpha: 0.7)
+                        : ColorRes.roseBorder.withValues(alpha: 0.35)),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: ColorRes.crimson.withValues(alpha: 0.07),
+                  color: (client ? ClientColors.primary : ColorRes.crimson)
+                      .withValues(alpha: 0.07),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),

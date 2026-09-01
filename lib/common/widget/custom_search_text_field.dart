@@ -43,7 +43,7 @@ class CustomSearchTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
     final fg = foregroundColor ??
-        (client ? ClientColors.text : textDarkGrey(context));
+        (client ? ClientColors.textOnSurface : textDarkGrey(context));
     final hint = foregroundColor != null
         ? foregroundColor!.withValues(alpha: 0.55)
         : (client ? ClientColors.textMuted : textLightGrey(context));

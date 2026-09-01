@@ -14,12 +14,12 @@ class BrandWashBg extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
     final base = client ? ClientColors.bg : ColorRes.obsidianDeep;
-    final mid = client ? ClientColors.surface : ColorRes.obsidian;
+    final mid = client ? ClientColors.bg : ColorRes.obsidian;
     final top = client
-        ? (vivid ? ClientColors.surfaceAlt : ClientColors.surface)
+        ? ClientColors.bg
         : (vivid ? const Color(0xFF2A1224) : const Color(0xFF1C121C));
-    final orbA = client ? ClientColors.primary : ColorRes.crimsonAlt;
-    final orbB = client ? ClientColors.primaryActive : ColorRes.mlPurple;
+    final orbA = client ? ClientColors.bg : ColorRes.crimsonAlt;
+    final orbB = client ? ClientColors.bg : ColorRes.mlPurple;
 
     return Stack(
       fit: StackFit.expand,

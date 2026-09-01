@@ -24,6 +24,7 @@ class LiveSessionService {
   Future<List<Livestream>> listActive() async {
     final json = await ApiService.instance.call(
       url: WebService.live.listActive,
+      conditionalGet: true,
       fromJson: (j) => j,
     );
     if (json['status'] != true) {
@@ -390,6 +391,7 @@ class LiveSessionService {
   Future<List<Livestream>> pendingInvites() async {
     final json = await ApiService.instance.call(
       url: WebService.live.pendingInvites,
+      conditionalGet: true,
       fromJson: (j) => j,
     );
     if (json['status'] != true) return [];

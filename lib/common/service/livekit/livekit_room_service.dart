@@ -40,6 +40,8 @@ class LiveKitRoomService {
           _room?.connectionState == ConnectionState.reconnecting);
 
   LiveKitQualityProfile qualityProfile = LiveKitQualityProfile.medium;
+  CameraPosition _cameraPosition = CameraPosition.front;
+  CameraPosition get cameraPosition => _cameraPosition;
 
   final StreamController<void> _mediaChanges =
       StreamController<void>.broadcast();
@@ -387,7 +389,7 @@ class LiveKitRoomService {
         adaptiveStream: true,
         dynacast: true,
         defaultCameraCaptureOptions: CameraCaptureOptions(
-          cameraPosition: CameraPosition.front,
+          cameraPosition: _cameraPosition,
           params: capture,
         ),
         defaultAudioCaptureOptions: const AudioCaptureOptions(
@@ -671,7 +673,7 @@ class LiveKitRoomService {
       try {
         final track = await LocalVideoTrack.createCameraTrack(
           CameraCaptureOptions(
-            cameraPosition: CameraPosition.front,
+            cameraPosition: _cameraPosition,
             params: params,
           ),
         ).timeout(const Duration(seconds: 8));
@@ -734,7 +736,7 @@ class LiveKitRoomService {
             .setCameraEnabled(
               true,
               cameraCaptureOptions: CameraCaptureOptions(
-                cameraPosition: CameraPosition.front,
+                cameraPosition: _cameraPosition,
                 params: presets[i],
               ),
             )
@@ -814,6 +816,39 @@ class LiveKitRoomService {
     await setCameraEnabled(!lp.isCameraEnabled());
   }
 
+  /// Alterna frontal ↔ trasera. Requiere cámara publicada.
+  Future<void> switchCamera() async {
+    final lp = _room?.localParticipant;
+    if (lp == null || !lp.isCameraEnabled()) return;
+
+    final next = _cameraPosition.switched();
+    LocalVideoTrack? videoTrack;
+    for (final pub in lp.videoTrackPublications) {
+      final t = pub.track;
+      if (t is LocalVideoTrack) {
+        videoTrack = t;
+        break;
+      }
+    }
+    if (videoTrack == null) return;
+
+    try {
+      await videoTrack.setCameraPosition(next);
+      _cameraPosition = next;
+      _mediaChanges.add(null);
+    } catch (e) {
+      Loggers.error('switchCamera: $e');
+      // Fallback: republish with new facing mode.
+      try {
+        _cameraPosition = next;
+        await setCameraEnabled(false);
+        await setCameraEnabled(true);
+      } catch (e2) {
+        Loggers.error('switchCamera fallback: $e2');
+      }
+    }
+  }
+
   Future<void> toggleMicrophone() async {
     final lp = _room?.localParticipant;
     if (lp == null) return;
@@ -886,6 +921,7 @@ class LiveKitRoomService {
       await _room?.dispose();
     } catch (_) {}
     _room = null;
+    _cameraPosition = CameraPosition.front;
     _mediaChanges.add(null);
   }
 

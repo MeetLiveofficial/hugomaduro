@@ -9,6 +9,7 @@ class SupportService {
   Future<SupportSummary> summary() async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.support.summary,
+      conditionalGet: true,
       fromJson: (j) => j,
     );
     if (json['status'] != true) {
