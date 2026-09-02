@@ -21,7 +21,7 @@ import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 
 class SendGiftSheetController extends BaseController {
-  static const int pageSize = 10;
+  static const int pageSize = 20;
 
   Rx<Setting?> settings = Rx<Setting?>(null);
   Rx<User?> myUser = Rx<User?>(null);
@@ -36,10 +36,10 @@ class SendGiftSheetController extends BaseController {
   final RxList<GiftCategory> categories = <GiftCategory>[].obs;
   final RxList<Gift> visibleGifts = <Gift>[].obs;
   final RxBool hasMore = false.obs;
+  final RxBool isInitialLoad = true.obs;
   final ScrollController scrollController = ScrollController();
 
-  List<Gift> _filteredGifts = [];
-  int _loadedCount = 0;
+  int? _lastItemId;
   bool _loadingMore = false;
 
   SendGiftSheetController(this.giftType, this.userId, this.liveUsers,
@@ -86,39 +86,59 @@ class SendGiftSheetController extends BaseController {
     final cats = List<GiftCategory>.from(settings.value?.giftCategories ?? []);
     cats.sort((a, b) => (a.sortOrder ?? 0).compareTo(b.sortOrder ?? 0));
     categories.assignAll(cats);
-    GiftMediaCache.precacheGifts(settings.value?.gifts);
     selectCategory(0);
   }
 
   void selectCategory(int categoryId) {
     selectedCategoryId.value = categoryId;
-    final all = settings.value?.gifts ?? [];
-    if (categoryId <= 0) {
-      _filteredGifts = List<Gift>.from(all);
-    } else {
-      _filteredGifts =
-          all.where((g) => (g.categoryId ?? 0) == categoryId).toList();
-    }
-    _loadedCount = 0;
+    _lastItemId = null;
+    _loadingMore = false;
     visibleGifts.clear();
-    hasMore.value = _filteredGifts.isNotEmpty;
-    loadMore();
+    hasMore.value = true;
+    isInitialLoad.value = true;
     if (scrollController.hasClients) {
       scrollController.jumpTo(0);
     }
+    loadMore();
   }
 
-  void loadMore() {
-    if (_loadingMore || _loadedCount >= _filteredGifts.length) {
-      hasMore.value = _loadedCount < _filteredGifts.length;
-      return;
-    }
+  Future<void> loadMore() async {
+    if (_loadingMore) return;
+    if (!hasMore.value && visibleGifts.isNotEmpty) return;
+
     _loadingMore = true;
-    final end = (_loadedCount + pageSize).clamp(0, _filteredGifts.length);
-    visibleGifts.addAll(_filteredGifts.sublist(_loadedCount, end));
-    _loadedCount = end;
-    hasMore.value = _loadedCount < _filteredGifts.length;
-    _loadingMore = false;
+    try {
+      final result = await GiftWalletService.instance.fetchGiftsCatalog(
+        categoryId: selectedCategoryId.value,
+        lastItemId: _lastItemId,
+        limit: pageSize,
+      );
+      visibleGifts.addAll(result.gifts);
+      hasMore.value = result.hasMore;
+      if (result.gifts.isNotEmpty) {
+        _lastItemId = result.gifts.last.id;
+        GiftMediaCache.precacheGifts(result.gifts);
+      }
+    } catch (e) {
+      Loggers.error('fetchGiftsCatalog failed: $e');
+      if (visibleGifts.isEmpty && _lastItemId == null) {
+        _loadFromSettingsCache(selectedCategoryId.value);
+      }
+    } finally {
+      _loadingMore = false;
+      isInitialLoad.value = false;
+    }
+  }
+
+  /// Respaldo si el endpoint aún no está desplegado en el servidor.
+  void _loadFromSettingsCache(int categoryId) {
+    final all = settings.value?.gifts ?? [];
+    final filtered = categoryId <= 0
+        ? List<Gift>.from(all)
+        : all.where((g) => (g.categoryId ?? 0) == categoryId).toList();
+    visibleGifts.assignAll(filtered);
+    hasMore.value = false;
+    GiftMediaCache.precacheGifts(filtered);
   }
 
   void _onScroll() {

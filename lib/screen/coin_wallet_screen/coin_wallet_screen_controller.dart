@@ -156,7 +156,7 @@ class CoinWalletScreenController extends BaseController {
               textAlign: TextAlign.center,
               style: TextStyleCustom.outFitMedium500(
                 color: client
-                    ? ClientColors.text
+                    ? ClientColors.textOnSurface
                     : textDarkGrey(Get.context!),
                 fontSize: 16,
               ),
@@ -169,7 +169,7 @@ class CoinWalletScreenController extends BaseController {
               textAlign: TextAlign.center,
               style: TextStyleCustom.outFitRegular400(
                 color: client
-                    ? ClientColors.textMuted
+                    ? ClientColors.client700
                     : textLightGrey(Get.context!),
                 fontSize: 13,
               ),
@@ -179,15 +179,24 @@ class CoinWalletScreenController extends BaseController {
               ListTile(
                 leading: Icon(
                   Icons.credit_card,
-                  color: client ? ClientColors.secondary : null,
+                  color: client ? ClientColors.primary : null,
                 ),
-                title: Text(LKey.payCardPseNequi.tr),
+                title: Text(
+                  LKey.payCardPseNequi.tr,
+                  style: TextStyle(
+                    color: client ? ClientColors.textOnSurface : null,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 subtitle: Text(
                   offer.usdAmountText.isEmpty
                       ? LKey.payWompi.tr
                       : LKey.wompiLocalChargeHint.trParams(
                           {'amount': offer.usdAmountText},
                         ),
+                  style: TextStyle(
+                    color: client ? ClientColors.client700 : null,
+                  ),
                 ),
                 onTap: () {
                   Get.back();
@@ -201,10 +210,21 @@ class CoinWalletScreenController extends BaseController {
               ListTile(
                 leading: Icon(
                   Icons.currency_bitcoin,
-                  color: client ? ClientColors.secondary : null,
+                  color: client ? ClientColors.primary : null,
                 ),
-                title: Text(LKey.cryptocurrencies.tr),
-                subtitle: Text(LKey.usdtNowPayments.tr),
+                title: Text(
+                  LKey.cryptocurrencies.tr,
+                  style: TextStyle(
+                    color: client ? ClientColors.textOnSurface : null,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  LKey.usdtNowPayments.tr,
+                  style: TextStyle(
+                    color: client ? ClientColors.client700 : null,
+                  ),
+                ),
                 onTap: () {
                   Get.back();
                   onPurchaseCrypto(offer);
@@ -214,10 +234,21 @@ class CoinWalletScreenController extends BaseController {
               ListTile(
                 leading: Icon(
                   Icons.phone_android,
-                  color: client ? ClientColors.secondary : null,
+                  color: client ? ClientColors.primary : null,
                 ),
-                title: Text(LKey.appStorePlayStore.tr),
-                subtitle: Text(LKey.inAppPurchase.tr),
+                title: Text(
+                  LKey.appStorePlayStore.tr,
+                  style: TextStyle(
+                    color: client ? ClientColors.textOnSurface : null,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  LKey.inAppPurchase.tr,
+                  style: TextStyle(
+                    color: client ? ClientColors.client700 : null,
+                  ),
+                ),
                 onTap: () {
                   Get.back();
                   onPurchaseStore(offer);

@@ -652,7 +652,9 @@ class Gift {
   int? coinPrice;
   String? title;
   String? image;
-  /// 1 = ocupa el 100% de la pantalla; 0 = tamaño original (180).
+  /// MP3/WAV/OGG reproducido al enviar el regalo (opcional).
+  String? sound;
+  /// 0 = tamaño original · 1 = pantalla completa · 2 = mitad inferior.
   int isFullscreen;
   DateTime? createdAt;
   DateTime? updatedAt;
@@ -663,6 +665,7 @@ class Gift {
     this.coinPrice,
     this.title,
     this.image,
+    this.sound,
     this.isFullscreen = 0,
     this.createdAt,
     this.updatedAt,
@@ -676,6 +679,7 @@ class Gift {
             Setting._asInt(json["coinPrice"]),
         title: json["title"]?.toString(),
         image: json["image"]?.toString(),
+        sound: json["sound"]?.toString(),
         isFullscreen: Setting._asInt(json["is_fullscreen"]) ??
             Setting._asInt(json["isFullscreen"]) ??
             0,
@@ -693,12 +697,20 @@ class Gift {
         "coin_price": coinPrice,
         "title": title,
         "image": image,
+        "sound": sound,
         "is_fullscreen": isFullscreen,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };
 
   bool get fullscreen => isFullscreen == 1;
+
+  bool get halfScreenBottom => isFullscreen == 2;
+
+  /// Pantalla completa o mitad inferior (no tamaño original).
+  bool get expandedDisplay => isFullscreen == 1 || isFullscreen == 2;
+
+  bool get hasSound => (sound ?? '').trim().isNotEmpty;
 
   String get displayTitle {
     final t = (title ?? '').trim();

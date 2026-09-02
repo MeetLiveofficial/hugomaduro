@@ -264,7 +264,7 @@ class LKey {
   static const String purchased = "Purchased*";
   static const String coinShop = "Coin Shop";
   static const String rechargeWallet =
-      "Recharge your wallet. And\nsend gifts to your favorite creators.";
+      "Recharge your wallet and send gifts to your favorite creators.";
   /// Etiqueta corta para botones (no usar [rechargeWallet] en CTAs).
   static const String recharge = "Recharge";
   static const String purchase = "Purchase";

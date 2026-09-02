@@ -165,6 +165,15 @@ class SendGiftSheet extends StatelessWidget {
             }),
             Expanded(child: Obx(
               () {
+                if (controller.isInitialLoad.value && controller.visibleGifts.isEmpty) {
+                  return const Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                }
                 final gifts = controller.visibleGifts;
                 if (gifts.isEmpty) {
                   return Center(

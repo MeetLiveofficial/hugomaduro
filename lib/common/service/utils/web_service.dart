@@ -125,6 +125,7 @@ class _Notification {
 }
 
 class _GiftWallet {
+  String fetchGiftsCatalog = "${apiURL}misc/fetchGiftsCatalog";
   String sendGift = "${apiURL}misc/sendGift";
   String fetchMyWithdrawalRequest = "${apiURL}misc/fetchMyWithdrawalRequest";
   String fetchMyRecharges = "${apiURL}misc/fetchMyRecharges";
