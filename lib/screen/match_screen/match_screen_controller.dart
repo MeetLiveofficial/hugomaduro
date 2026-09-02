@@ -147,7 +147,14 @@ class MatchScreenController extends BaseController
 
   bool get _stayInPool {
     final route = Get.currentRoute;
-    return route.contains('VideoCall') || route.contains('MatchPreview');
+    if (route.contains('VideoCall') || route.contains('MatchPreview')) {
+      return true;
+    }
+    // Streamer en espera: no salir del pool al perder el foco (BlueStacks,
+    // app en segundo plano). Si no, el cliente web no lo encuentra.
+    return AppRole.isStreamer() &&
+        streamerMatchEnabled.value &&
+        StreamerCameraLock.matchWaitVisible;
   }
 
   Future<void> _syncPresence() async {
@@ -202,9 +209,6 @@ class MatchScreenController extends BaseController
       return;
     }
     _joining = true;
-    if (AppRole.isStreamer()) {
-      inMatchPool.value = true;
-    }
     try {
       if (AppRole.isStreamer()) {
         await _pauseLiveStudioCamera();
@@ -472,9 +476,7 @@ class MatchScreenController extends BaseController
       if (unlock.charged > 0) {
         showSnackBar(LKey.coinsUsedToViewMatch.trParams({'count': '${unlock.charged}'}));
       }
-      final lang = (me?.appLanguage ?? '').trim().toLowerCase();
       final match = await CallService.instance.findMatch(
-        appLanguage: lang.isEmpty ? null : lang,
         mode: matchMode,
       );
       await Get.to(() => MatchPreviewScreen(

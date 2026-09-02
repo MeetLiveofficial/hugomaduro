@@ -163,9 +163,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
     if (_busy || _closing) return;
     setState(() => _busy = true);
     try {
-      final lang = (_match.appLanguage ?? '').trim();
       final next = await CallService.instance.findMatch(
-        appLanguage: lang.isEmpty ? null : lang,
         mode: widget.mode,
         excludeUserIds: _seenIds,
       );
