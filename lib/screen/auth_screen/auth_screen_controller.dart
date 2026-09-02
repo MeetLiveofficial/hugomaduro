@@ -327,32 +327,6 @@ class AuthScreenController extends BaseController {
   }
 
   Future<void> onAnonymousTap() async {
-    // Reutilizar sesión Guest guardada (no crear cuenta nueva).
-    if (hasStoredSession() &&
-        (SessionManager.instance.getUser()?.isAnonymous ?? 0) == 1) {
-      showLoader(barrierDismissible: true);
-      try {
-        final user = await refreshSessionUser(
-          timeout: const Duration(seconds: 15),
-        );
-        stopLoader();
-        if (user != null) {
-          await _navigateScreen(user);
-          return;
-        }
-      } catch (e) {
-        stopLoader();
-        if (!isSessionAuthFailure(e)) {
-          final cached = SessionManager.instance.getUser();
-          if (cached != null) {
-            await _navigateScreen(cached);
-            return;
-          }
-        }
-        SessionManager.instance.clearSomeKey();
-      }
-    }
-
     Get.to(() => const GuestSetupScreen());
   }
 
@@ -365,13 +339,44 @@ class AuthScreenController extends BaseController {
       showSnackBar(LKey.fullNameEmpty.tr);
       return;
     }
-    final avatar = avatarIndex.clamp(1, AssetRes.guestAvatars.length);
+    final avatar = avatarIndex < 1
+        ? 1
+        : (avatarIndex > AssetRes.guestAvatars.length
+            ? AssetRes.guestAvatars.length
+            : avatarIndex);
 
     showLoader(barrierDismissible: true);
     try {
       final deviceToken =
           'krimson_android_${DateTime.now().millisecondsSinceEpoch}';
       final lang = SessionManager.instance.getLang();
+
+      if (hasStoredSession() &&
+          (SessionManager.instance.getUser()?.isAnonymous ?? 0) == 1) {
+        try {
+          final existing = await refreshSessionUser(
+            timeout: const Duration(seconds: 15),
+          );
+          if (existing != null) {
+            final photo = await _guestAvatarFile(avatar);
+            final updated = await UserService.instance.updateUserDetails(
+              fullname: name,
+              profilePhoto: photo,
+            );
+            final data = updated ?? existing;
+            SessionManager.instance.setUser(data);
+            SessionManager.instance.setLogin(true);
+            stopLoader();
+            await _navigateScreen(data);
+            return;
+          }
+        } catch (e) {
+          if (isSessionAuthFailure(e)) {
+            SessionManager.instance.clearSomeKey();
+          }
+        }
+      }
+
       var data = await UserService.instance
           .logInAnonymousUser(
         deviceToken: deviceToken,
