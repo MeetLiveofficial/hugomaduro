@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
+import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
@@ -22,6 +23,7 @@ import 'package:krimson/screen/match_screen/match_web_video.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:livekit_client/livekit_client.dart';
 
 /// Preview en vivo (40s): ver, deslizar a otra, o pagar 5/10/15 min para quedarse.
 class MatchPreviewScreen extends StatefulWidget {
@@ -99,6 +101,9 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _busy) return;
+      unawaited(_lk?.subscribeRemoteVideos(
+        preferIdentity: '${_user.id ?? ''}',
+      ));
       if (_secondsLeft <= 1) {
         _timer?.cancel();
         setState(() => _secondsLeft = 0);
@@ -113,6 +118,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
     if (_closing) return;
     final me = SessionManager.instance.getUser();
     final room = _match.roomIdFor(_user);
+    final streamerId = '${_user.id ?? ''}';
     if (me?.id == null || room.isEmpty) {
       setState(() => _status = 'Sala de espera inválida');
       return;
@@ -136,18 +142,21 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         publishMicrophone: false,
         wsUrl: liveKitWsUrl,
         forceReconnect: true,
+        adaptiveStream: false,
+        dynacast: false,
+        forceProfile: LiveKitQualityProfile.high,
       );
       if (!mounted || _closing) return;
       setState(() => _status = LKey.waitingCamera.tr);
-      for (var i = 0; i < 25; i++) {
+      for (var i = 0; i < 80; i++) {
         if (!mounted || _closing) return;
-        final remotes = _lk?.remoteParticipants ?? [];
-        final remote = remotes.isNotEmpty ? remotes.first : null;
-        if (firstVideoTrackOf(remote) != null) {
+        await _lk?.subscribeRemoteVideos(preferIdentity: streamerId);
+        final peer = _previewPeer(_lk, streamerId);
+        if (firstVideoTrackOf(peer) != null) {
           setState(() => _status = '');
           break;
         }
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 250));
       }
       if (!mounted || _closing) return;
       _startCountdown();
@@ -207,20 +216,26 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
   }
 
   Future<void> _enterCall(CallRequestModel call) async {
+    _closing = true;
     _timer?.cancel();
     await _teardownLiveKit();
     if (Get.isRegistered<MatchScreenController>()) {
-      await Get.find<MatchScreenController>().leavePool();
-    } else {
-      await CallService.instance.leaveMatch();
+      Get.find<MatchScreenController>().markLeftPoolLocally();
     }
-    if (!mounted || _closing) return;
-    Get.off(() => VideoCallScreen(
-          call: call,
-          isMatchPreview: true,
-          matchFreeSeconds:
-              call.matchSeconds > 0 ? call.matchSeconds : _previewSeconds,
-        ));
+    unawaited(CallService.instance.leaveMatch());
+    final screen = VideoCallScreen(
+      call: call,
+      isMatchPreview: false,
+      matchFreeSeconds:
+          call.matchSeconds > 0 ? call.matchSeconds : _previewSeconds,
+    );
+    // Si Get.back del dialog ya cerró el preview, empujar la llamada;
+    // si sigue abierto, reemplazarlo para no volver al preview al colgar.
+    if (Get.key.currentState?.canPop() == true) {
+      Get.off(() => screen);
+    } else {
+      Get.to(() => screen);
+    }
   }
 
   Future<void> _onPreviewTimeout() async {
@@ -272,7 +287,6 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         }
       },
     );
-    if (!mounted || _closing) return false;
     if (paid && paidCall != null) {
       await _enterCall(paidCall!);
       return true;
@@ -310,6 +324,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     final name = (_user.fullname ?? _user.username ?? 'Streamer').trim();
+    final streamerId = '${_user.id ?? ''}';
     return PopScope(
       canPop: !_busy,
       onPopInvokedWithResult: (didPop, _) {
@@ -319,139 +334,133 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: ClientColors.surfaceDark,
+        backgroundColor: Colors.black,
         body: GestureDetector(
           onHorizontalDragUpdate: _onHorizontalDragUpdate,
           onHorizontalDragEnd: _onHorizontalDragEnd,
-          child: Stack(
-          fit: StackFit.expand,
-          children: [
-            const ColoredBox(color: ClientColors.surfaceDark),
-            SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: _busy ? null : Get.back,
-                          icon: const Icon(Icons.close,
-                              color: ClientColors.textOnDark, size: 22),
-                        ),
-                        CustomImage(
-                          size: const Size(36, 36),
-                          image: _user.profilePhoto?.addBaseURL(),
-                          fullName: name,
-                          radius: 18,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyleCustom.outFitSemiBold600(
-                              color: ClientColors.textOnDark,
-                              fontSize: 15,
+          child: Column(
+            children: [
+              ColoredBox(
+                color: Colors.black,
+                child: SafeArea(
+                  bottom: false,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              onPressed: _busy ? null : Get.back,
+                              icon: const Icon(Icons.close,
+                                  color: Colors.white, size: 22),
                             ),
-                          ),
-                        ),
-                        _CountdownBadge(seconds: _secondsLeft),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: _previewSeconds > 0
-                            ? (_secondsLeft / _previewSeconds).clamp(0.0, 1.0)
-                            : 0,
-                        minHeight: 6,
-                        backgroundColor:
-                            ClientColors.secondarySoft.withValues(alpha: 0.28),
-                        color: ClientColors.secondary,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                      child: _dragDx.abs() < 0.5 || kIsWeb
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(22),
-                              child: _VideoLayer(
-                                lkTag: _lkTag,
-                                status: _status,
-                                photoUrl: _user.profilePhoto?.addBaseURL(),
-                                displayName: name,
-                              ),
-                            )
-                          : Transform.translate(
-                              offset: Offset(_dragDx * 0.35, 0),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(22),
-                                child: _VideoLayer(
-                                  lkTag: _lkTag,
-                                  status: _status,
-                                  photoUrl: _user.profilePhoto?.addBaseURL(),
-                                  displayName: name,
+                            CustomImage(
+                              size: const Size(36, 36),
+                              image: _user.profilePhoto?.addBaseURL(),
+                              fullName: name,
+                              radius: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyleCustom.outFitSemiBold600(
+                                  color: Colors.white,
+                                  fontSize: 15,
                                 ),
                               ),
                             ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
-                    child: Text(
-                      'Desliza para otra streamer · ${_previewSeconds}s de preview',
-                      textAlign: TextAlign.center,
-                      style: TextStyleCustom.outFitRegular400(
-                        color: ClientColors.textOnDarkMuted,
-                        fontSize: 12,
+                            _CountdownBadge(seconds: _secondsLeft),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  if (_busy)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 18),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: ClientColors.secondarySoft,
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _ActionButton(
-                              label: 'Siguiente',
-                              icon: Icons.skip_next_rounded,
-                              filled: false,
-                              onTap: _loadNext,
-                            ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: _previewSeconds > 0
+                                ? (_secondsLeft / _previewSeconds)
+                                    .clamp(0.0, 1.0)
+                                : 0,
+                            minHeight: 6,
+                            backgroundColor: Colors.white24,
+                            color: ClientColors.secondary,
                           ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _ActionButton(
-                              label: 'Aceptar',
-                              icon: Icons.favorite_rounded,
-                              filled: true,
-                              onTap: _accept,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+              Expanded(
+                child: _VideoLayer(
+                  lkTag: _lkTag,
+                  streamerIdentity: streamerId,
+                  status: _status,
+                  photoUrl: _user.profilePhoto?.addBaseURL(),
+                  displayName: name,
+                ),
+              ),
+              ColoredBox(
+                color: Colors.black,
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 10),
+                        child: Text(
+                          'Desliza para otra streamer · ${_previewSeconds}s de preview',
+                          textAlign: TextAlign.center,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      if (_busy)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 18),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            color: Colors.white70,
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _ActionButton(
+                                  label: 'Siguiente',
+                                  icon: Icons.skip_next_rounded,
+                                  filled: false,
+                                  onTap: _loadNext,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: _ActionButton(
+                                  label: 'Aceptar',
+                                  icon: Icons.favorite_rounded,
+                                  filled: true,
+                                  onTap: _accept,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -461,12 +470,14 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
 class _VideoLayer extends StatelessWidget {
   const _VideoLayer({
     required this.lkTag,
+    required this.streamerIdentity,
     required this.status,
     this.photoUrl,
     this.displayName,
   });
 
   final String lkTag;
+  final String streamerIdentity;
   final String status;
   final String? photoUrl;
   final String? displayName;
@@ -483,26 +494,57 @@ class _VideoLayer extends StatelessWidget {
     final lk = Get.find<LiveKitRoomController>(tag: lkTag);
     return Obx(() {
       lk.mediaRevision.value;
-      final remotes = lk.remoteParticipants;
-      final remote = remotes.isNotEmpty ? remotes.first : null;
-      if (firstVideoTrackOf(remote) != null) {
-        if (kIsWeb) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            passThroughMatchVideoClicks();
-          });
-        }
-        return LiveKitParticipantVideo(
-          participant: remote,
-          forcePortraitUpright: false,
+      lk.remoteParticipants.length;
+      final peer = _previewPeer(lk, streamerIdentity);
+      final hasVideo = firstVideoTrackOf(peer) != null;
+      if (kIsWeb) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          passThroughMatchVideoClicks();
+        });
+      }
+      if (!hasVideo) {
+        return _Placeholder(
+          status: status,
+          photoUrl: photoUrl,
+          displayName: displayName,
         );
       }
-      return _Placeholder(
-        status: status,
-        photoUrl: photoUrl,
-        displayName: displayName,
+      // En Web no Clip ni Stack opaco: el <video> de LiveKit queda
+      // tapado si hay canvas encima (la espera de la streamer no lo hace).
+      return ClipRRect(
+        clipBehavior: kIsWeb ? Clip.none : Clip.hardEdge,
+        child: LiveKitParticipantVideo(
+          participant: peer,
+          fit: VideoViewFit.cover,
+          forcePortraitUpright: false,
+        ),
       );
     });
   }
+}
+
+Participant? _previewPeer(LiveKitRoomController? lk, String identity) {
+  if (lk == null) return null;
+  final remotes = lk.remoteParticipants;
+  final want = identity.trim();
+  bool matches(RemoteParticipant p) {
+    final a = p.identity.trim();
+    if (want.isEmpty) return false;
+    return a == want || a == 'matchwait_$want' || a.endsWith('_$want');
+  }
+
+  if (want.isNotEmpty) {
+    for (final p in remotes) {
+      if (matches(p) && firstVideoTrackOf(p) != null) return p;
+    }
+    for (final p in remotes) {
+      if (matches(p)) return p;
+    }
+  }
+  for (final p in remotes) {
+    if (firstVideoTrackOf(p) != null) return p;
+  }
+  return remotes.isNotEmpty ? remotes.first : null;
 }
 
 class _Placeholder extends StatelessWidget {

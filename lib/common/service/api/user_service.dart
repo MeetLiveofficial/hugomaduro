@@ -146,6 +146,8 @@ class UserService {
   Future<User?> logInAnonymousUser({
     String? deviceToken,
     String? appLanguage,
+    String? fullName,
+    int? avatar,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.logInAnonymousUser,
@@ -156,6 +158,9 @@ class UserService {
           Params.loginMethod: LoginMethod.anonymous.title(),
           if (appLanguage != null && appLanguage.isNotEmpty)
             Params.appLanguage: appLanguage,
+          if (fullName != null && fullName.trim().isNotEmpty)
+            Params.fullname: fullName.trim(),
+          if (avatar != null && avatar >= 1 && avatar <= 5) Params.avatar: avatar,
         },
         fromJson: UserModel.fromJson);
 

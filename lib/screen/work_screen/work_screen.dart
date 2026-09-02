@@ -174,9 +174,7 @@ class _Header extends StatelessWidget {
         _GradeProgress(
           grades: data.weeklyLevel.grades,
           current: grade,
-          progress: data.average != null
-              ? (data.average!.avg / 100).clamp(0.05, 1)
-              : data.weeklyLevel.progress,
+          progress: data.weeklyLevel.progress,
         ),
         if (data.average != null) ...[
           const SizedBox(height: 12),

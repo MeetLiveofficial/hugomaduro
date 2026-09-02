@@ -83,6 +83,11 @@ class LKey {
   static const String enterHere = "Enter here..";
   static const String createAccount = "Create Account";
   static const String continueAsGuest = "Continue as Guest";
+  static const String guestSetupTitle = "Create your guest profile";
+  static const String guestSetupSubtitle =
+      "Pick a name and an avatar to continue.";
+  static const String chooseAvatar = "Choose an avatar";
+  static const String enterYourName = "Enter your name";
   static const String joinToContinue = "Link your account";
   static const String joinToContinueDescription =
       "You can keep using the app as Guest. Link an email if you want to recover this account later.";

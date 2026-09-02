@@ -98,7 +98,7 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
       setState(() => _graceLeft = left);
       if (left <= 0 && !_busy && widget.autoCloseOnTimeout) {
         _graceTimer?.cancel();
-        Get.back(result: false);
+        _popDialog(false);
       }
     });
   }
@@ -112,6 +112,14 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
   void dispose() {
     _graceTimer?.cancel();
     super.dispose();
+  }
+
+  void _popDialog(bool result) {
+    if (!mounted) return;
+    final nav = Navigator.of(context, rootNavigator: true);
+    if (nav.canPop()) {
+      nav.pop(result);
+    }
   }
 
   Future<void> _pick(MatchTier tier) async {
@@ -136,13 +144,13 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
         final ok = await extend(tier);
         if (!mounted) return;
         if (ok) {
-          Get.back(result: true);
+          _popDialog(true);
         } else {
           setState(() => _busy = false);
         }
         return;
       }
-      Get.back(result: true);
+      _popDialog(true);
       final user = User(
         id: peerId,
         fullname: widget.peer.fullname,
@@ -189,7 +197,7 @@ class _MatchContinueBodyState extends State<_MatchContinueBody> {
             Align(
               alignment: Alignment.topRight,
               child: IconButton(
-                onPressed: _busy ? null : () => Get.back(result: false),
+                onPressed: _busy ? null : () => _popDialog(false),
                 icon: const Icon(Icons.close, color: ClientColors.textMuted, size: 20),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),

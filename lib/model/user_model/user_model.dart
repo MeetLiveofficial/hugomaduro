@@ -505,7 +505,7 @@ class User {
   int? agencyId;
   String? agencyName;
   int isAgencyWorker = 0;
-  /// Rango de rendimiento (AVG 30 días): NEW, B, C, A, S.
+  /// Rango de rendimiento (AVG 30 días): NEW, C, B, A, S.
   String? weeklyCallGrade;
   List<String> levelBenefits = const [];
   int isLive = 0;

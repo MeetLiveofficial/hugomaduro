@@ -71,6 +71,8 @@ class LiveKitRoomController extends GetxController {
     String? wsUrl,
     LiveKitQualityProfile? forceProfile,
     bool forceReconnect = false,
+    bool adaptiveStream = true,
+    bool dynacast = true,
   }) async {
     if (isConnecting.value) {
       if (!forceReconnect) return;
@@ -101,6 +103,8 @@ class LiveKitRoomController extends GetxController {
         wsUrl: wsUrl,
         // Entrada en media por defecto (540×720 @ 20fps). Baja solo si falla.
         forceProfile: forceProfile ?? LiveKitQualityProfile.medium,
+        adaptiveStream: adaptiveStream,
+        dynacast: dynacast,
       );
       _syncFromService();
       isConnected.value = true;
@@ -213,6 +217,44 @@ class LiveKitRoomController extends GetxController {
     mediaRevision.value++;
   }
 
+  /// Suscribe el video remoto (preview Match). [preferIdentity] = id del streamer.
+  Future<void> subscribeRemoteVideos({String? preferIdentity}) async {
+    final room = this.room;
+    if (room == null) return;
+    final wanted = (preferIdentity ?? '').trim();
+    Future<void> sub(RemoteParticipant p) async {
+      for (final pub in p.videoTrackPublications) {
+        try {
+          if (!pub.subscribed) {
+            await pub.subscribe();
+          }
+          await pub.enable();
+        } catch (e) {
+          Loggers.error('subscribeRemoteVideos: $e');
+        }
+      }
+    }
+
+    final remotes = room.remoteParticipants.values.toList();
+    remotes.sort((a, b) {
+      final am = _identityLooksLike(a.identity, wanted) ? 0 : 1;
+      final bm = _identityLooksLike(b.identity, wanted) ? 0 : 1;
+      return am.compareTo(bm);
+    });
+    for (final p in remotes) {
+      await sub(p);
+    }
+    _syncFromService();
+  }
+
+  static bool _identityLooksLike(String identity, String want) {
+    if (want.isEmpty) return false;
+    final a = identity.trim();
+    if (a == want) return true;
+    if (a.endsWith('_$want') || a == 'matchwait_$want') return true;
+    return false;
+  }
+
   /// Silencia audio de un participante remoto por identity (p.ej. rival PK).
   Future<void> muteRemoteParticipantAudio(String identity) async {
     if (identity.isEmpty) return;
@@ -317,19 +359,15 @@ VideoTrack? firstVideoTrackOf(Participant? participant) {
   for (final pub in participant.videoTrackPublications) {
     final track = pub.track;
     if (track is VideoTrack && !pub.muted) {
-      // Local: no necesita "subscribed"; remoto: preferir tracks ya suscritos.
-      if (participant is LocalParticipant || pub.subscribed) {
+      if (participant is LocalParticipant || pub.subscribed || track != null) {
         return track;
       }
     }
   }
-  // Fallback: track existente aunque esté muted (UI puede mostrar placeholder).
   for (final pub in participant.videoTrackPublications) {
     final track = pub.track;
     if (track is VideoTrack) {
-      if (participant is LocalParticipant || pub.subscribed) {
-        return track;
-      }
+      return track;
     }
   }
   return null;

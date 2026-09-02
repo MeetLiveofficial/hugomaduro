@@ -408,6 +408,9 @@ class VideoCallController extends BaseController {
   bool _insufficientNotified = false;
   bool _cleaned = false;
   bool _extensionPromptOpen = false;
+  /// Pago de 2ª ronda OK aunque el dialog no devuelva `true` (Get.back).
+  bool _extensionSucceeded = false;
+  DateTime? _controllerStartedAt;
   bool _hadRemote = false;
   DateTime? _callConnectedAt;
   int _lastCommentServerId = 0;
@@ -519,6 +522,7 @@ class VideoCallController extends BaseController {
   @override
   void onInit() {
     super.onInit();
+    _controllerStartedAt = DateTime.now();
     activeInstance = this;
     matchSecondsLeft.value = _matchDuration;
     matchCountdownLabel.value = _formatMmSs(_matchDuration);
@@ -646,6 +650,9 @@ class VideoCallController extends BaseController {
       matchSecondsLeft.value = safeLeft;
       matchCountdownLabel.value = _formatMmSs(safeLeft);
       elapsedLabel.value = matchCountdownLabel.value;
+      if (safeLeft > 3) {
+        _extensionSucceeded = false;
+      }
       if (safeLeft <= 0 && !awaitingExtension.value) {
         unawaited(_onMatchTimeUp());
       }
@@ -684,7 +691,7 @@ class VideoCallController extends BaseController {
   }
 
   Future<void> _promptClientExtension() async {
-    if (_extensionPromptOpen || _ending) return;
+    if (_extensionPromptOpen || _ending || _extensionSucceeded) return;
     _extensionPromptOpen = true;
     final peer = call.caller?.id == SessionManager.instance.getUserID()
         ? call.callee
@@ -699,8 +706,19 @@ class VideoCallController extends BaseController {
         graceEndsAt: _graceEndsAt,
         onExtend: _payAndExtend,
       );
-      if (_ending) return;
+      if (_ending || _extensionSucceeded) return;
       if (paid) return;
+      try {
+        final id = call.id;
+        if (id != null) {
+          final fresh = await CallService.instance.status(id);
+          if (!fresh.isEnded && !fresh.isExtensionWindow) {
+            _applyServerExtension(fresh);
+            return;
+          }
+        }
+      } catch (_) {}
+      if (_ending || _extensionSucceeded) return;
       await hangUp();
       showSnackBar('Tiempo agotado. Inicia otro Match para continuar.');
     } finally {
@@ -723,6 +741,7 @@ class VideoCallController extends BaseController {
         me.removeCoinFromWallet(tier.coins);
         SessionManager.instance.setUser(me);
       }
+      _extensionSucceeded = true;
       _applyServerExtension(updated);
       try {
         await liveKit.publishData(
@@ -771,7 +790,7 @@ class VideoCallController extends BaseController {
     _phaseEndsAt = _parseIso(updated.phaseEndsAt);
     _graceEndsAt = null;
     awaitingExtension.value = false;
-    _extensionPromptOpen = false;
+    _extensionSucceeded = true;
     unawaited(_setMatchPaused(false));
     _timerStarted = true;
     _tickSynced();
@@ -792,7 +811,7 @@ class VideoCallController extends BaseController {
     ));
     _graceEndsAt = null;
     awaitingExtension.value = false;
-    _extensionPromptOpen = false;
+    _extensionSucceeded = true;
     unawaited(_setMatchPaused(false));
     _timerStarted = true;
     _tickSynced();
@@ -841,7 +860,10 @@ class VideoCallController extends BaseController {
         _syncAnchor ??= _parseIso(fresh.respondedAt);
       }
       _phaseEndsAt ??= _parseIso(fresh.phaseEndsAt);
-      if (fresh.isExtensionWindow) {
+      final justOpened = _controllerStartedAt != null &&
+          DateTime.now().difference(_controllerStartedAt!) <
+              const Duration(seconds: 8);
+      if (fresh.isExtensionWindow && !justOpened && !_extensionSucceeded) {
         _graceEndsAt = _parseIso(fresh.graceEndsAt) ?? _graceEndsAt;
         unawaited(_onMatchTimeUp());
       }
@@ -1171,7 +1193,9 @@ class VideoCallController extends BaseController {
         await hangUp(forcedByPeer: true);
         return;
       }
-      if (fresh.isExtensionWindow && !awaitingExtension.value) {
+      if (fresh.isExtensionWindow &&
+          !awaitingExtension.value &&
+          !_extensionSucceeded) {
         _graceEndsAt = _parseIso(fresh.graceEndsAt) ?? _graceEndsAt;
         unawaited(_onMatchTimeUp());
         return;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -23,7 +24,6 @@ import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream
 import 'package:krimson/screen/match_screen/match_preview_screen.dart';
 import 'package:krimson/screen/subscription_screen/subscription_screen.dart';
 import 'package:krimson/utilities/const_res.dart';
-import 'package:krimson/utilities/poll_intervals.dart';
 
 enum MatchSearchMode { random, goddess }
 
@@ -46,6 +46,7 @@ class MatchScreenController extends BaseController
   AppLifecycleListener? _lifecycle;
   Timer? _heartbeat;
   Timer? _inboxPoll;
+  StreamSubscription? _waitDataSub;
   bool _joining = false;
   final Set<int> _joinedCallIds = {};
 
@@ -230,7 +231,7 @@ class MatchScreenController extends BaseController
         unawaited(CallService.instance.matchHeartbeat());
       });
       _inboxPoll?.cancel();
-      _inboxPoll = Timer.periodic(PollIntervals.inboxMatch, (_) {
+      _inboxPoll = Timer.periodic(const Duration(seconds: 2), (_) {
         unawaited(_pollMatchInbox());
       });
       unawaited(_pollMatchInbox());
@@ -248,14 +249,18 @@ class MatchScreenController extends BaseController
     }
   }
 
-  Future<void> leavePool() async {
+  /// Sale del pool en local sin cortar la cámara de espera (el API ya limpió).
+  void markLeftPoolLocally() {
     _heartbeat?.cancel();
     _heartbeat = null;
     _inboxPoll?.cancel();
     _inboxPoll = null;
-    await _disconnectWaitCamera();
-    if (!inMatchPool.value) return;
     inMatchPool.value = false;
+  }
+
+  Future<void> leavePool() async {
+    markLeftPoolLocally();
+    await _disconnectWaitCamera();
     await CallService.instance.leaveMatch();
   }
 
@@ -271,6 +276,9 @@ class MatchScreenController extends BaseController
     if (id == null) return;
     if (_hasLocalWaitVideo()) {
       waitCameraOn.value = true;
+      if (Get.isRegistered<LiveKitRoomController>(tag: waitLkTag)) {
+        _listenWaitRoomData(Get.find<LiveKitRoomController>(tag: waitLkTag));
+      }
       return;
     }
     final room = (waitRoom ?? '').trim().isNotEmpty
@@ -290,7 +298,10 @@ class MatchScreenController extends BaseController
         wsUrl: liveKitWsUrl,
         forceReconnect: lk.isConnected.value &&
             firstVideoTrackOf(lk.localParticipant.value) == null,
+        adaptiveStream: false,
+        dynacast: false,
       );
+      _listenWaitRoomData(lk);
       var hasTrack = firstVideoTrackOf(lk.localParticipant.value) != null;
       waitCameraOn.value = hasTrack || lk.cameraEnabled.value;
       lk.mediaRevision.value++;
@@ -331,8 +342,23 @@ class MatchScreenController extends BaseController
     }
   }
 
+  void _listenWaitRoomData(LiveKitRoomController lk) {
+    _waitDataSub?.cancel();
+    _waitDataSub = lk.onDataReceived.listen((event) {
+      try {
+        final map = jsonDecode(utf8.decode(event.data));
+        if (map is! Map) return;
+        final type = '${map['type']}';
+        if (type != 'MATCH_READY' && type != 'call_accepted') return;
+        unawaited(_pollMatchInbox());
+      } catch (_) {}
+    });
+  }
+
   Future<void> _disconnectWaitCamera() async {
     waitCameraOn.value = false;
+    _waitDataSub?.cancel();
+    _waitDataSub = null;
     if (!Get.isRegistered<LiveKitRoomController>(tag: waitLkTag)) return;
     try {
       await Get.find<LiveKitRoomController>(tag: waitLkTag).disconnect();
@@ -395,7 +421,7 @@ class MatchScreenController extends BaseController
     await leavePool();
     Get.to(() => VideoCallScreen(
           call: call,
-          isMatchPreview: true,
+          isMatchPreview: false,
           matchFreeSeconds:
               call.matchSeconds > 0 ? call.matchSeconds : 40,
         ));
@@ -411,6 +437,7 @@ class MatchScreenController extends BaseController
     _lifecycle?.dispose();
     _heartbeat?.cancel();
     _inboxPoll?.cancel();
+    _waitDataSub?.cancel();
     unawaited(_disconnectWaitCamera());
     unawaited(CallService.instance.leaveMatch());
     pulseController.dispose();

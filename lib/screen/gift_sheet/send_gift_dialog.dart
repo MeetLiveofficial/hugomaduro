@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -213,20 +214,60 @@ class _SendGiftDialogState extends State<SendGiftDialog>
     );
   }
 
+  Widget _buildHalfScreenContent(Size size) {
+    final halfH = size.height * 0.5;
+    const edgeBlurH = 52.0;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SizedBox(
+        width: size.width,
+        height: halfH,
+        child: Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.hardEdge,
+          children: [
+            ColoredBox(
+              color: Colors.black,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: _buildMedia(size.width, halfH, BoxFit.fitWidth),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: edgeBlurH,
+              child: IgnorePointer(
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.28),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildGiftContent(Size size) {
     if (_halfScreenBottom) {
-      final halfH = size.height * 0.5;
-      return Align(
-        alignment: Alignment.bottomCenter,
-        child: ColoredBox(
-          color: Colors.black,
-          child: SizedBox(
-            width: size.width,
-            height: halfH,
-            child: _buildMedia(size.width, halfH, BoxFit.contain),
-          ),
-        ),
-      );
+      return _buildHalfScreenContent(size);
     }
     if (_fullscreen) {
       return SizedBox(
@@ -251,9 +292,11 @@ class _SendGiftDialogState extends State<SendGiftDialog>
         behavior: HitTestBehavior.opaque,
         onTap: _videoMode ? null : _dismiss,
         child: ColoredBox(
-          color: _expandedDisplay
-              ? Colors.black.withValues(alpha: 0.35)
-              : Colors.transparent,
+          color: _halfScreenBottom
+              ? Colors.transparent
+              : (_expandedDisplay
+                  ? Colors.black.withValues(alpha: 0.35)
+                  : Colors.transparent),
           child: AnimatedBuilder(
             animation: Listenable.merge([_ctrl, _exitCtrl]),
             builder: (context, child) {

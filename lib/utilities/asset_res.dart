@@ -26,6 +26,18 @@ class AssetRes {
   static const String icBattleView = '${images}ic_battle_view.png';
   static const String greyPicture = '${images}grey_picture.jpeg';
   static const String icUserPlaceholder = '${images}ic_user_placeholder.png';
+  static const String guestAvatar1 = '${images}guest_avatars/guest_1.jpg';
+  static const String guestAvatar2 = '${images}guest_avatars/guest_2.jpg';
+  static const String guestAvatar3 = '${images}guest_avatars/guest_3.jpg';
+  static const String guestAvatar4 = '${images}guest_avatars/guest_4.jpg';
+  static const String guestAvatar5 = '${images}guest_avatars/guest_5.jpg';
+  static const List<String> guestAvatars = [
+    guestAvatar1,
+    guestAvatar2,
+    guestAvatar3,
+    guestAvatar4,
+    guestAvatar5,
+  ];
 
   // Icons
   static const String icLanguage = '${icons}ic_language.png';
@@ -168,8 +180,8 @@ class AssetRes {
 
   static const List<String> weeklyStreamerGrades = [
     'NEW',
-    'B',
     'C',
+    'B',
     'A',
     'S',
   ];
