@@ -31,7 +31,8 @@ class CoinPackageTile extends StatelessWidget {
     final accent = buttonColor ??
         (client ? ClientColors.primary : themeAccentSolid(context));
     final titleCol = client ? ClientColors.textOnSurface : textDarkGrey(context);
-    final mutedCol = client ? ClientColors.textMuted : textLightGrey(context);
+    final mutedCol =
+        client ? ClientColors.client700 : textLightGrey(context);
     final hasBonus = plan.bonusCoins > 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),

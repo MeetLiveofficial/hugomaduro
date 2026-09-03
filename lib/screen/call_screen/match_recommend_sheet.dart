@@ -56,7 +56,6 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
   int _index = 0;
   bool _loadingNext = false;
   double _dragDx = 0;
-  late final String? _appLanguage;
   late final int _matchSeconds;
 
   static const double _swipeThreshold = 96;
@@ -70,7 +69,6 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
     if (_users.isEmpty) {
       _users = [widget.initial.user];
     }
-    _appLanguage = widget.initial.appLanguage;
     _matchSeconds = widget.initial.matchFreeSeconds > 0
         ? widget.initial.matchFreeSeconds
         : 40;
@@ -95,7 +93,6 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
           .where((id) => id > 0)
           .toList();
       final next = await CallService.instance.findMatch(
-        appLanguage: _appLanguage,
         mode: widget.mode,
         excludeUserIds: seen,
       );

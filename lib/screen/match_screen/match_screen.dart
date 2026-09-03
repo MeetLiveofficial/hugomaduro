@@ -81,6 +81,8 @@ class _MatchScreenState extends State<MatchScreen> {
                                     16, 8, 16, 12),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(22),
+                                  clipBehavior:
+                                      kIsWeb ? Clip.none : Clip.antiAlias,
                                   child: _StreamerWaitCamera(controller: c),
                                 ),
                               )

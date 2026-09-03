@@ -38,40 +38,15 @@ class CoinWalletScreen extends StatelessWidget {
             const SizedBox(height: 2),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(LKey.rechargeWallet.tr,
-                  style: TextStyleCustom.outFitLight300(
-                      color: AppRole.isClient()
-                          ? ClientColors.textMuted
-                          : textLightGrey(context),
-                      fontSize: 13),
-                  textAlign: TextAlign.center),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
+              child: Text(
+                LKey.rechargeWallet.tr,
+                style: TextStyleCustom.outFitRegular400(
                   color: AppRole.isClient()
-                      ? ClientColors.primary.withValues(alpha: 0.16)
-                      : themeAccentSolid(context).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppRole.isClient()
-                        ? ClientColors.secondarySoft
-                        : themeAccentSolid(context).withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Text(
-                  LKey.rechargeWallet.tr,
-                  textAlign: TextAlign.center,
-                  style: TextStyleCustom.outFitSemiBold600(
-                    color: AppRole.isClient()
-                        ? ClientColors.primary
-                        : themeAccentSolid(context),
-                    fontSize: 13,
-                  ),
-                ),
+                      ? ClientColors.text.withValues(alpha: 0.92)
+                      : textLightGrey(context),
+                  fontSize: 14,
+                ).copyWith(height: 1.35),
+                textAlign: TextAlign.center,
               ),
             ),
             CoinWalletList(controller: controller),

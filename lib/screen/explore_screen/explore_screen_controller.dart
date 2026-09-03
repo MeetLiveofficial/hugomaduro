@@ -281,12 +281,7 @@ class ExploreScreenController extends BaseController {
         me.coinWallet = unlock.coinWallet;
         SessionManager.instance.setUser(me);
       }
-      final lang = (selectedLanguageCode.value ?? me?.appLanguage ?? '')
-          .trim()
-          .toLowerCase();
-      final match = await CallService.instance.findMatch(
-        appLanguage: lang.isEmpty ? null : lang,
-      );
+      final match = await CallService.instance.findMatch();
       await Get.to(() => MatchPreviewScreen(initial: match));
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');

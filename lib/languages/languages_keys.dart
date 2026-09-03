@@ -83,6 +83,11 @@ class LKey {
   static const String enterHere = "Enter here..";
   static const String createAccount = "Create Account";
   static const String continueAsGuest = "Continue as Guest";
+  static const String guestSetupTitle = "Create your guest profile";
+  static const String guestSetupSubtitle =
+      "Pick a name and an avatar to continue.";
+  static const String chooseAvatar = "Choose an avatar";
+  static const String enterYourName = "Enter your name";
   static const String joinToContinue = "Link your account";
   static const String joinToContinueDescription =
       "You can keep using the app as Guest. Link an email if you want to recover this account later.";
@@ -264,7 +269,7 @@ class LKey {
   static const String purchased = "Purchased*";
   static const String coinShop = "Coin Shop";
   static const String rechargeWallet =
-      "Recharge your wallet. And\nsend gifts to your favorite creators.";
+      "Recharge your wallet and send gifts to your favorite creators.";
   /// Etiqueta corta para botones (no usar [rechargeWallet] en CTAs).
   static const String recharge = "Recharge";
   static const String purchase = "Purchase";

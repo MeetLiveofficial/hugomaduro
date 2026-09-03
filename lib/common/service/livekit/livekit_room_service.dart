@@ -280,6 +280,8 @@ class LiveKitRoomService {
     String? wsUrl,
     LiveKitQualityProfile? forceProfile,
     int maxAttempts = 3,
+    bool adaptiveStream = true,
+    bool dynacast = true,
   }) async {
     if (_room != null) {
       await disconnect();
@@ -317,6 +319,8 @@ class LiveKitRoomService {
           publishMicrophone: publishMicrophone,
           wsUrl: wsUrl,
           profile: profile,
+          adaptiveStream: adaptiveStream,
+          dynacast: dynacast,
         );
         _emitStatus('');
         return room;
@@ -342,6 +346,8 @@ class LiveKitRoomService {
     required bool publishMicrophone,
     String? wsUrl,
     required LiveKitQualityProfile profile,
+    bool adaptiveStream = true,
+    bool dynacast = true,
   }) async {
     _emitStatus('Preparando…');
 
@@ -386,8 +392,8 @@ class LiveKitRoomService {
 
     final room = Room(
       roomOptions: RoomOptions(
-        adaptiveStream: true,
-        dynacast: true,
+        adaptiveStream: adaptiveStream,
+        dynacast: dynacast,
         defaultCameraCaptureOptions: CameraCaptureOptions(
           cameraPosition: _cameraPosition,
           params: capture,
@@ -466,8 +472,12 @@ class LiveKitRoomService {
     await warmAudio?.stop();
     await warmAudio?.dispose();
 
-    // Preferir capa baja al entrar; adaptiveStream puede subir después.
-    await preferRemoteVideoQuality(_subscribeQuality(profile));
+    // Preview/espera 1:1: no bajar capa (si no, el remoto se queda sin frames).
+    if (adaptiveStream) {
+      await preferRemoteVideoQuality(_subscribeQuality(profile));
+    } else {
+      await preferRemoteVideoQuality(VideoQuality.HIGH);
+    }
 
     _mediaChanges.add(null);
     _startStatsPolling();

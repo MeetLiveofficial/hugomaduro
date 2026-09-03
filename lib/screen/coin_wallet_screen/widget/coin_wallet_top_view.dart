@@ -7,7 +7,6 @@ import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
-import 'package:krimson/screen/wallet_history_screen/wallet_history_screen.dart';
 import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/client_colors.dart';
@@ -117,48 +116,22 @@ class CoinWalletTopView extends StatelessWidget {
             );
           }),
         ),
-        if (!AppRole.canEarn() || canWithdraw)
+        if (canWithdraw)
           Padding(
             padding: const EdgeInsets.fromLTRB(15, 8, 15, 0),
-            child: Row(
-              children: [
-                if (!AppRole.canEarn())
-                  Expanded(
-                    child: TextButtonCustom(
-                      onTap: () => Get.to(() => const WalletHistoryScreen()),
-                      title: LKey.walletHistory.tr,
-                      backgroundColor: AppRole.isClient()
-                          ? ClientColors.surfaceAlt
-                          : bgGrey(context),
-                      titleColor: AppRole.isClient()
-                          ? ClientColors.text
-                          : textDarkGrey(context),
-                      btnHeight: 34,
-                      horizontalMargin: 0,
-                      margin: EdgeInsets.zero,
-                      fontSize: 13,
-                    ),
-                  ),
-                if (canWithdraw) ...[
-                  if (!AppRole.canEarn()) const SizedBox(width: 8),
-                  Expanded(
-                    child: TextButtonCustom(
-                      onTap: () => Get.to(() => const WithdrawalsScreen()),
-                      title: LKey.withdrawals.tr,
-                      backgroundColor: AppRole.isClient()
-                          ? ClientColors.surfaceAlt
-                          : bgGrey(context),
-                      titleColor: AppRole.isClient()
-                          ? ClientColors.text
-                          : textDarkGrey(context),
-                      btnHeight: 34,
-                      horizontalMargin: 0,
-                      margin: EdgeInsets.zero,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ],
+            child: TextButtonCustom(
+              onTap: () => Get.to(() => const WithdrawalsScreen()),
+              title: LKey.withdrawals.tr,
+              backgroundColor: AppRole.isClient()
+                  ? ClientColors.surfaceDarkAlt
+                  : bgGrey(context),
+              titleColor: AppRole.isClient()
+                  ? ClientColors.text
+                  : textDarkGrey(context),
+              btnHeight: 34,
+              horizontalMargin: 0,
+              margin: EdgeInsets.zero,
+              fontSize: 13,
             ),
           ),
       ],
@@ -179,9 +152,12 @@ class _StatChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         decoration: BoxDecoration(
           color: AppRole.isClient()
-              ? ClientColors.surfaceAlt
+              ? ClientColors.surfaceDarkAlt
               : bgLightGrey(context),
           borderRadius: BorderRadius.circular(10),
+          border: AppRole.isClient()
+              ? Border.all(color: ClientColors.client700.withValues(alpha: 0.35))
+              : null,
         ),
         child: Column(
           children: [
@@ -206,7 +182,7 @@ class _StatChip extends StatelessWidget {
               label,
               style: TextStyleCustom.outFitRegular400(
                 color: AppRole.isClient()
-                    ? ClientColors.textMuted
+                    ? ClientColors.textOnDarkMuted
                     : textLightGrey(context),
                 fontSize: 10,
               ),

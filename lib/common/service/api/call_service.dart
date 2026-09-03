@@ -37,11 +37,10 @@ class CallService {
         Map<String, dynamic>.from(json['data'] as Map));
   }
 
-  /// Recomienda streamer del mismo idioma para Match (sin crear la llamada).
+  /// Recomienda streamer del pool de Match (sin filtrar país ni idioma).
   /// [mode]: `random` (default) o `goddess` (prioriza grados A/S).
   /// [excludeUserIds]: streamers ya vistos (swipe al siguiente).
   Future<MatchRecommendation> findMatch({
-    String? appLanguage,
     String mode = 'random',
     List<int> excludeUserIds = const [],
   }) async {
@@ -49,8 +48,6 @@ class CallService {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.call.findMatch,
       param: {
-        if ((appLanguage ?? '').trim().isNotEmpty)
-          'app_language': appLanguage!.trim(),
         if (mode.trim().isNotEmpty) 'mode': mode.trim().toLowerCase(),
         if (exclude.isNotEmpty) 'exclude_user_ids': exclude.join(','),
       },
@@ -136,19 +133,18 @@ class CallService {
   }
 
   Future<String?> joinMatch() async {
-    try {
-      final json = await ApiService.instance.call<Map<String, dynamic>>(
-        url: WebService.call.joinMatch,
-        param: const {},
-        fromJson: (j) => j,
-      );
-      final data = json['data'];
-      if (data is Map) {
-        final room = data['wait_room_id']?.toString().trim();
-        if (room != null && room.isNotEmpty) return room;
-      }
-    } catch (e) {
-      // Presencia: no bloquear la UI si el backend aún no tiene el endpoint.
+    final json = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.call.joinMatch,
+      param: const {},
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'join match failed');
+    }
+    final data = json['data'];
+    if (data is Map) {
+      final room = data['wait_room_id']?.toString().trim();
+      if (room != null && room.isNotEmpty) return room;
     }
     return null;
   }

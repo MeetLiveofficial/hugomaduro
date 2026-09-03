@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
@@ -21,6 +23,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/countries_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart' as user;
+import 'package:krimson/screen/auth_screen/guest_setup_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -324,47 +327,67 @@ class AuthScreenController extends BaseController {
   }
 
   Future<void> onAnonymousTap() async {
-    // Reutilizar sesión Guest guardada (no crear cuenta nueva).
-    if (hasStoredSession() &&
-        (SessionManager.instance.getUser()?.isAnonymous ?? 0) == 1) {
-      showLoader(barrierDismissible: true);
-      try {
-        final user = await refreshSessionUser(
-          timeout: const Duration(seconds: 15),
-        );
-        stopLoader();
-        if (user != null) {
-          await _navigateScreen(user);
-          return;
-        }
-      } catch (e) {
-        stopLoader();
-        if (!isSessionAuthFailure(e)) {
-          final cached = SessionManager.instance.getUser();
-          if (cached != null) {
-            await _navigateScreen(cached);
-            return;
-          }
-        }
-        SessionManager.instance.clearSomeKey();
-      }
+    Get.to(() => const GuestSetupScreen());
+  }
+
+  Future<void> completeGuestSetup({
+    required String fullName,
+    required int avatarIndex,
+  }) async {
+    final name = fullName.trim();
+    if (name.length < 2) {
+      showSnackBar(LKey.fullNameEmpty.tr);
+      return;
     }
+    final avatar = avatarIndex < 1
+        ? 1
+        : (avatarIndex > AssetRes.guestAvatars.length
+            ? AssetRes.guestAvatars.length
+            : avatarIndex);
 
     showLoader(barrierDismissible: true);
     try {
       final deviceToken =
           'krimson_android_${DateTime.now().millisecondsSinceEpoch}';
       final lang = SessionManager.instance.getLang();
-      final data = await UserService.instance
+
+      if (hasStoredSession() &&
+          (SessionManager.instance.getUser()?.isAnonymous ?? 0) == 1) {
+        try {
+          final existing = await refreshSessionUser(
+            timeout: const Duration(seconds: 15),
+          );
+          if (existing != null) {
+            final photo = await _guestAvatarFile(avatar);
+            final updated = await UserService.instance.updateUserDetails(
+              fullname: name,
+              profilePhoto: photo,
+            );
+            final data = updated ?? existing;
+            SessionManager.instance.setUser(data);
+            SessionManager.instance.setLogin(true);
+            stopLoader();
+            await _navigateScreen(data);
+            return;
+          }
+        } catch (e) {
+          if (isSessionAuthFailure(e)) {
+            SessionManager.instance.clearSomeKey();
+          }
+        }
+      }
+
+      var data = await UserService.instance
           .logInAnonymousUser(
         deviceToken: deviceToken,
         appLanguage: lang.isNotEmpty ? lang : 'en',
+        fullName: name,
+        avatar: avatar,
       )
           .timeout(const Duration(seconds: 20), onTimeout: () {
         throw TimeoutException('El servidor tardó demasiado en responder');
       });
 
-      stopLoader();
       if (data == null) return;
       if (data.token?.authToken == null || data.token!.authToken!.isEmpty) {
         showSnackBar('Login OK pero sin token. Revisa el backend.');
@@ -374,6 +397,27 @@ class AuthScreenController extends BaseController {
       SessionManager.instance.setUser(data);
       SessionManager.instance.setAuthToken(data.token);
       SessionManager.instance.setLogin(true);
+
+      final needsName = (data.fullname ?? '').trim().isEmpty ||
+          (data.fullname ?? '').trim().toLowerCase() == 'guest';
+      final needsPhoto = (data.profilePhoto ?? '').trim().isEmpty;
+      if (needsName || needsPhoto) {
+        try {
+          final photo = needsPhoto ? await _guestAvatarFile(avatar) : null;
+          final updated = await UserService.instance.updateUserDetails(
+            fullname: needsName ? name : null,
+            profilePhoto: photo,
+          );
+          if (updated != null) {
+            data = updated;
+            SessionManager.instance.setUser(data);
+          }
+        } catch (e) {
+          Loggers.error('Guest profile photo: $e');
+        }
+      }
+
+      stopLoader();
       await _navigateScreen(data);
 
       Future<void>(() async {
@@ -385,12 +429,22 @@ class AuthScreenController extends BaseController {
         }
       });
     } catch (e, st) {
-      Loggers.error('onAnonymousTap: $e\n$st');
+      Loggers.error('completeGuestSetup: $e\n$st');
       stopLoader();
       showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       stopLoader();
     }
+  }
+
+  Future<XFile> _guestAvatarFile(int index) async {
+    final asset = AssetRes.guestAvatars[index - 1];
+    final data = await rootBundle.load(asset);
+    return XFile.fromData(
+      data.buffer.asUint8List(),
+      mimeType: 'image/jpeg',
+      name: 'guest_$index.jpg',
+    );
   }
 
   void onGoogleTap() async {

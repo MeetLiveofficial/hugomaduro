@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/model/general/settings_model.dart';
 
-/// Overlay del regalo: tamaño original (180) o pantalla completa (100%×100%).
+/// Overlay del regalo: tamaño original, pantalla completa o mitad inferior.
 /// MP4: se reproduce completo (con audio) y solo entonces se cierra.
 class SendGiftDialog extends StatefulWidget {
   final Gift gift;
@@ -26,10 +29,17 @@ class _SendGiftDialogState extends State<SendGiftDialog>
   bool _videoMode = false;
   bool _exiting = false;
   Timer? _safetyTimer;
+  AudioPlayer? _soundPlayer;
 
   bool get _fullscreen => widget.gift.fullscreen;
 
+  bool get _halfScreenBottom => widget.gift.halfScreenBottom;
+
+  bool get _expandedDisplay => widget.gift.expandedDisplay;
+
   bool get _isVideo => GiftMedia.isVideoPath(widget.gift.image);
+
+  bool get _hasSeparateSound => widget.gift.hasSound;
 
   Duration get _imageDuration {
     final path = (widget.gift.image ?? '').toLowerCase();
@@ -38,8 +48,8 @@ class _SendGiftDialogState extends State<SendGiftDialog>
         path.contains('.gif?') ||
         path.contains('.webp?');
     final holdMs = animated
-        ? (_fullscreen ? 2600 : 1800)
-        : (_fullscreen ? 1400 : 900);
+        ? (_expandedDisplay ? 2600 : 1800)
+        : (_expandedDisplay ? 1400 : 900);
     return Duration(milliseconds: 350 + holdMs + 300);
   }
 
@@ -47,6 +57,7 @@ class _SendGiftDialogState extends State<SendGiftDialog>
   void initState() {
     super.initState();
     _videoMode = _isVideo;
+    unawaited(_playGiftSound());
     _exitCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
@@ -70,9 +81,9 @@ class _SendGiftDialogState extends State<SendGiftDialog>
       });
     } else {
       _ctrl = AnimationController(vsync: this, duration: _imageDuration);
-      final enterBegin = _fullscreen ? 1.0 : 0.55;
-      final enterPeak = _fullscreen ? 1.0 : 1.08;
-      final exitEnd = _fullscreen ? 1.0 : 0.85;
+      final enterBegin = _expandedDisplay ? 1.0 : 0.55;
+      final enterPeak = _expandedDisplay ? 1.0 : 1.08;
+      final exitEnd = _expandedDisplay ? 1.0 : 0.85;
 
       _scale = TweenSequence<double>([
         TweenSequenceItem(
@@ -130,7 +141,6 @@ class _SendGiftDialogState extends State<SendGiftDialog>
   void _onVideoReady(Duration duration) {
     if (duration.inMilliseconds <= 0) return;
     _safetyTimer?.cancel();
-    // Duración completa del MP4 + buffer de red + fade.
     final maxWait = duration + const Duration(seconds: 3);
     _safetyTimer = Timer(maxWait, () {
       if (!_closing && mounted) _startVideoExit();
@@ -160,63 +170,144 @@ class _SendGiftDialogState extends State<SendGiftDialog>
     }
   }
 
+  Future<void> _playGiftSound() async {
+    if (!_hasSeparateSound) return;
+    final url = widget.gift.sound!.trim().addBaseURL();
+    if (url.isEmpty) return;
+    final player = AudioPlayer();
+    _soundPlayer = player;
+    try {
+      await player.setUrl(url);
+      await player.play();
+    } catch (_) {
+      await player.dispose();
+      if (_soundPlayer == player) _soundPlayer = null;
+    }
+  }
+
   @override
   void dispose() {
     _safetyTimer?.cancel();
+    final player = _soundPlayer;
+    _soundPlayer = null;
+    unawaited(player?.dispose());
     _ctrl.dispose();
     _exitCtrl.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final w = _fullscreen ? size.width : 180.0;
-    final h = _fullscreen ? size.height : 180.0;
-    final fit = _fullscreen ? BoxFit.cover : BoxFit.contain;
-
-    final media = GiftMedia(
+  Widget _buildMedia(double w, double h, BoxFit fit) {
+    return GiftMedia(
       path: widget.gift.image,
       width: w,
       height: h,
       fit: fit,
-      muted: false,
+      muted: _hasSeparateSound,
       looping: false,
       onVideoEnded: _onVideoEnded,
       onVideoReady: _onVideoReady,
       placeholder: Icon(
         Icons.card_giftcard,
-        size: _fullscreen ? 120 : 80,
+        size: _expandedDisplay ? 120 : 80,
         color: Colors.white70,
       ),
     );
+  }
+
+  Widget _buildHalfScreenContent(Size size) {
+    final halfH = size.height * 0.5;
+    const edgeBlurH = 52.0;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SizedBox(
+        width: size.width,
+        height: halfH,
+        child: Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.hardEdge,
+          children: [
+            ColoredBox(
+              color: Colors.black,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: _buildMedia(size.width, halfH, BoxFit.fitWidth),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: edgeBlurH,
+              child: IgnorePointer(
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.28),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGiftContent(Size size) {
+    if (_halfScreenBottom) {
+      return _buildHalfScreenContent(size);
+    }
+    if (_fullscreen) {
+      return SizedBox(
+        width: size.width,
+        height: size.height,
+        child: _buildMedia(size.width, size.height, BoxFit.cover),
+      );
+    }
+    return Center(
+      child: _buildMedia(180, 180, BoxFit.contain),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
 
     return Material(
       type: MaterialType.transparency,
       color: Colors.transparent,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        // MP4: no cerrar a mitad para que se vea/oiga completo.
         onTap: _videoMode ? null : _dismiss,
         child: ColoredBox(
-          color: _fullscreen
-              ? Colors.black.withValues(alpha: 0.35)
-              : Colors.transparent,
+          color: _halfScreenBottom
+              ? Colors.transparent
+              : (_expandedDisplay
+                  ? Colors.black.withValues(alpha: 0.35)
+                  : Colors.transparent),
           child: AnimatedBuilder(
             animation: Listenable.merge([_ctrl, _exitCtrl]),
             builder: (context, child) {
               return Opacity(
                 opacity: _opacityValue,
-                child: _fullscreen
+                child: _expandedDisplay
                     ? child
                     : Transform.scale(scale: _scale.value, child: child),
               );
             },
-            child: _fullscreen
-                ? IgnorePointer(
-                    child: SizedBox(width: w, height: h, child: media),
-                  )
-                : Center(child: IgnorePointer(child: media)),
+            child: IgnorePointer(child: _buildGiftContent(size)),
           ),
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:krimson/common/service/api/api_service.dart';
 import 'package:krimson/common/service/utils/params.dart';
 import 'package:krimson/common/service/utils/web_service.dart';
+import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/general/status_model.dart';
 import 'package:krimson/model/gift_wallet/coin_recharge_model.dart';
 import 'package:krimson/model/gift_wallet/wallet_history_model.dart';
@@ -12,6 +13,39 @@ class GiftWalletService {
   GiftWalletService._();
 
   static final GiftWalletService instance = GiftWalletService._();
+
+  Future<({List<Gift> gifts, bool hasMore})> fetchGiftsCatalog({
+    int categoryId = 0,
+    int? lastItemId,
+    int limit = 20,
+  }) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.fetchGiftsCatalog,
+      fromJson: (j) => j,
+      param: {
+        Params.limit: limit,
+        Params.categoryId: categoryId,
+        if (lastItemId != null && lastItemId > 0) Params.lastItemId: lastItemId,
+      },
+    );
+    if (json['status'] != true) {
+      return (gifts: <Gift>[], hasMore: false);
+    }
+    final data = json['data'];
+    if (data is! Map) {
+      return (gifts: <Gift>[], hasMore: false);
+    }
+    final rawGifts = data['gifts'];
+    final gifts = rawGifts is List
+        ? rawGifts
+            .map((e) => Gift.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList()
+        : <Gift>[];
+    return (
+      gifts: gifts,
+      hasMore: data['has_more'] == true,
+    );
+  }
 
   Future<StatusModel> sendGift({int? userId, int? giftId, String? source}) async {
     final json = await ApiService.instance.call(

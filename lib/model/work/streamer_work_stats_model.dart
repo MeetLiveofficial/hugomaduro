@@ -170,7 +170,7 @@ class WorkTodayStats {
 }
 
 class WorkWeeklyLevel {
-  static const List<String> kGrades = ['NEW', 'B', 'C', 'A', 'S'];
+  static const List<String> kGrades = ['NEW', 'C', 'B', 'A', 'S'];
 
   WorkWeeklyLevel({
     this.grade = 'NEW',
@@ -204,9 +204,12 @@ class WorkWeeklyLevel {
   final WorkWeekSlice lastWeek;
 
   double get progress {
+    final n = grades.length;
+    if (n <= 1) return 1;
     final i = grades.indexOf(grade);
-    if (i < 0 || grades.isEmpty) return 0;
-    return (i + 1) / grades.length;
+    if (i < 0) return 0.05;
+    // Los iconos van con spaceBetween: el nivel actual queda en i/(n-1).
+    return (i / (n - 1)).clamp(i == 0 ? 0.05 : 0.0, 1.0);
   }
 }
 
