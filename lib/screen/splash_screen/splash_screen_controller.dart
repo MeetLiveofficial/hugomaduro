@@ -137,9 +137,6 @@ class SplashScreenController extends BaseController {
         ),
       );
 
-      // No reiniciar toda la app aquí: RestartWidget + Get.off dejaba
-      // navigator vacío (pantalla blanca) en emuladores.
-
       if (await _tryRestoreSession()) return;
 
       Get.offAll(() => const LoginScreen(), routeName: '/login');

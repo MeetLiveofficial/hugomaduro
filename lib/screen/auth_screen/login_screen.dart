@@ -1,6 +1,8 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/streamer_invite.dart';
 import 'package:krimson/common/widget/custom_divider.dart';
 import 'package:krimson/common/widget/privacy_policy_text.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
@@ -120,7 +122,7 @@ class LoginScreen extends StatelessWidget {
                       },
                       child: Container(
                         height: 48,
-                        margin: const EdgeInsets.symmetric(vertical: 25),
+                        margin: const EdgeInsets.only(top: 25),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: ColorRes.menuSurface.withValues(alpha: 0.75),
@@ -132,6 +134,21 @@ class LoginScreen extends StatelessWidget {
                           LKey.createAccountHere.tr,
                           style: TextStyleCustom.outFitMedium500(
                               color: ColorRes.whitePure, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        StreamerInvite.registerUrl().lunchUrlWithHttps;
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 14, bottom: 18),
+                        child: Text(
+                          LKey.iAmStreamer.tr,
+                          style: TextStyleCustom.outFitMedium500(
+                            fontSize: 15,
+                            color: ColorRes.brandSoft,
+                          ),
                         ),
                       ),
                     ),

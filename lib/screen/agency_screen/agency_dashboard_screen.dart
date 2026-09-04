@@ -109,42 +109,46 @@ class AgencyHomeScreen extends StatelessWidget {
                 child: CircularProgressIndicator(color: ColorRes.crimson),
               );
             }
+            final invite = _AgencyInviteCard(controller: c);
             if (c.workers.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.groups_outlined,
-                          size: 48, color: Colors.white54),
-                      const SizedBox(height: 12),
-                      Text(
-                        LKey.agencyNoStreamers.tr,
-                        style: TextStyleCustom.outFitSemiBold600(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        LKey.agencyCreateStreamerHint.tr,
-                        textAlign: TextAlign.center,
-                        style: TextStyleCustom.outFitRegular400(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextButtonCustom(
-                        title: LKey.agencyCreateStreamer.tr,
-                        onTap: () => _openCreate(context, c),
-                        gradient: true,
-                        btnWidth: 200,
-                      ),
-                    ],
+              return RefreshIndicator(
+                onRefresh: c.loadWorkers,
+                child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  invite,
+                  const SizedBox(height: 24),
+                  const Icon(Icons.groups_outlined,
+                      size: 48, color: Colors.white54),
+                  const SizedBox(height: 12),
+                  Text(
+                    LKey.agencyNoStreamers.tr,
+                    textAlign: TextAlign.center,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    LKey.agencyCreateStreamerHint.tr,
+                    textAlign: TextAlign.center,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: TextButtonCustom(
+                      title: LKey.agencyCreateStreamer.tr,
+                      onTap: () => _openCreate(context, c),
+                      gradient: true,
+                      btnWidth: 200,
+                    ),
+                  ),
+                ],
+              ),
               );
             }
             final totals = c.dashboard.value.totals;
@@ -152,16 +156,17 @@ class AgencyHomeScreen extends StatelessWidget {
               onRefresh: c.loadWorkers,
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                itemCount: c.workers.length + 1,
+                itemCount: c.workers.length + 2,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (_, i) {
-                  if (i == 0) {
+                  if (i == 0) return invite;
+                  if (i == 1) {
                     return _AgencyTotalsCard(
                       wallet: c.dashboard.value.agencyWallet,
                       totals: totals,
                     );
                   }
-                  return _WorkerTile(worker: c.workers[i - 1]);
+                  return _WorkerTile(worker: c.workers[i - 2]);
                 },
               ),
             );
@@ -261,6 +266,88 @@ class AgencyHomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _AgencyInviteCard extends StatelessWidget {
+  const _AgencyInviteCard({required this.controller});
+
+  final AgencyHomeController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final code = controller.dashboard.value.agencyCode;
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              LKey.agencyInviteTitle.tr,
+              style: TextStyleCustom.outFitSemiBold600(
+                color: Colors.white,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              LKey.agencyInviteHint.tr,
+              style: TextStyleCustom.outFitRegular400(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                code.isEmpty ? '—' : code,
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.unboundedBlack900(
+                  color: ColorRes.accentPeach,
+                  fontSize: 20,
+                ).copyWith(letterSpacing: 2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButtonCustom(
+                    title: LKey.copyAgencyCode.tr,
+                    onTap: controller.copyAgencyCode,
+                    gradient: true,
+                    btnHeight: 42,
+                    horizontalMargin: 0,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButtonCustom(
+                    title: LKey.copyInviteLink.tr,
+                    onTap: controller.copyInviteLink,
+                    gradient: false,
+                    btnHeight: 42,
+                    horizontalMargin: 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
 

@@ -82,6 +82,7 @@ class LiveStreamSearchScreen extends StatelessWidget {
             ),
           ),
           SafeArea(
+            bottom: MediaQuery.viewInsetsOf(context).bottom <= 0,
             child: Column(
               children: [
                 _TopBar(controller: controller),
@@ -92,9 +93,14 @@ class LiveStreamSearchScreen extends StatelessWidget {
                     LiveStreamSearchScreenController
                         .kPreLiveBeautyFiltersEnabled)
                   _PreLiveFiltersBar(controller: controller),
-                _BottomBar(
-                  controller: controller,
-                  displayName: displayName,
+                Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(context).bottom,
+                  ),
+                  child: _BottomBar(
+                    controller: controller,
+                    displayName: displayName,
+                  ),
                 ),
               ],
             ),
@@ -485,12 +491,10 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
             Text(
               displayName,
               style: TextStyleCustom.outFitSemiBold600(
@@ -499,26 +503,36 @@ class _BottomBar extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: controller.editPreLiveTitle,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white24),
+            TextField(
+              controller: controller.titleController,
+              maxLength: 80,
+              textInputAction: TextInputAction.done,
+              style: TextStyleCustom.outFitRegular400(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+              cursorColor: Colors.white,
+              scrollPadding: const EdgeInsets.only(bottom: 80),
+              decoration: InputDecoration(
+                hintText: LKey.enterLiveStreamTitle.tr,
+                hintStyle: TextStyleCustom.outFitRegular400(
+                  color: Colors.white54,
+                  fontSize: 14,
                 ),
-                child: Obx(() {
-                  final t = controller.previewTitle.value.trim();
-                  return Text(
-                    t.isEmpty ? LKey.enterLiveStreamTitle.tr : t,
-                    style: TextStyleCustom.outFitRegular400(
-                      color: t.isEmpty ? Colors.white54 : Colors.white,
-                      fontSize: 14,
-                    ),
-                  );
-                }),
+                counterText: '',
+                isDense: true,
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.12),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.white54),
+                ),
               ),
             ),
             Obx(() {
@@ -578,7 +592,6 @@ class _BottomBar extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

@@ -110,6 +110,8 @@ class UserService {
     String? country,
     String? countryCode,
     String? appLanguage,
+    String? appRole,
+    String? agencyCode,
     bool keepAuthToken = false,
   }) async {
     UserModel model = await ApiService.instance.call(
@@ -128,6 +130,9 @@ class UserService {
             Params.countryCode: countryCode,
           if (appLanguage != null && appLanguage.isNotEmpty)
             Params.appLanguage: appLanguage,
+          if (appRole != null && appRole.isNotEmpty) Params.appRole: appRole,
+          if (agencyCode != null && agencyCode.isNotEmpty)
+            Params.agencyCode: agencyCode,
         },
         fromJson: UserModel.fromJson);
 

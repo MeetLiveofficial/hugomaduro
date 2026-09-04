@@ -71,6 +71,8 @@ class Params {
   static const String reason = 'reason';
   static const String savedMusicIds = 'saved_music_ids';
   static const String appLanguage = 'app_language';
+  static const String appRole = 'app_role';
+  static const String agencyCode = 'agency_code';
   static const String storyId = 'story_id';
   static const String sound = 'sound';
   static const String soundID = 'sound_id';

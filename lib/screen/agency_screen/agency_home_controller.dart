@@ -1,7 +1,10 @@
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/streamer_invite.dart';
 import 'package:krimson/common/service/api/agency_service.dart';
 import 'package:krimson/languages/dynamic_translations.dart';
+import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/agency/agency_dashboard_model.dart';
 
 class AgencyHomeController extends BaseController {
@@ -55,5 +58,25 @@ class AgencyHomeController extends BaseController {
     } finally {
       creating.value = false;
     }
+  }
+
+  Future<void> copyAgencyCode() async {
+    final code = dashboard.value.agencyCode.trim();
+    if (code.isEmpty) {
+      showSnackBar(LKey.agencyNoInviteCode.tr);
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: code));
+    showSnackBar(LKey.agencyCodeCopied.tr);
+  }
+
+  Future<void> copyInviteLink() async {
+    final code = dashboard.value.agencyCode.trim();
+    if (code.isEmpty) {
+      showSnackBar(LKey.agencyNoInviteCode.tr);
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: StreamerInvite.inviteUrl(code)));
+    showSnackBar(LKey.inviteLinkCopied.tr);
   }
 }

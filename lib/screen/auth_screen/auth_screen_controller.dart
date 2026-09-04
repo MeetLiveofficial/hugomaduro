@@ -59,6 +59,9 @@ class AuthScreenController extends BaseController {
       });
     }
     super.onInit();
+    try {
+      Get.find<DynamicTranslations>().ensureAgencyFallbacks();
+    } catch (_) {}
     unawaited(_tryAutoRestoreSession());
   }
 
