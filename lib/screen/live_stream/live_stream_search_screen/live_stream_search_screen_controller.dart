@@ -58,6 +58,7 @@ class LiveStreamSearchScreenController extends BaseController {
   final RxnString coverImageLocalPath = RxnString();
   final RxnString coverImageUploaded = RxnString();
   final Rxn<Uint8List> coverImageBytes = Rxn<Uint8List>();
+  final Rxn<XFile> coverPickerFile = Rxn<XFile>();
 
   final RxBool beautyOn = false.obs;
   final RxDouble whiten = 50.0.obs;
@@ -587,6 +588,7 @@ class LiveStreamSearchScreenController extends BaseController {
       coverImageBytes.value = bytes;
       coverImageLocalPath.value = stablePath;
       coverImageUploaded.value = null;
+      coverPickerFile.value = file;
       Loggers.info('Live cover selected: $stablePath (${bytes.length} bytes)');
     } catch (e) {
       Loggers.error('pickLiveCover: $e');
@@ -598,6 +600,7 @@ class LiveStreamSearchScreenController extends BaseController {
     coverImageBytes.value = null;
     coverImageLocalPath.value = null;
     coverImageUploaded.value = null;
+    coverPickerFile.value = null;
   }
 
   /// Sube la portada desde bytes (Web y nativo). No usa dart:io File.
@@ -606,11 +609,16 @@ class LiveStreamSearchScreenController extends BaseController {
     if (existing.isNotEmpty) return existing;
     final bytes = coverImageBytes.value;
     if (bytes == null || bytes.isEmpty) return null;
-    final uploadFile = XFile.fromData(
-      bytes,
-      mimeType: 'image/jpeg',
-      name: 'live_cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
-    );
+    final picked = coverPickerFile.value;
+    final uploadFile = (picked != null &&
+            (picked.path.isNotEmpty || picked.name.isNotEmpty))
+        ? picked
+        : XFile.fromData(
+            bytes,
+            mimeType: 'image/jpeg',
+            name:
+                'live_cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
     final uploaded = await CommonService.instance.uploadFileGivePath(uploadFile);
     if (uploaded.status != true ||
         uploaded.data == null ||

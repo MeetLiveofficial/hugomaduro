@@ -67,7 +67,9 @@ class GuestJoinSheet extends StatelessWidget {
             const SizedBox(height: 22),
             TextButtonCustom(
               onTap: () {
-                Get.back();
+                if (Get.isBottomSheetOpen == true) {
+                  Get.back();
+                }
                 if (!Get.isRegistered<AuthScreenController>()) {
                   Get.put(AuthScreenController());
                 }

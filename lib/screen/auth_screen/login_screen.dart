@@ -9,6 +9,9 @@ import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/common/widget/theme_blur_bg.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/auth_screen/auth_screen_controller.dart';
+import 'package:krimson/screen/auth_screen/auth_input_field.dart';
+export 'package:krimson/screen/auth_screen/auth_input_field.dart'
+    show LoginSheetTextField, AuthTextField;
 import 'package:krimson/screen/auth_screen/forget_password_sheet.dart';
 import 'package:krimson/screen/auth_screen/login_language_dropdown.dart';
 import 'package:krimson/screen/auth_screen/registration_screen.dart';
@@ -238,83 +241,6 @@ class LoginScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class LoginSheetTextField extends StatefulWidget {
-  final bool isPasswordField;
-  final String hintText;
-  final TextEditingController controller;
-  final TextInputType? keyboardType;
-
-  const LoginSheetTextField(
-      {super.key,
-      this.isPasswordField = false,
-      required this.hintText,
-      required this.controller,
-      this.keyboardType});
-
-  @override
-  State<LoginSheetTextField> createState() => _LoginSheetTextFieldState();
-}
-
-class _LoginSheetTextFieldState extends State<LoginSheetTextField> {
-  bool isHide = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: ShapeDecoration(
-          shape: SmoothRectangleBorder(
-            borderRadius:
-                SmoothBorderRadius(cornerRadius: 14, cornerSmoothing: 1),
-            side: BorderSide(color: ColorRes.menuBorder),
-            borderAlign: BorderAlign.inside,
-          ),
-          color: ColorRes.bgElevated.withValues(alpha: 0.95),
-          shadows: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ]),
-      child: TextField(
-        controller: widget.controller,
-        style: TextStyleCustom.outFitRegular400(
-            color: ColorRes.whitePure, fontSize: 16),
-        onTapOutside: (event) => FocusManager.instance.primaryFocus?.unfocus(),
-        obscureText: widget.isPasswordField && isHide,
-        keyboardType: widget.keyboardType ?? TextInputType.text,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: widget.hintText,
-          hintStyle: TextStyleCustom.outFitRegular400(
-              color: ColorRes.whitePure.withValues(alpha: 0.45), fontSize: 16),
-          contentPadding: EdgeInsets.only(
-              left: 14, right: 10, top: widget.isPasswordField ? 2 : 0),
-          suffixIconConstraints: const BoxConstraints(),
-          suffixIcon: widget.isPasswordField
-              ? InkWell(
-                  onTap: () {
-                    isHide = !isHide;
-                    setState(() {});
-                  },
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: Image.asset(
-                        isHide ? AssetRes.icEye : AssetRes.icHideEye,
-                        height: 24,
-                        width: 35,
-                        color: ColorRes.whitePure.withValues(alpha: 0.7),
-                        key: UniqueKey()),
-                  ),
-                )
-              : null,
-        ),
-        cursorColor: ColorRes.mauve,
       ),
     );
   }

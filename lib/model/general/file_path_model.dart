@@ -6,9 +6,19 @@ class FilePathModel {
   });
 
   FilePathModel.fromJson(dynamic json) {
-    status = json['status'];
-    message = json['message'];
-    data = json['data'];
+    final raw = json['status'];
+    if (raw is bool) {
+      status = raw;
+    } else if (raw is num) {
+      status = raw != 0;
+    } else if (raw is String) {
+      final v = raw.toLowerCase().trim();
+      status = v == 'true' || v == '1' || v == 'yes';
+    } else {
+      status = false;
+    }
+    message = json['message']?.toString();
+    data = json['data']?.toString();
   }
 
   bool? status;

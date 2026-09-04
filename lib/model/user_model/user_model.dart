@@ -680,7 +680,17 @@ class User {
   }
 
   UserLevel get getLevel {
-    return (coinCollectedLifetime ?? 0).getUserLevelByTotalCoins;
+    final levels = SessionManager.instance.getSettings()?.userLevels ?? [];
+    final fromApi = levelNumber;
+    if (fromApi != null && fromApi > 0 && levels.isNotEmpty) {
+      for (final row in levels) {
+        if (row.level == fromApi) return row;
+      }
+    }
+    return ((appRole ?? '').toLowerCase() == 'client'
+            ? (coinGiftedLifetime ?? 0)
+            : (coinCollectedLifetime ?? 0))
+        .getUserLevelByTotalCoins;
   }
 }
 
