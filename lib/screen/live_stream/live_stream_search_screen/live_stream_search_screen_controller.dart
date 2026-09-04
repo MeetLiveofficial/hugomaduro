@@ -235,34 +235,8 @@ class LiveStreamSearchScreenController extends BaseController {
     } catch (_) {}
   }
 
-  Future<void> editPreLiveTitle() async {
-    final draft = TextEditingController(text: titleController.text);
-    final ok = await Get.dialog<bool>(
-      AlertDialog(
-        title: Text(LKey.enterLiveStreamTitle.tr),
-        content: TextField(
-          controller: draft,
-          autofocus: true,
-          maxLength: 80,
-          decoration: InputDecoration(
-            hintText: LKey.enterLiveStreamTitle.tr,
-            counterText: '',
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: Text(LKey.cancel.tr)),
-          TextButton(onPressed: () => Get.back(result: true), child: Text(LKey.done.tr)),
-        ],
-      ),
-    );
-    if (ok == true) {
-      titleController.text = draft.text.trim();
-      previewTitle.value = titleController.text;
-    }
-    draft.dispose();
-  }
-
   Future<void> onTapGoLive() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final user = SessionManager.instance.getUser();
     final settings = SessionManager.instance.getSettings();
     if (user == null) {
@@ -297,7 +271,7 @@ class LiveStreamSearchScreenController extends BaseController {
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black54,
       enableDrag: true,
-      ignoreSafeArea: false,
+      ignoreSafeArea: true,
     );
     if (ok == true) {
       final snapBeautyOn = kPreLiveBeautyFiltersEnabled &&
@@ -823,23 +797,16 @@ class _StartLiveSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final keyboard = media.viewInsets.bottom;
-    final keyboardOpen = keyboard > 0;
-    // Compacto al contenido; con teclado limita altura y hace scroll.
-    final available =
-        (media.size.height - keyboard).clamp(260.0, media.size.height);
-    final maxWithKeyboard = (available * 0.88).clamp(260.0, available);
-
     final formBody = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         TextField(
           controller: controller.titleController,
-          autofocus: true,
+          autofocus: false,
           maxLength: 80,
           textInputAction: TextInputAction.next,
+          scrollPadding: const EdgeInsets.only(bottom: 120),
           decoration: InputDecoration(
             hintText: LKey.enterLiveStreamTitle.tr,
             isDense: true,
@@ -855,8 +822,10 @@ class _StartLiveSheet extends StatelessWidget {
         TextField(
           controller: controller.descriptionController,
           maxLength: 30,
-          maxLines: keyboardOpen ? 2 : 2,
+          maxLines: 2,
           minLines: 1,
+          textInputAction: TextInputAction.done,
+          scrollPadding: const EdgeInsets.only(bottom: 120),
           decoration: InputDecoration(
             hintText: 'Describe your live... (max 30)',
             isDense: true,
@@ -868,127 +837,120 @@ class _StartLiveSheet extends StatelessWidget {
             ),
           ),
         ),
-        if (!keyboardOpen) ...[
-          const SizedBox(height: 10),
-          Obx(() {
-            final bytes = controller.coverImageBytes.value;
-            final hasCover = bytes != null && bytes.isNotEmpty;
-            return Material(
-              color: bgGrey(context),
+        const SizedBox(height: 10),
+        Obx(() {
+          final bytes = controller.coverImageBytes.value;
+          final hasCover = bytes != null && bytes.isNotEmpty;
+          return Material(
+            color: bgGrey(context),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () {
+                FocusScope.of(context).unfocus();
+                controller.pickLiveCover();
+              },
               borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                onTap: controller.pickLiveCover,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  height: 88,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.black12),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (hasCover)
-                        Image.memory(
-                          bytes,
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                        )
-                      else
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.add_photo_alternate_outlined,
+              child: Container(
+                height: 88,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black12),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (hasCover)
+                      Image.memory(
+                        bytes,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                      )
+                    else
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_photo_alternate_outlined,
+                            color: textLightGrey(context),
+                            size: 24,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Add cover image',
+                            style: TextStyleCustom.outFitMedium500(
                               color: textLightGrey(context),
-                              size: 24,
+                              fontSize: 12,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Add cover image',
-                              style: TextStyleCustom.outFitMedium500(
-                                color: textLightGrey(context),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      if (hasCover)
-                        Positioned(
-                          top: 6,
-                          right: 6,
-                          child: Material(
-                            color: Colors.black54,
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: controller.clearLiveCover,
-                              child: const Padding(
-                                padding: EdgeInsets.all(6),
-                                child: Icon(Icons.close,
-                                    color: Colors.white, size: 16),
-                              ),
+                          ),
+                        ],
+                      ),
+                    if (hasCover)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Material(
+                          color: Colors.black54,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: controller.clearLiveCover,
+                            child: const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(Icons.close,
+                                  color: Colors.white, size: 16),
                             ),
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
               ),
-            );
-          }),
-          const SizedBox(height: 12),
-          Text(
-            'Regalos incentivados (6)',
-            style: TextStyleCustom.outFitSemiBold600(
-              color: textDarkGrey(context),
-              fontSize: 13,
             ),
+          );
+        }),
+        const SizedBox(height: 12),
+        Text(
+          'Regalos incentivados (6)',
+          style: TextStyleCustom.outFitSemiBold600(
+            color: textDarkGrey(context),
+            fontSize: 13,
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Elige regalos y un mensaje (máx. 120). Se mostrarán a los clientes.',
-            style: TextStyleCustom.outFitRegular400(
-              color: textLightGrey(context),
-              fontSize: 11,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Elige regalos y un mensaje (máx. 120). Se mostrarán a los clientes.',
+          style: TextStyleCustom.outFitRegular400(
+            color: textLightGrey(context),
+            fontSize: 11,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Obx(() {
+          final slots = controller.giftIncentiveSlots;
+          return SizedBox(
+            height: 148,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: slots.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final slot = slots[index];
+                return _IncentiveSlotCard(
+                  slot: slot,
+                  onPickGift: () {
+                    FocusScope.of(context).unfocus();
+                    controller.pickGiftForIncentiveSlot(index);
+                  },
+                  onClear: () => controller.clearGiftIncentiveSlot(index),
+                  onMessageChanged: (v) =>
+                      controller.updateGiftIncentiveMessage(index, v),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 8),
-          Obx(() {
-            final slots = controller.giftIncentiveSlots;
-            return SizedBox(
-              height: 148,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: slots.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final slot = slots[index];
-                  return _IncentiveSlotCard(
-                    slot: slot,
-                    onPickGift: () =>
-                        controller.pickGiftForIncentiveSlot(index),
-                    onClear: () => controller.clearGiftIncentiveSlot(index),
-                    onMessageChanged: (v) =>
-                        controller.updateGiftIncentiveMessage(index, v),
-                  );
-                },
-              ),
-            );
-          }),
-        ] else ...[
-          const SizedBox(height: 6),
-          Text(
-            'Cierra el teclado para elegir portada',
-            textAlign: TextAlign.center,
-            style: TextStyleCustom.outFitRegular400(
-              color: textLightGrey(context),
-              fontSize: 12,
-            ),
-          ),
-        ],
+          );
+        }),
         Obx(() {
           if (controller.invitedIds.isEmpty) {
             return const SizedBox.shrink();
@@ -1055,44 +1017,50 @@ class _StartLiveSheet extends StatelessWidget {
       ),
     );
 
-    final sheetBody = SafeArea(
-      top: false,
-      child: SizedBox(
-        height: maxWithKeyboard,
-        child: Column(
-          children: [
-            header,
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                child: formBody,
+    // Get.bottomSheet ya aplica viewInsets. Usar el viewport visible (pantalla
+    // menos teclado) para que el sheet no se salga por arriba.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final view = View.of(context);
+        final keyboard = view.viewInsets.bottom / view.devicePixelRatio;
+        final visible = (MediaQuery.sizeOf(context).height - keyboard)
+            .clamp(240.0, double.infinity);
+        final maxH = (constraints.maxHeight.isFinite
+                ? constraints.maxHeight
+                : visible)
+            .clamp(240.0, visible);
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: Material(
+            color: whitePure(context),
+            elevation: 16,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            child: SafeArea(
+              top: false,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxH),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    header,
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        child: formBody,
+                      ),
+                    ),
+                    startButton,
+                  ],
+                ),
               ),
             ),
-            startButton,
-          ],
-        ),
-      ),
-    );
-
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 100),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: keyboard),
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Material(
-          color: whitePure(context),
-          elevation: 16,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          clipBehavior: Clip.antiAlias,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: available * 0.92),
-            child: sheetBody,
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

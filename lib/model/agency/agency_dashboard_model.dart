@@ -1,6 +1,7 @@
 class AgencyDashboard {
   AgencyDashboard({
     this.agencyId = 0,
+    this.agencyCode = '',
     this.agencyWallet = 0,
     this.agencyCollected = 0,
     this.count = 0,
@@ -16,6 +17,7 @@ class AgencyDashboard {
     final rawWorkers = data['workers'];
     return AgencyDashboard(
       agencyId: _asInt(data['agency_id']),
+      agencyCode: (data['agency_code'] ?? '').toString().trim().toUpperCase(),
       agencyWallet: _asInt(data['agency_wallet']),
       agencyCollected: _asInt(data['agency_collected']),
       count: _asInt(data['count']),
@@ -34,6 +36,7 @@ class AgencyDashboard {
   }
 
   final int agencyId;
+  final String agencyCode;
   final int agencyWallet;
   final int agencyCollected;
   final int count;

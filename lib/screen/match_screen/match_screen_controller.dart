@@ -34,7 +34,7 @@ class MatchScreenController extends BaseController
   final Rx<MatchSearchMode> mode = MatchSearchMode.random.obs;
   final RxBool isMatching = false.obs;
   final RxBool inMatchPool = false.obs;
-  /// Streamer: Match ON por defecto; solo se apaga si desmarca el radio.
+  /// Streamer: siempre en el pool mientras está en la pantalla de espera.
   final RxBool streamerMatchEnabled = true.obs;
   final RxBool waitCameraOn = false.obs;
   final RxInt coins = 0.obs;
@@ -179,17 +179,6 @@ class MatchScreenController extends BaseController
     } else {
       await leavePool();
     }
-  }
-
-  Future<void> toggleStreamerMatch() async {
-    if (!AppRole.isStreamer()) return;
-    if (inMatchPool.value) {
-      streamerMatchEnabled.value = false;
-      await leavePool();
-      return;
-    }
-    streamerMatchEnabled.value = true;
-    await joinPool();
   }
 
   Future<void> joinPool() async {
@@ -462,7 +451,7 @@ class MatchScreenController extends BaseController
   Future<void> startMatch() async {
     if (GuestGate.block()) return;
     if (AppRole.isStreamer()) {
-      await toggleStreamerMatch();
+      await joinPool();
       return;
     }
     if (isMatching.value) return;

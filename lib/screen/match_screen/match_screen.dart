@@ -117,11 +117,10 @@ class _MatchScreenState extends State<MatchScreen> {
                                 ),
                               ),
                       ),
-                      if (AppRole.isStreamer())
-                        _StreamerMatchRadio(controller: c)
-                      else
+                      if (!AppRole.isStreamer()) ...[
                         _ModeRow(controller: c),
-                      const SizedBox(height: 10),
+                        const SizedBox(height: 10),
+                      ],
                     ],
                   );
                 },
@@ -516,83 +515,6 @@ class _RadarPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RadarPainter oldDelegate) =>
       oldDelegate.progress != progress || oldDelegate.accent != accent;
-}
-
-class _StreamerMatchRadio extends StatelessWidget {
-  const _StreamerMatchRadio({required this.controller});
-
-  final MatchScreenController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Obx(() {
-        final on = controller.inMatchPool.value;
-        final camera = controller.waitCameraOn.value;
-        final title = LKey.matchLabel.tr;
-        final subtitle = on
-            ? (camera ? LKey.waitingForClient.tr : LKey.enablingCamera.tr)
-            : LKey.tapToReceiveClients.tr;
-        return Material(
-          color: on
-              ? ColorRes.crimson.withValues(alpha: 0.42)
-              : Colors.white.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: controller.toggleStreamerMatch,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: on
-                      ? ColorRes.themeAccentSolid.withValues(alpha: 0.85)
-                      : Colors.white24,
-                  width: on ? 1.4 : 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    on
-                        ? Icons.check_circle_rounded
-                        : Icons.radio_button_off_rounded,
-                    color: on ? Colors.white : Colors.white54,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyleCustom.outFitSemiBold600(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyleCustom.outFitRegular400(
-                            color: const Color(0xFFE8D48B),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }),
-    );
-  }
 }
 
 class _ModeRow extends StatelessWidget {

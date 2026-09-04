@@ -876,6 +876,22 @@ class LKey {
   static const String agencyLifetime = "Total";
   static const String agencyWalletHint =
       "10% of the App margin from your streamers";
+  static const String iAmStreamer = "I'm a streamer";
+  static const String streamerSignUp = "SIGN UP AS STREAMER";
+  static const String streamerStartJourney = "START STREAMING";
+  static const String agencyTrackingCode = "Agency code";
+  static const String agencyTrackingOptional = "optional";
+  static const String agencyTrackingHint =
+      "If you belong to an agency, enter their code. Leave empty if you are independent.";
+  static const String affiliatedToAgency = "You will join this agency.";
+  static const String agencyInviteTitle = "Invite streamers";
+  static const String agencyInviteHint =
+      "Share this code or the link so streamers register affiliated to your agency.";
+  static const String copyAgencyCode = "Copy code";
+  static const String copyInviteLink = "Copy link";
+  static const String agencyCodeCopied = "Code copied";
+  static const String inviteLinkCopied = "Invite link copied";
+  static const String agencyNoInviteCode = "Invite code is not ready yet";
 
   // UI copy that was hardcoded (must go through .tr)
   static const String addMore = "Add more";

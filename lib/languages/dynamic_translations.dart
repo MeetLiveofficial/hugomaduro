@@ -510,6 +510,22 @@ const _agencyEn = <String, String>{
   LKey.agencyMonth: 'This month',
   LKey.agencyLifetime: 'Total',
   LKey.agencyWalletHint: '10% of the App margin from your streamers',
+  LKey.iAmStreamer: "I'm a streamer",
+  LKey.streamerSignUp: 'Sign up as streamer',
+  LKey.streamerStartJourney: 'Start streaming',
+  LKey.agencyTrackingCode: 'Agency code',
+  LKey.agencyTrackingOptional: 'optional',
+  LKey.agencyTrackingHint:
+      'If you belong to an agency, enter their code. Leave empty if you are independent.',
+  LKey.affiliatedToAgency: 'You will join this agency.',
+  LKey.agencyInviteTitle: 'Invite streamers',
+  LKey.agencyInviteHint:
+      'Share this code or the link so streamers register affiliated to your agency.',
+  LKey.copyAgencyCode: 'Copy code',
+  LKey.copyInviteLink: 'Copy link',
+  LKey.agencyCodeCopied: 'Code copied',
+  LKey.inviteLinkCopied: 'Invite link copied',
+  LKey.agencyNoInviteCode: 'Invite code is not ready yet',
 };
 
 const _agencyEs = <String, String>{
@@ -529,6 +545,22 @@ const _agencyEs = <String, String>{
   LKey.agencyMonth: 'Este mes',
   LKey.agencyLifetime: 'Total',
   LKey.agencyWalletHint: '10% del margen App de tus streamers',
+  LKey.iAmStreamer: 'Soy streamer',
+  LKey.streamerSignUp: 'Regístrate como streamer',
+  LKey.streamerStartJourney: 'Empieza a streamear',
+  LKey.agencyTrackingCode: 'Código de agencia',
+  LKey.agencyTrackingOptional: 'opcional',
+  LKey.agencyTrackingHint:
+      'Si perteneces a una agencia, ingresa su código. Déjalo vacío si eres independiente.',
+  LKey.affiliatedToAgency: 'Te unirás a esta agencia.',
+  LKey.agencyInviteTitle: 'Invitar streamers',
+  LKey.agencyInviteHint:
+      'Comparte este código o el enlace para que un streamer se registre afiliado a tu agencia.',
+  LKey.copyAgencyCode: 'Copiar código',
+  LKey.copyInviteLink: 'Copiar enlace',
+  LKey.agencyCodeCopied: 'Código copiado',
+  LKey.inviteLinkCopied: 'Enlace copiado',
+  LKey.agencyNoInviteCode: 'El código de invitación aún no está listo',
 };
 
 const _agencyPt = <String, String>{
@@ -548,6 +580,22 @@ const _agencyPt = <String, String>{
   LKey.agencyMonth: 'Este mês',
   LKey.agencyLifetime: 'Total',
   LKey.agencyWalletHint: '10% da margem App dos seus streamers',
+  LKey.iAmStreamer: 'Sou streamer',
+  LKey.streamerSignUp: 'Cadastre-se como streamer',
+  LKey.streamerStartJourney: 'Comece a transmitir',
+  LKey.agencyTrackingCode: 'Código da agência',
+  LKey.agencyTrackingOptional: 'opcional',
+  LKey.agencyTrackingHint:
+      'Se você pertence a uma agência, informe o código. Deixe vazio se for independente.',
+  LKey.affiliatedToAgency: 'Você vai entrar nesta agência.',
+  LKey.agencyInviteTitle: 'Convidar streamers',
+  LKey.agencyInviteHint:
+      'Compartilhe este código ou o link para o streamer se cadastrar afiliado à sua agência.',
+  LKey.copyAgencyCode: 'Copiar código',
+  LKey.copyInviteLink: 'Copiar link',
+  LKey.agencyCodeCopied: 'Código copiado',
+  LKey.inviteLinkCopied: 'Link copiado',
+  LKey.agencyNoInviteCode: 'O código de convite ainda não está pronto',
 };
 
 const _callEn = <String, String>{
