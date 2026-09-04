@@ -8,7 +8,8 @@ import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/model/general/settings_model.dart';
 
 /// Overlay del regalo: tamaño original, pantalla completa o mitad inferior.
-/// MP4: se reproduce completo (con audio) y solo entonces se cierra.
+/// MP4: se reproduce completo y solo entonces se cierra.
+/// El audio auxiliar se recorta a la duración de la animación (nunca al revés).
 class SendGiftDialog extends StatefulWidget {
   final Gift gift;
 
@@ -28,8 +29,12 @@ class _SendGiftDialogState extends State<SendGiftDialog>
   bool _closing = false;
   bool _videoMode = false;
   bool _exiting = false;
+  bool _soundStopped = false;
   Timer? _safetyTimer;
+  Timer? _soundCapTimer;
   AudioPlayer? _soundPlayer;
+  Duration? _videoDuration;
+  final Completer<Duration> _videoReady = Completer<Duration>();
 
   bool get _fullscreen => widget.gift.fullscreen;
 
@@ -129,7 +134,16 @@ class _SendGiftDialogState extends State<SendGiftDialog>
           _dismiss();
         }
       });
+      // El último ~22 % es el fade de salida: cortar el audio ahí.
+      _ctrl.addListener(_onImageAnimTick);
       _ctrl.forward();
+    }
+  }
+
+  void _onImageAnimTick() {
+    if (_videoMode || _soundStopped) return;
+    if (_ctrl.value >= 0.78) {
+      unawaited(_stopGiftSound(fade: true));
     }
   }
 
@@ -140,6 +154,10 @@ class _SendGiftDialogState extends State<SendGiftDialog>
 
   void _onVideoReady(Duration duration) {
     if (duration.inMilliseconds <= 0) return;
+    _videoDuration = duration;
+    if (!_videoReady.isCompleted) {
+      _videoReady.complete(duration);
+    }
     _safetyTimer?.cancel();
     final maxWait = duration + const Duration(seconds: 3);
     _safetyTimer = Timer(maxWait, () {
@@ -156,6 +174,7 @@ class _SendGiftDialogState extends State<SendGiftDialog>
     if (_closing || _exiting || !mounted) return;
     _exiting = true;
     _safetyTimer?.cancel();
+    unawaited(_stopGiftSound(fade: true));
     setState(() {});
     _exitCtrl.forward().whenComplete(_dismiss);
   }
@@ -164,33 +183,115 @@ class _SendGiftDialogState extends State<SendGiftDialog>
     if (_closing || !mounted) return;
     _closing = true;
     _safetyTimer?.cancel();
+    unawaited(_stopGiftSound(fade: false));
     final nav = Navigator.of(context, rootNavigator: true);
     if (nav.canPop()) {
       nav.pop();
     }
   }
 
+  /// La animación manda: el MP3 no alarga el overlay ni sigue sonando después.
   Future<void> _playGiftSound() async {
-    if (!_hasSeparateSound) return;
+    if (!_hasSeparateSound || _soundStopped) return;
     final url = widget.gift.sound!.trim().addBaseURL();
     if (url.isEmpty) return;
     final player = AudioPlayer();
     _soundPlayer = player;
     try {
       await player.setUrl(url);
+      if (!await _soundStillMine(player)) return;
+
+      final cap = await _animationCap();
+      if (!await _soundStillMine(player)) return;
+
+      final audioDur = player.duration;
+      if (cap.inMilliseconds > 0 &&
+          audioDur != null &&
+          audioDur > cap) {
+        try {
+          await player.setClip(start: Duration.zero, end: cap);
+        } catch (_) {}
+      }
+
+      if (!await _soundStillMine(player)) return;
+
+      if (cap.inMilliseconds <= 0) {
+        await _abandonPlayer(player);
+        return;
+      }
+      _armSoundCap(cap);
       await player.play();
     } catch (_) {
-      await player.dispose();
-      if (_soundPlayer == player) _soundPlayer = null;
+      await _abandonPlayer(player);
     }
+  }
+
+  Future<Duration> _animationCap() async {
+    if (!_videoMode) return _imageDuration;
+    try {
+      return await _videoReady.future.timeout(const Duration(seconds: 8));
+    } catch (_) {
+      return _videoDuration ?? const Duration(seconds: 8);
+    }
+  }
+
+  Future<bool> _soundStillMine(AudioPlayer player) async {
+    if (!_soundStopped && mounted && _soundPlayer == player) return true;
+    await _abandonPlayer(player);
+    return false;
+  }
+
+  Future<void> _abandonPlayer(AudioPlayer player) async {
+    // Si ya se cortó el audio, _stopGiftSound es dueño del player.
+    if (_soundStopped) return;
+    if (_soundPlayer == player) _soundPlayer = null;
+    try {
+      await player.stop();
+    } catch (_) {}
+    try {
+      await player.dispose();
+    } catch (_) {}
+  }
+
+  void _armSoundCap(Duration cap) {
+    _soundCapTimer?.cancel();
+    if (cap.inMilliseconds <= 0) return;
+    _soundCapTimer = Timer(cap, () {
+      unawaited(_stopGiftSound(fade: true));
+    });
+  }
+
+  Future<void> _stopGiftSound({required bool fade}) async {
+    if (_soundStopped && _soundPlayer == null) return;
+    _soundStopped = true;
+    _soundCapTimer?.cancel();
+    _soundCapTimer = null;
+    final player = _soundPlayer;
+    _soundPlayer = null;
+    if (player == null) return;
+    try {
+      if (fade) {
+        for (var i = 1; i <= 5; i++) {
+          await player.setVolume((1.0 - i / 5).clamp(0.0, 1.0));
+          await Future<void>.delayed(const Duration(milliseconds: 40));
+        }
+      }
+      await player.stop();
+    } catch (_) {}
+    try {
+      await player.dispose();
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _safetyTimer?.cancel();
-    final player = _soundPlayer;
-    _soundPlayer = null;
-    unawaited(player?.dispose());
+    _soundCapTimer?.cancel();
+    _ctrl.removeListener(_onImageAnimTick);
+    unawaited(_stopGiftSound(fade: false));
+    if (!_videoReady.isCompleted) {
+      _videoReady.complete(Duration.zero);
+    }
     _ctrl.dispose();
     _exitCtrl.dispose();
     super.dispose();

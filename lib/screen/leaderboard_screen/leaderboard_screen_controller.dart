@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/service/api/privilege_service.dart';
 
 enum LeaderboardTab { clients, streamers }
@@ -35,6 +36,9 @@ class LeaderboardController extends BaseController {
   @override
   void onInit() {
     super.onInit();
+    if (AppRole.isStreamer()) {
+      tab.value = LeaderboardTab.streamers;
+    }
     load();
   }
 
@@ -69,9 +73,10 @@ class LeaderboardController extends BaseController {
       me.value = result.me;
       _endsAt = DateTime.tryParse(result.endsAt ?? '');
       _startCountdown();
-    } catch (_) {
+    } catch (e) {
       users.clear();
       me.value = null;
+      showSnackBar(e.toString());
     } finally {
       isLoading.value = false;
     }

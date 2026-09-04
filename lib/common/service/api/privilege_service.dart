@@ -92,10 +92,13 @@ class DressingItemModel {
     this.image,
     this.colorHex,
     this.unlockLevel = 1,
+    this.unlockGrade,
+    this.audience = 'client',
     this.coinPrice = 0,
     this.unlocked = false,
     this.owned = false,
     this.equipped = false,
+    this.localAsset,
   });
 
   factory DressingItemModel.fromJson(Map<String, dynamic> json) {
@@ -108,6 +111,8 @@ class DressingItemModel {
       unlockLevel: json['unlock_level'] is num
           ? (json['unlock_level'] as num).toInt()
           : int.tryParse('${json['unlock_level'] ?? 1}') ?? 1,
+      unlockGrade: json['unlock_grade']?.toString(),
+      audience: _audienceFromJson(json),
       coinPrice: json['coin_price'] is num
           ? (json['coin_price'] as num).toInt()
           : int.tryParse('${json['coin_price'] ?? 0}') ?? 0,
@@ -117,16 +122,28 @@ class DressingItemModel {
     );
   }
 
+  static String _audienceFromJson(Map<String, dynamic> json) {
+    final raw = (json['audience']?.toString() ?? '').trim().toLowerCase();
+    if (raw == 'streamer' || raw == 'client') return raw;
+    final grade = (json['unlock_grade']?.toString() ?? '').trim();
+    final slug = (json['slug']?.toString() ?? '').toLowerCase();
+    if (grade.isNotEmpty || slug.startsWith('streamer_')) return 'streamer';
+    return 'client';
+  }
+
   final int? id;
   final String? title;
   final String? type;
   final String? image;
   final String? colorHex;
   final int unlockLevel;
+  final String? unlockGrade;
+  final String audience;
   final int coinPrice;
   final bool unlocked;
   final bool owned;
   final bool equipped;
+  final String? localAsset;
 }
 
 class HonorUserModel {

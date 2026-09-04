@@ -95,7 +95,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
               children: [
                 if (GuestGate.isAnonymous) ...[
-                  _GuestJoinBanner(onJoin: GuestGate.showJoinSheet),
+                  _GuestJoinBanner(onJoin: GuestGate.openRegistration),
                   const SizedBox(height: 18),
                 ],
                 Row(

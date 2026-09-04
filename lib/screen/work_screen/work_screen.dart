@@ -99,6 +99,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final grade = data.weeklyLevel.grade;
+    final levelNum = data.user.levelNumber;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -136,11 +137,13 @@ class _Header extends StatelessWidget {
                 ),
                 child: Text(
                   [
-                    '${LKey.weeklyLevel.tr} $grade',
+                    '${LKey.level.tr} $levelNum',
                     if (data.average != null)
                       '${LKey.streamerAverage.tr} ${data.average!.avg.toStringAsFixed(0)}/100',
                   ].join(' · '),
                   textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyleCustom.outFitSemiBold600(
                     color: Colors.white,
                     fontSize: 13,

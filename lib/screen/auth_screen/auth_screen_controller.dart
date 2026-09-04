@@ -26,6 +26,7 @@ import 'package:krimson/model/user_model/user_model.dart' as user;
 import 'package:krimson/screen/auth_screen/guest_setup_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/color_res.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// Auth de Krimson:
@@ -68,6 +69,8 @@ class AuthScreenController extends BaseController {
   /// Si hay sesión guardada (Guest u otro), entrar sin pedir login de nuevo.
   Future<void> _tryAutoRestoreSession() async {
     if (!hasStoredSession()) return;
+    // Guest ya tiene sesión: restaurarla aquí saca del formulario de vincular.
+    if (GuestGate.isAnonymous) return;
     try {
       final user = await refreshSessionUser(
         timeout: const Duration(seconds: 12),
@@ -129,6 +132,20 @@ class AuthScreenController extends BaseController {
       firstDate: minDob,
       lastDate: maxDob,
       helpText: LKey.dateOfBirth.tr,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: ColorRes.crimson,
+              onPrimary: ColorRes.whitePure,
+              surface: ColorRes.bgElevated,
+              onSurface: ColorRes.whitePure,
+            ),
+            dialogBackgroundColor: ColorRes.bgElevated,
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
     if (picked != null) {
       birthDate.value = _dateOnly(picked);
@@ -266,6 +283,7 @@ class AuthScreenController extends BaseController {
       return showSnackBar(LKey.languageRequired.tr);
     }
 
+    final linkingGuest = GuestGate.isAnonymous;
     showLoader(barrierDismissible: true);
     try {
       // Registro = Laravel. Sin esperar Firebase/FCM.
@@ -286,7 +304,7 @@ class AuthScreenController extends BaseController {
         country: selectedCountry.value?.countryName,
         countryCode: selectedCountry.value?.countryCode,
         appLanguage: lang,
-        keepAuthToken: GuestGate.isAnonymous,
+        keepAuthToken: linkingGuest,
       )
           .timeout(const Duration(seconds: 25), onTimeout: () {
         throw TimeoutException('El servidor tardó demasiado en responder');
@@ -309,8 +327,10 @@ class AuthScreenController extends BaseController {
       SubscriptionManager.shared.login('${data.id}');
 
       stopLoader();
-      Get.back();
-      Get.back();
+      if (!linkingGuest) {
+        Get.back();
+        Get.back();
+      }
       _navigateScreen(data);
 
       // Firebase Auth opcional en background (chat).

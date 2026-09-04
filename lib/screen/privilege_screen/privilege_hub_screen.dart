@@ -127,7 +127,7 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                               icon: AssetRes.icVideoRequest,
                               title: LKey.myLevel.tr,
                               subtitle:
-                                  '${LKey.level.tr} ${user?['level_number'] ?? 1}',
+                                  '${LKey.level.tr} ${user?['level_number'] ?? SessionManager.instance.getUser()?.levelNumber ?? SessionManager.instance.getUser()?.getLevel.level ?? 1}',
                               onTap: () {
                                 final me = SessionManager.instance.getUser();
                                 Get.to(() =>
@@ -137,9 +137,9 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                             _HubTile(
                               icon: AssetRes.icGift,
                               title: LKey.dressingCenter.tr,
-                              subtitle: (user?['unlock_dressing'] == 1)
-                                  ? LKey.learnMore.tr
-                                  : LKey.locked.tr,
+                              subtitle: AppRole.isStreamer()
+                                  ? 'NEW · C · B · A · S'
+                                  : '${LKey.level.tr} 1–3',
                               onTap: () =>
                                   Get.to(() => const DressingCenterScreen()),
                             ),
@@ -160,14 +160,20 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                               title: LKey.honorWall.tr,
                               subtitle: user?['honor_rank'] != null
                                   ? '#${user?['honor_rank']}'
-                                  : LKey.leaderboard.tr,
+                                  : LKey.learnMore.tr,
                               onTap: () =>
-                                  Get.to(() => const LeaderboardScreen()),
+                                  Get.to(() => const HonorWallScreen()),
                             ),
                             _HubTile(
-                              icon: AssetRes.icRanking,
+                              iconWidget: Icon(
+                                Icons.emoji_events_outlined,
+                                size: 28,
+                                color: textDarkGrey(context),
+                              ),
                               title: LKey.leaderboard.tr,
-                              subtitle: LKey.learnMore.tr,
+                              subtitle: AppRole.isClient()
+                                  ? LKey.clientsRanking.tr
+                                  : LKey.streamersRanking.tr,
                               onTap: () =>
                                   Get.to(() => const LeaderboardScreen()),
                             ),
@@ -263,12 +269,60 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
       error = null;
     });
     try {
-      items = await PrivilegeService.instance.dressingCatalog();
+      final remote = await PrivilegeService.instance.dressingCatalog();
+      final audience = AppRole.isStreamer() ? 'streamer' : 'client';
+      items = remote
+          .where((e) => e.audience == audience)
+          .toList();
+      if (items.isEmpty) {
+        items = _builtinCatalog();
+      }
     } catch (e) {
-      error = e.toString();
+      items = _builtinCatalog();
+      if (items.isEmpty) {
+        error = e.toString();
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
+  }
+
+  List<DressingItemModel> _builtinCatalog() {
+    final me = SessionManager.instance.getUser();
+    if (AppRole.isStreamer(me)) {
+      final mine = AssetRes.normalizeStreamerGrade(me?.effectiveStreamerGrade);
+      final rankOf = (String g) =>
+          AssetRes.weeklyStreamerGrades.indexOf(AssetRes.normalizeStreamerGrade(g));
+      final myRank = rankOf(mine);
+      return [
+        for (final g in AssetRes.weeklyStreamerGrades)
+          DressingItemModel(
+            title: 'Insignia Streamer $g',
+            type: 'frame',
+            audience: 'streamer',
+            unlockGrade: g,
+            localAsset: AssetRes.streamerBadgeForGrade(g),
+            unlocked: myRank >= rankOf(g),
+          ),
+      ];
+    }
+    final level = me?.levelNumber ?? me?.getLevel.level ?? 1;
+    const frames = <(int, String, String)>[
+      (1, 'Insignia Cliente 1', AssetRes.clientFrame1),
+      (2, 'Insignia Cliente 2', AssetRes.clientFrame2),
+      (3, 'Insignia Cliente 3', AssetRes.clientFrame3),
+    ];
+    return [
+      for (final f in frames)
+        DressingItemModel(
+          title: f.$2,
+          type: 'frame',
+          audience: 'client',
+          unlockLevel: f.$1,
+          localAsset: f.$3,
+          unlocked: level >= f.$1,
+        ),
+    ];
   }
 
   Future<void> _equip(DressingItemModel item) async {
@@ -316,7 +370,7 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                           gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
-                                  mainAxisExtent: 190,
+                                  mainAxisExtent: 210,
                                   crossAxisSpacing: 10,
                                   mainAxisSpacing: 10),
                           itemCount: items.length,
@@ -345,7 +399,12 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                                           color: textDarkGrey(context),
                                           fontSize: 13)),
                                   Text(
-                                    '${LKey.level.tr} ${item.unlockLevel}',
+                                    item.audience == 'streamer'
+                                        ? (item.unlockGrade != null &&
+                                                item.unlockGrade!.isNotEmpty
+                                            ? item.unlockGrade!
+                                            : 'Streamer')
+                                        : '${LKey.level.tr} ${item.unlockLevel}',
                                     style: TextStyleCustom.outFitRegular400(
                                         color: textLightGrey(context),
                                         fontSize: 11),
@@ -393,15 +452,17 @@ class _DressingPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final image = (item.image ?? '').trim();
-    if (image.isNotEmpty) {
+    final local = (item.localAsset ?? '').trim();
+    if (image.isNotEmpty || local.isNotEmpty) {
       final me = SessionManager.instance.getUser();
       final isFrame = item.type == 'frame';
       return FramedAvatar.fitted(
         size: 72,
         image: me?.profilePhoto,
         fullName: me?.fullname ?? me?.username,
-        frameImage: isFrame ? image : null,
-        badgeImage: isFrame ? null : image,
+        frameImage: isFrame && image.isNotEmpty ? image : null,
+        localFrame: local.isNotEmpty ? local : null,
+        badgeImage: isFrame ? null : (image.isNotEmpty ? image : null),
         photoRatio: 0.62,
         photoOnTop: false,
       );

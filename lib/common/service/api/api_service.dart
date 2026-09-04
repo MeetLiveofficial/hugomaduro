@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/functions/debounce_action.dart';
 import 'package:krimson/common/manager/logger.dart';
@@ -274,12 +275,21 @@ class ApiService {
         try {
           final bytes = await xFile.readAsBytes();
           if (bytes.isEmpty) continue;
+          MediaType? contentType;
+          final mime = (xFile.mimeType ?? '').trim();
+          if (mime.contains('/')) {
+            try {
+              contentType = MediaType.parse(mime);
+            } catch (_) {}
+          }
+          contentType ??= MediaType('image', 'jpeg');
           request.files.add(http.MultipartFile.fromBytes(
             keyName,
             bytes,
             filename: xFile.name.isNotEmpty
                 ? xFile.name
                 : 'upload_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            contentType: contentType,
           ));
         } catch (e) {
           Loggers.error('multipart file skip ($keyName): $e');
