@@ -66,8 +66,7 @@ class LiveKitParticipantVideo extends StatelessWidget {
   }
 }
 
-/// Llamada 1:1: el **otro** va a pantalla completa y **tú** en miniatura.
-/// Cliente: streamer grande, cliente en PiP. Streamer: cliente grande, streamer en PiP.
+/// Llamada 1:1: la streamer a pantalla completa y el **cliente en el recuadrito**.
 class LiveKitCallLayout extends StatelessWidget {
   const LiveKitCallLayout({
     super.key,
@@ -78,6 +77,7 @@ class LiveKitCallLayout extends StatelessWidget {
     this.remoteName,
     this.localPhotoUrl,
     this.localName,
+    this.localInPip = true,
   });
 
   final LocalParticipant? local;
@@ -88,30 +88,45 @@ class LiveKitCallLayout extends StatelessWidget {
   final String? localPhotoUrl;
   final String? localName;
 
+  /// `true` si soy el cliente (me veo en el PiP). `false` si soy streamer
+  /// (el cliente remoto va en el PiP).
+  final bool localInPip;
+
   static const _pipSize = Size(110, 160);
 
   @override
   Widget build(BuildContext context) {
     final primaryRemote = remotes.isNotEmpty ? remotes.first : null;
-    final remoteHasVideo = firstVideoTrackOf(primaryRemote) != null;
-    final localHasVideo = firstVideoTrackOf(local) != null;
     final waitingText = (statusText == null || statusText!.trim().isEmpty)
         ? LKey.waitingVideo.tr
         : statusText!;
 
+    final fullHasVideo = localInPip
+        ? firstVideoTrackOf(primaryRemote) != null
+        : firstVideoTrackOf(local) != null;
+    final pipHasVideo = localInPip
+        ? firstVideoTrackOf(local) != null
+        : firstVideoTrackOf(primaryRemote) != null;
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (remoteHasVideo)
+        if (fullHasVideo && localInPip)
           LiveKitParticipantVideo(
             participant: primaryRemote,
             forcePortraitUpright: false,
           )
+        else if (fullHasVideo)
+          LiveKitParticipantVideo(
+            participant: local,
+            mirror: true,
+            forcePortraitUpright: false,
+          )
         else
           _CallWaitingPhoto(
-            imageUrl: remotePhotoUrl,
-            name: remoteName,
-            overlayText: waitingText,
+            imageUrl: localInPip ? remotePhotoUrl : localPhotoUrl,
+            name: localInPip ? remoteName : localName,
+            overlayText: localInPip ? waitingText : null,
           ),
         Positioned(
           right: 16,
@@ -127,7 +142,7 @@ class LiveKitCallLayout extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               clipBehavior: kIsWeb ? Clip.none : Clip.antiAlias,
-              child: (localHasVideo && !kIsWeb)
+              child: pipHasVideo && localInPip
                   ? LiveKitParticipantVideo(
                       participant: local,
                       mirror: true,
@@ -137,10 +152,20 @@ class LiveKitCallLayout extends StatelessWidget {
                         name: localName,
                       ),
                     )
-                  : _CallWaitingPhoto(
-                      imageUrl: localPhotoUrl,
-                      name: localName,
-                    ),
+                  : pipHasVideo
+                      ? LiveKitParticipantVideo(
+                          participant: primaryRemote,
+                          forcePortraitUpright: false,
+                          placeholder: _CallWaitingPhoto(
+                            imageUrl: remotePhotoUrl,
+                            name: remoteName,
+                          ),
+                        )
+                      : _CallWaitingPhoto(
+                          imageUrl:
+                              localInPip ? localPhotoUrl : remotePhotoUrl,
+                          name: localInPip ? localName : remoteName,
+                        ),
             ),
           ),
         ),

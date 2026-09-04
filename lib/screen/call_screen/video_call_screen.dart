@@ -8,10 +8,12 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/service/api/gift_wallet_service.dart';
 import 'package:krimson/common/service/translation/chat_translator_service.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -22,9 +24,11 @@ import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
 import 'package:krimson/screen/call_screen/match_recharge_dialog.dart';
 import 'package:krimson/screen/call_screen/widget/call_chat_overlay.dart';
+import 'package:krimson/screen/profile_screen/widget/impression_rate_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_gift_boost_sheet.dart';
 import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_web_video.dart';
@@ -204,6 +208,7 @@ class VideoCallScreen extends StatelessWidget {
                       remoteName: controller.peerName,
                       localPhotoUrl: controller.localPhotoUrl,
                       localName: controller.localName,
+                      localInPip: client,
                     ),
                     Positioned(
                       left: 10,
@@ -285,16 +290,15 @@ class VideoCallScreen extends StatelessWidget {
                                 unawaited(controller.hangUp());
                               },
                             ),
-                          _RoundBtn(
-                            icon: Icons.cameraswitch_rounded,
-                            color: client
-                                ? ClientColors.surfaceDarkAlt
-                                : const Color(0xFF3A3144),
-                            onTap: () {
-                              if (kIsWeb) passThroughMatchVideoClicks();
-                              unawaited(controller.flipCamera());
-                            },
-                          ),
+                          if (client)
+                            _RoundBtn(
+                              icon: Icons.cameraswitch_rounded,
+                              color: ClientColors.surfaceDarkAlt,
+                              onTap: () {
+                                if (kIsWeb) passThroughMatchVideoClicks();
+                                unawaited(controller.flipCamera());
+                              },
+                            ),
                           _RoundBtn(
                             icon: controller.liveKit.cameraEnabled.value
                                 ? Icons.videocam
@@ -989,7 +993,8 @@ class VideoCallController extends BaseController {
             chat.userId > 0 &&
             (chat.type == 'text' ||
                 chat.type == 'gif' ||
-                chat.type == 'gift')) {
+                chat.type == 'gift' ||
+                chat.type == 'gift_boost')) {
           _appendCallChat(chat);
           return;
         }
@@ -1008,6 +1013,7 @@ class VideoCallController extends BaseController {
   Future<void> toggleMic() => liveKit.toggleMicrophone();
 
   Future<void> flipCamera() async {
+    if (!AppRole.isClient()) return;
     if (!liveKit.cameraEnabled.value) {
       showSnackBar('Enciende la cámara primero');
       return;
@@ -1111,6 +1117,10 @@ class VideoCallController extends BaseController {
   }
 
   Future<void> openGiftSheet() async {
+    if (AppRole.isStreamer()) {
+      await _openGiftRequestSheet();
+      return;
+    }
     final peer = call.caller?.id == SessionManager.instance.getUserID()
         ? call.callee
         : call.caller;
@@ -1135,6 +1145,103 @@ class VideoCallController extends BaseController {
         unawaited(_broadcastCallGift(gm.gift));
       },
     );
+  }
+
+  Future<void> _openGiftRequestSheet() async {
+    final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
+    if (gifts.isEmpty) {
+      showSnackBar(LKey.noActiveGifts.tr);
+      return;
+    }
+    await Get.bottomSheet(
+      LiveGiftBoostSheet(
+        gifts: gifts,
+        onBoost: (gift) {
+          unawaited(_broadcastGiftRequest(gift));
+        },
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  Future<void> _broadcastGiftRequest(Gift? gift) async {
+    final me = SessionManager.instance.getUser();
+    if (me?.id == null) return;
+    final clientId =
+        '${me!.id}_giftboost_${DateTime.now().millisecondsSinceEpoch}';
+    final coins = gift?.coinPrice ?? 0;
+    final text = gift == null
+        ? LKey.sendMeGifts.tr
+        : '${LKey.giftMe.tr} ($coins ${LKey.coins.tr})';
+    final msg = LiveChatMessage(
+      id: clientId,
+      userId: me.id!,
+      userName: me.fullname ?? me.username ?? 'user',
+      type: 'gift_boost',
+      text: text,
+      giftId: gift?.id,
+      giftImage: gift?.image,
+      giftCoins: coins > 0 ? coins : gift?.coinPrice,
+    );
+    _appendCallChat(msg);
+    try {
+      await liveKit.publishData(msg.toBytes(), topic: 'call_chat');
+    } catch (e) {
+      Loggers.error('broadcastGiftRequest: $e');
+    }
+    if (Get.isBottomSheetOpen == true) Get.back();
+    showSnackBar('Invitación de regalos enviada');
+  }
+
+  Future<void> sendRequestedGift(LiveChatMessage msg) async {
+    if (!AppRole.isClient()) return;
+    if (msg.giftId == null || msg.giftId! <= 0) {
+      await openGiftSheet();
+      return;
+    }
+    final peer = call.caller?.id == SessionManager.instance.getUserID()
+        ? call.callee
+        : call.caller;
+    final peerId = peer?.id;
+    if (peerId == null) {
+      showSnackBar('Peer not found');
+      return;
+    }
+    var coins = msg.giftCoins ?? 0;
+    if (coins <= 0) {
+      final catalog = SessionManager.instance.getSettings()?.gifts ?? [];
+      for (final g in catalog) {
+        if (g.id == msg.giftId && (g.coinPrice ?? 0) > 0) {
+          coins = g.coinPrice!;
+          break;
+        }
+      }
+    }
+    if (coins > 0 && !CoinGate.ensureEnough(coins)) return;
+
+    final detailed = await GiftWalletService.instance.sendGiftDetailed(
+      giftId: msg.giftId,
+      userId: peerId,
+      source: 'call',
+    );
+    if (!detailed.ok) {
+      showSnackBar(detailed.message ?? LKey.somethingWentWrong.tr);
+      return;
+    }
+    final price = detailed.coinPrice > 0 ? detailed.coinPrice : coins;
+    final me = SessionManager.instance.getUser();
+    if (me != null && price > 0) {
+      me.removeCoinFromWallet(price);
+      SessionManager.instance.setUser(me);
+    }
+    final gift = Gift(
+      id: msg.giftId,
+      image: (detailed.image ?? '').isNotEmpty ? detailed.image : msg.giftImage,
+      coinPrice: price,
+    );
+    GiftManager.showAnimationDialog(gift);
+    unawaited(_broadcastCallGift(gift));
   }
 
   Future<void> _broadcastCallGift(Gift gift) async {
@@ -1224,7 +1331,12 @@ class VideoCallController extends BaseController {
   void _onCallChatBytes(List<int> bytes) {
     final msg = LiveChatMessage.tryParseBytes(bytes);
     if (msg == null) return;
-    if (msg.type != 'text' && msg.type != 'gif' && msg.type != 'gift') return;
+    if (msg.type != 'text' &&
+        msg.type != 'gif' &&
+        msg.type != 'gift' &&
+        msg.type != 'gift_boost') {
+      return;
+    }
     _appendCallChat(msg);
   }
 
@@ -1245,6 +1357,12 @@ class VideoCallController extends BaseController {
         GiftManager.showAnimationDialog(gift);
       }
     }
+    if (msg.type == 'gift_boost' && AppRole.isClient()) {
+      final me = SessionManager.instance.getUserID();
+      if (msg.userId != me) {
+        _promptGiftRequest(msg);
+      }
+    }
     if (msg.type == 'text' &&
         !msg.isTranslated &&
         (msg.text ?? '').trim().isNotEmpty) {
@@ -1253,6 +1371,35 @@ class VideoCallController extends BaseController {
         unawaited(_translateCallChat(msg));
       }
     }
+  }
+
+  void _promptGiftRequest(LiveChatMessage msg) {
+    final coins = msg.giftCoins ?? 0;
+    final title = msg.text ?? LKey.sendMeGifts.tr;
+    Get.snackbar(
+      'Regalos',
+      coins > 0 ? '$title 🎁' : title,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.black87,
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(12),
+      borderRadius: 16,
+      duration: const Duration(seconds: 5),
+      onTap: (_) {
+        Get.closeCurrentSnackbar();
+        unawaited(sendRequestedGift(msg));
+      },
+      mainButton: TextButton(
+        onPressed: () {
+          Get.closeCurrentSnackbar();
+          unawaited(sendRequestedGift(msg));
+        },
+        child: const Text(
+          'Regalar',
+          style: TextStyle(color: ColorRes.themeAccentSolid),
+        ),
+      ),
+    );
   }
 
   Future<void> _translateCallChat(LiveChatMessage msg) async {
@@ -1430,8 +1577,20 @@ class VideoCallController extends BaseController {
         Future.microtask(() {
           MatchRechargeDialog.show(peer: peer, callCost: cost);
         });
+      } else {
+        _promptImpressionAfterCall(peer);
       }
     }());
+  }
+
+  void _promptImpressionAfterCall(CallParty? peer) {
+    if (!AppRole.isClient() || GuestGate.isAnonymous) return;
+    final streamerId = peer?.id;
+    if (streamerId == null || streamerId <= 0) return;
+    if (streamerId == SessionManager.instance.getUserID()) return;
+    Future.delayed(const Duration(milliseconds: 450), () {
+      unawaited(ImpressionRateSheet.show(streamerId: streamerId));
+    });
   }
 
   void _popCallUi() {

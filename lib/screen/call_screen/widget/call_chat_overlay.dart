@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
@@ -36,7 +40,10 @@ class CallChatOverlay extends StatelessWidget {
               final msg = visible[visible.length - 1 - index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: _CallChatBubble(message: msg),
+                child: _CallChatBubble(
+                  message: msg,
+                  controller: controller,
+                ),
               );
             },
           ),
@@ -47,84 +54,123 @@ class CallChatOverlay extends StatelessWidget {
 }
 
 class _CallChatBubble extends StatelessWidget {
-  const _CallChatBubble({required this.message});
+  const _CallChatBubble({required this.message, required this.controller});
 
   final LiveChatMessage message;
+  final VideoCallController controller;
 
   @override
   Widget build(BuildContext context) {
+    final isGiftBoost = message.type == 'gift_boost';
+    final clientCanSend = isGiftBoost && AppRole.isClient();
     return Align(
       alignment: Alignment.centerLeft,
       child: Material(
         color: Colors.black.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                message.userName,
-                style: TextStyleCustom.outFitMedium500(
-                  color: ColorRes.themeAccentSolid,
-                  fontSize: 11,
-                ),
-              ),
-              if (message.isReply) ...[
-                const SizedBox(height: 2),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: clientCanSend
+              ? () => unawaited(controller.sendRequestedGift(message))
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Text(
-                  '↳ ${message.replyToUserName ?? ''}'
-                  '${(message.replyToText ?? '').isNotEmpty ? ': ${message.replyToText}' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyleCustom.outFitRegular400(
-                    color: Colors.white60,
-                    fontSize: 10,
+                  message.userName,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: ColorRes.themeAccentSolid,
+                    fontSize: 11,
                   ),
                 ),
-              ],
-              const SizedBox(height: 2),
-              if (message.type == 'gif' && (message.gifUrl ?? '').isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    message.gifUrl!,
-                    height: 72,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Text(
-                      'GIF',
-                      style: TextStyleCustom.outFitRegular400(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
+                if (message.isReply) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '↳ ${message.replyToUserName ?? ''}'
+                    '${(message.replyToText ?? '').isNotEmpty ? ': ${message.replyToText}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white60,
+                      fontSize: 10,
                     ),
                   ),
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      message.displayText,
-                      style: TextStyleCustom.outFitRegular400(
-                        color: Colors.white,
-                        fontSize: 13,
+                ],
+                const SizedBox(height: 2),
+                if (isGiftBoost)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          message.text ?? LKey.sendMeGifts.tr,
+                          style: TextStyleCustom.outFitMedium500(
+                            color: ColorRes.accentPeach,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
-                    ),
-                    if (message.isTranslated) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        message.originalText ?? '',
-                        style: TextStyleCustom.outFitRegular400(
-                          color: Colors.white54,
-                          fontSize: 11,
+                      const SizedBox(width: 6),
+                      GiftMedia(
+                        path: message.giftImage,
+                        width: 28,
+                        height: 28,
+                        fit: BoxFit.contain,
+                        muted: true,
+                        looping: true,
+                        placeholder: const Icon(
+                          Icons.card_giftcard,
+                          color: ColorRes.accentPeach,
+                          size: 22,
                         ),
                       ),
                     ],
-                  ],
-                ),
-            ],
+                  )
+                else if (message.type == 'gif' &&
+                    (message.gifUrl ?? '').isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      message.gifUrl!,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Text(
+                        'GIF',
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        message.displayText,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (message.isTranslated) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          message.originalText ?? '',
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white54,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),
