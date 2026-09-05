@@ -8,10 +8,12 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/service/api/gift_wallet_service.dart';
 import 'package:krimson/common/service/translation/chat_translator_service.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -22,9 +24,11 @@ import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
 import 'package:krimson/screen/call_screen/match_recharge_dialog.dart';
 import 'package:krimson/screen/call_screen/widget/call_chat_overlay.dart';
+import 'package:krimson/screen/gift_sheet/gift_request_prompt.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
+import 'package:krimson/screen/live_stream/livestream_screen/widget/live_gift_boost_sheet.dart';
 import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_web_video.dart';
@@ -247,6 +251,22 @@ class VideoCallScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Obx(() {
+                      final req = controller.pendingGiftRequest.value;
+                      if (req == null || !AppRole.canSendGifts()) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: GiftRequestBar(
+                          message: req,
+                          onSend: () {
+                            unawaited(controller.sendRequestedGift(req));
+                          },
+                          onDismiss: controller.dismissGiftRequest,
+                        ),
+                      );
+                    }),
                     CallChatComposer(controller: controller),
                     Obx(() {
                       controller.matchUi.value;
@@ -382,6 +402,7 @@ class VideoCallController extends BaseController {
   final RxBool matchUi = false.obs;
   final RxBool awaitingExtension = false.obs;
   final RxList<LiveChatMessage> chatMessages = <LiveChatMessage>[].obs;
+  final Rxn<LiveChatMessage> pendingGiftRequest = Rxn<LiveChatMessage>();
   final RxBool chatComposerExpanded = false.obs;
   final RxBool isSendingComment = false.obs;
   final TextEditingController commentController = TextEditingController();
@@ -416,6 +437,7 @@ class VideoCallController extends BaseController {
   int _lastCommentServerId = 0;
   bool _commentPollBusy = false;
   bool _callRoutePopped = false;
+  final Set<String> _seenGiftBoostIds = {};
   final RxBool cameraFlipUnlocked = false.obs;
   final RxBool cameraOffUnlocked = false.obs;
   bool _cameraFeatureBusy = false;
@@ -989,7 +1011,8 @@ class VideoCallController extends BaseController {
             chat.userId > 0 &&
             (chat.type == 'text' ||
                 chat.type == 'gif' ||
-                chat.type == 'gift')) {
+                chat.type == 'gift' ||
+                chat.type == 'gift_boost')) {
           _appendCallChat(chat);
           return;
         }
@@ -1111,6 +1134,10 @@ class VideoCallController extends BaseController {
   }
 
   Future<void> openGiftSheet() async {
+    if (AppRole.isStreamer()) {
+      await openGiftRequestSheet();
+      return;
+    }
     final peer = call.caller?.id == SessionManager.instance.getUserID()
         ? call.callee
         : call.caller;
@@ -1135,6 +1162,231 @@ class VideoCallController extends BaseController {
         unawaited(_broadcastCallGift(gm.gift));
       },
     );
+  }
+
+  /// Streamer: elige un regalo para pedírselo al cliente.
+  Future<void> openGiftRequestSheet() async {
+    final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
+    if (gifts.isEmpty) {
+      showSnackBar(LKey.noActiveGifts.tr);
+      return;
+    }
+    await Get.bottomSheet(
+      LiveGiftBoostSheet(
+        gifts: gifts,
+        onBoost: (gift) {
+          unawaited(broadcastCallGiftBoost(gift));
+        },
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  Future<void> broadcastCallGiftBoost(Gift? gift) async {
+    final me = SessionManager.instance.getUser();
+    if (me?.id == null) return;
+    final clientId =
+        '${me!.id}_giftboost_${DateTime.now().millisecondsSinceEpoch}';
+    final coins = gift?.coinPrice ?? 0;
+    final text = gift == null
+        ? LKey.sendMeGifts.tr
+        : '${LKey.giftMe.tr} ($coins ${LKey.coins.tr})';
+    final msg = LiveChatMessage(
+      id: clientId,
+      userId: me.id!,
+      userName: (me.fullname ?? me.username ?? 'user').trim(),
+      type: 'gift_boost',
+      text: text,
+      giftId: gift?.id,
+      giftImage: gift?.image,
+      giftCoins: coins > 0 ? coins : gift?.coinPrice,
+    );
+    _appendCallChat(msg);
+    try {
+      final callId = call.id;
+      if (callId != null) {
+        await CallService.instance.sendComment(
+          callRequestId: callId,
+          clientId: clientId,
+          type: 'text',
+          text: '🎁BOOST|${gift?.id ?? 0}|$text',
+        );
+      }
+    } catch (_) {}
+    try {
+      await liveKit.publishData(msg.toBytes(), topic: 'call_chat');
+    } catch (e) {
+      Loggers.error('broadcastCallGiftBoost: $e');
+    }
+    if (Get.isBottomSheetOpen == true) Get.back();
+    showSnackBar('Invitación de regalos enviada');
+  }
+
+  void dismissGiftRequest() {
+    pendingGiftRequest.value = null;
+  }
+
+  Future<void> promptGiftBoost(LiveChatMessage msg) async {
+    if (!AppRole.canSendGifts()) return;
+    if (msg.userId == SessionManager.instance.getUserID()) return;
+    await GiftRequestPrompt.showDialog(
+      msg: msg,
+      onSend: () {
+        unawaited(sendRequestedGift(msg));
+      },
+    );
+  }
+
+  Future<void> sendRequestedGift(LiveChatMessage msg) async {
+    pendingGiftRequest.value = null;
+    await sendGiftDirectly(
+      giftId: msg.giftId,
+      giftImage: msg.giftImage,
+      coinPrice: msg.giftCoins,
+    );
+  }
+
+  int? get _peerUserId {
+    final me = SessionManager.instance.getUserID();
+    if (call.caller?.id == me) return call.callee?.id;
+    return call.caller?.id;
+  }
+
+  String? _callGiftImage(int? giftId) {
+    if (giftId == null) return null;
+    final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
+    for (final g in gifts) {
+      if (g.id == giftId && (g.image ?? '').isNotEmpty) return g.image;
+    }
+    return null;
+  }
+
+  int _callGiftCoins(LiveChatMessage msg) {
+    if ((msg.giftCoins ?? 0) > 0) return msg.giftCoins!;
+    final fromText = RegExp(r'\((\d+)').firstMatch(msg.text ?? '');
+    final parsed = int.tryParse(fromText?.group(1) ?? '') ?? 0;
+    if (parsed > 0) return parsed;
+    final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
+    for (final g in gifts) {
+      if (g.id == msg.giftId && (g.coinPrice ?? 0) > 0) return g.coinPrice!;
+    }
+    return 0;
+  }
+
+  LiveChatMessage _normalizeCallChat(LiveChatMessage raw) {
+    final boost = LiveChatMessage.tryParseGiftBoost(raw);
+    if (boost == null) return raw;
+    final coins = _callGiftCoins(boost);
+    final image = (boost.giftImage ?? '').trim().isNotEmpty
+        ? boost.giftImage
+        : _callGiftImage(boost.giftId);
+    return LiveChatMessage(
+      id: boost.id,
+      userId: boost.userId,
+      userName: boost.userName,
+      type: 'gift_boost',
+      text: (boost.text ?? LKey.sendMeGifts.tr).trim(),
+      giftId: boost.giftId,
+      giftImage: image,
+      giftCoins: coins > 0 ? coins : boost.giftCoins,
+      createdAt: boost.createdAt,
+    );
+  }
+
+  void _handleCallGiftBoost(LiveChatMessage msg) {
+    if (!AppRole.canSendGifts()) return;
+    if (msg.userId == SessionManager.instance.getUserID()) return;
+    if (!_seenGiftBoostIds.add(msg.id)) return;
+    pendingGiftRequest.value = msg;
+    unawaited(promptGiftBoost(msg));
+  }
+
+  bool _sendingDirectGift = false;
+
+  Future<void> sendGiftDirectly({
+    int? giftId,
+    String? giftImage,
+    int? coinPrice,
+  }) async {
+    if (GuestGate.block()) return;
+    if (!AppRole.canSendGifts()) return;
+    if (_sendingDirectGift) return;
+    final peerId = _peerUserId;
+    if (peerId == null) return;
+    if (giftId == null || giftId <= 0) {
+      await openGiftSheet();
+      return;
+    }
+
+    Gift? gift;
+    final catalog = SessionManager.instance.getSettings()?.gifts ?? [];
+    for (final g in catalog) {
+      if (g.id == giftId) {
+        gift = Gift(
+          id: g.id,
+          categoryId: g.categoryId,
+          coinPrice: g.coinPrice,
+          title: g.title,
+          image: g.image,
+          isFullscreen: g.isFullscreen,
+        );
+        break;
+      }
+    }
+    gift ??= Gift(
+      id: giftId,
+      image: giftImage ?? _callGiftImage(giftId),
+      coinPrice: coinPrice,
+    );
+    if ((gift.image ?? '').isEmpty && (giftImage ?? '').isNotEmpty) {
+      gift.image = giftImage;
+    }
+    var price = gift.coinPrice ?? 0;
+    if (price <= 0) {
+      for (final g in catalog) {
+        if (g.id == giftId && (g.coinPrice ?? 0) > 0) {
+          price = g.coinPrice!;
+          gift.coinPrice = price;
+          break;
+        }
+      }
+    }
+    if (price <= 0 && (coinPrice ?? 0) > 0) {
+      price = coinPrice!;
+      gift.coinPrice = price;
+    }
+    if (price <= 0) {
+      showSnackBar(LKey.giftNotAvailable.tr);
+      return;
+    }
+    if (!CoinGate.ensureEnough(price, message: LKey.insufficientCoins.tr)) {
+      return;
+    }
+
+    _sendingDirectGift = true;
+    try {
+      final detailed = await GiftWalletService.instance.sendGiftDetailed(
+        giftId: giftId,
+        userId: peerId,
+        source: 'call',
+      );
+      if (!detailed.ok) {
+        showSnackBar(detailed.message ?? LKey.giftNotAvailable.tr);
+        return;
+      }
+      if (detailed.coinPrice > 0) gift.coinPrice = detailed.coinPrice;
+      if ((detailed.image ?? '').isNotEmpty) gift.image = detailed.image;
+
+      final me = SessionManager.instance.getUser();
+      me?.removeCoinFromWallet(gift.coinPrice ?? price);
+      SessionManager.instance.setUser(me);
+
+      GiftManager.showAnimationDialog(gift);
+      await _broadcastCallGift(gift);
+    } finally {
+      _sendingDirectGift = false;
+    }
   }
 
   Future<void> _broadcastCallGift(Gift gift) async {
@@ -1224,15 +1476,24 @@ class VideoCallController extends BaseController {
   void _onCallChatBytes(List<int> bytes) {
     final msg = LiveChatMessage.tryParseBytes(bytes);
     if (msg == null) return;
-    if (msg.type != 'text' && msg.type != 'gif' && msg.type != 'gift') return;
+    if (msg.type != 'text' &&
+        msg.type != 'gif' &&
+        msg.type != 'gift' &&
+        msg.type != 'gift_boost') {
+      return;
+    }
     _appendCallChat(msg);
   }
 
-  void _appendCallChat(LiveChatMessage msg) {
+  void _appendCallChat(LiveChatMessage raw) {
+    final msg = _normalizeCallChat(raw);
     if (chatMessages.any((m) => m.id == msg.id)) return;
     chatMessages.add(msg);
     while (chatMessages.length > maxVisibleComments) {
       chatMessages.removeAt(0);
+    }
+    if (msg.type == 'gift_boost') {
+      _handleCallGiftBoost(msg);
     }
     if (msg.type == 'gift') {
       final me = SessionManager.instance.getUserID();

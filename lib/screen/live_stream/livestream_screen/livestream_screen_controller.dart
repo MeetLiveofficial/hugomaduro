@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
@@ -22,7 +23,6 @@ import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
 import 'package:krimson/common/service/translation/chat_translator_service.dart';
-import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/dynamic_translations.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
@@ -37,6 +37,7 @@ import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet.dart';
 import 'package:krimson/screen/gif_sheet/gif_sheet_controller.dart';
+import 'package:krimson/screen/gift_sheet/gift_request_prompt.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/level_entrance_overlay.dart';
@@ -154,6 +155,9 @@ class LivestreamScreenController extends BaseController {
   /// Banner de entrada por nivel (join destacado).
   final Rxn<LiveChatMessage> joinBanner = Rxn<LiveChatMessage>();
   Timer? _joinBannerTimer;
+  /// Banner "la streamer pide este regalo" (audiencia).
+  final Rxn<LiveChatMessage> giftBoostBanner = Rxn<LiveChatMessage>();
+  Timer? _giftBoostBannerTimer;
 
   /// Host ausente (audiencia): countdown antes de ir a otro LIVE.
   static const int hostAbsentTimeoutSecs = 10;
@@ -1417,7 +1421,28 @@ class LivestreamScreenController extends BaseController {
 
   LiveChatMessage _normalizeIncomingChat(LiveChatMessage msg) {
     if (msg.type == 'join') return msg;
-    if (msg.type == 'gift_boost' || msg.type == 'call_invite') return msg;
+    if (msg.type == 'call_invite') return msg;
+    if (msg.type == 'gift_boost') {
+      final coins = _resolveGiftCoins(msg);
+      final image = (msg.giftImage ?? '').trim().isNotEmpty
+          ? msg.giftImage
+          : _resolveGiftImage(msg.giftId);
+      if ((coins > 0 && (msg.giftCoins == null || msg.giftCoins == 0)) ||
+          ((msg.giftImage ?? '').isEmpty && (image ?? '').isNotEmpty)) {
+        return LiveChatMessage(
+          id: msg.id,
+          userId: msg.userId,
+          userName: msg.userName,
+          type: 'gift_boost',
+          text: msg.text,
+          giftId: msg.giftId,
+          giftImage: image,
+          giftCoins: coins > 0 ? coins : msg.giftCoins,
+          createdAt: msg.createdAt,
+        );
+      }
+      return msg;
+    }
     if (msg.type == 'gift') {
       // Completar coins/imagen desde catálogo si vienen vacíos.
       final coins = _resolveGiftCoins(msg);
@@ -1459,18 +1484,22 @@ class LivestreamScreenController extends BaseController {
         createdAt: msg.createdAt,
       );
     }
-    final giftBoost = RegExp(r'BOOST\|(\d+)\|(.*)').firstMatch(text);
+    final giftBoost = LiveChatMessage.tryParseGiftBoost(msg);
     if (giftBoost != null) {
-      final giftId = int.tryParse(giftBoost.group(1) ?? '');
+      final giftId = giftBoost.giftId;
+      final coins = _resolveGiftCoins(giftBoost);
       return LiveChatMessage(
-        id: msg.id,
-        userId: msg.userId,
-        userName: msg.userName,
+        id: giftBoost.id,
+        userId: giftBoost.userId,
+        userName: giftBoost.userName,
         type: 'gift_boost',
-        text: (giftBoost.group(2) ?? LKey.sendMeGifts.tr).trim(),
+        text: (giftBoost.text ?? LKey.sendMeGifts.tr).trim(),
         giftId: giftId,
-        giftImage: _resolveGiftImage(giftId),
-        createdAt: msg.createdAt,
+        giftImage: (giftBoost.giftImage ?? '').isNotEmpty
+            ? giftBoost.giftImage
+            : _resolveGiftImage(giftId),
+        giftCoins: coins > 0 ? coins : giftBoost.giftCoins,
+        createdAt: giftBoost.createdAt,
       );
     }
 
@@ -2179,9 +2208,7 @@ class LivestreamScreenController extends BaseController {
         return;
       }
 
-      final canReceive = hostUser.canReceiveCalls == 1 ||
-          hostUser.getLevel.canReceiveCalls == 1;
-      if (!canReceive) {
+      if (!AppRole.canReceivePaidCalls(hostUser)) {
         showSnackBar(LKey.callCannotReceive.tr);
         return;
       }
@@ -2384,57 +2411,34 @@ class LivestreamScreenController extends BaseController {
   void _handleGiftBoost(LiveChatMessage msg) {
     if (isHost) return;
     if (!_seenGiftBoostIds.add(msg.id)) return;
-    final coins = msg.giftCoins ?? 0;
-    final title = msg.text ?? '¡La streamer pide regalos!';
-    Get.snackbar(
-      'Regalos',
-      coins > 0 ? '$title 🎁' : title,
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Colors.black87,
-      colorText: Colors.white,
-      margin: const EdgeInsets.all(12),
-      borderRadius: 16,
-      duration: const Duration(seconds: 5),
-      onTap: (_) {
-        Get.closeCurrentSnackbar();
+    giftBoostBanner.value = msg;
+    _giftBoostBannerTimer?.cancel();
+    _giftBoostBannerTimer = Timer(const Duration(seconds: 20), () {
+      if (giftBoostBanner.value?.id == msg.id) {
+        giftBoostBanner.value = null;
+      }
+    });
+    unawaited(promptGiftBoost(msg));
+  }
+
+  /// Diálogo para que el cliente envíe el regalo pedido por la streamer.
+  Future<void> promptGiftBoost(LiveChatMessage msg) async {
+    if (isHost) return;
+    await GiftRequestPrompt.showDialog(
+      msg: msg,
+      onSend: () {
+        giftBoostBanner.value = null;
         unawaited(sendGiftDirectly(
           giftId: msg.giftId,
           giftImage: msg.giftImage,
           coinPrice: msg.giftCoins,
         ));
       },
-      icon: (msg.giftImage ?? '').isNotEmpty || msg.giftId != null
-          ? Padding(
-              padding: const EdgeInsets.all(6),
-              child: GiftMedia(
-                path: (msg.giftImage ?? '').isNotEmpty
-                    ? msg.giftImage
-                    : _resolveGiftImage(msg.giftId),
-                width: 36,
-                height: 36,
-                fit: BoxFit.contain,
-                muted: true,
-                looping: true,
-                placeholder: const Icon(Icons.card_giftcard,
-                    color: ColorRes.accentPeach),
-              ),
-            )
-          : const Icon(Icons.card_giftcard, color: ColorRes.accentPeach),
-      mainButton: TextButton(
-        onPressed: () {
-          Get.closeCurrentSnackbar();
-          unawaited(sendGiftDirectly(
-            giftId: msg.giftId,
-            giftImage: msg.giftImage,
-            coinPrice: msg.giftCoins,
-          ));
-        },
-        child: const Text(
-          'Regalar',
-          style: TextStyle(color: ColorRes.themeAccentSolid),
-        ),
-      ),
     );
+  }
+
+  void dismissGiftBoostBanner() {
+    giftBoostBanner.value = null;
   }
 
   void _handleCallInvite(LiveChatMessage msg) {
@@ -4062,6 +4066,7 @@ class LivestreamScreenController extends BaseController {
     _hostConnectWatchdog?.cancel();
     _followBannerTimer?.cancel();
     _joinBannerTimer?.cancel();
+    _giftBoostBannerTimer?.cancel();
     _hostAbsentTimer?.cancel();
     _battleTicker?.cancel();
     _liveElapsedTicker?.cancel();

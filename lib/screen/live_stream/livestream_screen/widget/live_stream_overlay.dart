@@ -8,6 +8,7 @@ import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
+import 'package:krimson/screen/gift_sheet/gift_request_prompt.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -87,6 +88,26 @@ class LiveStreamOverlay extends StatelessWidget {
               return Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: _JoinLevelBanner(message: banner),
+              );
+            }),
+            Obx(() {
+              if (controller.isHost) return const SizedBox.shrink();
+              final banner = controller.giftBoostBanner.value;
+              if (banner == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: GiftRequestBar(
+                  message: banner,
+                  onSend: () {
+                    controller.dismissGiftBoostBanner();
+                    controller.sendGiftDirectly(
+                      giftId: banner.giftId,
+                      giftImage: banner.giftImage,
+                      coinPrice: banner.giftCoins,
+                    );
+                  },
+                  onDismiss: controller.dismissGiftBoostBanner,
+                ),
               );
             }),
             Obx(() {
@@ -1176,12 +1197,8 @@ class _ChatBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           onTap: isCallInvite && !controller.isHost
               ? () => controller.showCallInviteDialog(message)
-              : (isGiftBoost && !controller.isHost
-                  ? () => controller.sendGiftDirectly(
-                        giftId: message.giftId,
-                        giftImage: message.giftImage,
-                        coinPrice: message.giftCoins,
-                      )
+                  : (isGiftBoost && !controller.isHost
+                  ? () => controller.promptGiftBoost(message)
                   : (canReply ? () => controller.setReplyTo(message) : null)),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

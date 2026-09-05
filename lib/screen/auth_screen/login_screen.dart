@@ -2,8 +2,10 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/streamer_invite.dart';
 import 'package:krimson/common/widget/custom_divider.dart';
+import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/privacy_policy_text.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/common/widget/theme_blur_bg.dart';
@@ -27,6 +29,9 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(AuthScreenController());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.refreshSavedGuest();
+    });
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Container(
@@ -197,28 +202,44 @@ class LoginScreen extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                      child: InkWell(
-                        onTap: controller.onAnonymousTap,
-                        borderRadius: BorderRadius.circular(25),
-                        child: Container(
-                          height: 48,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
-                              color: ColorRes.whitePure.withValues(alpha: 0.55),
+                      child: Obx(() {
+                        final saved = controller.savedGuest.value;
+                        return Column(
+                          children: [
+                            if (saved != null) ...[
+                              _SavedGuestSuggestion(
+                                guest: saved,
+                                onTap: controller.resumeSavedGuest,
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            InkWell(
+                              onTap: controller.onAnonymousTap,
+                              borderRadius: BorderRadius.circular(25),
+                              child: Container(
+                                height: 48,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(25),
+                                  border: Border.all(
+                                    color: ColorRes.whitePure
+                                        .withValues(alpha: 0.55),
+                                  ),
+                                  color: ColorRes.menuSurface
+                                      .withValues(alpha: 0.12),
+                                ),
+                                child: Text(
+                                  LKey.continueAsGuest.tr,
+                                  style: TextStyleCustom.outFitMedium500(
+                                    color: ColorRes.whitePure,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
                             ),
-                            color: ColorRes.menuSurface.withValues(alpha: 0.12),
-                          ),
-                          child: Text(
-                            LKey.continueAsGuest.tr,
-                            style: TextStyleCustom.outFitMedium500(
-                              color: ColorRes.whitePure,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
+                          ],
+                        );
+                      }),
                     ),
                     PrivacyPolicyText(
                       boldTextColor: ColorRes.whitePure,
@@ -263,6 +284,74 @@ class SocialBtn extends StatelessWidget {
             BoxDecoration(shape: BoxShape.circle, color: whitePure(context)),
         alignment: Alignment.center,
         child: Image.asset(icon, height: 32, width: 32),
+      ),
+    );
+  }
+}
+
+class _SavedGuestSuggestion extends StatelessWidget {
+  final LastGuest guest;
+  final VoidCallback onTap;
+
+  const _SavedGuestSuggestion({required this.guest, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(25),
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(25),
+          gradient: const LinearGradient(
+            colors: [ColorRes.crimson, ColorRes.softSalmon],
+          ),
+        ),
+        child: Row(
+          children: [
+            CustomImage(
+              size: const Size(44, 44),
+              image: guest.profilePhoto?.addBaseURL(),
+              fullName: guest.displayName,
+              radius: 44,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    LKey.continueAsSavedGuest.trParams(
+                      {'name': guest.displayName},
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: ColorRes.whitePure,
+                      fontSize: 15,
+                    ),
+                  ),
+                  Text(
+                    LKey.savedGuestHint.tr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: ColorRes.whitePure.withValues(alpha: 0.82),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: ColorRes.whitePure.withValues(alpha: 0.9),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/screen/match_screen/match_web_video.dart';
 import 'package:krimson/utilities/role_colors.dart';
 import 'package:livekit_client/livekit_client.dart';
 
@@ -71,8 +72,8 @@ class LiveKitParticipantVideo extends StatelessWidget {
 }
 
 /// Llamada 1:1: el **otro** va a pantalla completa y **tú** en miniatura.
-/// Cliente: streamer grande, cliente en PiP. Streamer: cliente grande, streamer en PiP.
-class LiveKitCallLayout extends StatelessWidget {
+/// Tocar la miniatura intercambia los dos videos.
+class LiveKitCallLayout extends StatefulWidget {
   const LiveKitCallLayout({
     super.key,
     required this.local,
@@ -92,63 +93,117 @@ class LiveKitCallLayout extends StatelessWidget {
   final String? localPhotoUrl;
   final String? localName;
 
-  static const _pipSize = Size(110, 160);
+  static const pipSize = Size(110, 160);
+
+  @override
+  State<LiveKitCallLayout> createState() => _LiveKitCallLayoutState();
+}
+
+class _LiveKitCallLayoutState extends State<LiveKitCallLayout> {
+  /// true = tú en PiP (default). false = el otro en PiP y tú a pantalla completa.
+  bool _localInPip = true;
+
+  void _swapFeeds() {
+    setState(() => _localInPip = !_localInPip);
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        passThroughMatchVideoClicks();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final primaryRemote = remotes.isNotEmpty ? remotes.first : null;
-    final remoteHasVideo = firstVideoTrackOf(primaryRemote) != null;
-    final localHasVideo = firstVideoTrackOf(local) != null;
-    final waitingText = (statusText == null || statusText!.trim().isEmpty)
-        ? LKey.waitingVideo.tr
-        : statusText!;
+    final primaryRemote =
+        widget.remotes.isNotEmpty ? widget.remotes.first : null;
+    final waitingText =
+        (widget.statusText == null || widget.statusText!.trim().isEmpty)
+            ? LKey.waitingVideo.tr
+            : widget.statusText!;
+
+    final fullscreen = _localInPip
+        ? _FeedSlot(
+            participant: primaryRemote,
+            isLocal: false,
+            photoUrl: widget.remotePhotoUrl,
+            name: widget.remoteName,
+            overlayText: waitingText,
+          )
+        : _FeedSlot(
+            participant: widget.local,
+            isLocal: true,
+            photoUrl: widget.localPhotoUrl,
+            name: widget.localName,
+          );
+    final pip = _localInPip
+        ? _FeedSlot(
+            participant: widget.local,
+            isLocal: true,
+            photoUrl: widget.localPhotoUrl,
+            name: widget.localName,
+          )
+        : _FeedSlot(
+            participant: primaryRemote,
+            isLocal: false,
+            photoUrl: widget.remotePhotoUrl,
+            name: widget.remoteName,
+          );
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (remoteHasVideo)
-          LiveKitParticipantVideo(
-            participant: primaryRemote,
-            forcePortraitUpright: false,
-          )
-        else
-          _CallWaitingPhoto(
-            imageUrl: remotePhotoUrl,
-            name: remoteName,
-            overlayText: waitingText,
-          ),
+        fullscreen,
         Positioned(
           right: 16,
           top: 16,
-          width: _pipSize.width,
-          height: _pipSize.height,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.black54,
+          width: LiveKitCallLayout.pipSize.width,
+          height: LiveKitCallLayout.pipSize.height,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _swapFeeds,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white24),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              clipBehavior: kIsWeb ? Clip.none : Clip.antiAlias,
-              child: (localHasVideo && !kIsWeb)
-                  ? LiveKitParticipantVideo(
-                      participant: local,
-                      mirror: true,
-                      forcePortraitUpright: false,
-                      placeholder: _CallWaitingPhoto(
-                        imageUrl: localPhotoUrl,
-                        name: localName,
-                      ),
-                    )
-                  : _CallWaitingPhoto(
-                      imageUrl: localPhotoUrl,
-                      name: localName,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      clipBehavior: kIsWeb ? Clip.none : Clip.antiAlias,
+                      child: pip,
                     ),
+                    const Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: EdgeInsets.all(6),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0x99000000),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.swap_vert_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-        if (!kIsWeb && remotes.length > 1)
+        if (!kIsWeb && widget.remotes.length > 1)
           Positioned(
             left: 8,
             right: 8,
@@ -156,7 +211,7 @@ class LiveKitCallLayout extends StatelessWidget {
             height: 90,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: remotes.length - 1,
+              itemCount: widget.remotes.length - 1,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
                 return SizedBox(
@@ -164,7 +219,7 @@ class LiveKitCallLayout extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: LiveKitParticipantVideo(
-                      participant: remotes[i + 1],
+                      participant: widget.remotes[i + 1],
                     ),
                   ),
                 );
@@ -172,6 +227,39 @@ class LiveKitCallLayout extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _FeedSlot extends StatelessWidget {
+  const _FeedSlot({
+    required this.participant,
+    required this.isLocal,
+    this.photoUrl,
+    this.name,
+    this.overlayText,
+  });
+
+  final Participant? participant;
+  final bool isLocal;
+  final String? photoUrl;
+  final String? name;
+  final String? overlayText;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasVideo = firstVideoTrackOf(participant) != null;
+    final placeholder = _CallWaitingPhoto(
+      imageUrl: photoUrl,
+      name: name,
+      overlayText: overlayText,
+    );
+    if (!hasVideo) return placeholder;
+    return LiveKitParticipantVideo(
+      participant: participant,
+      mirror: isLocal,
+      forcePortraitUpright: false,
+      placeholder: placeholder,
     );
   }
 }

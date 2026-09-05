@@ -171,6 +171,8 @@ const _liveEn = <String, String>{
   LKey.later: 'Later',
   LKey.invitesYouToLive: 'invites you to their LIVE',
   LKey.continueAsGuest: 'Continue as Guest',
+  LKey.continueAsSavedGuest: 'Continue as @name',
+  LKey.savedGuestHint: 'Saved on this device',
   LKey.joinToContinue: 'Link your account',
   LKey.joinToContinueDescription:
       'You can keep using the app as Guest. Link an email if you want to recover this account later.',
@@ -235,6 +237,8 @@ const _liveEs = <String, String>{
   LKey.later: 'Más tarde',
   LKey.invitesYouToLive: 'te invita a su LIVE',
   LKey.continueAsGuest: 'Continuar como invitado',
+  LKey.continueAsSavedGuest: 'Continuar como @name',
+  LKey.savedGuestHint: 'Guardado en este dispositivo',
   LKey.joinToContinue: 'Vincular cuenta',
   LKey.joinToContinueDescription:
       'Puedes seguir usando la app como Guest. Vincula un email si quieres recuperar esta cuenta más adelante.',

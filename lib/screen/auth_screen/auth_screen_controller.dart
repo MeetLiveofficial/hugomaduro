@@ -44,6 +44,7 @@ class AuthScreenController extends BaseController {
   final RxString selectedLanguage = ''.obs;
   final RxList<Country> countries = <Country>[].obs;
   final RxList<Language> languages = <Language>[].obs;
+  final Rxn<LastGuest> savedGuest = Rxn<LastGuest>();
 
   bool get _firebaseReady => FirebaseAppHelper.isReady;
 
@@ -60,10 +61,22 @@ class AuthScreenController extends BaseController {
       });
     }
     super.onInit();
+    savedGuest.value = SessionManager.instance.getLastGuest();
     try {
       Get.find<DynamicTranslations>().ensureAgencyFallbacks();
     } catch (_) {}
     unawaited(_tryAutoRestoreSession());
+  }
+
+  void refreshSavedGuest() {
+    final next = SessionManager.instance.getLastGuest();
+    final current = savedGuest.value;
+    if (current?.id == next?.id &&
+        current?.fullname == next?.fullname &&
+        current?.profilePhoto == next?.profilePhoto) {
+      return;
+    }
+    savedGuest.value = next;
   }
 
   /// Si hay sesión guardada (Guest u otro), entrar sin pedir login de nuevo.
@@ -351,6 +364,60 @@ class AuthScreenController extends BaseController {
 
   Future<void> onAnonymousTap() async {
     Get.to(() => const GuestSetupScreen());
+  }
+
+  Future<void> resumeSavedGuest() async {
+    final saved = savedGuest.value ?? SessionManager.instance.getLastGuest();
+    if (saved == null) {
+      onAnonymousTap();
+      return;
+    }
+
+    showLoader(barrierDismissible: true);
+    try {
+      final deviceToken =
+          'krimson_android_${DateTime.now().millisecondsSinceEpoch}';
+      final lang = SessionManager.instance.getLang();
+      final data = await UserService.instance
+          .logInAnonymousUser(
+        deviceToken: deviceToken,
+        appLanguage: lang.isNotEmpty ? lang : 'en',
+        resume: true,
+      )
+          .timeout(const Duration(seconds: 20), onTimeout: () {
+        throw TimeoutException('El servidor tardó demasiado en responder');
+      });
+
+      if (data == null) {
+        SessionManager.instance.clearLastGuest();
+        savedGuest.value = null;
+        stopLoader();
+        onAnonymousTap();
+        return;
+      }
+
+      SessionManager.instance.setUser(data);
+      SessionManager.instance.setAuthToken(data.token);
+      SessionManager.instance.setLogin(true);
+      savedGuest.value = SessionManager.instance.getLastGuest();
+      stopLoader();
+      await _navigateScreen(data);
+
+      Future<void>(() async {
+        final ok = await FirebaseAppHelper.ensureInitialized();
+        if (ok) {
+          try {
+            await FirebaseAuth.instance.signInAnonymously();
+          } catch (_) {}
+        }
+      });
+    } catch (e, st) {
+      Loggers.error('resumeSavedGuest: $e\n$st');
+      stopLoader();
+      showSnackBar(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      stopLoader();
+    }
   }
 
   Future<void> completeGuestSetup({

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
@@ -36,7 +38,7 @@ class CallChatOverlay extends StatelessWidget {
               final msg = visible[visible.length - 1 - index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: _CallChatBubble(message: msg),
+                child: _CallChatBubble(controller: controller, message: msg),
               );
             },
           ),
@@ -47,18 +49,24 @@ class CallChatOverlay extends StatelessWidget {
 }
 
 class _CallChatBubble extends StatelessWidget {
-  const _CallChatBubble({required this.message});
+  const _CallChatBubble({required this.controller, required this.message});
 
+  final VideoCallController controller;
   final LiveChatMessage message;
 
   @override
   Widget build(BuildContext context) {
+    final isGiftBoost = message.type == 'gift_boost';
+    final canTapBoost = isGiftBoost && AppRole.canSendGifts();
     return Align(
       alignment: Alignment.centerLeft,
       child: Material(
         color: Colors.black.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: canTapBoost ? () => controller.promptGiftBoost(message) : null,
+          child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,7 +93,36 @@ class _CallChatBubble extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 2),
-              if (message.type == 'gif' && (message.gifUrl ?? '').isNotEmpty)
+              if (isGiftBoost)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        message.text ?? LKey.sendMeGifts.tr,
+                        style: TextStyleCustom.outFitMedium500(
+                          color: ColorRes.accentPeach,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    GiftMedia(
+                      path: message.giftImage,
+                      width: 28,
+                      height: 28,
+                      fit: BoxFit.contain,
+                      muted: true,
+                      looping: true,
+                      placeholder: const Icon(
+                        Icons.card_giftcard,
+                        color: ColorRes.accentPeach,
+                        size: 22,
+                      ),
+                    ),
+                  ],
+                )
+              else if (message.type == 'gif' && (message.gifUrl ?? '').isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
@@ -126,6 +163,7 @@ class _CallChatBubble extends StatelessWidget {
                 ),
             ],
           ),
+        ),
         ),
       ),
     );

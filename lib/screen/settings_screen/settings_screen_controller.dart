@@ -172,6 +172,10 @@ class SettingsScreenController extends BaseController {
                 .timeout(const Duration(seconds: 2));
           } catch (_) {}
 
+          final current = SessionManager.instance.getUser();
+          if ((current?.isAnonymous ?? 0) == 1 && current != null) {
+            SessionManager.instance.saveLastGuest(current);
+          }
           SessionManager.instance.clearSomeKey();
           _deleteSessionControllers();
         } catch (e) {

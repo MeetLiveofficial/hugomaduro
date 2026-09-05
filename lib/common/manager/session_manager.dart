@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -122,7 +124,63 @@ class SessionManager {
 
       storage.write(SessionKeys.user, newUser.toJson());
       userRx.value = newUser;
+      _syncLastGuest(newUser);
     }
+  }
+
+  void _syncLastGuest(User user) {
+    if ((user.isAnonymous ?? 0) == 1) {
+      saveLastGuest(user);
+      return;
+    }
+    final last = getLastGuest();
+    if (last != null && last.id == (user.id ?? 0).toInt()) {
+      clearLastGuest();
+    }
+  }
+
+  String getOrCreateDeviceUuid() {
+    final stored = storage.read(SessionKeys.deviceUuid);
+    if (stored is String && stored.length >= 8) {
+      return stored;
+    }
+    final uuid = _newUuidV4();
+    storage.write(SessionKeys.deviceUuid, uuid);
+    return uuid;
+  }
+
+  LastGuest? getLastGuest() {
+    final raw = storage.read(SessionKeys.lastGuest);
+    if (raw is LastGuest) return raw;
+    if (raw is Map) {
+      try {
+        return LastGuest.fromJson(Map<String, dynamic>.from(raw));
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  void saveLastGuest(User user) {
+    final snapshot = LastGuest.fromUser(user);
+    if (snapshot.id <= 0) return;
+    storage.write(SessionKeys.lastGuest, snapshot.toJson());
+  }
+
+  void clearLastGuest() {
+    storage.remove(SessionKeys.lastGuest);
+  }
+
+  String _newUuidV4() {
+    final r = Random.secure();
+    final bytes = List<int>.generate(16, (_) => r.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    String h(int i) => bytes[i].toRadixString(16).padLeft(2, '0');
+    return '${h(0)}${h(1)}${h(2)}${h(3)}-${h(4)}${h(5)}-'
+        '${h(6)}${h(7)}-${h(8)}${h(9)}-'
+        '${h(10)}${h(11)}${h(12)}${h(13)}${h(14)}${h(15)}';
   }
 
   User? getUser() {
@@ -311,4 +369,51 @@ class SessionKeys {
   static const notifyCount = "notify_count";
   static const isLanguageScreenSelect = "is_language_screen_select";
   static const isOnBoardingScreenSelect = "is_on_boarding_screen_select";
+  static const deviceUuid = "device_uuid";
+  static const lastGuest = "last_guest";
+}
+
+class LastGuest {
+  final int id;
+  final String fullname;
+  final String username;
+  final String? profilePhoto;
+
+  const LastGuest({
+    required this.id,
+    required this.fullname,
+    required this.username,
+    this.profilePhoto,
+  });
+
+  factory LastGuest.fromUser(User user) {
+    return LastGuest(
+      id: (user.id ?? 0).toInt(),
+      fullname: (user.fullname ?? '').trim(),
+      username: (user.username ?? '').trim(),
+      profilePhoto: user.profilePhoto,
+    );
+  }
+
+  factory LastGuest.fromJson(Map<String, dynamic> json) {
+    return LastGuest(
+      id: int.tryParse('${json['id']}') ?? 0,
+      fullname: (json['fullname'] ?? '').toString().trim(),
+      username: (json['username'] ?? '').toString().trim(),
+      profilePhoto: json['profile_photo']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'fullname': fullname,
+        'username': username,
+        'profile_photo': profilePhoto,
+      };
+
+  String get displayName {
+    if (fullname.isNotEmpty) return fullname;
+    if (username.isNotEmpty) return username;
+    return 'Guest';
+  }
 }

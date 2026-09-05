@@ -153,6 +153,7 @@ class UserService {
     String? appLanguage,
     String? fullName,
     int? avatar,
+    bool resume = false,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.logInAnonymousUser,
@@ -160,7 +161,9 @@ class UserService {
         param: {
           Params.deviceToken: deviceToken,
           Params.device: AppPlatform.isAndroid ? 0 : 1,
+          Params.deviceUuid: SessionManager.instance.getOrCreateDeviceUuid(),
           Params.loginMethod: LoginMethod.anonymous.title(),
+          if (resume) Params.resume: 1,
           if (appLanguage != null && appLanguage.isNotEmpty)
             Params.appLanguage: appLanguage,
           if (fullName != null && fullName.trim().isNotEmpty)
@@ -175,6 +178,9 @@ class UserService {
       SessionManager.instance.setLogin(true);
       return model.data;
     }
+    if (resume) {
+      return null;
+    }
     BaseController.share.showSnackBar(
         model.message ?? 'No se pudo entrar como invitado');
     return null;
@@ -187,8 +193,12 @@ class UserService {
   }
 
   Future<StatusModel> logoutUser() async {
-    StatusModel response = await ApiService.instance
-        .call(url: WebService.user.logOutUser, fromJson: StatusModel.fromJson);
+    StatusModel response = await ApiService.instance.call(
+        url: WebService.user.logOutUser,
+        param: {
+          Params.deviceUuid: SessionManager.instance.getOrCreateDeviceUuid(),
+        },
+        fromJson: StatusModel.fromJson);
     return response;
   }
 
@@ -227,7 +237,10 @@ class UserService {
   Future<User?> fetchUserDetails({int? userId, Function()? onError}) async {
     UserModel userModel = await ApiService.instance.call(
         url: WebService.user.fetchUserDetails,
-        param: {Params.userId: userId ?? SessionManager.instance.getUserID()},
+        param: {
+          Params.userId: userId ?? SessionManager.instance.getUserID(),
+          Params.deviceUuid: SessionManager.instance.getOrCreateDeviceUuid(),
+        },
         fromJson: UserModel.fromJson,
         onError: onError);
     if (userModel.status == true &&

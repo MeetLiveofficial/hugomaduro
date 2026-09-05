@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/widget/call_price_min_chip.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
@@ -103,19 +104,12 @@ class IncomingCallScreen extends StatelessWidget {
                     ],
                     if (call.coinsCost > 0) ...[
                       const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(AssetRes.icCoin, height: 14, width: 14),
-                          const SizedBox(width: 5),
-                          Text(
-                            '${call.coinsCost}',
-                            style: TextStyleCustom.outFitMedium500(
-                              color: whitePure(context),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                      CallPriceMinChip(
+                        coins: call.coinsCost,
+                        iconSize: 14,
+                        fontSize: 13,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
                       ),
                     ],
                     Obx(() {
@@ -208,19 +202,8 @@ class IncomingCallScreen extends StatelessWidget {
             ],
             if (call.coinsCost > 0) ...[
               const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(AssetRes.icCoin, height: 16, width: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${call.coinsCost}',
-                    style: TextStyleCustom.outFitMedium500(
-                      color: whitePure(context),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
+              Center(
+                child: CallPriceMinChip(coins: call.coinsCost),
               ),
             ],
             const Spacer(),

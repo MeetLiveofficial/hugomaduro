@@ -82,6 +82,8 @@ class LKeyCatalog {
     LKey.enterHere,
     LKey.createAccount,
     LKey.continueAsGuest,
+    LKey.continueAsSavedGuest,
+    LKey.savedGuestHint,
     LKey.guestSetupTitle,
     LKey.guestSetupSubtitle,
     LKey.chooseAvatar,

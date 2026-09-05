@@ -60,6 +60,37 @@ class LiveChatMessage {
   bool get isReply =>
       (replyToId ?? '').isNotEmpty || (replyToUserName ?? '').isNotEmpty;
 
+  bool get isGiftBoost => type == 'gift_boost';
+
+  /// Payload `🎁BOOST|{giftId}|{texto}` (chat LIVE / llamada).
+  static final RegExp boostPayloadRe = RegExp(r'BOOST\|(\d+)\|(.*)');
+
+  /// Si el mensaje es una solicitud de regalo (tipo o texto BOOST), la normaliza.
+  static LiveChatMessage? tryParseGiftBoost(LiveChatMessage msg) {
+    if (msg.type == 'gift_boost') return msg;
+    final text = (msg.text ?? '').trim();
+    if (text.isEmpty) return null;
+    final match = boostPayloadRe.firstMatch(text);
+    if (match == null) return null;
+    final giftId = int.tryParse(match.group(1) ?? '');
+    final label = (match.group(2) ?? '').trim();
+    final coinsFromLabel = RegExp(r'\((\d+)').firstMatch(label);
+    final parsedCoins = int.tryParse(coinsFromLabel?.group(1) ?? '') ?? 0;
+    return LiveChatMessage(
+      id: msg.id,
+      userId: msg.userId,
+      userName: msg.userName,
+      type: 'gift_boost',
+      text: label.isEmpty ? msg.text : label,
+      giftId: (giftId ?? 0) > 0 ? giftId : msg.giftId,
+      giftImage: msg.giftImage,
+      giftCoins: (msg.giftCoins ?? 0) > 0
+          ? msg.giftCoins
+          : (parsedCoins > 0 ? parsedCoins : null),
+      createdAt: msg.createdAt,
+    );
+  }
+
   /// Entrada destacada: nivel alto, SVIP o video de entrada.
   bool get isNotableJoin {
     if (type != 'join') return false;

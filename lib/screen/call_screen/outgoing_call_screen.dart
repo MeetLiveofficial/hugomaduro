@@ -10,6 +10,7 @@ import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
+import 'package:krimson/common/widget/call_price_min_chip.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
@@ -134,31 +135,9 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen> {
                   ),
                 ],
                 const SizedBox(height: 14),
-                if (cost > 0)
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white10,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Image.asset(AssetRes.icCoin, height: 16, width: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            LKey.callCostPerMin.trParams({'coins': '$cost'}),
-                            style: TextStyleCustom.outFitMedium500(
-                              color: whitePure(context),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                Center(
+                  child: CallPriceMinChip(coins: cost),
+                ),
                 const Spacer(),
                 Obx(() {
                   final err = controller.errorText.value;
