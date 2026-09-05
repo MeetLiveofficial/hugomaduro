@@ -305,16 +305,17 @@ class VideoCallScreen extends StatelessWidget {
                                 unawaited(controller.hangUp());
                               },
                             ),
-                          _RoundBtn(
-                            icon: Icons.cameraswitch_rounded,
-                            color: client
-                                ? ClientColors.surfaceDarkAlt
-                                : const Color(0xFF3A3144),
-                            onTap: () {
-                              if (kIsWeb) passThroughMatchVideoClicks();
-                              unawaited(controller.flipCamera());
-                            },
-                          ),
+                          if (!AppRole.isStreamer())
+                            _RoundBtn(
+                              icon: Icons.cameraswitch_rounded,
+                              color: client
+                                  ? ClientColors.surfaceDarkAlt
+                                  : const Color(0xFF3A3144),
+                              onTap: () {
+                                if (kIsWeb) passThroughMatchVideoClicks();
+                                unawaited(controller.flipCamera());
+                              },
+                            ),
                           _RoundBtn(
                             icon: controller.liveKit.cameraEnabled.value
                                 ? Icons.videocam
@@ -997,6 +998,7 @@ class VideoCallController extends BaseController {
         publishCamera: true,
         publishMicrophone: true,
         wsUrl: liveKitWsUrl,
+        allowRearCamera: !AppRole.isStreamer(),
       );
       _callConnectedAt = DateTime.now();
       _dataSub?.cancel();
@@ -1031,6 +1033,10 @@ class VideoCallController extends BaseController {
   Future<void> toggleMic() => liveKit.toggleMicrophone();
 
   Future<void> flipCamera() async {
+    if (AppRole.isStreamer()) {
+      showSnackBar('Solo cámara frontal');
+      return;
+    }
     if (!liveKit.cameraEnabled.value) {
       showSnackBar('Enciende la cámara primero');
       return;
@@ -1060,25 +1066,25 @@ class VideoCallController extends BaseController {
 
     final settings = SessionManager.instance.getSettings();
     final cost = feature == 'flip'
-        ? (settings?.callCameraFlipCoins ?? 20)
-        : (settings?.callCameraOffCoins ?? 30);
+        ? (settings?.callCameraFlipCoins ?? 100)
+        : (settings?.callCameraOffCoins ?? 100);
 
     if (cost > 0) {
       final label = feature == 'flip'
-          ? 'Voltear cámara ($cost coins)'
+          ? 'Cámara trasera ($cost coins)'
           : 'Apagar cámara ($cost coins)';
       final confirmed = await Get.dialog<bool>(
             AlertDialog(
               backgroundColor: ClientColors.surfaceDark,
               title: Text(
-                feature == 'flip' ? 'Voltear cámara' : 'Apagar cámara',
+                feature == 'flip' ? 'Cámara trasera' : 'Apagar cámara',
                 style: TextStyleCustom.outFitSemiBold600(
                   color: ClientColors.textOnDark,
                   fontSize: 18,
                 ),
               ),
               content: Text(
-                'Cuesta $cost coins. ¿Continuar?',
+                'Cuesta $cost coins. Van a la aplicación, no a la streamer. ¿Continuar?',
                 style: TextStyleCustom.outFitRegular400(
                   color: ClientColors.textOnDarkMuted,
                   fontSize: 15,

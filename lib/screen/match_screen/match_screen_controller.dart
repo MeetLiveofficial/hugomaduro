@@ -94,6 +94,8 @@ class MatchScreenController extends BaseController
     refreshCoins();
     if (AppRole.isStreamer()) {
       mode.value = MatchSearchMode.random;
+      streamerMatchEnabled.value =
+          (SessionManager.instance.getUser()?.matchEnabled ?? 1) == 1;
     }
     _syncPulse();
     if (Get.isRegistered<DashboardScreenController>()) {
@@ -185,6 +187,7 @@ class MatchScreenController extends BaseController
     if (_joining) return;
     if (Get.currentRoute.contains('VideoCall')) return;
     if (inMatchPool.value) {
+      unawaited(CallService.instance.matchHeartbeat());
       if (AppRole.isStreamer() && !_hasLocalWaitVideo()) {
         _joining = true;
         try {

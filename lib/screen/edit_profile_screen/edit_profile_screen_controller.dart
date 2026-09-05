@@ -69,7 +69,6 @@ class EditProfileScreenController extends BaseController {
     }
 
     isSaving.value = true;
-    showLoader(barrierDismissible: true);
     uploadProgress.value = 0.01;
     try {
       XFile? photo = pickedPhoto.value;
@@ -97,9 +96,8 @@ class EditProfileScreenController extends BaseController {
         pickedPhoto.value = null;
         previewPhotoUrl.value = updated.profilePhoto;
         onUpdateUser?.call(updated);
-        showSnackBar(LKey.saved.tr);
-        stopLoader();
         Get.back(result: updated);
+        showSnackBar(LKey.saved.tr);
         return;
       } else {
         showSnackBar(LKey.somethingWentWrong.tr);
@@ -109,7 +107,6 @@ class EditProfileScreenController extends BaseController {
     } finally {
       uploadProgress.value = 0;
       isSaving.value = false;
-      stopLoader();
     }
   }
 }

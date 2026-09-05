@@ -24,13 +24,14 @@ class BaseController extends FullLifeCycleController {
   }
 
   void stopLoader() {
-    // Solo cerrar el loader propio. Get.back() a ciegas cierra
-    // animaciones de regalo u otros dialogs y deja el spinner colgado.
+    // No usar Get.back(): con un snackbar abierto GetX cierra el snackbar
+    // y deja el diálogo de carga colgado (el perfil se guarda, el spinner no).
     if (!isLoading.value) return;
-    if (Get.isDialogOpen == true) {
-      Get.back();
-    }
     isLoading.value = false;
+    final ctx = Get.overlayContext;
+    if (ctx != null && Get.isDialogOpen == true) {
+      Navigator.of(ctx, rootNavigator: true).pop();
+    }
   }
 
   void showSnackBar(String? title, {int second = 2, bool translate = false}) {

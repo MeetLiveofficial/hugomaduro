@@ -25,7 +25,9 @@ class EditProfileScreen extends StatelessWidget {
         Get.put(EditProfileScreenController(onUpdateUser: onUpdateUser));
 
     return Scaffold(
-      body: Column(
+      body: Stack(
+        children: [
+          Column(
         children: [
           CustomAppBar(title: LKey.editProfile.tr),
           Expanded(

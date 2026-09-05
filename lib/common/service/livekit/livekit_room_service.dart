@@ -42,6 +42,8 @@ class LiveKitRoomService {
   LiveKitQualityProfile qualityProfile = LiveKitQualityProfile.medium;
   CameraPosition _cameraPosition = CameraPosition.front;
   CameraPosition get cameraPosition => _cameraPosition;
+  /// En llamada, la streamer solo publica frontal.
+  bool allowRearCamera = true;
 
   final StreamController<void> _mediaChanges =
       StreamController<void>.broadcast();
@@ -282,9 +284,15 @@ class LiveKitRoomService {
     int maxAttempts = 3,
     bool adaptiveStream = true,
     bool dynacast = true,
+    bool allowRearCamera = true,
   }) async {
     if (_room != null) {
       await disconnect();
+    }
+
+    this.allowRearCamera = allowRearCamera;
+    if (!allowRearCamera) {
+      _cameraPosition = CameraPosition.front;
     }
 
     // Media por defecto (nitidez aceptable). Baja solo como fallback de connect.
@@ -797,7 +805,22 @@ class LiveKitRoomService {
       await _publishCamera(lp, null, qualityProfile);
     } else {
       try {
-        await lp.setCameraEnabled(false);
+        // Unpublish: mute deja el último frame congelado en el peer.
+        for (final pub in List.of(lp.videoTrackPublications)) {
+          if (pub.source != TrackSource.camera) continue;
+          try {
+            await lp.removePublishedTrack(pub.sid);
+          } catch (e) {
+            Loggers.error('unpublish camera: $e');
+          }
+        }
+        await lp.setCameraEnabled(
+          false,
+          cameraCaptureOptions: CameraCaptureOptions(
+            cameraPosition: _cameraPosition,
+            stopCameraCaptureOnMute: true,
+          ),
+        );
       } catch (e) {
         Loggers.error('setCameraEnabled(false): $e');
       }
@@ -828,6 +851,7 @@ class LiveKitRoomService {
 
   /// Alterna frontal ↔ trasera. Requiere cámara publicada.
   Future<void> switchCamera() async {
+    if (!allowRearCamera) return;
     final lp = _room?.localParticipant;
     if (lp == null || !lp.isCameraEnabled()) return;
 

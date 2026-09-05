@@ -73,6 +73,7 @@ class LiveKitRoomController extends GetxController {
     bool forceReconnect = false,
     bool adaptiveStream = true,
     bool dynacast = true,
+    bool allowRearCamera = true,
   }) async {
     if (isConnecting.value) {
       if (!forceReconnect) return;
@@ -105,6 +106,7 @@ class LiveKitRoomController extends GetxController {
         forceProfile: forceProfile ?? LiveKitQualityProfile.medium,
         adaptiveStream: adaptiveStream,
         dynacast: dynacast,
+        allowRearCamera: allowRearCamera,
       );
       _syncFromService();
       isConnected.value = true;
@@ -353,18 +355,12 @@ class LiveKitRoomController extends GetxController {
   }
 }
 
-/// Primer [VideoTrack] publicable/suscrito de un participante (evita pantalla negra).
+/// Primer [VideoTrack] activo (no muteado). Un mute deja el último frame;
+/// no hay que pintarlo o parece cámara congelada.
 VideoTrack? firstVideoTrackOf(Participant? participant) {
   if (participant == null) return null;
   for (final pub in participant.videoTrackPublications) {
-    final track = pub.track;
-    if (track is VideoTrack && !pub.muted) {
-      if (participant is LocalParticipant || pub.subscribed || track != null) {
-        return track;
-      }
-    }
-  }
-  for (final pub in participant.videoTrackPublications) {
+    if (pub.muted) continue;
     final track = pub.track;
     if (track is VideoTrack) {
       return track;

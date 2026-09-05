@@ -195,8 +195,8 @@ class Setting {
     this.hostSharePercentLive = 35,
     this.hostSharePercentStandard = 30,
     this.agencySharePercent = 10,
-    this.callCameraFlipCoins = 20,
-    this.callCameraOffCoins = 30,
+    this.callCameraFlipCoins = 100,
+    this.callCameraOffCoins = 100,
   }) : matchTiers = matchTiers ?? MatchTier.defaults;
 
   factory Setting.fromJson(Map<String, dynamic> json) {
@@ -352,8 +352,8 @@ class Setting {
         hostSharePercentStandard:
             _asDouble(json["host_share_percent_standard"]) ?? 30,
         agencySharePercent: _asDouble(json["agency_share_percent"]) ?? 10,
-        callCameraFlipCoins: _asInt(json["call_camera_flip_coins"]) ?? 20,
-        callCameraOffCoins: _asInt(json["call_camera_off_coins"]) ?? 30,
+        callCameraFlipCoins: _asInt(json["call_camera_flip_coins"]) ?? 100,
+        callCameraOffCoins: _asInt(json["call_camera_off_coins"]) ?? 100,
       );
   }
 

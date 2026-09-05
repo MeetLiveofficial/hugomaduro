@@ -43,6 +43,11 @@ class WorkScreenController extends BaseController {
       matchEnabled.value =
           (SessionManager.instance.getUser()?.matchEnabled ?? (value ? 1 : 0)) ==
               1;
+      if (matchEnabled.value) {
+        await CallService.instance.joinMatch();
+      } else {
+        await CallService.instance.leaveMatch();
+      }
     } catch (e) {
       matchEnabled.value = prev;
       showSnackBar(e.toString());
