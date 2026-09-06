@@ -64,13 +64,13 @@ class MatchScreenController extends BaseController
   bool get isPlusMember =>
       (SessionManager.instance.getUser()?.isVerify ?? 0) == 1;
 
-  /// Precio Random (coins van al monedero de la APP).
+  /// Precio Random (70% streamer / 30% APP).
   int get randomHintCost =>
-      SessionManager.instance.getSettings()?.matchRandomCoins ?? 50;
+      SessionManager.instance.getSettings()?.matchRandomCoins ?? 9;
 
-  /// Precio Goddess (coins van al monedero de la APP).
+  /// Precio Goddess (70% streamer / 30% APP).
   int get goddessHintCost =>
-      SessionManager.instance.getSettings()?.matchGoddessCoins ?? 150;
+      SessionManager.instance.getSettings()?.matchGoddessCoins ?? 25;
 
   int get membershipHintCost {
     final mid = ((randomHintCost + goddessHintCost) / 2).round();
@@ -415,7 +415,7 @@ class MatchScreenController extends BaseController
           call: call,
           isMatchPreview: false,
           matchFreeSeconds:
-              call.matchSeconds > 0 ? call.matchSeconds : 40,
+              call.matchSeconds > 0 ? call.matchSeconds : 20,
         ));
   }
 

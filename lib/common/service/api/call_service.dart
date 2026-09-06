@@ -17,6 +17,7 @@ class CallService {
     int? matchSeconds,
     int? coinsCost,
     int? tier,
+    String? mode,
   }) async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.call.create,
@@ -27,6 +28,7 @@ class CallService {
           'match_seconds': matchSeconds,
         if (coinsCost != null && coinsCost > 0) 'coins_cost': coinsCost,
         if (tier != null && tier >= 1 && tier <= 3) 'tier': tier,
+        if (mode != null && mode.isNotEmpty) 'mode': mode,
       },
       fromJson: (j) => j,
     );
@@ -233,6 +235,21 @@ class CallService {
         Map<String, dynamic>.from(json['data'] as Map));
   }
 
+  Future<CallRequestModel> continuePrivate({
+    required int callRequestId,
+  }) async {
+    final json = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.call.continuePrivate,
+      param: {'call_request_id': callRequestId},
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'continue private failed');
+    }
+    return CallRequestModel.fromJson(
+        Map<String, dynamic>.from(json['data'] as Map));
+  }
+
   Future<StreamerWorkStats> workStats() async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.call.workStats,
@@ -369,7 +386,7 @@ class MatchRecommendation {
   MatchRecommendation({
     required this.user,
     required this.callCost,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
     this.matchInitialCoins = 0,
     this.matchGraceSeconds = 10,
     List<MatchTier>? matchTiers,

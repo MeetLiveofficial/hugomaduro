@@ -155,13 +155,14 @@ class UserService {
     int? avatar,
     bool resume = false,
   }) async {
+    await SessionManager.instance.ensureDeviceUuid();
     UserModel model = await ApiService.instance.call(
         url: WebService.user.logInAnonymousUser,
         cancelAuthToken: true,
         param: {
           Params.deviceToken: deviceToken,
           Params.device: AppPlatform.isAndroid ? 0 : 1,
-          Params.deviceUuid: SessionManager.instance.getOrCreateDeviceUuid(),
+          ...SessionManager.instance.deviceUuidParams(),
           Params.loginMethod: LoginMethod.anonymous.title(),
           if (resume) Params.resume: 1,
           if (appLanguage != null && appLanguage.isNotEmpty)
@@ -186,6 +187,26 @@ class UserService {
     return null;
   }
 
+  /// Perfil Guest ligado a este dispositivo, sin iniciar sesión.
+  Future<LastGuest?> peekAnonymousUser() async {
+    await SessionManager.instance.ensureDeviceUuid();
+    try {
+      final response = await ApiService.instance.call<Map<String, dynamic>>(
+        url: WebService.user.peekAnonymousUser,
+        cancelAuthToken: true,
+        param: SessionManager.instance.deviceUuidParams(),
+      );
+      if (response['status'] != true) return null;
+      final data = response['data'];
+      if (data is! Map) return null;
+      final guest = LastGuest.fromJson(Map<String, dynamic>.from(data));
+      if (guest.id <= 0) return null;
+      return guest;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<StatusModel> deleteMyAccount() async {
     StatusModel response = await ApiService.instance.call(
         url: WebService.user.deleteMyAccount, fromJson: StatusModel.fromJson);
@@ -193,11 +214,10 @@ class UserService {
   }
 
   Future<StatusModel> logoutUser() async {
+    await SessionManager.instance.ensureDeviceUuid();
     StatusModel response = await ApiService.instance.call(
         url: WebService.user.logOutUser,
-        param: {
-          Params.deviceUuid: SessionManager.instance.getOrCreateDeviceUuid(),
-        },
+        param: SessionManager.instance.deviceUuidParams(),
         fromJson: StatusModel.fromJson);
     return response;
   }
@@ -239,7 +259,7 @@ class UserService {
         url: WebService.user.fetchUserDetails,
         param: {
           Params.userId: userId ?? SessionManager.instance.getUserID(),
-          Params.deviceUuid: SessionManager.instance.getOrCreateDeviceUuid(),
+          ...SessionManager.instance.deviceUuidParams(),
         },
         fromJson: UserModel.fromJson,
         onError: onError);

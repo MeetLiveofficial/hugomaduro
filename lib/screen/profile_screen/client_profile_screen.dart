@@ -94,10 +94,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
               children: [
-                if (GuestGate.isAnonymous) ...[
-                  _GuestJoinBanner(onJoin: GuestGate.openRegistration),
-                  const SizedBox(height: 18),
-                ],
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -334,56 +330,6 @@ class _MenuTile extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _GuestJoinBanner extends StatelessWidget {
-  final VoidCallback onJoin;
-
-  const _GuestJoinBanner({required this.onJoin});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
-        color: ClientColors.surface.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ClientColors.border.withValues(alpha: 0.7)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            LKey.joinToContinue.tr,
-            style: TextStyleCustom.outFitSemiBold600(
-              color: ClientColors.textOnSurface,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            LKey.guestAccountExpires.tr,
-            style: TextStyleCustom.outFitRegular400(
-              color: ClientColors.textMuted,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextButtonCustom(
-            onTap: onJoin,
-            title: LKey.joinNow.tr,
-            gradient: true,
-            horizontalMargin: 0,
-            margin: EdgeInsets.zero,
-            btnHeight: 44,
-            titleColor: Colors.white,
-            radius: 22,
-          ),
-        ],
       ),
     );
   }

@@ -26,13 +26,22 @@ class MatchRechargeDialog {
     DateTime? graceEndsAt,
     bool autoCloseOnTimeout = true,
     String? subtitle,
+    int privateMinuteCoins = 0,
     Future<bool> Function(MatchTier tier)? onExtend,
   }) async {
     if (peer?.id == null) return false;
     final settings = SessionManager.instance.getSettings();
-    final resolvedTiers = (tiers != null && tiers.isNotEmpty)
-        ? tiers
-        : (settings?.matchTiers ?? MatchTier.defaults);
+    final resolvedTiers = privateMinuteCoins > 0
+        ? [
+            MatchTier(
+              tier: 1,
+              seconds: 60,
+              coins: privateMinuteCoins,
+            )
+          ]
+        : ((tiers != null && tiers.isNotEmpty)
+            ? tiers
+            : (settings?.matchTiers ?? MatchTier.defaults));
     final resolvedGrace = graceSeconds > 0
         ? graceSeconds
         : (settings?.matchGraceSeconds ?? 10);

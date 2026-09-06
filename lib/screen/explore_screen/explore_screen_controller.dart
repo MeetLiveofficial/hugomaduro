@@ -266,7 +266,7 @@ class ExploreScreenController extends BaseController {
       final remaining =
           SessionManager.instance.getUser()?.dailyFreeMatchesRemaining ?? 2;
       final cost =
-          SessionManager.instance.getSettings()?.matchRandomCoins ?? 50;
+          SessionManager.instance.getSettings()?.matchRandomCoins ?? 9;
       if (remaining <= 0 &&
           cost > 0 &&
           !CoinGate.ensureEnough(

@@ -90,6 +90,7 @@ Future<void> main() async {
   }
 
   unawaited(_bootstrap());
+  unawaited(SessionManager.instance.ensureDeviceUuid());
 }
 
 Future<void> _bootstrap() async {

@@ -31,14 +31,18 @@ class OutgoingCallScreen extends StatefulWidget {
   final int matchFreeSeconds;
   /// Si create falla por "already in a call" y venimos del LIVE, redirigir.
   final bool onBusyRedirectToNextLive;
+  final CallRequestModel? existingCall;
+  final String? matchMode;
 
   const OutgoingCallScreen({
     super.key,
     required this.callee,
     required this.cost,
     this.isMatch = false,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
     this.onBusyRedirectToNextLive = false,
+    this.existingCall,
+    this.matchMode,
   });
 
   @override
@@ -64,6 +68,8 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen> {
         isMatch: widget.isMatch,
         matchFreeSeconds: widget.matchFreeSeconds,
         onBusyRedirectToNextLive: widget.onBusyRedirectToNextLive,
+        existingCall: widget.existingCall,
+        matchMode: widget.matchMode,
       ),
       tag: _tag,
     );
@@ -192,8 +198,10 @@ class OutgoingCallController extends BaseController {
     required this.callee,
     required this.cost,
     this.isMatch = false,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
     this.onBusyRedirectToNextLive = false,
+    this.existingCall,
+    this.matchMode,
   }) : subtitle = (isMatch ? 'Match…' : LKey.calling.tr).obs;
 
   /// Instancia activa para cerrar desde FCM `call_rejected` / `call_accepted`.
@@ -204,6 +212,8 @@ class OutgoingCallController extends BaseController {
   final bool isMatch;
   final int matchFreeSeconds;
   final bool onBusyRedirectToNextLive;
+  final CallRequestModel? existingCall;
+  final String? matchMode;
 
   final RxString subtitle;
   final RxnString errorText = RxnString();
@@ -472,16 +482,21 @@ class OutgoingCallController extends BaseController {
 
     subtitle.value = isMatch ? 'Match…' : LKey.calling.tr;
     try {
-      call = await CallService.instance.create(
-        userId: userId,
-        isMatch: isMatch,
-        matchSeconds: isMatch ? matchFreeSeconds : null,
-        coinsCost: cost > 0 ? cost : null,
-      );
-      final me = SessionManager.instance.getUser();
-      if (me != null && cost > 0) {
-        me.removeCoinFromWallet(cost);
-        SessionManager.instance.setUser(me);
+      if (existingCall != null) {
+        call = existingCall;
+      } else {
+        call = await CallService.instance.create(
+          userId: userId,
+          isMatch: isMatch,
+          matchSeconds: isMatch ? matchFreeSeconds : null,
+          coinsCost: cost > 0 ? cost : null,
+          mode: isMatch ? (matchMode ?? 'random') : null,
+        );
+        final me = SessionManager.instance.getUser();
+        if (me != null && cost > 0) {
+          me.removeCoinFromWallet(cost);
+          SessionManager.instance.setUser(me);
+        }
       }
       if (call != null &&
           call!.isAccepted &&

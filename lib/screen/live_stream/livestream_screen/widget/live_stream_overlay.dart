@@ -91,9 +91,10 @@ class LiveStreamOverlay extends StatelessWidget {
               );
             }),
             Obx(() {
-              if (controller.isHost) return const SizedBox.shrink();
               final banner = controller.giftBoostBanner.value;
-              if (banner == null) return const SizedBox.shrink();
+              if (controller.isHost || banner == null) {
+                return const SizedBox.shrink();
+              }
               return Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: GiftRequestBar(

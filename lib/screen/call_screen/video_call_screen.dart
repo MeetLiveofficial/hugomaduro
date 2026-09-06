@@ -48,7 +48,7 @@ class VideoCallScreen extends StatelessWidget {
     required this.call,
     this.resumeLiveOnHangup = false,
     this.isMatchPreview = false,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
   });
 
   @override
@@ -389,7 +389,7 @@ class VideoCallController extends BaseController {
     this.call, {
     this.resumeLiveOnHangup = false,
     this.isMatchPreview = false,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
   });
 
   final CallRequestModel call;
@@ -424,6 +424,7 @@ class VideoCallController extends BaseController {
   DateTime? _graceEndsAt;
   int? _matchDurationOverride;
   bool _forceMatch = false;
+  bool _convertedToPrivate = false;
   String? _respondedAtRaw;
   bool _timerStarted = false;
   bool _ending = false;
@@ -452,6 +453,7 @@ class VideoCallController extends BaseController {
 
   /// Match para caller y callee (mismo modo de UI / cronómetro).
   bool get isMatchCall {
+    if (_convertedToPrivate) return false;
     if (isMatchPreview || _forceMatch || call.isMatchSession) return true;
     return false;
   }
@@ -525,6 +527,14 @@ class VideoCallController extends BaseController {
     if (!Get.isRegistered<VideoCallController>(tag: tag)) return;
     final c = Get.find<VideoCallController>(tag: tag);
     unawaited(c.openExtensionFromServer());
+  }
+
+  static void handleConvertedToPrivate(int? callRequestId) {
+    if (callRequestId == null) return;
+    final tag = 'call_$callRequestId';
+    if (!Get.isRegistered<VideoCallController>(tag: tag)) return;
+    final c = Get.find<VideoCallController>(tag: tag);
+    c._applyConvertedToPrivate();
   }
 
   int get _matchDuration {
@@ -696,7 +706,22 @@ class VideoCallController extends BaseController {
   Future<void> openExtensionFromServer() => _onMatchTimeUp();
 
   Future<void> _onMatchTimeUp() async {
-    if (_ending || awaitingExtension.value) return;
+    if (_ending || awaitingExtension.value || _convertedToPrivate) return;
+    final id = call.id;
+    if (id != null) {
+      try {
+        final fresh = await CallService.instance.status(id);
+        if (_ending) return;
+        if (fresh.isEnded) {
+          await hangUp(forcedByPeer: true);
+          return;
+        }
+        if (fresh.isConvertedPrivate) {
+          _applyConvertedToPrivate();
+          return;
+        }
+      } catch (_) {}
+    }
     awaitingExtension.value = true;
     matchSecondsLeft.value = 0;
     matchCountdownLabel.value = _formatMmSs(0);
@@ -721,61 +746,56 @@ class VideoCallController extends BaseController {
         : call.caller;
     final settings = SessionManager.instance.getSettings();
     try {
+      final rate = peer?.callRequestCoins ?? 0;
       final paid = await MatchRechargeDialog.show(
         peer: peer,
-        callCost: call.coinsCost,
-        tiers: settings?.matchTiers,
+        callCost: rate,
+        privateMinuteCoins: rate,
         graceSeconds: settings?.matchGraceSeconds ?? 10,
         graceEndsAt: _graceEndsAt,
-        onExtend: _payAndExtend,
+        subtitle: rate > 0
+            ? 'Continúa como llamada privada ($rate coins/min)'
+            : 'Continúa como llamada privada',
+        onExtend: (_) => _payAndContinuePrivate(),
       );
-      if (_ending || _extensionSucceeded) return;
+      if (_ending || _extensionSucceeded || _convertedToPrivate) return;
       if (paid) return;
       try {
         final id = call.id;
         if (id != null) {
           final fresh = await CallService.instance.status(id);
+          if (fresh.isConvertedPrivate) {
+            _applyConvertedToPrivate();
+            return;
+          }
           if (!fresh.isEnded && !fresh.isExtensionWindow) {
             _applyServerExtension(fresh);
             return;
           }
         }
       } catch (_) {}
-      if (_ending || _extensionSucceeded) return;
+      if (_ending || _extensionSucceeded || _convertedToPrivate) return;
       await hangUp();
-      showSnackBar('Tiempo agotado. Inicia otro Match para continuar.');
+      showSnackBar('Tiempo agotado. Recarga coins para continuar la llamada.');
     } finally {
       _extensionPromptOpen = false;
     }
   }
 
-  Future<bool> _payAndExtend(MatchTier tier) async {
+  Future<bool> _payAndContinuePrivate() async {
     final id = call.id;
     if (id == null) return false;
     try {
-      final updated = await CallService.instance.extendMatch(
+      final updated = await CallService.instance.continuePrivate(
         callRequestId: id,
-        tier: tier.tier,
-        extraSeconds: tier.seconds,
-        coinsCost: tier.coins,
       );
       final me = SessionManager.instance.getUser();
-      if (me != null && tier.coins > 0) {
-        me.removeCoinFromWallet(tier.coins);
+      final rate = updated.coinsCost;
+      if (me != null && rate > 0) {
+        me.removeCoinFromWallet(rate);
         SessionManager.instance.setUser(me);
       }
-      _extensionSucceeded = true;
-      _applyServerExtension(updated);
-      try {
-        await liveKit.publishData(
-          utf8.encode(jsonEncode({
-            'type': 'MATCH_EXTENDED',
-            'match_seconds': updated.matchSeconds,
-            'phase_ends_at': updated.phaseEndsAt,
-          })),
-          topic: 'match',
-        );
-      } catch (_) {}
+      _applyConvertedToPrivate();
       return true;
     } catch (e) {
       showSnackBar(e.toString().replaceFirst('Exception: ', ''));
@@ -795,6 +815,10 @@ class VideoCallController extends BaseController {
           await hangUp(forcedByPeer: true);
           return;
         }
+        if (fresh.isConvertedPrivate) {
+          _applyConvertedToPrivate();
+          return;
+        }
         if (!fresh.isExtensionWindow && fresh.matchSeconds > 0) {
           _applyServerExtension(fresh);
           return;
@@ -806,7 +830,30 @@ class VideoCallController extends BaseController {
     }
   }
 
+  void _applyConvertedToPrivate() {
+    if (_convertedToPrivate) return;
+    _convertedToPrivate = true;
+    _forceMatch = false;
+    matchUi.value = false;
+    awaitingExtension.value = false;
+    _extensionSucceeded = true;
+    _graceEndsAt = null;
+    _phaseEndsAt = null;
+    _syncAnchor = DateTime.now();
+    unawaited(_setMatchPaused(false));
+    _timerStarted = true;
+    _tickSynced();
+    _elapsedTimer?.cancel();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _tickSynced();
+    });
+  }
+
   void _applyServerExtension(CallRequestModel updated) {
+    if (updated.isConvertedPrivate) {
+      _applyConvertedToPrivate();
+      return;
+    }
     if (updated.matchSeconds > 0) {
       _matchDurationOverride = updated.matchSeconds;
     }
@@ -857,6 +904,11 @@ class VideoCallController extends BaseController {
       }
       if (type == 'KICK_OUT') {
         unawaited(hangUp(forcedByPeer: true));
+        return;
+      }
+      if (type == 'MATCH_CONVERTED_TO_PRIVATE' ||
+          type == 'match_converted_private') {
+        _applyConvertedToPrivate();
         return;
       }
       if (type != 'MATCH_EXTENDED' && type != 'match_extend') return;
@@ -1449,6 +1501,10 @@ class VideoCallController extends BaseController {
       if (fresh.isEnded) {
         _notifyInsufficientIfNeeded(fresh);
         await hangUp(forcedByPeer: true);
+        return;
+      }
+      if (fresh.isConvertedPrivate && !_convertedToPrivate) {
+        _applyConvertedToPrivate();
         return;
       }
       if (fresh.isExtensionWindow &&

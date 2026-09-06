@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/content_protection.dart';
+import 'package:krimson/common/manager/guest_gate.dart';
+import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/custom_drop_down.dart';
@@ -88,6 +90,18 @@ class SettingsScreen extends StatelessWidget {
                   Get.to(() => EditProfileScreen(onUpdateUser: onUpdateUser));
                 },
               ),
+              Obx(() {
+                SessionManager.instance.userRx.value;
+                if (!AppRole.isClient() || !GuestGate.isAnonymous) {
+                  return const SizedBox.shrink();
+                }
+                return SettingIconTextWithArrow(
+                  icon: AssetRes.icLink,
+                  iconColor: settingRowIcon(ColorRes.mlPurple),
+                  title: LKey.joinToContinue,
+                  onTap: GuestGate.showJoinSheet,
+                );
+              }),
               SettingIconTextWithArrow(
                 icon: AssetRes.icLanguage_1,
                 iconColor: settingRowIcon(ColorRes.mlPurple),

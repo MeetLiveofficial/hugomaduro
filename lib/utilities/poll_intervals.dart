@@ -7,7 +7,7 @@ class PollIntervals {
   static const inboxMatch = Duration(seconds: 10);
 
   /// Dashboard llamadas entrantes: `call/inbox`
-  static const inboxDashboard = Duration(seconds: 12);
+  static const inboxDashboard = Duration(seconds: 4);
 
   /// LIVE abierto: `call/inbox`
   static const inboxLive = Duration(seconds: 12);

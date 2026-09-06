@@ -182,6 +182,10 @@ class FirebaseNotificationManager {
         final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
         VideoCallController.handleExtensionModal(id);
         return;
+      } else if (type == 'match_converted_private') {
+        final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+        VideoCallController.handleConvertedToPrivate(id);
+        return;
       } else if (type == NotificationType.liveStream.type) {
         showNotification(message);
         // App en foreground: diálogo Unirse / Más tarde (no auto-navegar).
@@ -295,6 +299,11 @@ class FirebaseNotificationManager {
       VideoCallController.handleExtensionModal(id);
       return;
     }
+    if (dataType == 'match_converted_private') {
+      final id = int.tryParse('${message.data['call_request_id'] ?? ''}');
+      VideoCallController.handleConvertedToPrivate(id);
+      return;
+    }
     if (dataType == 'call_accepted') {
       await _openAcceptedCallFromPush(message.data);
       return;
@@ -390,12 +399,16 @@ class FirebaseNotificationManager {
     if (Get.isRegistered<IncomingCallController>(tag: tag)) return;
     try {
       final inbox = await CallService.instance.inbox();
-      final pending = inbox.received
-          .where((e) => e.id == id && e.isPending)
-          .toList();
-      if (pending.isEmpty) return;
-      final call = pending.first;
-      final opened = await LiveIncomingCallOverlay.show(call);
+      CallRequestModel? found;
+      for (final e in inbox.received) {
+        if (e.id == id) {
+          found = e;
+          break;
+        }
+      }
+      if (found == null) return;
+      if (!LiveIncomingCallOverlay.isActionableIncoming(found)) return;
+      final opened = await LiveIncomingCallOverlay.show(found);
       if (opened) return;
 
       // Fallback: half-sheet también vía Get.to (sin pantalla completa).
@@ -408,7 +421,7 @@ class FirebaseNotificationManager {
         Get.find<MessageScreenController>().openCallsTab();
       }
       Get.to(
-        () => IncomingCallScreen(call: call, asDialog: true),
+        () => IncomingCallScreen(call: found!, asDialog: true),
         opaque: false,
         fullscreenDialog: true,
         transition: Transition.downToUp,

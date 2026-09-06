@@ -6,6 +6,7 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/widget/confirmation_dialog.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -72,8 +73,18 @@ class SettingsScreenController extends BaseController {
         showMyFollowing:
             settingToggle == SettingToggle.showMyFollowings ? value : null);
     isUpdateApiCalled.value = false;
-    // For update user value
     myUser.value = SessionManager.instance.getUser();
+    if (settingToggle == SettingToggle.matchEnabled) {
+      try {
+        if (value) {
+          await CallService.instance.joinMatch();
+        } else {
+          await CallService.instance.leaveMatch();
+        }
+      } catch (e) {
+        Loggers.error('settings match toggle pool: $e');
+      }
+    }
   }
 
   void onDeleteAccount() {

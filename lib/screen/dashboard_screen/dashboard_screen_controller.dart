@@ -23,6 +23,7 @@ import 'package:krimson/common/service/subscription/subscription_manager.dart';
 import 'package:krimson/common/widget/restart_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/chat_thread.dart';
+import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
@@ -178,6 +179,17 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     );
   }
 
+  List<CallRequestModel> _actionableIncoming(CallInboxResult inbox) {
+    final me = SessionManager.instance.getUserID();
+    final list = <CallRequestModel>[];
+    for (final e in inbox.received) {
+      if (LiveIncomingCallOverlay.isActionableIncoming(e, meId: me)) {
+        list.add(e);
+      }
+    }
+    return list;
+  }
+
   Future<void> _pollIncomingCalls() async {
     if (_incomingCallPollBusy) return;
     if (!SessionManager.instance.isLogin() ||
@@ -225,10 +237,10 @@ class DashboardScreenController extends BaseController with GetSingleTickerProvi
     _incomingCallPollBusy = true;
     try {
       final inbox = await CallService.instance.inbox();
-      final pending =
-          inbox.received.where((e) => e.isPending && e.id != null).toList();
+      final pending = _actionableIncoming(inbox);
 
-      callsUnReadCount.value = pending.length;
+      callsUnReadCount.value =
+          inbox.received.where((e) => e.isPending && e.id != null).length;
       unReadCount.value = chatUnReadCount.value +
           requestUnReadCount.value +
           callsUnReadCount.value;

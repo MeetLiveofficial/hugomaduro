@@ -183,10 +183,10 @@ class Setting {
     this.dummyLives,
     this.reportReason,
     this.deepARFilters,
-    this.matchFreeSeconds = 40,
-    this.matchInitialCoins = 50,
-    this.matchRandomCoins = 50,
-    this.matchGoddessCoins = 150,
+    this.matchFreeSeconds = 20,
+    this.matchInitialCoins = 9,
+    this.matchRandomCoins = 9,
+    this.matchGoddessCoins = 25,
     this.matchGraceSeconds = 10,
     List<MatchTier>? matchTiers,
     this.wompiEnabled = true,
@@ -326,18 +326,18 @@ class Setting {
                 json["deepARFilters"]?.map((x) => DeepARFilters.fromJson(x))),
         matchFreeSeconds: _asInt(json["match_free_seconds"]) ??
             _asInt(cfg["initial_seconds"]) ??
-            40,
+            20,
         matchRandomCoins: _asInt(json["match_random_coins"]) ??
             _asInt(cfg["random_coins"]) ??
-            50,
+            9,
         matchGoddessCoins: _asInt(json["match_goddess_coins"]) ??
             _asInt(cfg["goddess_coins"]) ??
-            150,
+            25,
         matchInitialCoins: _asInt(json["match_random_coins"]) ??
             _asInt(cfg["random_coins"]) ??
             _asInt(json["match_initial_coins"]) ??
             _asInt(cfg["initial_coins"]) ??
-            50,
+            9,
         matchGraceSeconds: _asInt(json["match_grace_seconds"]) ??
             _asInt(cfg["grace_seconds"]) ??
             10,

@@ -65,6 +65,7 @@ class AuthScreenController extends BaseController {
     try {
       Get.find<DynamicTranslations>().ensureAgencyFallbacks();
     } catch (_) {}
+    unawaited(_hydrateSavedGuestFromDevice());
     unawaited(_tryAutoRestoreSession());
   }
 
@@ -74,9 +75,38 @@ class AuthScreenController extends BaseController {
     if (current?.id == next?.id &&
         current?.fullname == next?.fullname &&
         current?.profilePhoto == next?.profilePhoto) {
+      if (next == null) {
+        unawaited(_hydrateSavedGuestFromDevice());
+      }
       return;
     }
     savedGuest.value = next;
+    if (next == null) {
+      unawaited(_hydrateSavedGuestFromDevice());
+    }
+  }
+
+  bool _guestLookupStarted = false;
+
+  /// Tras borrar la app, GetStorage se pierde. El servidor reconoce el dispositivo.
+  Future<void> _hydrateSavedGuestFromDevice() async {
+    if (_guestLookupStarted) return;
+    _guestLookupStarted = true;
+    try {
+      await SessionManager.instance.ensureDeviceUuid();
+      final local = SessionManager.instance.getLastGuest();
+      if (local != null) {
+        savedGuest.value = local;
+        return;
+      }
+      final peeked = await UserService.instance.peekAnonymousUser();
+      if (peeked == null) return;
+      SessionManager.instance.saveLastGuestSnapshot(peeked);
+      savedGuest.value = peeked;
+    } catch (e) {
+      _guestLookupStarted = false;
+      Loggers.error('hydrateSavedGuest: $e');
+    }
   }
 
   /// Si hay sesión guardada (Guest u otro), entrar sin pedir login de nuevo.

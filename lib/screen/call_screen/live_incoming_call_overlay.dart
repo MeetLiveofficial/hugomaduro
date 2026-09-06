@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/incoming_call_screen.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
@@ -9,6 +10,32 @@ class LiveIncomingCallOverlay {
   LiveIncomingCallOverlay._();
 
   static bool _opening = false;
+
+  static bool isFreshInvite(CallRequestModel e, {int maxAgeSeconds = 90}) {
+    final raw = (e.respondedAt ?? e.createdAt ?? '').trim();
+    if (raw.isEmpty) return true;
+    final t = DateTime.tryParse(raw);
+    if (t == null) return true;
+    return DateTime.now().toUtc().difference(t.toUtc()).inSeconds.abs() <
+        maxAgeSeconds;
+  }
+
+  /// Pending, o Match ya auto-aceptado que la streamer aún no abrió.
+  static bool isActionableIncoming(CallRequestModel e, {int? meId}) {
+    if (e.id == null) return false;
+    if (e.isEnded || (e.endedAt ?? '').isNotEmpty) return false;
+    final self = meId ?? SessionManager.instance.getUserID();
+    if (e.calleeId != self) return false;
+    if (Get.currentRoute.contains('VideoCall')) return false;
+    if (e.isPending) return true;
+    if (e.isMatchSession &&
+        e.isAccepted &&
+        (e.roomId ?? '').trim().isNotEmpty &&
+        isFreshInvite(e)) {
+      return true;
+    }
+    return false;
+  }
 
   /// Cierra overlay/dialog de llamada entrante si sigue abierto.
   static void dismiss({int? callId}) {

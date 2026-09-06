@@ -59,6 +59,7 @@ class _Call {
   String cancel = "${apiURL}call/cancel";
   String end = "${apiURL}call/end";
   String extendMatch = "${apiURL}call/extendMatch";
+  String continuePrivate = "${apiURL}call/continuePrivate";
   String matchConfig = "${apiURL}call/matchConfig";
   String unlockMatch = "${apiURL}call/unlockMatch";
   String purchaseCameraFeature = "${apiURL}call/purchaseCameraFeature";
@@ -145,6 +146,7 @@ class _User {
   String logInFakeUser = "${apiURL}user/logInFakeUser";
   String registerUser = "${apiURL}user/registerUser";
   String logInAnonymousUser = "${apiURL}user/logInAnonymousUser";
+  String peekAnonymousUser = "${apiURL}user/peekAnonymousUser";
   String deleteMyAccount = "${apiURL}user/deleteMyAccount";
   String logOutUser = "${apiURL}user/logOutUser";
   String subscribePlus = "${apiURL}user/subscribePlus";

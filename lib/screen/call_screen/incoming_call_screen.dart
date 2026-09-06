@@ -451,7 +451,9 @@ class IncomingCallController extends GetxController {
     _statusPoll?.cancel();
     await _stopRingtone();
     try {
-      final updated = await CallService.instance.accept(call.id!);
+      final updated = call.isAccepted && (call.roomId ?? '').trim().isNotEmpty
+          ? call
+          : await CallService.instance.accept(call.id!);
       final live = LivestreamScreenController.activeInstance;
       final keepLive = live != null;
       // Liberar cámara/mic del LIVE para que la videollamada pueda conectar.
@@ -474,7 +476,7 @@ class IncomingCallController extends GetxController {
         isMatchPreview: updated.isMatchSession,
         matchFreeSeconds: updated.matchSeconds > 0
             ? updated.matchSeconds
-            : 30,
+            : 20,
       );
       // Overlay/dialog: Get.to para no reemplazar el Dashboard.
       // Fullscreen IncomingCall: Get.off reemplaza esa ruta.

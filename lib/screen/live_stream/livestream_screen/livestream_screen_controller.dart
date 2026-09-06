@@ -105,6 +105,9 @@ class LivestreamScreenController extends BaseController {
       OutgoingCallController.activeInstance != null ||
       VideoCallController.activeInstance != null;
 
+  /// Cliente/host en llamada: no redirigir ni hacer pop del LIVE.
+  bool get _parkedForCall => pausedForCall.value || isCallUiActive;
+
   final RxBool beautyOn = false.obs;
   final RxDouble whiten = 50.0.obs;
   final RxDouble rosy = 40.0.obs;
@@ -589,8 +592,10 @@ class LivestreamScreenController extends BaseController {
     _callPollBusy = true;
     try {
       final inbox = await CallService.instance.inbox();
-      final pending =
-          inbox.received.where((e) => e.isPending && e.id != null).toList();
+      final pending = inbox.received
+          .where((e) =>
+              e.isPending && e.id != null && !e.isMatchSession)
+          .toList();
 
       if (!_callPollPrimed) {
         _seenIncomingCallIds.addAll(pending.map((e) => e.id!));
@@ -1097,7 +1102,7 @@ class LivestreamScreenController extends BaseController {
           await LiveSessionService.instance.fetchSession(roomId: roomId);
       if (payload == null) {
         // Live terminado / sala muerta → otro LIVE o salir.
-        if (isEnding.value) return;
+        if (isEnding.value || _parkedForCall) return;
         if (!isHost) {
           await leaveAndRedirectToNextLive();
         } else {
@@ -1125,7 +1130,7 @@ class LivestreamScreenController extends BaseController {
       _syncBattleFromSession(payload.session, payload.participants);
     } catch (e) {
       if (!silent) Loggers.error('fetchSession: $e');
-      if (!isHost && !isEnding.value) {
+      if (!isHost && !isEnding.value && !_parkedForCall) {
         // Si la API falla de forma persistente tras end, forzar salida.
         final msg = e.toString().toLowerCase();
         if (msg.contains('not found') || msg.contains('ended')) {
@@ -2223,12 +2228,16 @@ class LivestreamScreenController extends BaseController {
           );
 
       void goOutgoing() {
-        unawaited(pauseLiveKitForCall());
-        Get.to(() => OutgoingCallScreen(
-              callee: hostUser,
-              cost: cost,
-              onBusyRedirectToNextLive: true,
-            ));
+        unawaited(() async {
+          try {
+            await pauseLiveKitForCall();
+          } catch (_) {}
+          Get.to(() => OutgoingCallScreen(
+                callee: hostUser,
+                cost: cost,
+                onBusyRedirectToNextLive: true,
+              ));
+        }());
       }
 
       if (skipConfirmSheet) {
@@ -3196,10 +3205,11 @@ class LivestreamScreenController extends BaseController {
       _syncElapsedTimerWithPause();
     }
     // Audiencia: host acaba de entrar en llamada → otro LIVE.
+    // El cliente que está llamando tiene el LIVE aparcado: no redirigir.
     if (!isHost &&
         !wasHostInCall &&
         hostInCall.value &&
-        !pausedForCall.value) {
+        !_parkedForCall) {
       unawaited(leaveAndRedirectToNextLive());
     }
 
@@ -3778,6 +3788,10 @@ class LivestreamScreenController extends BaseController {
 
   void _checkHostPresence() {
     if (isHost || isDummy || isEnding.value || _redirectingToNextLive) return;
+    if (_parkedForCall) {
+      _clearHostAbsent();
+      return;
+    }
     if (isBattleOpponentPublisher) {
       _clearHostAbsent();
       return;
@@ -3811,7 +3825,7 @@ class LivestreamScreenController extends BaseController {
   }
 
   void _tickHostAbsent() {
-    if (isEnding.value || _redirectingToNextLive) {
+    if (isEnding.value || _redirectingToNextLive || _parkedForCall) {
       _clearHostAbsent();
       return;
     }
@@ -3861,6 +3875,7 @@ class LivestreamScreenController extends BaseController {
   /// Sale del LIVE actual y abre otro disponible (host ausente / live ended).
   Future<void> leaveAndRedirectToNextLive() async {
     if (isHost || isEnding.value || _redirectingToNextLive) return;
+    if (_parkedForCall) return;
     _redirectingToNextLive = true;
     isEnding.value = true;
     _clearHostAbsent();
@@ -4033,6 +4048,8 @@ class LivestreamScreenController extends BaseController {
   }
 
   Future<void> _popLiveUi() async {
+    // Si hay videollamada encima, un pop genérico cierra la llamada, no el LIVE.
+    if (isCallUiActive) return;
     // PopScope(canPop: false) hace que Navigator.canPop() sea false;
     // igual se puede hacer pop programático para salir del live.
     for (var i = 0; i < 3; i++) {

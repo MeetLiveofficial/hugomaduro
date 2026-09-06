@@ -3,9 +3,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:krimson/common/manager/device_identity.dart';
 import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/service/utils/params.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/utilities/app_platform.dart';
 import 'package:krimson/utilities/app_res.dart';
 
 class SessionManager {
@@ -139,14 +142,75 @@ class SessionManager {
     }
   }
 
+  String? _cachedDeviceUuid;
+  String? _legacyDeviceUuid;
+  Future<String>? _ensureDeviceUuidFuture;
+
+  String? get legacyDeviceUuid => _legacyDeviceUuid;
+
   String getOrCreateDeviceUuid() {
+    if (_cachedDeviceUuid != null && _cachedDeviceUuid!.length >= 8) {
+      return _cachedDeviceUuid!;
+    }
     final stored = storage.read(SessionKeys.deviceUuid);
     if (stored is String && stored.length >= 8) {
+      _cachedDeviceUuid = stored;
       return stored;
     }
     final uuid = _newUuidV4();
+    _cachedDeviceUuid = uuid;
     storage.write(SessionKeys.deviceUuid, uuid);
     return uuid;
+  }
+
+  Map<String, dynamic> deviceUuidParams() {
+    return {
+      Params.deviceUuid: getOrCreateDeviceUuid(),
+      if (_legacyDeviceUuid != null && _legacyDeviceUuid!.length >= 8)
+        Params.legacyDeviceUuid: _legacyDeviceUuid,
+    };
+  }
+
+  /// ANDROID_ID / Keychain iOS. Hay que llamarlo antes de login Guest.
+  Future<String> ensureDeviceUuid() {
+    return _ensureDeviceUuidFuture ??= _ensureDeviceUuidImpl();
+  }
+
+  Future<String> _ensureDeviceUuidImpl() async {
+    try {
+      final storedRaw = storage.read(SessionKeys.deviceUuid);
+      final stored =
+          storedRaw is String && storedRaw.length >= 8 ? storedRaw : null;
+      final persisted = await DeviceIdentity.readPersisted();
+      final seed = await DeviceIdentity.hardwareSeed();
+      final hardware =
+          seed == null ? null : DeviceIdentity.hashSeed(seed);
+
+      String chosen;
+      if (AppPlatform.isAndroid && hardware != null) {
+        chosen = hardware;
+      } else if (persisted != null) {
+        chosen = persisted;
+      } else if (stored != null) {
+        chosen = stored;
+      } else if (hardware != null) {
+        chosen = hardware;
+      } else {
+        chosen = getOrCreateDeviceUuid();
+      }
+
+      if (stored != null && stored != chosen) {
+        _legacyDeviceUuid = stored;
+      }
+
+      _cachedDeviceUuid = chosen;
+      storage.write(SessionKeys.deviceUuid, chosen);
+      await DeviceIdentity.writePersisted(chosen);
+      return chosen;
+    } catch (_) {
+      _ensureDeviceUuidFuture = null;
+      return getOrCreateDeviceUuid();
+    }
   }
 
   LastGuest? getLastGuest() {
@@ -163,7 +227,10 @@ class SessionManager {
   }
 
   void saveLastGuest(User user) {
-    final snapshot = LastGuest.fromUser(user);
+    saveLastGuestSnapshot(LastGuest.fromUser(user));
+  }
+
+  void saveLastGuestSnapshot(LastGuest snapshot) {
     if (snapshot.id <= 0) return;
     storage.write(SessionKeys.lastGuest, snapshot.toJson());
   }

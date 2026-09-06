@@ -23,6 +23,7 @@ class Params {
   static const String deviceToken = 'device_token';
   static const String device = 'device';
   static const String deviceUuid = 'device_uuid';
+  static const String legacyDeviceUuid = 'legacy_device_uuid';
   static const String resume = 'resume';
   static const String loginMethod = 'login_method';
   static const String avatar = 'avatar';
