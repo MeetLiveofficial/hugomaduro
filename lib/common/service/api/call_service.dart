@@ -16,7 +16,7 @@ class CallService {
     bool isMatch = false,
     int? matchSeconds,
     int? coinsCost,
-    int? tier,
+    String? mode,
   }) async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.call.create,
@@ -26,7 +26,7 @@ class CallService {
         if (matchSeconds != null && matchSeconds > 0)
           'match_seconds': matchSeconds,
         if (coinsCost != null && coinsCost > 0) 'coins_cost': coinsCost,
-        if (tier != null && tier >= 1 && tier <= 3) 'tier': tier,
+        if (mode != null && mode.trim().isNotEmpty) 'mode': mode.trim().toLowerCase(),
       },
       fromJson: (j) => j,
     );
@@ -85,7 +85,7 @@ class CallService {
           : int.tryParse('${data['call_cost'] ?? 0}') ?? 0,
       matchFreeSeconds: data['match_free_seconds'] is num
           ? (data['match_free_seconds'] as num).toInt()
-          : int.tryParse('${data['match_free_seconds'] ?? 40}') ?? 40,
+          : int.tryParse('${data['match_free_seconds'] ?? 20}') ?? 20,
       matchInitialCoins: data['match_initial_coins'] is num
           ? (data['match_initial_coins'] as num).toInt()
           : int.tryParse('${data['match_initial_coins'] ?? 0}') ?? 0,
@@ -369,7 +369,7 @@ class MatchRecommendation {
   MatchRecommendation({
     required this.user,
     required this.callCost,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
     this.matchInitialCoins = 0,
     this.matchGraceSeconds = 10,
     List<MatchTier>? matchTiers,

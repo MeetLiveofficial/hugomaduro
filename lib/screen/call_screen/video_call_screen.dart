@@ -48,7 +48,7 @@ class VideoCallScreen extends StatelessWidget {
     required this.call,
     this.resumeLiveOnHangup = false,
     this.isMatchPreview = false,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
   });
 
   @override
@@ -157,21 +157,6 @@ class VideoCallScreen extends StatelessWidget {
               }),
             Obx(() {
               if (!controller.matchUi.value) return const SizedBox.shrink();
-              if (controller.awaitingExtension.value) {
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(
-                    controller.isMatchCaller
-                        ? 'Elige más tiempo para continuar'
-                        : 'El cliente puede continuar el Match…',
-                    textAlign: TextAlign.center,
-                    style: TextStyleCustom.outFitMedium500(
-                      color: client ? ClientColors.textOnDark : Colors.white,
-                      fontSize: 12,
-                    ),
-                  ),
-                );
-              }
               final left = controller.matchSecondsLeft.value;
               if (left > 10) return const SizedBox.shrink();
               return Padding(
@@ -191,7 +176,7 @@ class VideoCallScreen extends StatelessWidget {
             Expanded(
               child: Obx(() {
                 controller.liveKit.mediaRevision.value;
-                controller.awaitingExtension.value;
+                controller.matchUi.value;
                 if (kIsWeb) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     passThroughMatchVideoClicks();
@@ -216,25 +201,6 @@ class VideoCallScreen extends StatelessWidget {
                       bottom: 8,
                       child: CallChatOverlay(controller: controller),
                     ),
-                    if (controller.awaitingExtension.value)
-                      ColoredBox(
-                        color: (client ? ClientColors.surfaceDark : Colors.black)
-                            .withValues(alpha: 0.78),
-                        child: Center(
-                          child: Text(
-                            controller.isMatchCaller
-                                ? 'Video pausado\nElige más tiempo'
-                                : 'Video pausado\nEsperando al cliente…',
-                            textAlign: TextAlign.center,
-                            style: TextStyleCustom.outFitMedium500(
-                              color: client
-                                  ? ClientColors.textOnDark
-                                  : Colors.white,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 );
                 // ClipRect en Web oculta el <video> de LiveKit.
@@ -372,7 +338,7 @@ class VideoCallController extends BaseController {
     this.call, {
     this.resumeLiveOnHangup = false,
     this.isMatchPreview = false,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
   });
 
   final CallRequestModel call;
@@ -382,9 +348,8 @@ class VideoCallController extends BaseController {
   final RxString status = 'Conectando...'.obs;
   final RxString elapsedLabel = '00:00'.obs;
   final RxString matchCountdownLabel = '00:00'.obs;
-  final RxInt matchSecondsLeft = 30.obs;
+  final RxInt matchSecondsLeft = 20.obs;
   final RxBool matchUi = false.obs;
-  final RxBool awaitingExtension = false.obs;
   final RxList<LiveChatMessage> chatMessages = <LiveChatMessage>[].obs;
   final RxBool chatComposerExpanded = false.obs;
   final RxBool isSendingComment = false.obs;
@@ -403,7 +368,6 @@ class VideoCallController extends BaseController {
   /// Ancla compartida: `phase_ends_at` del servidor (fallback `responded_at`).
   DateTime? _syncAnchor;
   DateTime? _phaseEndsAt;
-  DateTime? _graceEndsAt;
   int? _matchDurationOverride;
   bool _forceMatch = false;
   String? _respondedAtRaw;
@@ -411,10 +375,9 @@ class VideoCallController extends BaseController {
   bool _ending = false;
   bool _insufficientNotified = false;
   bool _cleaned = false;
-  bool _extensionPromptOpen = false;
-  /// Pago de 2ª ronda OK aunque el dialog no devuelva `true` (Get.back).
-  bool _extensionSucceeded = false;
-  DateTime? _controllerStartedAt;
+  bool _convertedToPrivate = false;
+  bool _kickInsufficient = false;
+  bool _waitingServerMatchDecision = false;
   bool _hadRemote = false;
   DateTime? _callConnectedAt;
   int _lastCommentServerId = 0;
@@ -431,11 +394,15 @@ class VideoCallController extends BaseController {
   bool get _mustPayCameraFeatures =>
       call.callerId == SessionManager.instance.getUserID();
 
-  /// Match para caller y callee (mismo modo de UI / cronómetro).
+  /// Match para caller y callee (cronómetro de 20s). Tras convertir a privada, false.
   bool get isMatchCall {
+    if (_convertedToPrivate) return false;
     if (isMatchPreview || _forceMatch || call.isMatchSession) return true;
     return false;
   }
+
+  bool get _originatedFromMatch =>
+      isMatchPreview || _forceMatch || call.isMatchSession;
 
   bool get isMatchCaller {
     if (!isMatchCall) return false;
@@ -487,9 +454,13 @@ class VideoCallController extends BaseController {
 
   void _notifyInsufficientIfNeeded(CallRequestModel fresh) {
     if (_insufficientNotified) return;
-    if (!fresh.endedForInsufficientCoins) return;
-    if (isMatchCall) return;
+    final endedInsufficient = fresh.endedForInsufficientCoins || _kickInsufficient;
+    if (!endedInsufficient) return;
     _insufficientNotified = true;
+    _kickInsufficient = true;
+    if (_originatedFromMatch) {
+      return;
+    }
     final iAmCaller = call.callerId == SessionManager.instance.getUserID();
     final msg = iAmCaller
         ? LKey.callEndedInsufficientCoins.tr
@@ -499,13 +470,13 @@ class VideoCallController extends BaseController {
     });
   }
 
-  /// Servidor abrió la ventana de gracia (FCM `match_extension_modal`).
+  /// Push legado `match_extension_modal`: el servidor ya no abre gracia.
   static void handleExtensionModal(int? callRequestId) {
     if (callRequestId == null) return;
     final tag = 'call_$callRequestId';
     if (!Get.isRegistered<VideoCallController>(tag: tag)) return;
     final c = Get.find<VideoCallController>(tag: tag);
-    unawaited(c.openExtensionFromServer());
+    unawaited(c._pollCallStatus());
   }
 
   int get _matchDuration {
@@ -520,13 +491,12 @@ class VideoCallController extends BaseController {
     if (isMatchCall && matchFreeSeconds > 0) return matchFreeSeconds;
     if (isMatchCall && fromSettings > 0) return fromSettings;
     if (matchFreeSeconds > 0 && isMatchPreview) return matchFreeSeconds;
-    return 30;
+    return 20;
   }
 
   @override
   void onInit() {
     super.onInit();
-    _controllerStartedAt = DateTime.now();
     activeInstance = this;
     matchSecondsLeft.value = _matchDuration;
     matchCountdownLabel.value = _formatMmSs(_matchDuration);
@@ -625,18 +595,6 @@ class VideoCallController extends BaseController {
     if (_ending) return;
     final now = DateTime.now();
 
-    if (isMatchCall && awaitingExtension.value) {
-      final graceEnd = _graceEndsAt;
-      if (graceEnd != null) {
-        final left = graceEnd.difference(now).inSeconds;
-        final safeLeft = left < 0 ? 0 : left;
-        matchSecondsLeft.value = safeLeft;
-        matchCountdownLabel.value = _formatMmSs(safeLeft);
-        elapsedLabel.value = matchCountdownLabel.value;
-      }
-      return;
-    }
-
     if (isMatchCall) {
       int safeLeft;
       final phaseEnd = _phaseEndsAt;
@@ -654,11 +612,8 @@ class VideoCallController extends BaseController {
       matchSecondsLeft.value = safeLeft;
       matchCountdownLabel.value = _formatMmSs(safeLeft);
       elapsedLabel.value = matchCountdownLabel.value;
-      if (safeLeft > 3) {
-        _extensionSucceeded = false;
-      }
-      if (safeLeft <= 0 && !awaitingExtension.value) {
-        unawaited(_onMatchTimeUp());
+      if (safeLeft <= 0 && !_waitingServerMatchDecision) {
+        unawaited(_onMatchFreeWindowEnded());
       }
     } else {
       final anchor = _syncAnchor;
@@ -668,161 +623,51 @@ class VideoCallController extends BaseController {
     }
   }
 
-  Future<void> _setMatchPaused(bool paused) async {
-    try {
-      await liveKit.setStreamPaused(paused: paused, asHost: true);
-    } catch (_) {}
+  void _enterPrivateFromMatch(CallRequestModel fresh) {
+    if (_convertedToPrivate) return;
+    _convertedToPrivate = true;
+    _waitingServerMatchDecision = false;
+    matchUi.value = false;
+    _phaseEndsAt = null;
+    _syncAnchor = _parseIso(fresh.startedAt) ?? DateTime.now();
+    _timerStarted = false;
+    _startSyncedTimer();
+    status.value = '';
   }
 
-  Future<void> openExtensionFromServer() => _onMatchTimeUp();
-
-  Future<void> _onMatchTimeUp() async {
-    if (_ending || awaitingExtension.value) return;
-    awaitingExtension.value = true;
+  Future<void> _onMatchFreeWindowEnded() async {
+    if (_ending || _convertedToPrivate || _waitingServerMatchDecision) return;
+    _waitingServerMatchDecision = true;
     matchSecondsLeft.value = 0;
     matchCountdownLabel.value = _formatMmSs(0);
     elapsedLabel.value = matchCountdownLabel.value;
-    _graceEndsAt ??= DateTime.now().add(Duration(
-      seconds: SessionManager.instance.getSettings()?.matchGraceSeconds ?? 10,
-    ));
-    await _setMatchPaused(true);
 
-    if (isMatchCaller) {
-      await _promptClientExtension();
-    } else {
-      await _waitForPeerExtension();
-    }
-  }
-
-  Future<void> _promptClientExtension() async {
-    if (_extensionPromptOpen || _ending || _extensionSucceeded) return;
-    _extensionPromptOpen = true;
-    final peer = call.caller?.id == SessionManager.instance.getUserID()
-        ? call.callee
-        : call.caller;
-    final settings = SessionManager.instance.getSettings();
-    try {
-      final paid = await MatchRechargeDialog.show(
-        peer: peer,
-        callCost: call.coinsCost,
-        tiers: settings?.matchTiers,
-        graceSeconds: settings?.matchGraceSeconds ?? 10,
-        graceEndsAt: _graceEndsAt,
-        onExtend: _payAndExtend,
-      );
-      if (_ending || _extensionSucceeded) return;
-      if (paid) return;
+    for (var i = 0; i < 6 && !_ending && !_convertedToPrivate; i++) {
       try {
         final id = call.id;
-        if (id != null) {
-          final fresh = await CallService.instance.status(id);
-          if (!fresh.isEnded && !fresh.isExtensionWindow) {
-            _applyServerExtension(fresh);
-            return;
-          }
-        }
-      } catch (_) {}
-      if (_ending || _extensionSucceeded) return;
-      await hangUp();
-      showSnackBar('Tiempo agotado. Inicia otro Match para continuar.');
-    } finally {
-      _extensionPromptOpen = false;
-    }
-  }
-
-  Future<bool> _payAndExtend(MatchTier tier) async {
-    final id = call.id;
-    if (id == null) return false;
-    try {
-      final updated = await CallService.instance.extendMatch(
-        callRequestId: id,
-        tier: tier.tier,
-        extraSeconds: tier.seconds,
-        coinsCost: tier.coins,
-      );
-      final me = SessionManager.instance.getUser();
-      if (me != null && tier.coins > 0) {
-        me.removeCoinFromWallet(tier.coins);
-        SessionManager.instance.setUser(me);
-      }
-      _extensionSucceeded = true;
-      _applyServerExtension(updated);
-      try {
-        await liveKit.publishData(
-          utf8.encode(jsonEncode({
-            'type': 'MATCH_EXTENDED',
-            'match_seconds': updated.matchSeconds,
-            'phase_ends_at': updated.phaseEndsAt,
-          })),
-          topic: 'match',
-        );
-      } catch (_) {}
-      return true;
-    } catch (e) {
-      showSnackBar(e.toString().replaceFirst('Exception: ', ''));
-      return false;
-    }
-  }
-
-  Future<void> _waitForPeerExtension() async {
-    for (var i = 0; i < 50 && !_ending && awaitingExtension.value; i++) {
-      await Future<void>.delayed(const Duration(seconds: 1));
-      if (_ending || !awaitingExtension.value) return;
-      try {
-        final id = call.id;
-        if (id == null) continue;
+        if (id == null) return;
         final fresh = await CallService.instance.status(id);
+        if (_ending) return;
+        _syncWallet(fresh);
+        if (fresh.isConvertedPrivate) {
+          _enterPrivateFromMatch(fresh);
+          return;
+        }
         if (fresh.isEnded) {
+          _notifyInsufficientIfNeeded(fresh);
           await hangUp(forcedByPeer: true);
           return;
         }
-        if (!fresh.isExtensionWindow && fresh.matchSeconds > 0) {
-          _applyServerExtension(fresh);
+        final phaseEnd = _parseIso(fresh.phaseEndsAt);
+        if (phaseEnd != null &&
+            phaseEnd.isAfter(DateTime.now().add(const Duration(seconds: 1)))) {
+          _phaseEndsAt = phaseEnd;
+          _waitingServerMatchDecision = false;
           return;
         }
       } catch (_) {}
+      await Future<void>.delayed(const Duration(seconds: 1));
     }
-    if (!_ending && awaitingExtension.value) {
-      await hangUp(forcedByPeer: true);
-    }
-  }
-
-  void _applyServerExtension(CallRequestModel updated) {
-    if (updated.matchSeconds > 0) {
-      _matchDurationOverride = updated.matchSeconds;
-    }
-    _phaseEndsAt = _parseIso(updated.phaseEndsAt);
-    _graceEndsAt = null;
-    awaitingExtension.value = false;
-    _extensionSucceeded = true;
-    unawaited(_setMatchPaused(false));
-    _timerStarted = true;
-    _tickSynced();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _tickSynced();
-    });
-  }
-
-  void _applyMatchExtension(int totalSeconds) {
-    if (totalSeconds <= 0) return;
-    _matchDurationOverride = totalSeconds;
-    _phaseEndsAt = DateTime.now().add(Duration(
-      seconds: totalSeconds > 0
-          ? (totalSeconds - DateTime.now().difference(_syncAnchor ?? DateTime.now()).inSeconds)
-              .clamp(1, totalSeconds)
-          : 30,
-    ));
-    _graceEndsAt = null;
-    awaitingExtension.value = false;
-    _extensionSucceeded = true;
-    unawaited(_setMatchPaused(false));
-    _timerStarted = true;
-    _tickSynced();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _tickSynced();
-    });
   }
 
   void _onMatchData(List<int> bytes) {
@@ -830,26 +675,26 @@ class VideoCallController extends BaseController {
       final map = jsonDecode(utf8.decode(bytes));
       if (map is! Map) return;
       final type = '${map['type']}';
+      if (type == 'MATCH_CONVERTED_TO_PRIVATE' ||
+          type == 'match_converted_private') {
+        unawaited(_pollCallStatus());
+        return;
+      }
       if (type == 'SHOW_EXTENSION_MODAL' || type == 'match_extension_modal') {
-        final graceAt = _parseIso(map['grace_ends_at']?.toString());
-        if (graceAt != null) _graceEndsAt = graceAt;
-        unawaited(_onMatchTimeUp());
+        unawaited(_pollCallStatus());
         return;
       }
       if (type == 'KICK_OUT') {
+        final reason =
+            '${map['reason'] ?? map['ended_reason'] ?? ''}'.toLowerCase();
+        if (reason.contains('insufficient') || reason.contains('grace')) {
+          _kickInsufficient = true;
+          _notifyInsufficientIfNeeded(
+            call.copyWith(endedReason: 'insufficient_coins'),
+          );
+        }
         unawaited(hangUp(forcedByPeer: true));
         return;
-      }
-      if (type != 'MATCH_EXTENDED' && type != 'match_extend') return;
-      final total = map['match_seconds'] is num
-          ? (map['match_seconds'] as num).toInt()
-          : int.tryParse('${map['match_seconds'] ?? 0}') ?? 0;
-      final phaseEnd = _parseIso(map['phase_ends_at']?.toString());
-      if (phaseEnd != null) {
-        _phaseEndsAt = phaseEnd;
-      }
-      if (total > 0) {
-        _applyMatchExtension(total);
       }
     } catch (_) {}
   }
@@ -864,14 +709,13 @@ class VideoCallController extends BaseController {
         _syncAnchor ??= _parseIso(fresh.respondedAt);
       }
       _phaseEndsAt ??= _parseIso(fresh.phaseEndsAt);
-      final justOpened = _controllerStartedAt != null &&
-          DateTime.now().difference(_controllerStartedAt!) <
-              const Duration(seconds: 8);
-      if (fresh.isExtensionWindow && !justOpened && !_extensionSucceeded) {
-        _graceEndsAt = _parseIso(fresh.graceEndsAt) ?? _graceEndsAt;
-        unawaited(_onMatchTimeUp());
+      if (fresh.isConvertedPrivate) {
+        _forceMatch = true;
+        _enterPrivateFromMatch(fresh);
+        return;
       }
       if (fresh.isEnded) {
+        _notifyInsufficientIfNeeded(fresh);
         unawaited(hangUp(forcedByPeer: true));
         return;
       }
@@ -896,7 +740,6 @@ class VideoCallController extends BaseController {
     _respondedAtRaw ??= call.respondedAt;
     _syncAnchor ??= _parseRespondedAt();
     _phaseEndsAt ??= _parseIso(call.phaseEndsAt);
-    _graceEndsAt ??= _parseIso(call.graceEndsAt);
     if (isMatchPreview || call.isMatch || call.matchSeconds > 0) {
       _forceMatch = true;
       matchUi.value = true;
@@ -1300,15 +1143,8 @@ class VideoCallController extends BaseController {
         await hangUp(forcedByPeer: true);
         return;
       }
-      if (fresh.isExtensionWindow &&
-          !awaitingExtension.value &&
-          !_extensionSucceeded) {
-        _graceEndsAt = _parseIso(fresh.graceEndsAt) ?? _graceEndsAt;
-        unawaited(_onMatchTimeUp());
-        return;
-      }
-      if (!fresh.isExtensionWindow && awaitingExtension.value) {
-        _applyServerExtension(fresh);
+      if (fresh.isConvertedPrivate) {
+        _enterPrivateFromMatch(fresh);
         return;
       }
       final phaseEnd = _parseIso(fresh.phaseEndsAt);
@@ -1517,7 +1353,6 @@ class VideoCallController extends BaseController {
       return;
     }
     _ending = true;
-    awaitingExtension.value = false;
     _elapsedTimer?.cancel();
     _elapsedTimer = null;
     _statusPoll?.cancel();
@@ -1532,15 +1367,17 @@ class VideoCallController extends BaseController {
     final peer = call.caller?.id == SessionManager.instance.getUserID()
         ? call.callee
         : call.caller;
-    final cost = call.coinsCost;
-    final shouldRecharge = showMatchRecharge && isMatchCaller;
+    final iAmCaller = call.callerId == SessionManager.instance.getUserID();
+    final shouldRecharge = _originatedFromMatch &&
+        iAmCaller &&
+        (_insufficientNotified || _kickInsufficient || showMatchRecharge);
     final notifyApi = !isMatchCall || isMatchCaller;
     final live = LivestreamScreenController.activeInstance;
     final shouldResume =
         resumeLiveOnHangup || (live?.pausedForCall.value == true);
     final ctrlTag = 'call_${call.id}';
     final lkTag = _tag;
-    final stayOnMatch = isMatchCall && AppRole.isStreamer();
+    final stayOnMatch = _originatedFromMatch && AppRole.isStreamer();
 
     // Cerrar la UI YA (no esperar a LiveKit/API: ahí se quedaba colgado Match).
     _popCallUi();
@@ -1561,7 +1398,7 @@ class VideoCallController extends BaseController {
               ?.resumeLiveKitAfterCall();
         } catch (_) {}
       }
-      if (isMatchCall) {
+      if (_originatedFromMatch) {
         if (Get.isRegistered<MatchScreenController>()) {
           unawaited(Get.find<MatchScreenController>().resumeAfterCall());
         } else if (stayOnMatch) {
@@ -1575,7 +1412,7 @@ class VideoCallController extends BaseController {
       } catch (_) {}
       if (shouldRecharge) {
         Future.microtask(() {
-          MatchRechargeDialog.show(peer: peer, callCost: cost);
+          unawaited(MatchRechargeDialog.showOutOfCoins());
         });
       } else {
         _promptImpressionAfterCall(peer);

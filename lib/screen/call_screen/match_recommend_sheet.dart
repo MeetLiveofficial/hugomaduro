@@ -71,7 +71,7 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
     }
     _matchSeconds = widget.initial.matchFreeSeconds > 0
         ? widget.initial.matchFreeSeconds
-        : 40;
+        : 20;
   }
 
   Future<void> _loadNext() async {
@@ -174,6 +174,7 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
         cost: cost,
         isMatch: true,
         matchFreeSeconds: _matchSeconds,
+        matchMode: widget.mode,
       ),
     );
   }

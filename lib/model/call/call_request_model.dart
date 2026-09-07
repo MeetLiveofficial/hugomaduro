@@ -144,6 +144,9 @@ class CallRequestModel {
   bool get isExtensionWindow =>
       (matchPhase ?? '').toLowerCase().trim() == 'extension_window';
 
+  bool get isConvertedPrivate =>
+      (matchPhase ?? '').toLowerCase().trim() == 'private';
+
   /// True si viene del flujo Match (misma lógica de llamada, naming distinto).
   bool get isMatchSession =>
       isMatch ||

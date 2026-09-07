@@ -27,6 +27,7 @@ class OutgoingCallScreen extends StatefulWidget {
   final int cost;
   final bool isMatch;
   final int matchFreeSeconds;
+  final String matchMode;
   /// Si create falla por "already in a call" y venimos del LIVE, redirigir.
   final bool onBusyRedirectToNextLive;
 
@@ -35,7 +36,8 @@ class OutgoingCallScreen extends StatefulWidget {
     required this.callee,
     required this.cost,
     this.isMatch = false,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
+    this.matchMode = 'random',
     this.onBusyRedirectToNextLive = false,
   });
 
@@ -61,6 +63,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen> {
         cost: widget.cost,
         isMatch: widget.isMatch,
         matchFreeSeconds: widget.matchFreeSeconds,
+        matchMode: widget.matchMode,
         onBusyRedirectToNextLive: widget.onBusyRedirectToNextLive,
       ),
       tag: _tag,
@@ -212,7 +215,8 @@ class OutgoingCallController extends BaseController {
     required this.callee,
     required this.cost,
     this.isMatch = false,
-    this.matchFreeSeconds = 40,
+    this.matchFreeSeconds = 20,
+    this.matchMode = 'random',
     this.onBusyRedirectToNextLive = false,
   }) : subtitle = (isMatch ? 'Match…' : LKey.calling.tr).obs;
 
@@ -223,6 +227,7 @@ class OutgoingCallController extends BaseController {
   final int cost;
   final bool isMatch;
   final int matchFreeSeconds;
+  final String matchMode;
   final bool onBusyRedirectToNextLive;
 
   final RxString subtitle;
@@ -497,6 +502,7 @@ class OutgoingCallController extends BaseController {
         isMatch: isMatch,
         matchSeconds: isMatch ? matchFreeSeconds : null,
         coinsCost: cost > 0 ? cost : null,
+        mode: isMatch ? matchMode : null,
       );
       final me = SessionManager.instance.getUser();
       if (me != null && cost > 0) {

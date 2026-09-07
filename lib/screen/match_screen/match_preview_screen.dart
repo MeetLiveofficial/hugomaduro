@@ -14,9 +14,7 @@ import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
-import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
-import 'package:krimson/screen/call_screen/match_recharge_dialog.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_web_video.dart';
@@ -25,7 +23,7 @@ import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-/// Preview en vivo (40s): ver, deslizar a otra, o pagar 5/10/15 min para quedarse.
+/// Preview en vivo: ver, deslizar a otra, o aceptar el Match (20s gratis).
 class MatchPreviewScreen extends StatefulWidget {
   const MatchPreviewScreen({
     super.key,
@@ -204,15 +202,51 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
     if (_busy || _closing) return;
     setState(() => _busy = true);
     _timer?.cancel();
-    final paid = await _promptPayToStay(autoClose: false);
-    if (!mounted || _closing) return;
-    if (paid) return;
-    setState(() => _busy = false);
-    if (_secondsLeft > 0) {
-      _startCountdown();
+    final settings = SessionManager.instance.getSettings();
+    final freeLeft =
+        SessionManager.instance.getUser()?.dailyFreeMatchesRemaining ?? 0;
+    final cost = freeLeft > 0
+        ? 0
+        : (widget.mode == 'goddess'
+            ? (settings?.matchGoddessCoins ?? 25)
+            : (_match.matchInitialCoins > 0
+                ? _match.matchInitialCoins
+                : (settings?.matchRandomCoins ?? 9)));
+    if (cost > 0 &&
+        !CoinGate.ensureEnough(
+          cost,
+          message: LKey.needCoinsForMatch.trParams({'coins': '$cost'}),
+        )) {
+      setState(() => _busy = false);
+      if (_secondsLeft > 0) {
+        _startCountdown();
+      }
       return;
     }
-    await _loadNext();
+    try {
+      final call = await CallService.instance.create(
+        userId: _user.id ?? 0,
+        isMatch: true,
+        mode: widget.mode,
+      );
+      if (!mounted || _closing) return;
+      await _enterCall(call);
+    } catch (e) {
+      Loggers.error('Match preview accept: $e');
+      if (!mounted || _closing) return;
+      setState(() => _busy = false);
+      Get.snackbar(
+        LKey.matchLabel.tr,
+        e.toString().replaceFirst('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+      );
+      if (_secondsLeft > 0) {
+        _startCountdown();
+      }
+    }
   }
 
   Future<void> _enterCall(CallRequestModel call) async {
@@ -240,58 +274,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
 
   Future<void> _onPreviewTimeout() async {
     if (_busy || _closing || !mounted) return;
-    setState(() => _busy = true);
-    final paid = await _promptPayToStay(autoClose: true);
-    if (!mounted || _closing) return;
-    if (paid) return;
-    setState(() => _busy = false);
     await _loadNext();
-  }
-
-  Future<bool> _promptPayToStay({required bool autoClose}) async {
-    CallRequestModel? paidCall;
-    final grace = _match.matchGraceSeconds > 0 ? _match.matchGraceSeconds : 10;
-    final paid = await MatchRechargeDialog.show(
-      peer: _party(_user),
-      tiers: _match.matchTiers,
-      graceSeconds: grace,
-      autoCloseOnTimeout: autoClose,
-      subtitle: autoClose
-          ? null
-          : 'Elige 5, 10 o 15 min para quedarte con ella',
-      onExtend: (MatchTier tier) async {
-        if (!CoinGate.ensureEnough(
-          tier.coins,
-          message: LKey.needCoinsForMinutes.trParams({
-            'coins': '${tier.coins}',
-            'minutes': '${tier.minutes}',
-          }),
-        )) {
-          return false;
-        }
-        try {
-          paidCall = await CallService.instance.create(
-            userId: _user.id ?? 0,
-            isMatch: true,
-            tier: tier.tier,
-          );
-          final me = SessionManager.instance.getUser();
-          if (me != null && tier.coins > 0) {
-            me.removeCoinFromWallet(tier.coins);
-            SessionManager.instance.setUser(me);
-          }
-          return true;
-        } catch (e) {
-          Loggers.error('Match preview pack: $e');
-          return false;
-        }
-      },
-    );
-    if (paid && paidCall != null) {
-      await _enterCall(paidCall!);
-      return true;
-    }
-    return false;
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
@@ -308,18 +291,6 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
       unawaited(_loadNext());
     }
   }
-
-  CallParty _party(User u) => CallParty(
-        id: u.id,
-        username: u.username,
-        fullname: u.fullname,
-        profilePhoto: u.profilePhoto,
-        isVerify: u.isVerify,
-        levelNumber: u.levelNumber,
-        levelTitle: u.levelTitle,
-        canReceiveCalls: u.canReceiveCalls,
-        callRequestCoins: u.callRequestCoins,
-      );
 
   @override
   Widget build(BuildContext context) {

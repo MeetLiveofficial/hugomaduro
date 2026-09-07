@@ -606,6 +606,9 @@ const _callEn = <String, String>{
   LKey.joinThisLive: 'Join LIVE',
   LKey.callEndedInsufficientCoins: 'Not enough coins to continue the call',
   LKey.callEndedClientNoCoins: 'The call ended: the client ran out of coins',
+  LKey.matchOutOfCoins:
+      "You're out of coins. 💕 Recharge now to continue the call.",
+  LKey.rechargeCoins: 'Recharge coins',
   LKey.liveBadge: 'LIVE',
   LKey.peopleWatching: '@count watching',
   LKey.lastCallMinutesAgo: 'LAST CALL @min MIN AGO',
@@ -634,6 +637,9 @@ const _callEs = <String, String>{
       'No tienes coins suficientes para continuar la llamada',
   LKey.callEndedClientNoCoins:
       'La llamada terminó: el cliente no tiene coins',
+  LKey.matchOutOfCoins:
+      'Te has quedado sin monedas. 💕 Recarga ahora para continuar la llamada.',
+  LKey.rechargeCoins: 'Recargar monedas',
   LKey.liveBadge: 'En vivo',
   LKey.peopleWatching: '@count personas viendo',
   LKey.lastCallMinutesAgo: 'ULTIMA LLAMADA HACE @min MIN',
@@ -662,6 +668,9 @@ const _callPt = <String, String>{
       'Você não tem coins suficientes para continuar a chamada',
   LKey.callEndedClientNoCoins:
       'A chamada terminou: o cliente ficou sem coins',
+  LKey.matchOutOfCoins:
+      'Você ficou sem moedas. 💕 Recarregue agora para continuar a chamada.',
+  LKey.rechargeCoins: 'Recarregar moedas',
   LKey.liveBadge: 'Ao vivo',
   LKey.peopleWatching: '@count assistindo',
   LKey.lastCallMinutesAgo: 'ÚLTIMA CHAMADA HÁ @min MIN',

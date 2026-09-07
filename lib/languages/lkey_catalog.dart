@@ -166,6 +166,8 @@ class LKeyCatalog {
     LKey.joinThisLive,
     LKey.callEndedInsufficientCoins,
     LKey.callEndedClientNoCoins,
+    LKey.matchOutOfCoins,
+    LKey.rechargeCoins,
     LKey.liveBadge,
     LKey.peopleWatching,
     LKey.lastCallMinutesAgo,
