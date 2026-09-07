@@ -24,6 +24,7 @@ import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
 import 'package:krimson/screen/call_screen/match_recharge_dialog.dart';
 import 'package:krimson/screen/call_screen/widget/call_chat_overlay.dart';
+import 'package:krimson/screen/profile_screen/widget/impression_rate_sheet.dart';
 import 'package:krimson/screen/gift_sheet/gift_request_prompt.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
@@ -395,7 +396,6 @@ class VideoCallController extends BaseController {
   bool _ending = false;
   bool _insufficientNotified = false;
   bool _cleaned = false;
-  bool _convertedToPrivate = false;
   bool _kickInsufficient = false;
   bool _waitingServerMatchDecision = false;
   bool _hadRemote = false;
@@ -653,120 +653,33 @@ class VideoCallController extends BaseController {
   }
 
   void _enterPrivateFromMatch(CallRequestModel fresh) {
+    _syncWallet(fresh);
+    _applyConvertedToPrivate(startedAt: _parseIso(fresh.startedAt));
+  }
+
+  void _applyConvertedToPrivate({DateTime? startedAt}) {
     if (_convertedToPrivate) return;
     _convertedToPrivate = true;
     _waitingServerMatchDecision = false;
     matchUi.value = false;
     _phaseEndsAt = null;
-    _syncAnchor = _parseIso(fresh.startedAt) ?? DateTime.now();
+    _syncAnchor = startedAt ?? DateTime.now();
     _timerStarted = false;
     _startSyncedTimer();
     status.value = '';
   }
 
-  Future<void> openExtensionFromServer() => _onMatchTimeUp();
-
-  Future<void> _onMatchTimeUp() async {
-    if (_ending || awaitingExtension.value || _convertedToPrivate) return;
-    final id = call.id;
-    if (id != null) {
-      try {
-        final fresh = await CallService.instance.status(id);
-        if (_ending) return;
-        if (fresh.isEnded) {
-          await hangUp(forcedByPeer: true);
-          return;
-        }
-        if (fresh.isConvertedPrivate) {
-          _applyConvertedToPrivate();
-          return;
-        }
-      } catch (_) {}
-    }
-    awaitingExtension.value = true;
+  Future<void> _onMatchFreeWindowEnded() async {
+    if (_ending || _convertedToPrivate || _waitingServerMatchDecision) return;
+    _waitingServerMatchDecision = true;
     matchSecondsLeft.value = 0;
     matchCountdownLabel.value = _formatMmSs(0);
     elapsedLabel.value = matchCountdownLabel.value;
 
-    if (isMatchCaller) {
-      await _promptClientExtension();
-    } else {
-      await _waitForPeerExtension();
-    }
-  }
-
-  Future<void> _promptClientExtension() async {
-    if (_extensionPromptOpen || _ending || _extensionSucceeded) return;
-    _extensionPromptOpen = true;
-    final peer = call.caller?.id == SessionManager.instance.getUserID()
-        ? call.callee
-        : call.caller;
-    final settings = SessionManager.instance.getSettings();
-    try {
-      final rate = peer?.callRequestCoins ?? 0;
-      final paid = await MatchRechargeDialog.show(
-        peer: peer,
-        callCost: rate,
-        privateMinuteCoins: rate,
-        graceSeconds: settings?.matchGraceSeconds ?? 10,
-        graceEndsAt: _graceEndsAt,
-        subtitle: rate > 0
-            ? 'Continúa como llamada privada ($rate coins/min)'
-            : 'Continúa como llamada privada',
-        onExtend: (_) => _payAndContinuePrivate(),
-      );
-      if (_ending || _extensionSucceeded || _convertedToPrivate) return;
-      if (paid) return;
+    for (var i = 0; i < 6 && !_ending && !_convertedToPrivate; i++) {
       try {
         final id = call.id;
-        if (id != null) {
-          final fresh = await CallService.instance.status(id);
-          if (fresh.isConvertedPrivate) {
-            _applyConvertedToPrivate();
-            return;
-          }
-          if (!fresh.isEnded && !fresh.isExtensionWindow) {
-            _applyServerExtension(fresh);
-            return;
-          }
-        }
-      } catch (_) {}
-      if (_ending || _extensionSucceeded || _convertedToPrivate) return;
-      await hangUp();
-      showSnackBar('Tiempo agotado. Recarga coins para continuar la llamada.');
-    } finally {
-      _extensionPromptOpen = false;
-    }
-  }
-
-  Future<bool> _payAndContinuePrivate() async {
-    final id = call.id;
-    if (id == null) return false;
-    try {
-      final updated = await CallService.instance.continuePrivate(
-        callRequestId: id,
-      );
-      final me = SessionManager.instance.getUser();
-      final rate = updated.coinsCost;
-      if (me != null && rate > 0) {
-        me.removeCoinFromWallet(rate);
-        SessionManager.instance.setUser(me);
-      }
-      _applyConvertedToPrivate();
-      return true;
-    } catch (e) {
-      showSnackBar(e.toString().replaceFirst('Exception: ', ''));
-      return false;
-    }
-  }
-
-  Future<void> _waitForPeerExtension() async {
-    for (var i = 0; i < 50 && !_ending && awaitingExtension.value; i++) {
-      await Future<void>.delayed(const Duration(seconds: 1));
-      if (_ending || !awaitingExtension.value) return;
-      try {
-        final id = call.id;
-        if (id == null) continue;
+        if (id == null) return;
         final fresh = await CallService.instance.status(id);
         if (_ending) return;
         _syncWallet(fresh);
@@ -779,81 +692,17 @@ class VideoCallController extends BaseController {
           await hangUp(forcedByPeer: true);
           return;
         }
-        if (fresh.isConvertedPrivate) {
-          _applyConvertedToPrivate();
-          return;
-        }
-        if (!fresh.isExtensionWindow && fresh.matchSeconds > 0) {
-          _applyServerExtension(fresh);
+        final phaseEnd = _parseIso(fresh.phaseEndsAt);
+        if (phaseEnd != null &&
+            phaseEnd.isAfter(DateTime.now().add(const Duration(seconds: 1)))) {
+          _phaseEndsAt = phaseEnd;
+          _waitingServerMatchDecision = false;
           return;
         }
       } catch (_) {}
       await Future<void>.delayed(const Duration(seconds: 1));
     }
-    if (!_ending && awaitingExtension.value) {
-      await hangUp(forcedByPeer: true);
-    }
-  }
-
-  void _applyConvertedToPrivate() {
-    if (_convertedToPrivate) return;
-    _convertedToPrivate = true;
-    _forceMatch = false;
-    matchUi.value = false;
-    awaitingExtension.value = false;
-    _extensionSucceeded = true;
-    _graceEndsAt = null;
-    _phaseEndsAt = null;
-    _syncAnchor = DateTime.now();
-    unawaited(_setMatchPaused(false));
-    _timerStarted = true;
-    _tickSynced();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _tickSynced();
-    });
-  }
-
-  void _applyServerExtension(CallRequestModel updated) {
-    if (updated.isConvertedPrivate) {
-      _applyConvertedToPrivate();
-      return;
-    }
-    if (updated.matchSeconds > 0) {
-      _matchDurationOverride = updated.matchSeconds;
-    }
-    _phaseEndsAt = _parseIso(updated.phaseEndsAt);
-    _graceEndsAt = null;
-    awaitingExtension.value = false;
-    _extensionSucceeded = true;
-    unawaited(_setMatchPaused(false));
-    _timerStarted = true;
-    _tickSynced();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _tickSynced();
-    });
-  }
-
-  void _applyMatchExtension(int totalSeconds) {
-    if (totalSeconds <= 0) return;
-    _matchDurationOverride = totalSeconds;
-    _phaseEndsAt = DateTime.now().add(Duration(
-      seconds: totalSeconds > 0
-          ? (totalSeconds - DateTime.now().difference(_syncAnchor ?? DateTime.now()).inSeconds)
-              .clamp(1, totalSeconds)
-          : 30,
-    ));
-    _graceEndsAt = null;
-    awaitingExtension.value = false;
-    _extensionSucceeded = true;
-    unawaited(_setMatchPaused(false));
-    _timerStarted = true;
-    _tickSynced();
-    _elapsedTimer?.cancel();
-    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _tickSynced();
-    });
+    // El poll de status convierte o cuelga. No rearmar el countdown a 0.
   }
 
   void _onMatchData(List<int> bytes) {
@@ -881,22 +730,6 @@ class VideoCallController extends BaseController {
         }
         unawaited(hangUp(forcedByPeer: true));
         return;
-      }
-      if (type == 'MATCH_CONVERTED_TO_PRIVATE' ||
-          type == 'match_converted_private') {
-        _applyConvertedToPrivate();
-        return;
-      }
-      if (type != 'MATCH_EXTENDED' && type != 'match_extend') return;
-      final total = map['match_seconds'] is num
-          ? (map['match_seconds'] as num).toInt()
-          : int.tryParse('${map['match_seconds'] ?? 0}') ?? 0;
-      final phaseEnd = _parseIso(map['phase_ends_at']?.toString());
-      if (phaseEnd != null) {
-        _phaseEndsAt = phaseEnd;
-      }
-      if (total > 0) {
-        _applyMatchExtension(total);
       }
     } catch (_) {}
   }
@@ -1478,18 +1311,7 @@ class VideoCallController extends BaseController {
         return;
       }
       if (fresh.isConvertedPrivate && !_convertedToPrivate) {
-        _applyConvertedToPrivate();
-        return;
-      }
-      if (fresh.isExtensionWindow &&
-          !awaitingExtension.value &&
-          !_extensionSucceeded) {
-        _graceEndsAt = _parseIso(fresh.graceEndsAt) ?? _graceEndsAt;
-        unawaited(_onMatchTimeUp());
-        return;
-      }
-      if (!fresh.isExtensionWindow && awaitingExtension.value) {
-        _applyServerExtension(fresh);
+        _enterPrivateFromMatch(fresh);
         return;
       }
       final phaseEnd = _parseIso(fresh.phaseEndsAt);

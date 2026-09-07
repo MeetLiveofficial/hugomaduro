@@ -9,46 +9,10 @@ import 'package:krimson/utilities/text_style_custom.dart';
 class MatchRechargeDialog {
   MatchRechargeDialog._();
 
-  static Future<bool> show({
-    CallParty? peer,
-    int callCost = 0,
-    List<MatchTier>? tiers,
-    int graceSeconds = 10,
-    DateTime? graceEndsAt,
-    bool autoCloseOnTimeout = true,
-    String? subtitle,
-    int privateMinuteCoins = 0,
-    Future<bool> Function(MatchTier tier)? onExtend,
-  }) async {
-    if (peer?.id == null) return false;
-    final settings = SessionManager.instance.getSettings();
-    final resolvedTiers = privateMinuteCoins > 0
-        ? [
-            MatchTier(
-              tier: 1,
-              seconds: 60,
-              coins: privateMinuteCoins,
-            )
-          ]
-        : ((tiers != null && tiers.isNotEmpty)
-            ? tiers
-            : (settings?.matchTiers ?? MatchTier.defaults));
-    final resolvedGrace = graceSeconds > 0
-        ? graceSeconds
-        : (settings?.matchGraceSeconds ?? 10);
-
-    final result = await Get.dialog<bool>(
-      _MatchContinueBody(
-        peer: peer!,
-        callCost: callCost,
-        tiers: resolvedTiers,
-        graceSeconds: resolvedGrace,
-        graceEndsAt: graceEndsAt,
-        autoCloseOnTimeout: autoCloseOnTimeout,
-        subtitle: subtitle,
-        onExtend: onExtend,
-      ),
-      barrierDismissible: false,
+  static Future<void> showOutOfCoins() async {
+    final recharge = await Get.dialog<bool>(
+      const _MatchOutOfCoinsBody(),
+      barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.78),
     );
     if (recharge == true) {

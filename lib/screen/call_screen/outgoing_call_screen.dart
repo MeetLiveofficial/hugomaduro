@@ -29,7 +29,6 @@ class OutgoingCallScreen extends StatefulWidget {
   final int cost;
   final bool isMatch;
   final int matchFreeSeconds;
-  final String matchMode;
   /// Si create falla por "already in a call" y venimos del LIVE, redirigir.
   final bool onBusyRedirectToNextLive;
   final CallRequestModel? existingCall;
@@ -71,7 +70,6 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen> {
         matchMode: widget.matchMode,
         onBusyRedirectToNextLive: widget.onBusyRedirectToNextLive,
         existingCall: widget.existingCall,
-        matchMode: widget.matchMode,
       ),
       tag: _tag,
     );
@@ -213,7 +211,6 @@ class OutgoingCallController extends BaseController {
   final int cost;
   final bool isMatch;
   final int matchFreeSeconds;
-  final String matchMode;
   final bool onBusyRedirectToNextLive;
   final CallRequestModel? existingCall;
   final String? matchMode;

@@ -93,6 +93,7 @@ class LiveKitCallLayout extends StatefulWidget {
   final String? remoteName;
   final String? localPhotoUrl;
   final String? localName;
+  final bool localInPip;
 
   static const pipSize = Size(110, 160);
 
@@ -102,7 +103,13 @@ class LiveKitCallLayout extends StatefulWidget {
 
 class _LiveKitCallLayoutState extends State<LiveKitCallLayout> {
   /// true = tú en PiP (default). false = el otro en PiP y tú a pantalla completa.
-  bool _localInPip = true;
+  late bool _localInPip;
+
+  @override
+  void initState() {
+    super.initState();
+    _localInPip = widget.localInPip;
+  }
 
   void _swapFeeds() {
     setState(() => _localInPip = !_localInPip);
@@ -149,13 +156,6 @@ class _LiveKitCallLayoutState extends State<LiveKitCallLayout> {
             photoUrl: widget.remotePhotoUrl,
             name: widget.remoteName,
           );
-
-    final fullHasVideo = localInPip
-        ? firstVideoTrackOf(primaryRemote) != null
-        : firstVideoTrackOf(local) != null;
-    final pipHasVideo = localInPip
-        ? firstVideoTrackOf(local) != null
-        : firstVideoTrackOf(primaryRemote) != null;
 
     return Stack(
       fit: StackFit.expand,
