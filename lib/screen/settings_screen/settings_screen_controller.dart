@@ -76,9 +76,7 @@ class SettingsScreenController extends BaseController {
     myUser.value = SessionManager.instance.getUser();
     if (settingToggle == SettingToggle.matchEnabled) {
       try {
-        if (value) {
-          await CallService.instance.joinMatch();
-        } else {
+        if (!value) {
           await CallService.instance.leaveMatch();
         }
       } catch (e) {

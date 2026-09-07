@@ -164,6 +164,8 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
         !CoinGate.ensureEnough(
           cost,
           message: LKey.needCoinsForMatch.trParams({'coins': '$cost'}),
+          peerName: user.fullname ?? user.username,
+          peerPhotoUrl: user.profilePhoto?.addBaseURL(),
         )) {
       return;
     }

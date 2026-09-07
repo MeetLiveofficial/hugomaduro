@@ -69,14 +69,34 @@ class LiveKitRoomService {
   int _lastFps = 0;
   int _lastPingMs = 0;
   bool _samplingStats = false;
+  bool _disposed = false;
 
   void _emitStatus(String msg) {
-    if (!_status.isClosed) _status.add(msg);
+    if (_disposed || _status.isClosed) return;
+    try {
+      _status.add(msg);
+    } catch (_) {}
+  }
+
+  void _emitMedia() {
+    if (_disposed || _mediaChanges.isClosed) return;
+    try {
+      _mediaChanges.add(null);
+    } catch (_) {}
+  }
+
+  void _emitQuality(LiveKitQualityProfile profile) {
+    if (_disposed || _qualityChanges.isClosed) return;
+    try {
+      _qualityChanges.add(profile);
+    } catch (_) {}
   }
 
   void _emitStats() {
-    if (_stats.isClosed || _room == null) return;
-    _stats.add((_lastPingMs, _lastFps));
+    if (_disposed || _stats.isClosed || _room == null) return;
+    try {
+      _stats.add((_lastPingMs, _lastFps));
+    } catch (_) {}
   }
 
   /// RTT del ping/pong de señalización. En Web suele quedar en 0
@@ -286,6 +306,9 @@ class LiveKitRoomService {
     bool dynacast = true,
     bool allowRearCamera = true,
   }) async {
+    if (_disposed) {
+      throw StateError('LiveKitRoomService disposed');
+    }
     if (_room != null) {
       await disconnect();
     }
@@ -297,9 +320,7 @@ class LiveKitRoomService {
 
     // Media por defecto (nitidez aceptable). Baja solo como fallback de connect.
     qualityProfile = forceProfile ?? LiveKitQualityProfile.medium;
-    if (!_qualityChanges.isClosed) {
-      _qualityChanges.add(qualityProfile);
-    }
+    _emitQuality(qualityProfile);
 
     // Si falla el primer intento, reintentar otra vez en baja (mismo perfil).
     final profilesToTry = <LiveKitQualityProfile>[
@@ -312,9 +333,7 @@ class LiveKitRoomService {
       final profile = profilesToTry[
           attempt < profilesToTry.length ? attempt : profilesToTry.length - 1];
       qualityProfile = profile;
-      if (!_qualityChanges.isClosed) {
-        _qualityChanges.add(profile);
-      }
+      _emitQuality(profile);
 
       _emitStatus(attempt == 0 ? 'Conectando…' : 'Reintentando…');
 
@@ -450,7 +469,7 @@ class LiveKitRoomService {
 
     _room = room;
     _listener = listener;
-    _mediaChanges.add(null);
+    _emitMedia();
 
     final lp = room.localParticipant;
     if (lp != null) {
@@ -487,7 +506,7 @@ class LiveKitRoomService {
       await preferRemoteVideoQuality(VideoQuality.HIGH);
     }
 
-    _mediaChanges.add(null);
+    _emitMedia();
     _startStatsPolling();
     return room;
   }
@@ -515,9 +534,7 @@ class LiveKitRoomService {
   }) async {
     userSelectedQuality = true;
     qualityProfile = profile;
-    if (!_qualityChanges.isClosed) {
-      _qualityChanges.add(profile);
-    }
+    _emitQuality(profile);
     await preferRemoteVideoQuality(_subscribeQuality(profile));
     if (asHost && _room?.localParticipant != null) {
       final lp = _room!.localParticipant!;
@@ -529,7 +546,7 @@ class LiveKitRoomService {
         await _publishCamera(lp, null, profile);
       }
     }
-    _mediaChanges.add(null);
+    _emitMedia();
     Loggers.info('LiveKit quality set manually → $profile');
   }
 
@@ -546,9 +563,7 @@ class LiveKitRoomService {
     }
     // Red mala: bajar a low (aunque el usuario hubiera subido).
     qualityProfile = LiveKitQualityProfile.low;
-    if (!_qualityChanges.isClosed) {
-      _qualityChanges.add(qualityProfile);
-    }
+    _emitQuality(qualityProfile);
     await preferRemoteVideoQuality(VideoQuality.LOW);
     Loggers.info('LiveKit quality forced LOW (connection $q)');
   }
@@ -825,7 +840,7 @@ class LiveKitRoomService {
         Loggers.error('setCameraEnabled(false): $e');
       }
     }
-    _mediaChanges.add(null);
+    _emitMedia();
   }
 
   Future<void> setMicrophoneEnabled(bool enabled) async {
@@ -840,7 +855,7 @@ class LiveKitRoomService {
         Loggers.error('setMicrophoneEnabled(false): $e');
       }
     }
-    _mediaChanges.add(null);
+    _emitMedia();
   }
 
   Future<void> toggleCamera() async {
@@ -869,7 +884,7 @@ class LiveKitRoomService {
     try {
       await videoTrack.setCameraPosition(next);
       _cameraPosition = next;
-      _mediaChanges.add(null);
+      _emitMedia();
     } catch (e) {
       Loggers.error('switchCamera: $e');
       // Fallback: republish with new facing mode.
@@ -914,12 +929,12 @@ class LiveKitRoomService {
 
   void _attachEvents(EventsListener<RoomEvent> listener) {
     listener
-      ..on<RoomConnectedEvent>((_) => _mediaChanges.add(null))
-      ..on<RoomDisconnectedEvent>((_) => _mediaChanges.add(null))
-      ..on<ParticipantConnectedEvent>((_) => _mediaChanges.add(null))
-      ..on<ParticipantDisconnectedEvent>((_) => _mediaChanges.add(null))
+      ..on<RoomConnectedEvent>((_) => _emitMedia())
+      ..on<RoomDisconnectedEvent>((_) => _emitMedia())
+      ..on<ParticipantConnectedEvent>((_) => _emitMedia())
+      ..on<ParticipantDisconnectedEvent>((_) => _emitMedia())
       ..on<TrackSubscribedEvent>((event) async {
-        _mediaChanges.add(null);
+        _emitMedia();
         if (event.track is RemoteVideoTrack) {
           try {
             await event.publication.setVideoQuality(
@@ -928,21 +943,24 @@ class LiveKitRoomService {
           } catch (_) {}
         }
       })
-      ..on<TrackUnsubscribedEvent>((_) => _mediaChanges.add(null))
-      ..on<LocalTrackPublishedEvent>((_) => _mediaChanges.add(null))
-      ..on<LocalTrackUnpublishedEvent>((_) => _mediaChanges.add(null))
-      ..on<TrackMutedEvent>((_) => _mediaChanges.add(null))
-      ..on<TrackUnmutedEvent>((_) => _mediaChanges.add(null))
+      ..on<TrackUnsubscribedEvent>((_) => _emitMedia())
+      ..on<LocalTrackPublishedEvent>((_) => _emitMedia())
+      ..on<LocalTrackUnpublishedEvent>((_) => _emitMedia())
+      ..on<TrackMutedEvent>((_) => _emitMedia())
+      ..on<TrackUnmutedEvent>((_) => _emitMedia())
       ..on<ParticipantConnectionQualityUpdatedEvent>((event) {
         // Solo reaccionar a la calidad local.
         final localId = _room?.localParticipant?.identity;
         if (localId != null && event.participant.identity == localId) {
           unawaited(applyConnectionQuality(event.connectionQuality));
         }
-        _mediaChanges.add(null);
+        _emitMedia();
       })
       ..on<DataReceivedEvent>((event) {
-        if (!_dataEvents.isClosed) _dataEvents.add(event);
+        if (_disposed || _dataEvents.isClosed) return;
+        try {
+          _dataEvents.add(event);
+        } catch (_) {}
       });
   }
 
@@ -956,15 +974,25 @@ class LiveKitRoomService {
     } catch (_) {}
     _room = null;
     _cameraPosition = CameraPosition.front;
-    _mediaChanges.add(null);
+    _emitMedia();
   }
 
   Future<void> dispose() async {
-    await disconnect();
-    await _mediaChanges.close();
-    await _status.close();
-    await _dataEvents.close();
-    await _stats.close();
-    await _qualityChanges.close();
+    _disposed = true;
+    try {
+      await disconnect();
+    } catch (_) {}
+    Future<void> closeQuiet(StreamController c) async {
+      if (c.isClosed) return;
+      try {
+        await c.close();
+      } catch (_) {}
+    }
+
+    await closeQuiet(_mediaChanges);
+    await closeQuiet(_status);
+    await closeQuiet(_dataEvents);
+    await closeQuiet(_stats);
+    await closeQuiet(_qualityChanges);
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/manager/logger.dart';
@@ -41,10 +42,12 @@ class MatchPreviewScreen extends StatefulWidget {
 class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
   static const _lkTag = 'match_preview';
   static const _swipeThreshold = 88;
+  static int _sessionSeq = 0;
 
   late MatchRecommendation _match;
   late List<int> _seenIds;
   late int _secondsLeft;
+  late final int _session;
   Timer? _timer;
   bool _busy = false;
   bool _closing = false;
@@ -64,6 +67,7 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
   void initState() {
     super.initState();
     _match = widget.initial;
+    _session = ++_sessionSeq;
     _seenIds = [
       for (final u in _match.users)
         if ((u.id ?? 0) > 0) u.id!,
@@ -86,13 +90,17 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
   }
 
   Future<void> _teardownLiveKit() async {
+    final mine = _session;
     try {
+      // Un preview viejo no debe borrar el LiveKit del siguiente Match.
+      if (mine != _sessionSeq) return;
       if (Get.isRegistered<LiveKitRoomController>(tag: _lkTag)) {
         await Get.find<LiveKitRoomController>(tag: _lkTag).disconnect();
+        if (mine != _sessionSeq) return;
         Get.delete<LiveKitRoomController>(tag: _lkTag, force: true);
       }
     } catch (_) {}
-    _lk = null;
+    if (mine == _sessionSeq) _lk = null;
   }
 
   void _startCountdown() {
@@ -127,6 +135,12 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
       _status = 'Conectando…';
     });
     try {
+      if (Get.isRegistered<LiveKitRoomController>(tag: _lkTag)) {
+        final existing = Get.find<LiveKitRoomController>(tag: _lkTag);
+        if (existing.isClosed) {
+          Get.delete<LiveKitRoomController>(tag: _lkTag, force: true);
+        }
+      }
       if (!Get.isRegistered<LiveKitRoomController>(tag: _lkTag)) {
         _lk = Get.put(LiveKitRoomController(), tag: _lkTag);
       } else {
@@ -208,20 +222,33 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         isMatch: true,
         mode: widget.mode,
       );
+      if (Get.isRegistered<MatchScreenController>()) {
+        Get.find<MatchScreenController>().refreshCoins();
+      }
       if (!mounted || _closing) return;
       await _enterCall(created);
     } catch (e) {
       Loggers.error('Match preview accept: $e');
       if (!mounted || _closing) return;
       setState(() => _busy = false);
-      Get.snackbar(
-        LKey.matchLabel.tr,
-        e.toString().replaceFirst('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.black87,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(12),
-      );
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      if (msg.toLowerCase().contains('insufficient') ||
+          msg.toLowerCase().contains('coin')) {
+        CoinGate.ensureEnough(
+          999999,
+          peerName: _user.fullname ?? _user.username,
+          peerPhotoUrl: _user.profilePhoto?.addBaseURL(),
+        );
+      } else {
+        Get.snackbar(
+          LKey.matchLabel.tr,
+          msg,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.black87,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+        );
+      }
       if (_secondsLeft > 0) {
         _startCountdown();
       }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
@@ -6,6 +8,7 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
+import 'package:krimson/screen/coin_wallet_screen/recharge_promo_dialog.dart';
 import 'package:krimson/screen/coin_wallet_screen/widget/coin_package_tile.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -16,11 +19,24 @@ import 'package:krimson/utilities/theme_res.dart';
 class CoinGate {
   CoinGate._();
 
-  /// `true` si hay saldo suficiente. Si no, muestra toast y abre la tienda.
-  static bool ensureEnough(int needed, {String? message}) {
+  /// `true` si hay saldo suficiente. Si no, abre el anuncio de recarga (cliente).
+  static bool ensureEnough(
+    int needed, {
+    String? message,
+    String? peerName,
+    String? peerPhotoUrl,
+  }) {
     final wallet =
         (SessionManager.instance.getUser()?.coinWallet ?? 0).toInt();
     if (wallet >= needed) return true;
+
+    if (AppRole.isClient()) {
+      unawaited(RechargePromo.show(
+        peerName: peerName,
+        peerPhotoUrl: peerPhotoUrl,
+      ));
+      return false;
+    }
 
     final msg = message ?? LKey.insufficientCoins.tr;
     Get.snackbar(

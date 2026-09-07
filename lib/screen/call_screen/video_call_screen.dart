@@ -135,27 +135,29 @@ class VideoCallScreen extends StatelessWidget {
                 ],
               ),
             ),
-            if (client)
-              Obx(() {
-                if (!controller.matchUi.value) {
-                  return const SizedBox.shrink();
-                }
-                final total = controller.matchDurationSeconds;
-                final left = controller.matchSecondsLeft.value;
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: total > 0 ? (left / total).clamp(0.0, 1.0) : 0,
-                      minHeight: 6,
-                      backgroundColor:
-                          ClientColors.secondarySoft.withValues(alpha: 0.28),
-                      color: ClientColors.secondary,
-                    ),
+            Obx(() {
+              if (!controller.matchUi.value) {
+                return const SizedBox.shrink();
+              }
+              final total = controller.matchDurationSeconds;
+              final left = controller.matchSecondsLeft.value;
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: total > 0 ? (left / total).clamp(0.0, 1.0) : 0,
+                    minHeight: 6,
+                    backgroundColor: client
+                        ? ClientColors.secondarySoft.withValues(alpha: 0.28)
+                        : Colors.white24,
+                    color: client
+                        ? ClientColors.secondary
+                        : ColorRes.themeAccentSolid,
                   ),
-                );
-              }),
+                ),
+              );
+            }),
             Obx(() {
               if (!controller.matchUi.value) return const SizedBox.shrink();
               final left = controller.matchSecondsLeft.value;
@@ -465,12 +467,7 @@ class VideoCallController extends BaseController {
   }
 
   void _syncWallet(CallRequestModel fresh) {
-    final w = fresh.myCoinWallet;
-    if (w == null) return;
-    final me = SessionManager.instance.getUser();
-    if (me == null) return;
-    me.coinWallet = w;
-    SessionManager.instance.setUser(me);
+    SessionManager.instance.applyCoinWallet(fresh.myCoinWallet);
   }
 
   void _notifyInsufficientIfNeeded(CallRequestModel fresh) {
@@ -532,7 +529,7 @@ class VideoCallController extends BaseController {
     matchUi.value = isMatchCall;
     cameraFlipUnlocked.value = call.cameraFlipUnlocked;
     cameraOffUnlocked.value = call.cameraOffUnlocked;
-    liveKit = Get.put(LiveKitRoomController(), tag: _tag);
+    liveKit = LiveKitRoomController.putFresh(_tag);
     _startStatusPoll();
     if (kIsWeb) {
       passThroughMatchVideoClicks();
@@ -621,7 +618,7 @@ class VideoCallController extends BaseController {
   }
 
   void _tickSynced() {
-    if (_ending) return;
+    if (_ending || isClosed) return;
     final now = DateTime.now();
 
     if (isMatchCall) {
@@ -641,7 +638,7 @@ class VideoCallController extends BaseController {
       matchSecondsLeft.value = safeLeft;
       matchCountdownLabel.value = _formatMmSs(safeLeft);
       elapsedLabel.value = matchCountdownLabel.value;
-      if (safeLeft <= 0 && !_waitingServerMatchDecision) {
+      if (safeLeft <= 0 && !_waitingServerMatchDecision && !_convertedToPrivate) {
         unawaited(_onMatchFreeWindowEnded());
       }
     } else {
@@ -649,6 +646,23 @@ class VideoCallController extends BaseController {
       if (anchor == null) return;
       final elapsed = now.difference(anchor).inSeconds;
       elapsedLabel.value = _formatMmSs(elapsed < 0 ? 0 : elapsed);
+    }
+  }
+
+  void _enableMatchUi() {
+    if (_convertedToPrivate) return;
+    _forceMatch = true;
+    matchUi.value = true;
+  }
+
+  /// El countdown de 20s es de un solo uso: nunca se alarga si el API reenvía un deadline nuevo.
+  void _adoptPhaseEndsAt(DateTime? phaseEnd) {
+    if (_convertedToPrivate || _waitingServerMatchDecision || phaseEnd == null) {
+      return;
+    }
+    final current = _phaseEndsAt;
+    if (current == null || phaseEnd.isBefore(current)) {
+      _phaseEndsAt = phaseEnd;
     }
   }
 
@@ -676,33 +690,74 @@ class VideoCallController extends BaseController {
     matchCountdownLabel.value = _formatMmSs(0);
     elapsedLabel.value = matchCountdownLabel.value;
 
-    for (var i = 0; i < 6 && !_ending && !_convertedToPrivate; i++) {
+    final id = call.id;
+    if (id == null) return;
+
+    Future<bool> applyOrHang(CallRequestModel fresh) async {
+      if (_ending) return true;
+      _syncWallet(fresh);
+      if (fresh.isConvertedPrivate) {
+        _enterPrivateFromMatch(fresh);
+        return true;
+      }
+      if (fresh.isEnded) {
+        _notifyInsufficientIfNeeded(fresh);
+        await hangUp(forcedByPeer: true);
+        return true;
+      }
+      return false;
+    }
+
+    if (isMatchCaller) {
       try {
-        final id = call.id;
-        if (id == null) return;
-        final fresh = await CallService.instance.status(id);
-        if (_ending) return;
-        _syncWallet(fresh);
-        if (fresh.isConvertedPrivate) {
-          _enterPrivateFromMatch(fresh);
-          return;
-        }
-        if (fresh.isEnded) {
-          _notifyInsufficientIfNeeded(fresh);
+        final fresh = await CallService.instance.continuePrivate(callRequestId: id);
+        if (await applyOrHang(fresh)) return;
+      } catch (e) {
+        final msg = e.toString().toLowerCase();
+        if (msg.contains('insufficient')) {
+          _kickInsufficient = true;
+          _notifyInsufficientIfNeeded(
+            call.copyWith(endedReason: 'insufficient_coins'),
+          );
           await hangUp(forcedByPeer: true);
           return;
         }
-        final phaseEnd = _parseIso(fresh.phaseEndsAt);
-        if (phaseEnd != null &&
-            phaseEnd.isAfter(DateTime.now().add(const Duration(seconds: 1)))) {
-          _phaseEndsAt = phaseEnd;
-          _waitingServerMatchDecision = false;
+        if (msg.contains('peer disconnected') || msg.contains('not active')) {
+          await hangUp(forcedByPeer: true);
           return;
         }
+        // Ventana aún no cerrada en el server, o red: seguir con status.
+      }
+    }
+
+    for (var i = 0; i < 8 && !_ending && !_convertedToPrivate; i++) {
+      try {
+        if (isMatchCaller && i > 0) {
+          try {
+            final cont = await CallService.instance.continuePrivate(callRequestId: id);
+            if (await applyOrHang(cont)) return;
+          } catch (e) {
+            final msg = e.toString().toLowerCase();
+            if (msg.contains('insufficient')) {
+              _kickInsufficient = true;
+              _notifyInsufficientIfNeeded(
+                call.copyWith(endedReason: 'insufficient_coins'),
+              );
+              await hangUp(forcedByPeer: true);
+              return;
+            }
+            if (msg.contains('peer disconnected') || msg.contains('not active')) {
+              await hangUp(forcedByPeer: true);
+              return;
+            }
+          }
+        }
+        final fresh = await CallService.instance.status(id);
+        if (await applyOrHang(fresh)) return;
       } catch (_) {}
       await Future<void>.delayed(const Duration(seconds: 1));
     }
-    // El poll de status convierte o cuelga. No rearmar el countdown a 0.
+    // Sin rearmar los 20s. El poll de status convierte o cuelga.
   }
 
   void _onMatchData(List<int> bytes) {
@@ -745,7 +800,6 @@ class VideoCallController extends BaseController {
       }
       _phaseEndsAt ??= _parseIso(fresh.phaseEndsAt);
       if (fresh.isConvertedPrivate) {
-        _forceMatch = true;
         _enterPrivateFromMatch(fresh);
         return;
       }
@@ -756,8 +810,7 @@ class VideoCallController extends BaseController {
       }
       final roomMs = CallRequestModel.matchSecondsFromRoomId(fresh.roomId);
       if (fresh.isMatch || fresh.matchSeconds > 0 || (roomMs ?? 0) > 0) {
-        _forceMatch = true;
-        matchUi.value = true;
+        _enableMatchUi();
         final next = fresh.matchSeconds > 0
             ? fresh.matchSeconds
             : (roomMs ?? _matchDuration);
@@ -776,13 +829,11 @@ class VideoCallController extends BaseController {
     _syncAnchor ??= _parseRespondedAt();
     _phaseEndsAt ??= _parseIso(call.phaseEndsAt);
     if (isMatchPreview || call.isMatch || call.matchSeconds > 0) {
-      _forceMatch = true;
-      matchUi.value = true;
+      _enableMatchUi();
     }
     final roomMs = CallRequestModel.matchSecondsFromRoomId(call.roomId);
     if ((roomMs ?? 0) > 0) {
-      _forceMatch = true;
-      matchUi.value = true;
+      _enableMatchUi();
       _matchDurationOverride ??= roomMs;
     }
 
@@ -820,10 +871,41 @@ class VideoCallController extends BaseController {
     await _resolveAnchorAndStart();
 
     try {
+      Object? connectError;
+      for (var attempt = 0; attempt < 2; attempt++) {
+        try {
+          if (attempt > 0) {
+            liveKit = LiveKitRoomController.putFresh(_tag);
+          }
+          await liveKit.connect(
+            roomName: roomId,
+            identity: '${me!.id}',
+            name: me.fullname ?? me.username ?? 'user',
+            publishCamera: true,
+            publishMicrophone: true,
+            wsUrl: liveKitWsUrl,
+            allowRearCamera: !AppRole.isStreamer(),
+          );
+          connectError = null;
+          break;
+        } catch (e) {
+          connectError = e;
+          if (!LiveKitRoomController.isDisposedStreamError(e) || attempt > 0) {
+            rethrow;
+          }
+        }
+      }
+      if (connectError != null) {
+        throw connectError;
+      }
+      if (isClosed || _ending) return;
+
       ever(liveKit.statusMessage, (msg) {
+        if (isClosed || _ending) return;
         status.value = msg;
       });
       ever(liveKit.remoteParticipants, (_) {
+        if (isClosed || _ending) return;
         if (liveKit.remoteParticipants.isNotEmpty) {
           _hadRemote = true;
           _peerGoneTimer?.cancel();
@@ -839,9 +921,8 @@ class VideoCallController extends BaseController {
           if (connectedFor < const Duration(seconds: 8)) {
             return;
           }
-          // ICE/LiveKit parpadea al salir del LIVE; no colgar a los 3s.
           _peerGoneTimer = Timer(const Duration(seconds: 12), () {
-            if (_ending) return;
+            if (_ending || isClosed) return;
             if (liveKit.remoteParticipants.isNotEmpty) return;
             unawaited(hangUp(forcedByPeer: true));
           });
@@ -850,18 +931,10 @@ class VideoCallController extends BaseController {
         }
       });
 
-      await liveKit.connect(
-        roomName: roomId,
-        identity: '${me!.id}',
-        name: me.fullname ?? me.username ?? 'user',
-        publishCamera: true,
-        publishMicrophone: true,
-        wsUrl: liveKitWsUrl,
-        allowRearCamera: !AppRole.isStreamer(),
-      );
       _callConnectedAt = DateTime.now();
       _dataSub?.cancel();
       _dataSub = liveKit.onDataReceived.listen((event) {
+        if (isClosed || _ending) return;
         final topic = event.topic ?? '';
         if (topic == 'call_chat') {
           _onCallChatBytes(event.data);
@@ -884,6 +957,12 @@ class VideoCallController extends BaseController {
       unawaited(ChatTranslatorService.instance.preloadForUserLanguage());
       await _resolveAnchorAndStart();
     } catch (e) {
+      if (isClosed || _ending) return;
+      Loggers.error('VideoCall start: $e');
+      if (LiveKitRoomController.isDisposedStreamError(e)) {
+        status.value = LKey.waitingForOtherUser.tr;
+        return;
+      }
       status.value = e.toString();
       showSnackBar(e.toString());
     }
@@ -1225,7 +1304,12 @@ class VideoCallController extends BaseController {
       showSnackBar(LKey.giftNotAvailable.tr);
       return;
     }
-    if (!CoinGate.ensureEnough(price, message: LKey.insufficientCoins.tr)) {
+    if (!CoinGate.ensureEnough(
+      price,
+      message: LKey.insufficientCoins.tr,
+      peerName: peerName,
+      peerPhotoUrl: peerPhotoUrl,
+    )) {
       return;
     }
 
@@ -1314,10 +1398,7 @@ class VideoCallController extends BaseController {
         _enterPrivateFromMatch(fresh);
         return;
       }
-      final phaseEnd = _parseIso(fresh.phaseEndsAt);
-      if (phaseEnd != null) {
-        _phaseEndsAt = phaseEnd;
-      }
+      _adoptPhaseEndsAt(_parseIso(fresh.phaseEndsAt));
     } catch (_) {}
   }
 
@@ -1583,7 +1664,7 @@ class VideoCallController extends BaseController {
       } catch (_) {}
       if (shouldRecharge) {
         Future.microtask(() {
-          unawaited(MatchRechargeDialog.showOutOfCoins());
+          unawaited(MatchRechargeDialog.showOutOfCoins(party: peer));
         });
       } else {
         _promptImpressionAfterCall(peer);

@@ -1,3 +1,4 @@
+import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/api_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/utils/web_service.dart';
@@ -35,8 +36,35 @@ class CallService {
     if (json['status'] != true) {
       throw Exception(json['message'] ?? 'call create failed');
     }
-    return CallRequestModel.fromJson(
-        Map<String, dynamic>.from(json['data'] as Map));
+    final data = Map<String, dynamic>.from(json['data'] as Map);
+    final created = CallRequestModel.fromJson(data);
+    _syncSessionFromCallPayload(data, created);
+    if (!data.containsKey('daily_free_matches_used') &&
+        created.isMatch &&
+        created.coinsCost <= 0) {
+      SessionManager.instance.noteFreeMatchAccepted(coinsCost: 0);
+    }
+    return created;
+  }
+
+  static void _syncSessionFromCallPayload(
+    Map data, [
+    CallRequestModel? call,
+  ]) {
+    if (data.containsKey('daily_free_matches_used') ||
+        data.containsKey('daily_free_matches_remaining') ||
+        data.containsKey('daily_free_matches_quota')) {
+      SessionManager.instance.applyDailyFreeQuotaFromMap(data);
+    }
+    final raw = data['my_coin_wallet'] ?? data['coin_wallet'];
+    int? wallet;
+    if (raw is num) {
+      wallet = raw.toInt();
+    } else if (raw != null) {
+      wallet = int.tryParse('$raw');
+    }
+    wallet ??= call?.myCoinWallet;
+    SessionManager.instance.applyCoinWallet(wallet);
   }
 
   /// Recomienda streamer del pool de Match (sin filtrar país ni idioma).
@@ -59,6 +87,12 @@ class CallService {
       throw Exception(json['message'] ?? 'no match available');
     }
     final data = Map<String, dynamic>.from(json['data'] as Map? ?? {});
+    SessionManager.instance.applyDailyFreeQuotaFromMap(data);
+    SessionManager.instance.applyCoinWallet(
+      data['coin_wallet'] is num
+          ? (data['coin_wallet'] as num).toInt()
+          : int.tryParse('${data['coin_wallet'] ?? ''}'),
+    );
     final userMap = data['user'];
     if (userMap is! Map) {
       throw Exception('no match available');
@@ -119,6 +153,12 @@ class CallService {
       throw Exception(json['message'] ?? 'unlock match failed');
     }
     final data = Map<String, dynamic>.from(json['data'] as Map? ?? {});
+    SessionManager.instance.applyDailyFreeQuotaFromMap(data);
+    SessionManager.instance.applyCoinWallet(
+      data['coin_wallet'] is num
+          ? (data['coin_wallet'] as num).toInt()
+          : int.tryParse('${data['coin_wallet'] ?? ''}'),
+    );
     return MatchUnlockResult(
       charged: data['charged'] is num
           ? (data['charged'] as num).toInt()
@@ -145,6 +185,7 @@ class CallService {
     }
     final data = json['data'];
     if (data is Map) {
+      SessionManager.instance.applyDailyFreeQuotaFromMap(data);
       final room = data['wait_room_id']?.toString().trim();
       if (room != null && room.isNotEmpty) return room;
     }
@@ -231,8 +272,10 @@ class CallService {
     if (json['status'] != true) {
       throw Exception(json['message'] ?? 'extend match failed');
     }
-    return CallRequestModel.fromJson(
-        Map<String, dynamic>.from(json['data'] as Map));
+    final data = Map<String, dynamic>.from(json['data'] as Map);
+    final model = CallRequestModel.fromJson(data);
+    _syncSessionFromCallPayload(data, model);
+    return model;
   }
 
   Future<CallRequestModel> continuePrivate({
@@ -246,8 +289,10 @@ class CallService {
     if (json['status'] != true) {
       throw Exception(json['message'] ?? 'continue private failed');
     }
-    return CallRequestModel.fromJson(
-        Map<String, dynamic>.from(json['data'] as Map));
+    final data = Map<String, dynamic>.from(json['data'] as Map);
+    final model = CallRequestModel.fromJson(data);
+    _syncSessionFromCallPayload(data, model);
+    return model;
   }
 
   Future<StreamerWorkStats> workStats() async {
@@ -355,9 +400,16 @@ class CallService {
       throw Exception(json['message'] ?? 'purchase failed');
     }
     final data = Map<String, dynamic>.from(json['data'] as Map? ?? {});
+    SessionManager.instance.applyCoinWallet(
+      data['coin_wallet'] is num
+          ? (data['coin_wallet'] as num).toInt()
+          : int.tryParse('${data['coin_wallet'] ?? ''}'),
+    );
     final callMap = data['call'];
     if (callMap is Map) {
-      return CallRequestModel.fromJson(Map<String, dynamic>.from(callMap));
+      final call = CallRequestModel.fromJson(Map<String, dynamic>.from(callMap));
+      SessionManager.instance.applyCoinWallet(call.myCoinWallet);
+      return call;
     }
     throw Exception('invalid purchase response');
   }
@@ -371,8 +423,10 @@ class CallService {
     if (json['status'] != true) {
       throw Exception(json['message'] ?? 'call action failed');
     }
-    return CallRequestModel.fromJson(
-        Map<String, dynamic>.from(json['data'] as Map));
+    final data = Map<String, dynamic>.from(json['data'] as Map);
+    final model = CallRequestModel.fromJson(data);
+    _syncSessionFromCallPayload(data, model);
+    return model;
   }
 }
 

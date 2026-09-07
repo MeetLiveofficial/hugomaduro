@@ -552,7 +552,12 @@ class OutgoingCallController extends BaseController {
       }
       if (msg.toLowerCase().contains('insufficient') ||
           msg.toLowerCase().contains('coin')) {
-        CoinGate.ensureEnough(cost, message: 'Moneda insuficiente');
+        CoinGate.ensureEnough(
+          cost,
+          message: 'Moneda insuficiente',
+          peerName: callee.fullname ?? callee.username,
+          peerPhotoUrl: callee.profilePhoto?.addBaseURL(),
+        );
       }
       await Future.delayed(const Duration(milliseconds: 900));
       if (busy && onBusyRedirectToNextLive) {

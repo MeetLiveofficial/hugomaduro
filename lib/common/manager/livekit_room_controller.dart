@@ -43,18 +43,44 @@ class LiveKitRoomController extends GetxController {
 
   StreamSubscription? _qualitySub;
 
+  /// Evita reutilizar un LiveKit ya cerrado (2º Match / preview).
+  static LiveKitRoomController putFresh(String tag) {
+    if (Get.isRegistered<LiveKitRoomController>(tag: tag)) {
+      try {
+        Get.delete<LiveKitRoomController>(tag: tag, force: true);
+      } catch (_) {}
+    }
+    return Get.put(LiveKitRoomController(), tag: tag);
+  }
+
+  static bool isDisposedStreamError(Object e) {
+    final s = e.toString().toLowerCase();
+    return s.contains('cannot add new events after calling close') ||
+        s.contains('you cannot add events') ||
+        s.contains('stream has already been listened') ||
+        s.contains('livekitroomservice disposed');
+  }
+
+  bool _canEmit() => !isClosed;
+
   @override
   void onInit() {
     super.onInit();
-    _mediaSub = _service.onMediaChanged.listen((_) => _syncFromService());
+    _mediaSub = _service.onMediaChanged.listen((_) {
+      if (!_canEmit()) return;
+      _syncFromService();
+    });
     _statusSub = _service.onStatus.listen((msg) {
+      if (!_canEmit()) return;
       statusMessage.value = msg;
     });
     _statsSub = _service.onStats.listen((pair) {
+      if (!_canEmit()) return;
       pingMs.value = pair.$1;
       fps.value = pair.$2;
     });
     _qualitySub = _service.onQualityChanged.listen((profile) {
+      if (!_canEmit()) return;
       qualityProfile.value = profile;
     });
   }
@@ -75,6 +101,9 @@ class LiveKitRoomController extends GetxController {
     bool dynacast = true,
     bool allowRearCamera = true,
   }) async {
+    if (isClosed) {
+      throw StateError('LiveKitRoomService disposed');
+    }
     if (isConnecting.value) {
       if (!forceReconnect) return;
       isConnecting.value = false;
@@ -89,6 +118,9 @@ class LiveKitRoomController extends GetxController {
       } catch (_) {}
     } else if (sameRoom && !forceReconnect) {
       return;
+    }
+    if (isClosed) {
+      throw StateError('LiveKitRoomService disposed');
     }
 
     isConnecting.value = true;
@@ -108,6 +140,7 @@ class LiveKitRoomController extends GetxController {
         dynacast: dynacast,
         allowRearCamera: allowRearCamera,
       );
+      if (!_canEmit()) return;
       _syncFromService();
       isConnected.value = true;
       connectedRoomName = roomName;
@@ -121,12 +154,16 @@ class LiveKitRoomController extends GetxController {
           'LiveKit connected room=$roomName identity=$identity');
     } catch (e, st) {
       Loggers.error('LiveKit connect failed: $e\n$st');
-      statusMessage.value = 'Sin video (red débil). Toca Reintentar.';
-      isConnected.value = false;
+      if (_canEmit()) {
+        statusMessage.value = 'Sin video (red débil). Toca Reintentar.';
+        isConnected.value = false;
+      }
       connectedRoomName = null;
       rethrow;
     } finally {
-      isConnecting.value = false;
+      if (_canEmit()) {
+        isConnecting.value = false;
+      }
     }
   }
 
@@ -165,16 +202,19 @@ class LiveKitRoomController extends GetxController {
   }
 
   void _syncFromService() {
-    localParticipant.value = _service.localParticipant;
-    remoteParticipants.assignAll(_service.remoteParticipants);
-    isConnected.value = _service.isConnected;
-    final lp = _service.localParticipant;
-    if (lp != null) {
-      cameraEnabled.value = lp.isCameraEnabled();
-      microphoneEnabled.value = lp.isMicrophoneEnabled();
-    }
-    cameraIsFront.value = _service.cameraPosition == CameraPosition.front;
-    mediaRevision.value++;
+    if (!_canEmit()) return;
+    try {
+      localParticipant.value = _service.localParticipant;
+      remoteParticipants.assignAll(_service.remoteParticipants);
+      isConnected.value = _service.isConnected;
+      final lp = _service.localParticipant;
+      if (lp != null) {
+        cameraEnabled.value = lp.isCameraEnabled();
+        microphoneEnabled.value = lp.isMicrophoneEnabled();
+      }
+      cameraIsFront.value = _service.cameraPosition == CameraPosition.front;
+      mediaRevision.value++;
+    } catch (_) {}
   }
 
   Future<void> setCameraEnabled(bool enabled) async {
@@ -326,30 +366,38 @@ class LiveKitRoomController extends GetxController {
       _service.publishDataBytes(bytes, topic: topic);
 
   Future<void> disconnect({bool silent = false}) async {
-    isConnecting.value = false;
-    if (!silent) {
-      statusMessage.value = 'Leaving…';
+    if (_canEmit()) {
+      isConnecting.value = false;
+      if (!silent) {
+        statusMessage.value = 'Leaving…';
+      }
     }
     try {
       await _service.disconnect();
     } finally {
-      cameraEnabled.value = false;
-      microphoneEnabled.value = false;
-      remoteAudioMuted.value = false;
-      streamPaused.value = false;
-      isConnected.value = false;
+      if (_canEmit()) {
+        cameraEnabled.value = false;
+        microphoneEnabled.value = false;
+        remoteAudioMuted.value = false;
+        streamPaused.value = false;
+        isConnected.value = false;
+        statusMessage.value = '';
+        _syncFromService();
+      }
       connectedRoomName = null;
-      statusMessage.value = '';
-      _syncFromService();
     }
   }
 
   @override
   void onClose() {
-    unawaited(_mediaSub?.cancel());
-    unawaited(_statusSub?.cancel());
-    unawaited(_statsSub?.cancel());
-    unawaited(_qualitySub?.cancel());
+    _mediaSub?.cancel();
+    _statusSub?.cancel();
+    _statsSub?.cancel();
+    _qualitySub?.cancel();
+    _mediaSub = null;
+    _statusSub = null;
+    _statsSub = null;
+    _qualitySub = null;
     unawaited(_service.dispose());
     super.onClose();
   }

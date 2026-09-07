@@ -10,23 +10,33 @@ void passThroughMatchVideoClicks() {
   for (final node in html.document.querySelectorAll('video')) {
     final el = node as html.Element;
     el.style.pointerEvents = 'none';
-    el.style.objectFit = 'cover';
-    el.style.width = '100%';
-    el.style.height = '100%';
+    el.style.setProperty('object-fit', 'cover', 'important');
+    el.style.setProperty('object-position', 'center center', 'important');
     // Miniatura (~110×160) por encima del video grande (HtmlElementView).
     final pip = el.offsetWidth > 0 && el.offsetWidth <= 170;
-    _raisePlatformView(el, pip ? '40' : '1');
+    if (!pip) {
+      el.style.setProperty('width', '100%', 'important');
+      el.style.setProperty('height', '100%', 'important');
+      el.style.setProperty('min-width', '100%', 'important');
+      el.style.setProperty('min-height', '100%', 'important');
+    }
+    _raisePlatformView(el, pip ? '40' : '1', fill: !pip);
   }
 }
 
-void _raisePlatformView(html.Element video, String z) {
+void _raisePlatformView(html.Element video, String z, {required bool fill}) {
   video.style.zIndex = z;
   html.Element? p = video.parent;
   var hops = 0;
-  while (p != null && hops < 12) {
+  while (p != null && hops < 16) {
     final tag = p.tagName.toLowerCase();
     final isHost = tag.contains('flt-platform-view') ||
         tag.contains('flt-platform-view-slot');
+    if (fill) {
+      p.style.setProperty('width', '100%', 'important');
+      p.style.setProperty('height', '100%', 'important');
+      p.style.overflow = 'hidden';
+    }
     if (isHost) {
       p.style.zIndex = z;
       p.style.position = 'relative';

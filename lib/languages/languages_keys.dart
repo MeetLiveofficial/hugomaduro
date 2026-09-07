@@ -182,6 +182,9 @@ class LKey {
       "The call ended: the client ran out of coins";
   static const String matchOutOfCoins =
       "Te has quedado sin monedas. 💕 Recarga ahora para continuar la llamada.";
+  static const String likeThem = "Do you like them?";
+  static const String rechargeAndCallAgain = "Recharge and call again!";
+  static const String beginnerDiscount = "Beginner discount";
   static const String rechargeCoins = "Recargar monedas";
   static const String liveBadge = "LIVE";
   static const String peopleWatching = "@count watching";
@@ -987,6 +990,8 @@ class LKey {
   static const String waitingForHost = "Waiting for host…";
   static const String enablingCamera = "Turning camera on…";
   static const String waitingForClient = "Waiting for a client…";
+  static const String waitingMatchConnection =
+      "Waiting for a user to connect and start the Match";
   static const String tapToReceiveClients = "Tap to receive clients";
   static const String waitingVideo = "Waiting for video…";
   static const String unreadChats = "Unread chats";
@@ -1009,6 +1014,16 @@ class LKey {
   static const String coinsUsedToViewMatch =
       "@count coins were used to view Match";
   static const String yourBalanceCoins = "Your balance: @coins";
+  static const String plusYouAreMember = "You are a PLUS+ member";
+  static const String plusBecomeTitle = "Become PLUS+";
+  static const String plusActiveBadge = "Active membership";
+  static const String plusBenefitBadge =
+      "Verified PLUS+ badge on your profile";
+  static const String plusBenefitStatus = "Exclusive membership status";
+  static const String plusBenefitAdFree = "Ad-free experience";
+  static const String plusSubscribeCta = "Subscribe";
+  static const String plusDisabledAdmin = "PLUS+ is currently unavailable";
+  static const String plusIncludedPerks = "Included in your plan";
   static const String statusActive = "Active";
   static const String statusInactive = "Inactive";
   static const String waitingForOtherUser = "Waiting for the other user…";
