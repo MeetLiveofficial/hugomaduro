@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
+import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/streamer_camera_lock.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
@@ -18,6 +19,7 @@ import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/role_colors.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:livekit_client/livekit_client.dart';
 
 /// Vista Match: radar de búsqueda + modos Random / Goddess.
 /// [asTab]: embebido en la barra del cliente. Sin tab, muestra atrás (Ajustes streamer).
@@ -58,6 +60,48 @@ class _MatchScreenState extends State<MatchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (AppRole.isStreamer()) {
+      // Video en Expanded + banner debajo: en Web el HtmlElementView de
+      // LiveKit se pinta encima del canvas y tapaba el loading.
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Column(
+          children: [
+            const Material(
+              color: Colors.black,
+              child: SafeArea(
+                bottom: false,
+                child: SizedBox(
+                  height: 44,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: _WaitBackButton(),
+                  ),
+                ),
+              ),
+            ),
+            const Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _MatchBackdrop(),
+                  Positioned.fill(child: _StreamerWaitCamera()),
+                ],
+              ),
+            ),
+            const Material(
+              color: Color(0xF3120A18),
+              elevation: 12,
+              child: SafeArea(
+                top: false,
+                child: _WaitingMatchBanner(),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -69,59 +113,45 @@ class _MatchScreenState extends State<MatchScreen> {
               padding: EdgeInsets.only(bottom: widget.asTab ? 12 : 16),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final radar = (constraints.maxHeight * 0.36)
-                      .clamp(150.0, 240.0);
+                  final radar =
+                      (constraints.maxHeight * 0.36).clamp(150.0, 240.0);
                   return Column(
                     children: [
                       _TopBar(controller: c, showBack: !widget.asTab),
                       Expanded(
-                        child: AppRole.isStreamer()
-                            ? Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                    16, 8, 16, 12),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(22),
-                                  clipBehavior:
-                                      kIsWeb ? Clip.none : Clip.antiAlias,
-                                  child: _StreamerWaitCamera(controller: c),
-                                ),
-                              )
-                            : Align(
-                                alignment: const Alignment(0, 0.42),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _RadarButton(controller: c, size: radar),
-                                    SizedBox(height: radar < 180 ? 10 : 14),
-                                    Obx(() {
-                                      final busy = c.isMatching.value;
-                                      final text = busy
-                                          ? LKey.searchingMatch.tr
-                                          : LKey.clickToMatch.tr;
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 24),
-                                        child: Text(
-                                          text,
-                                          textAlign: TextAlign.center,
-                                          style:
-                                              TextStyleCustom.outFitMedium500(
-                                            color: AppRole.isClient()
-                                                ? ClientColors.textOnDark
-                                                : Colors.white,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                      );
-                                    }),
-                                  ],
-                                ),
-                              ),
+                        child: Align(
+                          alignment: const Alignment(0, 0.42),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _RadarButton(controller: c, size: radar),
+                              SizedBox(height: radar < 180 ? 10 : 14),
+                              Obx(() {
+                                final busy = c.isMatching.value;
+                                final text = busy
+                                    ? LKey.searchingMatch.tr
+                                    : LKey.clickToMatch.tr;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24),
+                                  child: Text(
+                                    text,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyleCustom.outFitMedium500(
+                                      color: AppRole.isClient()
+                                          ? ClientColors.textOnDark
+                                          : Colors.white,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
                       ),
-                      if (!AppRole.isStreamer()) ...[
-                        _ModeRow(controller: c),
-                        const SizedBox(height: 10),
-                      ],
+                      _ModeRow(controller: c),
+                      const SizedBox(height: 10),
                     ],
                   );
                 },
@@ -229,37 +259,98 @@ class _MatchBackdrop extends StatelessWidget {
   }
 }
 
-class _StreamerWaitCamera extends StatelessWidget {
-  const _StreamerWaitCamera({required this.controller});
+class _WaitBackButton extends StatelessWidget {
+  const _WaitBackButton();
 
-  final MatchScreenController controller;
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: Get.back,
+      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+    );
+  }
+}
+
+class _StreamerWaitCamera extends StatelessWidget {
+  const _StreamerWaitCamera();
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      controller.waitCameraOn.value;
+      if (Get.isRegistered<MatchScreenController>()) {
+        Get.find<MatchScreenController>().waitCameraOn.value;
+      }
       if (!Get.isRegistered<LiveKitRoomController>(
           tag: MatchScreenController.waitLkTag)) {
-        return const _CameraPlaceholder();
+        return const SizedBox.expand(child: _CameraPlaceholder());
       }
       final lk =
           Get.find<LiveKitRoomController>(tag: MatchScreenController.waitLkTag);
       lk.mediaRevision.value;
       final local = lk.localParticipant.value;
       if (firstVideoTrackOf(local) == null) {
-        return const _CameraPlaceholder();
+        return const SizedBox.expand(child: _CameraPlaceholder());
       }
+      final video = LiveKitParticipantVideo(
+        participant: local,
+        mirror: true,
+        fit: VideoViewFit.cover,
+        forcePortraitUpright: false,
+      );
       if (kIsWeb) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           passThroughMatchVideoClicks();
+          Future<void>.delayed(const Duration(milliseconds: 400), () {
+            passThroughMatchVideoClicks();
+          });
         });
+        // ClipRect / Transform.scale no escalan el <video> HTML y lo dejan
+        // en un recuadro con márgenes.
+        return SizedBox.expand(child: video);
       }
-      return LiveKitParticipantVideo(
-        participant: local,
-        mirror: true,
-        forcePortraitUpright: false,
+      return SizedBox.expand(
+        child: ClipRect(
+          child: Transform.scale(
+            scale: 1.52,
+            alignment: const Alignment(0, -0.12),
+            child: video,
+          ),
+        ),
       );
     });
+  }
+}
+
+class _WaitingMatchBanner extends StatelessWidget {
+  const _WaitingMatchBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.4,
+              color: ColorRes.mlPurple,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              LKey.waitingMatchConnection.tr,
+              style: TextStyleCustom.outFitMedium500(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -328,52 +419,35 @@ class _TopBar extends StatelessWidget {
               children: [
                 Image.asset(AssetRes.icStar, width: 16, height: 16),
                 const SizedBox(width: 6),
-                Obx(() => Text(
-                      '${controller.coins.value}',
-                      style: TextStyleCustom.outFitSemiBold600(
-                        color: ClientColors.textOnDark,
-                        fontSize: 13,
-                      ),
-                    )),
+                Obx(() {
+                  SessionManager.instance.coinWalletRx.value;
+                  controller.coins.value;
+                  return Text(
+                    '${SessionManager.instance.coinWalletRx.value}',
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: ClientColors.textOnDark,
+                      fontSize: 13,
+                    ),
+                  );
+                }),
               ],
             ),
           ),
           const Spacer(),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Obx(() {
-              final used = controller.freeMatchesUsed.value;
-              final quota = controller.freeMatchesQuota.value;
-              return Text(
-                LKey.freeMatchesCount.trParams({
-                  'used': '$used',
-                  'quota': '$quota',
-                }),
-                style: TextStyleCustom.outFitMedium500(
-                  color: ClientColors.textOnDark,
-                  fontSize: 12,
-                ),
-              );
-            }),
-          ),
-          _ChipButton(
-            onTap: controller.openMembership,
-            borderColor: const Color(0xFFD4AF37),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(AssetRes.icPro, width: 16, height: 16),
-                const SizedBox(width: 6),
-                Text(
-                  LKey.membership.tr,
-                  style: TextStyleCustom.outFitMedium500(
-                    color: const Color(0xFFE8D48B),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Obx(() {
+            final used = controller.freeMatchesUsed.value;
+            final quota = controller.freeMatchesQuota.value;
+            return Text(
+              LKey.freeMatchesCount.trParams({
+                'used': '$used',
+                'quota': '$quota',
+              }),
+              style: TextStyleCustom.outFitMedium500(
+                color: ClientColors.textOnDark,
+                fontSize: 12,
+              ),
+            );
+          }),
         ],
       ),
     );

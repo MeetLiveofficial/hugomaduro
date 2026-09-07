@@ -19,10 +19,10 @@ import 'package:krimson/screen/call_screen/live_incoming_call_overlay.dart';
 import 'package:krimson/screen/call_screen/outgoing_call_screen.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen.dart';
+import 'package:krimson/screen/coin_wallet_screen/recharge_promo_dialog.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/screen/live_stream/live_stream_search_screen/live_stream_search_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_preview_screen.dart';
-import 'package:krimson/screen/subscription_screen/subscription_screen.dart';
 import 'package:krimson/utilities/const_res.dart';
 
 enum MatchSearchMode { random, goddess }
@@ -43,9 +43,12 @@ class MatchScreenController extends BaseController
 
   late final AnimationController pulseController;
   Worker? _tabWorker;
+  Worker? _userWorker;
+  Worker? _walletWorker;
   AppLifecycleListener? _lifecycle;
   Timer? _heartbeat;
   Timer? _inboxPoll;
+  Timer? _walletPoll;
   StreamSubscription? _waitDataSub;
   bool _joining = false;
   final Set<int> _joinedCallIds = {};
@@ -53,12 +56,32 @@ class MatchScreenController extends BaseController
   int get walletCoins => coins.value;
 
   void refreshCoins() {
-    final u = SessionManager.instance.getUser();
-    coins.value = u?.coinWallet?.toInt() ?? 0;
+    final u = SessionManager.instance.userRx.value ??
+        SessionManager.instance.getUser();
+    coins.value = SessionManager.instance.coinWalletRx.value;
     freeMatchesUsed.value = u?.dailyFreeMatchesUsed ?? 0;
     freeMatchesQuota.value = u?.dailyFreeMatchesQuota ??
         SessionManager.instance.getSettings()?.matchDailyFreeQuota ??
         2;
+  }
+
+  /// 2 Match gratis por día: pide el cupo actual al servidor (se reinicia a las 00:00).
+  Future<void> refreshDailyQuota() async {
+    if (AppRole.isStreamer()) {
+      refreshCoins();
+      return;
+    }
+    try {
+      final fresh = await UserService.instance.fetchUserDetails(
+        userId: SessionManager.instance.getUserID(),
+      );
+      if (fresh != null) {
+        SessionManager.instance.setUser(fresh);
+      }
+    } catch (e) {
+      Loggers.error('Match daily quota: $e');
+    }
+    refreshCoins();
   }
 
   bool get isPlusMember =>
@@ -78,7 +101,9 @@ class MatchScreenController extends BaseController
   }
 
   bool get _matchUiVisible {
-    if (AppRole.isStreamer()) return true;
+    if (AppRole.isStreamer()) {
+      return StreamerCameraLock.matchWaitVisible;
+    }
     if (!Get.isRegistered<DashboardScreenController>()) return true;
     return Get.find<DashboardScreenController>().selectedPageIndex.value ==
         DashboardScreenController.tabLive;
@@ -91,7 +116,15 @@ class MatchScreenController extends BaseController
       vsync: this,
       duration: const Duration(milliseconds: 2800),
     );
+    final stored = SessionManager.instance.getUser()?.coinWallet?.toInt() ?? 0;
+    if (SessionManager.instance.coinWalletRx.value == 0 && stored > 0) {
+      SessionManager.instance.coinWalletRx.value = stored;
+    }
     refreshCoins();
+    unawaited(refreshDailyQuota());
+    _userWorker = ever(SessionManager.instance.userRx, (_) => refreshCoins());
+    _walletWorker =
+        ever(SessionManager.instance.coinWalletRx, (v) => coins.value = v);
     if (AppRole.isStreamer()) {
       mode.value = MatchSearchMode.random;
       streamerMatchEnabled.value =
@@ -104,28 +137,35 @@ class MatchScreenController extends BaseController
         (_) {
           _syncPulse();
           unawaited(_syncPresence());
+          unawaited(refreshDailyQuota());
         },
       );
     }
     StreamerCameraLock.releaseMatchWait = leavePool;
     _lifecycle = AppLifecycleListener(
-      onResume: () => unawaited(_syncPresence()),
-      onHide: () {
-        if (_stayInPool) return;
-        unawaited(leavePool());
-      },
-      onPause: () {
-        if (_stayInPool) return;
-        unawaited(leavePool());
+      onResume: () {
+        unawaited(_syncPresence());
+        unawaited(refreshDailyQuota());
       },
     );
     unawaited(_syncPresence());
+    _startWalletPoll();
+  }
+
+  void _startWalletPoll() {
+    if (AppRole.isStreamer()) return;
+    _walletPoll?.cancel();
+    _walletPoll = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (!_matchUiVisible) return;
+      unawaited(refreshDailyQuota());
+    });
   }
 
   /// Match a pantalla completa (streamer): toma la cámara y entra al pool.
   Future<void> onWaitScreenOpened() async {
     StreamerCameraLock.matchWaitVisible = true;
     if (!AppRole.isStreamer()) return;
+    _startPresenceTimer();
     if (streamerMatchEnabled.value) {
       await joinPool();
     }
@@ -146,18 +186,6 @@ class MatchScreenController extends BaseController
     } else if (pulseController.isAnimating) {
       pulseController.stop();
     }
-  }
-
-  bool get _stayInPool {
-    final route = Get.currentRoute;
-    if (route.contains('VideoCall') || route.contains('MatchPreview')) {
-      return true;
-    }
-    // Streamer en espera: no salir del pool al perder el foco (BlueStacks,
-    // app en segundo plano). Si no, el cliente web no lo encuentra.
-    return AppRole.isStreamer() &&
-        streamerMatchEnabled.value &&
-        StreamerCameraLock.matchWaitVisible;
   }
 
   Future<void> _syncPresence() async {
@@ -188,6 +216,7 @@ class MatchScreenController extends BaseController
     if (Get.currentRoute.contains('VideoCall')) return;
     if (inMatchPool.value) {
       unawaited(CallService.instance.matchHeartbeat());
+      _startPresenceTimer();
       if (AppRole.isStreamer() && !_hasLocalWaitVideo()) {
         _joining = true;
         try {
@@ -218,10 +247,7 @@ class MatchScreenController extends BaseController
         return;
       }
       inMatchPool.value = true;
-      _heartbeat?.cancel();
-      _heartbeat = Timer.periodic(const Duration(seconds: 10), (_) {
-        unawaited(CallService.instance.matchHeartbeat());
-      });
+      _startPresenceTimer();
       _inboxPoll?.cancel();
       _inboxPoll = Timer.periodic(const Duration(seconds: 2), (_) {
         unawaited(_pollMatchInbox());
@@ -235,9 +261,35 @@ class MatchScreenController extends BaseController
       }
     } catch (e) {
       inMatchPool.value = false;
+      _startPresenceTimer();
       Loggers.error('Match joinPool: $e');
     } finally {
       _joining = false;
+    }
+  }
+
+  void _startPresenceTimer() {
+    if (_heartbeat != null && _heartbeat!.isActive) return;
+    _heartbeat?.cancel();
+    _heartbeat = Timer.periodic(const Duration(seconds: 10), (_) {
+      unawaited(_tickPresence());
+    });
+  }
+
+  Future<void> _tickPresence() async {
+    if (Get.currentRoute.contains('VideoCall')) return;
+    if (AppRole.isStreamer()) {
+      if (streamerMatchEnabled.value && StreamerCameraLock.matchWaitVisible) {
+        if (inMatchPool.value) {
+          await CallService.instance.matchHeartbeat();
+        } else {
+          await joinPool();
+        }
+      }
+      return;
+    }
+    if (inMatchPool.value) {
+      await CallService.instance.matchHeartbeat();
     }
   }
 
@@ -277,7 +329,13 @@ class MatchScreenController extends BaseController
         ? waitRoom!.trim()
         : 'matchwait_$id';
     try {
-      if (!Get.isRegistered<LiveKitRoomController>(tag: waitLkTag)) {
+      if (!Get.isRegistered<LiveKitRoomController>(tag: waitLkTag) ||
+          Get.find<LiveKitRoomController>(tag: waitLkTag).isClosed) {
+        if (Get.isRegistered<LiveKitRoomController>(tag: waitLkTag)) {
+          try {
+            Get.delete<LiveKitRoomController>(tag: waitLkTag, force: true);
+          } catch (_) {}
+        }
         Get.put(LiveKitRoomController(), tag: waitLkTag);
       }
       final lk = Get.find<LiveKitRoomController>(tag: waitLkTag);
@@ -426,9 +484,12 @@ class MatchScreenController extends BaseController
     }
     StreamerCameraLock.matchWaitVisible = false;
     _tabWorker?.dispose();
+    _userWorker?.dispose();
+    _walletWorker?.dispose();
     _lifecycle?.dispose();
     _heartbeat?.cancel();
     _inboxPoll?.cancel();
+    _walletPoll?.cancel();
     _waitDataSub?.cancel();
     unawaited(_disconnectWaitCamera());
     unawaited(CallService.instance.leaveMatch());
@@ -458,6 +519,7 @@ class MatchScreenController extends BaseController
       return;
     }
     if (isMatching.value) return;
+    await refreshDailyQuota();
     final meNow = SessionManager.instance.getUser();
     final remaining = meNow?.dailyFreeMatchesRemaining ?? 2;
     final matchMode =
@@ -486,12 +548,8 @@ class MatchScreenController extends BaseController
         return;
       }
       final unlock = await CallService.instance.unlockMatch(mode: matchMode);
-      final me = SessionManager.instance.getUser();
-      if (me != null) {
-        me.coinWallet = unlock.coinWallet;
-        SessionManager.instance.setUser(me);
-        refreshCoins();
-      }
+      SessionManager.instance.applyCoinWallet(unlock.coinWallet);
+      refreshCoins();
       if (unlock.charged > 0) {
         showSnackBar(LKey.coinsUsedToViewMatch.trParams({'count': '${unlock.charged}'}));
       }
@@ -513,7 +571,7 @@ class MatchScreenController extends BaseController
       final after = SessionManager.instance.getUser();
       if ((after?.dailyFreeMatchesRemaining ?? 0) <= 0 &&
           (after?.coinWallet ?? 0).toInt() <= 0) {
-        CoinGate.openCoinShopSheet(headline: LKey.freeMatchesUsed.tr);
+        unawaited(RechargePromo.show());
       }
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
@@ -534,9 +592,5 @@ class MatchScreenController extends BaseController
 
   void openWallet() {
     Get.to(() => const CoinWalletScreen());
-  }
-
-  void openMembership() {
-    Get.to(() => const SubscriptionScreen());
   }
 }

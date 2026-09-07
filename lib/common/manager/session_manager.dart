@@ -19,6 +19,8 @@ class SessionManager {
   RxInt isModerator = 0.obs;
   /// Usuario de sesión reactivo: el perfil y el wallet leen de aquí.
   final Rxn<User> userRx = Rxn<User>();
+  /// Saldo de coins en vivo (Match, wallet, regalos).
+  final RxInt coinWalletRx = 0.obs;
 
   SessionManager() {
     listenNotifyCount();
@@ -41,10 +43,13 @@ class SessionManager {
   }
 
   void listenUser() {
-    userRx.value = getUser();
+    final u = getUser();
+    userRx.value = u;
+    _syncCoinWalletRx(u);
     storage.listenKey(SessionKeys.user, (value) {
       final user = _asUser(value);
       userRx.value = user;
+      _syncCoinWalletRx(user);
       isModerator.value = user?.isModerator ?? 0;
     });
   }
@@ -103,7 +108,7 @@ class SessionManager {
   void listenModerator() {
     isModerator.value = getUser()?.isModerator ?? 0;
     storage.listenKey(SessionKeys.user, (value) {
-      User? user = value as User?;
+      final user = _asUser(value);
       isModerator.value = user?.isModerator ?? 0;
     });
   }
@@ -111,13 +116,14 @@ class SessionManager {
   void listenSubscription() {
     isModerator.value = getUser()?.isVerify ?? 0;
     storage.listenKey(SessionKeys.user, (value) {
-      User? user = value as User?;
+      final user = _asUser(value);
       isModerator.value = user?.isModerator ?? 0;
     });
   }
 
   void setUser(User? user) {
     if (user != null) {
+      user = _keepSameDayFreeMatches(user);
       // Convert the object to a JSON map and set 'stories' to null
       Map<String, dynamic> json = user.toJson();
       json['stories'] = null;
@@ -127,8 +133,106 @@ class SessionManager {
 
       storage.write(SessionKeys.user, newUser.toJson());
       userRx.value = newUser;
+      _syncCoinWalletRx(newUser);
       _syncLastGuest(newUser);
     }
+  }
+
+  void _syncCoinWalletRx(User? user) {
+    coinWalletRx.value = user?.coinWallet?.toInt() ?? 0;
+  }
+
+  /// Actualiza el saldo en cuanto el API lo devuelve (Match, llamada, recarga).
+  void applyCoinWallet(int? coins) {
+    if (coins == null) return;
+    final next = coins < 0 ? 0 : coins;
+    if (coinWalletRx.value != next) {
+      coinWalletRx.value = next;
+    } else {
+      coinWalletRx.refresh();
+    }
+    final u = getUser();
+    if (u == null) return;
+    if ((u.coinWallet ?? 0).toInt() == next) return;
+    u.coinWallet = next;
+    setUser(u);
+  }
+
+  String _civilDateStamp() {
+    final n = DateTime.now();
+    final m = n.month.toString().padLeft(2, '0');
+    final d = n.day.toString().padLeft(2, '0');
+    return '${n.year}-$m-$d';
+  }
+
+  String _freeMatchDayKey(int userId) => 'match_free_day_$userId';
+
+  /// El cupo diario no puede bajar a 0 el mismo día por un fetch que aún
+  /// cuenta mal los Match colgados.
+  User _keepSameDayFreeMatches(User incoming) {
+    final prev = getUser();
+    final id = incoming.id ?? 0;
+    if (id <= 0) return incoming;
+    final today = _civilDateStamp();
+    final stamp = storage.read(_freeMatchDayKey(id))?.toString();
+    final prevUsed = (prev != null && prev.id == id)
+        ? (prev.dailyFreeMatchesUsed)
+        : 0;
+    final incomingUsed = incoming.dailyFreeMatchesUsed;
+    final kept = (stamp == today) ? max(prevUsed, incomingUsed) : incomingUsed;
+    incoming.dailyFreeMatchesUsed = kept;
+    incoming.dailyFreeMatchesRemaining =
+        (incoming.dailyFreeMatchesQuota - kept)
+            .clamp(0, incoming.dailyFreeMatchesQuota)
+            .toInt();
+    if (kept > 0) {
+      storage.write(_freeMatchDayKey(id), today);
+    }
+    return incoming;
+  }
+
+  void applyDailyFreeQuotaFromMap(Map data) {
+    final used = data['daily_free_matches_used'];
+    final quota = data['daily_free_matches_quota'];
+    final remaining = data['daily_free_matches_remaining'];
+    if (used == null && remaining == null && quota == null) return;
+    final u = getUser();
+    if (u == null) return;
+    if (quota is num && quota.toInt() > 0) {
+      u.dailyFreeMatchesQuota = quota.toInt();
+    }
+    if (used is num) {
+      u.dailyFreeMatchesUsed = used.toInt();
+    }
+    if (remaining is num) {
+      u.dailyFreeMatchesRemaining = remaining.toInt();
+    } else {
+      u.dailyFreeMatchesRemaining = (u.dailyFreeMatchesQuota - u.dailyFreeMatchesUsed)
+          .clamp(0, u.dailyFreeMatchesQuota)
+          .toInt();
+    }
+    final id = u.id ?? 0;
+    if (id > 0 && u.dailyFreeMatchesUsed > 0) {
+      storage.write(_freeMatchDayKey(id), _civilDateStamp());
+    }
+    setUser(u);
+  }
+
+  /// Match gratis aceptado: Free 0/2 → 1/2 → 2/2. No se revierte al colgar.
+  void noteFreeMatchAccepted({required int coinsCost}) {
+    if (coinsCost > 0) return;
+    final u = getUser();
+    if (u == null || u.dailyFreeMatchesRemaining <= 0) return;
+    final id = u.id ?? 0;
+    if (id > 0) {
+      storage.write(_freeMatchDayKey(id), _civilDateStamp());
+    }
+    u.dailyFreeMatchesUsed =
+        (u.dailyFreeMatchesUsed + 1).clamp(0, u.dailyFreeMatchesQuota).toInt();
+    u.dailyFreeMatchesRemaining = (u.dailyFreeMatchesQuota - u.dailyFreeMatchesUsed)
+        .clamp(0, u.dailyFreeMatchesQuota)
+        .toInt();
+    setUser(u);
   }
 
   void _syncLastGuest(User user) {
@@ -251,15 +355,17 @@ class SessionManager {
   }
 
   User? getUser() {
-    var user = storage.read(SessionKeys.user);
-
-    if (user == null || user is User?) {
-      return user;
-    } else if (user is Map<String, dynamic>) {
-      return User.fromJson(user);
-    } else {
-      return null;
+    final user = storage.read(SessionKeys.user);
+    if (user == null) return null;
+    if (user is User) return user;
+    if (user is Map) {
+      try {
+        return User.fromJson(Map<String, dynamic>.from(user));
+      } catch (_) {
+        return null;
+      }
     }
+    return null;
   }
 
   int getUserID() {
