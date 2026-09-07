@@ -46,10 +46,11 @@ class UserService {
     required String identity,
     String? deviceToken,
     required LoginMethod loginMethod,
+    bool keepAuthToken = false,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.loginInUser,
-        cancelAuthToken: true,
+        cancelAuthToken: !keepAuthToken,
         param: {
           Params.fullname: fullName,
           Params.identity: identity,
@@ -75,10 +76,11 @@ class UserService {
     String? fullName,
     String? deviceToken,
     required LoginMethod loginMethod,
+    bool keepAuthToken = false,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.logInFakeUser,
-        cancelAuthToken: true,
+        cancelAuthToken: !keepAuthToken,
         param: {
           Params.identity: identity,
           Params.password: password,

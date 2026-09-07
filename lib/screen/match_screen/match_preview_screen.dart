@@ -23,7 +23,7 @@ import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-/// Preview en vivo (40s): ver, deslizar a otra, o pagar 5/10/15 min para quedarse.
+/// Preview en vivo: ver, deslizar a otra, o aceptar el Match (20s gratis).
 class MatchPreviewScreen extends StatefulWidget {
   const MatchPreviewScreen({
     super.key,

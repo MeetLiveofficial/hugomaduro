@@ -180,6 +180,9 @@ class LKey {
       "Not enough coins to continue the call";
   static const String callEndedClientNoCoins =
       "The call ended: the client ran out of coins";
+  static const String matchOutOfCoins =
+      "Te has quedado sin monedas. 💕 Recarga ahora para continuar la llamada.";
+  static const String rechargeCoins = "Recargar monedas";
   static const String liveBadge = "LIVE";
   static const String peopleWatching = "@count watching";
   static const String lastCallMinutesAgo = "LAST CALL @min MIN AGO";

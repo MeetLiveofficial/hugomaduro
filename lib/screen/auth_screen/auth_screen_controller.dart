@@ -237,6 +237,7 @@ class AuthScreenController extends BaseController {
         fullName: email.contains('@') ? email.split('@').first : email,
         deviceToken: deviceToken,
         loginMethod: LoginMethod.email,
+        keepAuthToken: GuestGate.isAnonymous,
       )
           .timeout(const Duration(seconds: 20), onTimeout: () {
         throw TimeoutException('El servidor tardó demasiado en responder');
@@ -656,6 +657,7 @@ class AuthScreenController extends BaseController {
       loginMethod: loginMethod,
       deviceToken: deviceToken,
       fullName: fullname,
+      keepAuthToken: GuestGate.isAnonymous,
     );
     if (data == null) {
       showSnackBar(LKey.somethingWentWrong.tr);

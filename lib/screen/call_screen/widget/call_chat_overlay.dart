@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
@@ -53,6 +55,7 @@ class _CallChatBubble extends StatelessWidget {
 
   final VideoCallController controller;
   final LiveChatMessage message;
+  final VideoCallController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -82,13 +85,10 @@ class _CallChatBubble extends StatelessWidget {
               if (message.isReply) ...[
                 const SizedBox(height: 2),
                 Text(
-                  '↳ ${message.replyToUserName ?? ''}'
-                  '${(message.replyToText ?? '').isNotEmpty ? ': ${message.replyToText}' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyleCustom.outFitRegular400(
-                    color: Colors.white60,
-                    fontSize: 10,
+                  message.userName,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: ColorRes.themeAccentSolid,
+                    fontSize: 11,
                   ),
                 ),
               ],
@@ -137,31 +137,79 @@ class _CallChatBubble extends StatelessWidget {
                       ),
                     ),
                   ),
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      message.displayText,
-                      style: TextStyleCustom.outFitRegular400(
-                        color: Colors.white,
-                        fontSize: 13,
+                ],
+                const SizedBox(height: 2),
+                if (isGiftBoost)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          message.text ?? LKey.sendMeGifts.tr,
+                          style: TextStyleCustom.outFitMedium500(
+                            color: ColorRes.accentPeach,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
-                    ),
-                    if (message.isTranslated) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        message.originalText ?? '',
-                        style: TextStyleCustom.outFitRegular400(
-                          color: Colors.white54,
-                          fontSize: 11,
+                      const SizedBox(width: 6),
+                      GiftMedia(
+                        path: message.giftImage,
+                        width: 28,
+                        height: 28,
+                        fit: BoxFit.contain,
+                        muted: true,
+                        looping: true,
+                        placeholder: const Icon(
+                          Icons.card_giftcard,
+                          color: ColorRes.accentPeach,
+                          size: 22,
                         ),
                       ),
                     ],
-                  ],
-                ),
-            ],
+                  )
+                else if (message.type == 'gif' &&
+                    (message.gifUrl ?? '').isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      message.gifUrl!,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Text(
+                        'GIF',
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        message.displayText,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (message.isTranslated) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          message.originalText ?? '',
+                          style: TextStyleCustom.outFitRegular400(
+                            color: Colors.white54,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
         ),

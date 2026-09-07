@@ -87,7 +87,7 @@ class CallService {
           : int.tryParse('${data['call_cost'] ?? 0}') ?? 0,
       matchFreeSeconds: data['match_free_seconds'] is num
           ? (data['match_free_seconds'] as num).toInt()
-          : int.tryParse('${data['match_free_seconds'] ?? 40}') ?? 40,
+          : int.tryParse('${data['match_free_seconds'] ?? 20}') ?? 20,
       matchInitialCoins: data['match_initial_coins'] is num
           ? (data['match_initial_coins'] as num).toInt()
           : int.tryParse('${data['match_initial_coins'] ?? 0}') ?? 0,

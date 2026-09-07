@@ -83,6 +83,7 @@ class LiveKitCallLayout extends StatefulWidget {
     this.remoteName,
     this.localPhotoUrl,
     this.localName,
+    this.localInPip = true,
   });
 
   final LocalParticipant? local;
@@ -148,6 +149,13 @@ class _LiveKitCallLayoutState extends State<LiveKitCallLayout> {
             photoUrl: widget.remotePhotoUrl,
             name: widget.remoteName,
           );
+
+    final fullHasVideo = localInPip
+        ? firstVideoTrackOf(primaryRemote) != null
+        : firstVideoTrackOf(local) != null;
+    final pipHasVideo = localInPip
+        ? firstVideoTrackOf(local) != null
+        : firstVideoTrackOf(primaryRemote) != null;
 
     return Stack(
       fit: StackFit.expand,
