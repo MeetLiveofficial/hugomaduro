@@ -103,17 +103,11 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
       }).toList();
       if (!mounted) return;
       if (extra.isEmpty) {
-        Get.snackbar(
-          LKey.matchLabel.tr,
-          AppRole.isStreamer()
-              ? LKey.noMoreMatchClients.tr
-              : LKey.noMoreMatchStreamers.tr,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.black87,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(12),
-          duration: const Duration(seconds: 2),
-        );
+        // Ciclo completo: vuelve al primero.
+        setState(() {
+          _index = 0;
+          _dragDx = 0;
+        });
         return;
       }
       setState(() {
@@ -122,6 +116,14 @@ class _MatchRecommendBodyState extends State<_MatchRecommendBody> {
       });
     } catch (_) {
       if (!mounted) return;
+      // Sin más en API: reinicia el carrusel local.
+      if (_users.isNotEmpty) {
+        setState(() {
+          _index = 0;
+          _dragDx = 0;
+        });
+        return;
+      }
       Get.snackbar(
         LKey.matchLabel.tr,
         AppRole.isStreamer()

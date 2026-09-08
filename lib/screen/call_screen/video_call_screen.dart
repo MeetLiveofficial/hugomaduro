@@ -622,6 +622,15 @@ class VideoCallController extends BaseController {
     final now = DateTime.now();
 
     if (isMatchCall) {
+      // No contar los 20s mientras sincroniza / espera al otro.
+      if (!_hadRemote &&
+          liveKit.remoteParticipants.isEmpty &&
+          _phaseEndsAt == null) {
+        matchSecondsLeft.value = _matchDuration;
+        matchCountdownLabel.value = _formatMmSs(_matchDuration);
+        elapsedLabel.value = matchCountdownLabel.value;
+        return;
+      }
       int safeLeft;
       final phaseEnd = _phaseEndsAt;
       if (phaseEnd != null) {
@@ -798,7 +807,14 @@ class VideoCallController extends BaseController {
         _respondedAtRaw = fresh.respondedAt;
         _syncAnchor ??= _parseIso(fresh.respondedAt);
       }
-      _phaseEndsAt ??= _parseIso(fresh.phaseEndsAt);
+      final pe = _parseIso(fresh.phaseEndsAt);
+      if (pe != null) {
+        final wasNull = _phaseEndsAt == null;
+        _adoptPhaseEndsAt(pe);
+        if (wasNull && isMatchCall && !_timerStarted) {
+          unawaited(_resolveAnchorAndStart());
+        }
+      }
       if (fresh.isConvertedPrivate) {
         _enterPrivateFromMatch(fresh);
         return;
@@ -827,7 +843,10 @@ class VideoCallController extends BaseController {
   Future<void> _resolveAnchorAndStart() async {
     _respondedAtRaw ??= call.respondedAt;
     _syncAnchor ??= _parseRespondedAt();
-    _phaseEndsAt ??= _parseIso(call.phaseEndsAt);
+    final incomingPhase = _parseIso(call.phaseEndsAt);
+    if (incomingPhase != null) {
+      _adoptPhaseEndsAt(incomingPhase);
+    }
     if (isMatchPreview || call.isMatch || call.matchSeconds > 0) {
       _enableMatchUi();
     }
@@ -844,19 +863,44 @@ class VideoCallController extends BaseController {
       await Future.delayed(const Duration(milliseconds: 200));
       await _hydrateCallMeta();
       _syncAnchor ??= _parseRespondedAt();
+      final pe = _parseIso(call.phaseEndsAt);
+      if (pe != null) _adoptPhaseEndsAt(pe);
     }
 
-    // Último recurso: ambos ya aceptaron; si falta timestamp, no inventar
-    // clocks distintos — reintentar un status final.
     if (_syncAnchor == null) {
       await _hydrateCallMeta();
       _syncAnchor ??= _parseRespondedAt();
     }
-    if (_syncAnchor == null) {
-      // Sin ancla de servidor no se puede sincronizar; diferir arranque.
-      status.value = status.value.isEmpty ? 'Sincronizando reloj...' : status.value;
+
+    // Match: no arrancar countdown hasta que el otro esté en sala o el
+    // servidor arme phase_ends_at (ambos conectados).
+    if (isMatchCall &&
+        _phaseEndsAt == null &&
+        !_hadRemote &&
+        liveKit.remoteParticipants.isEmpty) {
+      matchSecondsLeft.value = _matchDuration;
+      matchCountdownLabel.value = _formatMmSs(_matchDuration);
+      elapsedLabel.value = matchCountdownLabel.value;
+      if (status.value.trim().isEmpty ||
+          status.value == 'Conectando...' ||
+          status.value == 'Conectando…') {
+        status.value = LKey.waitingForOtherUser.tr;
+      }
       return;
     }
+
+    if (isMatchCall && _phaseEndsAt == null && _hadRemote) {
+      // Fallback local si el API aún no armó el reloj.
+      _phaseEndsAt = DateTime.now().add(Duration(seconds: _matchDuration));
+      _syncAnchor = DateTime.now();
+    }
+
+    if (_syncAnchor == null && _phaseEndsAt == null) {
+      status.value =
+          status.value.isEmpty ? 'Sincronizando reloj...' : status.value;
+      return;
+    }
+    _syncAnchor ??= DateTime.now();
     _startSyncedTimer();
   }
 
@@ -1399,6 +1443,12 @@ class VideoCallController extends BaseController {
         return;
       }
       _adoptPhaseEndsAt(_parseIso(fresh.phaseEndsAt));
+      if (isMatchCall &&
+          _phaseEndsAt != null &&
+          !_timerStarted &&
+          (_hadRemote || liveKit.remoteParticipants.isNotEmpty)) {
+        unawaited(_resolveAnchorAndStart());
+      }
     } catch (_) {}
   }
 
