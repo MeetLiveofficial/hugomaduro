@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
-/// Anuncio de recarga (~mitad de pantalla) cuando el cliente se queda sin coins.
+/// Bottom sheet de recarga unificado (iOS + Android): 1/3 de la pantalla.
 class RechargePromo {
   RechargePromo._();
 
@@ -17,6 +16,7 @@ class RechargePromo {
   static const Color _priceBtn = Color(0xFF2A1548);
   static const Color _gold = Color(0xFFFFD54F);
 
+  /// [peerName] / [peerPhotoUrl] se conservan por call sites; el sheet 1/3 no muestra avatar.
   static Future<void> show({
     String? peerName,
     String? peerPhotoUrl,
@@ -31,10 +31,7 @@ class RechargePromo {
     }
     try {
       await Get.bottomSheet<void>(
-        _RechargePromoBody(
-          peerName: (peerName ?? '').trim(),
-          peerPhotoUrl: (peerPhotoUrl ?? '').trim(),
-        ),
+        const _RechargePromoBody(),
         isScrollControlled: true,
         isDismissible: true,
         enableDrag: true,
@@ -48,19 +45,15 @@ class RechargePromo {
 }
 
 class _RechargePromoBody extends StatelessWidget {
-  const _RechargePromoBody({
-    required this.peerName,
-    required this.peerPhotoUrl,
-  });
-
-  final String peerName;
-  final String peerPhotoUrl;
+  const _RechargePromoBody();
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<CoinWalletScreenController>();
-    final sheetH = MediaQuery.sizeOf(context).height * 0.5;
-    final hasPeer = peerPhotoUrl.isNotEmpty || peerName.isNotEmpty;
+    final mq = MediaQuery.of(context);
+    // Un tercio de pantalla + safe area inferior (home indicator iPhone / nav Android).
+    final sheetH = (mq.size.height / 3) + mq.padding.bottom;
+
     return SizedBox(
       height: sheetH,
       child: Material(
@@ -74,58 +67,41 @@ class _RechargePromoBody extends StatelessWidget {
               Align(
                 alignment: Alignment.topRight,
                 child: IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                   onPressed: Get.back,
-                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                  icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 22),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
                 child: Column(
                   children: [
                     Container(
                       width: 36,
                       height: 4,
-                      margin: const EdgeInsets.only(bottom: 8),
+                      margin: const EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
                         color: Colors.white24,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    if (hasPeer) ...[
-                      CustomImage(
-                        size: const Size(52, 52),
-                        image: peerPhotoUrl.isEmpty ? null : peerPhotoUrl,
-                        fullName: peerName,
-                        strokeWidth: 2,
-                        strokeColor: Colors.white24,
-                        isShowPlaceHolder: true,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        peerName.isEmpty ? '' : '$peerName 💞',
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyleCustom.outFitSemiBold600(
-                          color: Colors.white,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
                     _LikeTitle(text: LKey.likeThem.tr),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       LKey.rechargeAndCallAgain.tr,
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyleCustom.outFitSemiBold600(
                         color: Colors.white,
-                        fontSize: 15,
+                        fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                     _RecargarDivider(label: LKey.recharge.tr),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                     Expanded(
                       child: Obx(() {
                         if (controller.isLoading.value &&
@@ -145,7 +121,7 @@ class _RechargePromoBody extends StatelessWidget {
                               textAlign: TextAlign.center,
                               style: TextStyleCustom.outFitMedium500(
                                 color: Colors.white70,
-                                fontSize: 14,
+                                fontSize: 13,
                               ),
                             ),
                           );
@@ -193,20 +169,22 @@ class _LikeTitle extends StatelessWidget {
         Text(
           text,
           textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyleCustom.unboundedMedium500(
             color: Colors.white,
-            fontSize: 22,
+            fontSize: 18,
           ),
         ),
         const Positioned(
-          left: 8,
+          left: 4,
           top: 0,
-          child: Icon(Icons.auto_awesome, color: ColorRes.roseMuted, size: 16),
+          child: Icon(Icons.auto_awesome, color: ColorRes.roseMuted, size: 14),
         ),
         const Positioned(
-          right: 18,
-          bottom: 4,
-          child: Icon(Icons.auto_awesome, color: ColorRes.crimson, size: 14),
+          right: 12,
+          bottom: 2,
+          child: Icon(Icons.auto_awesome, color: ColorRes.crimson, size: 12),
         ),
       ],
     );
@@ -229,16 +207,16 @@ class _RecargarDivider extends StatelessWidget {
                 colors: [Color(0x00F9A8D4), ColorRes.crimson],
               ),
             ),
-            child: SizedBox(height: 1.4),
+            child: SizedBox(height: 1.2),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Text(
             label,
             style: TextStyleCustom.outFitMedium500(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
         ),
@@ -249,7 +227,7 @@ class _RecargarDivider extends StatelessWidget {
                 colors: [ColorRes.mlPurple, Color(0x0027D3F5)],
               ),
             ),
-            child: SizedBox(height: 1.4),
+            child: SizedBox(height: 1.2),
           ),
         ),
       ],
@@ -269,41 +247,43 @@ class _PromoPlanCard extends StatelessWidget {
         ? '\$${CoinPlan.formatUsdAmount(plan.amountUsd!)}'
         : plan.priceString;
     return Container(
-      padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
+      padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
       decoration: BoxDecoration(
         color: RechargePromo._card,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
           Text(
             '${plan.coin}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyleCustom.unboundedMedium500(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: 15,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             LKey.beginnerDiscount.tr,
             textAlign: TextAlign.center,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyleCustom.outFitMedium500(
               color: RechargePromo._gold,
-              fontSize: 10,
+              fontSize: 9,
             ),
           ),
           const Spacer(),
           const Icon(
             Icons.diamond_rounded,
             color: Color(0xFFFF7AD9),
-            size: 36,
+            size: 28,
           ),
           const Spacer(),
           SizedBox(
             width: double.infinity,
-            height: 36,
+            height: 30,
             child: ElevatedButton(
               onPressed: onBuy,
               style: ElevatedButton.styleFrom(
@@ -312,14 +292,16 @@ class _PromoPlanCard extends StatelessWidget {
                 elevation: 0,
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(15),
                 ),
               ),
               child: Text(
                 price,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyleCustom.outFitSemiBold600(
                   color: Colors.white,
-                  fontSize: 13,
+                  fontSize: 12,
                 ),
               ),
             ),

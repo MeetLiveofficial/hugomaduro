@@ -46,11 +46,17 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
 
   late MatchRecommendation _match;
   late List<int> _seenIds;
+  /// Orden del ciclo actual (p.ej. 3 → 1 → 2); al final vuelve al primero.
+  final List<MatchRecommendation> _cycle = [];
+  int _cycleIndex = 0;
   late int _secondsLeft;
   late final int _session;
   Timer? _timer;
+  Timer? _webPointerTimer;
   bool _busy = false;
   bool _closing = false;
+  bool _countdownArmed = false;
+  int _connectGen = 0;
   double _dragDx = 0;
   String _status = 'Conectando…';
   LiveKitRoomController? _lk;
@@ -68,6 +74,8 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
     super.initState();
     _match = widget.initial;
     _session = ++_sessionSeq;
+    _cycle.add(_match);
+    _cycleIndex = 0;
     _seenIds = [
       for (final u in _match.users)
         if ((u.id ?? 0) > 0) u.id!,
@@ -76,6 +84,11 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
       _seenIds.add(_user.id!);
     }
     _secondsLeft = _previewSeconds;
+    if (kIsWeb) {
+      _webPointerTimer = Timer.periodic(const Duration(milliseconds: 350), (_) {
+        passThroughMatchVideoClicks();
+      });
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_connectCurrent());
     });
@@ -84,7 +97,9 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
   @override
   void dispose() {
     _closing = true;
+    _connectGen++;
     _timer?.cancel();
+    _webPointerTimer?.cancel();
     unawaited(_teardownLiveKit());
     super.dispose();
   }
@@ -104,9 +119,16 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
   }
 
   void _startCountdown() {
+    if (_countdownArmed || _closing) return;
+    _countdownArmed = true;
     _timer?.cancel();
+    if (mounted) {
+      setState(() => _secondsLeft = _previewSeconds);
+    } else {
+      _secondsLeft = _previewSeconds;
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || _busy) return;
+      if (!mounted || _busy || _closing) return;
       unawaited(_lk?.subscribeRemoteVideos(
         preferIdentity: '${_user.id ?? ''}',
       ));
@@ -122,18 +144,23 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
 
   Future<void> _connectCurrent() async {
     if (_closing) return;
+    final gen = ++_connectGen;
     final me = SessionManager.instance.getUser();
     final room = _match.roomIdFor(_user);
     final streamerId = '${_user.id ?? ''}';
     if (me?.id == null || room.isEmpty) {
+      if (!mounted || gen != _connectGen) return;
       setState(() => _status = 'Sala de espera inválida');
       return;
     }
     _timer?.cancel();
-    setState(() {
-      _secondsLeft = _previewSeconds;
-      _status = 'Conectando…';
-    });
+    _countdownArmed = false;
+    if (mounted) {
+      setState(() {
+        _secondsLeft = _previewSeconds;
+        _status = 'Conectando…';
+      });
+    }
     try {
       if (Get.isRegistered<LiveKitRoomController>(tag: _lkTag)) {
         final existing = Get.find<LiveKitRoomController>(tag: _lkTag);
@@ -158,10 +185,10 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         dynacast: false,
         forceProfile: LiveKitQualityProfile.high,
       );
-      if (!mounted || _closing) return;
+      if (!mounted || _closing || gen != _connectGen) return;
       setState(() => _status = LKey.waitingCamera.tr);
       for (var i = 0; i < 80; i++) {
-        if (!mounted || _closing) return;
+        if (!mounted || _closing || gen != _connectGen) return;
         await _lk?.subscribeRemoteVideos(preferIdentity: streamerId);
         final peer = _previewPeer(_lk, streamerId);
         if (firstVideoTrackOf(peer) != null) {
@@ -170,35 +197,117 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         }
         await Future<void>.delayed(const Duration(milliseconds: 250));
       }
-      if (!mounted || _closing) return;
+      if (!mounted || _closing || gen != _connectGen) return;
+      // Los 20s empiezan al tener video (o tras intentar), no durante "Conectando…".
       _startCountdown();
     } catch (e) {
       Loggers.error('Match preview connect: $e');
-      if (!mounted || _closing) return;
+      if (!mounted || _closing || gen != _connectGen) return;
       setState(() => _status = 'Sin video. Puedes pasar a otra streamer.');
       _startCountdown();
     }
   }
 
+  Future<MatchRecommendation?> _fetchNextCandidate(List<int> exclude) async {
+    try {
+      return await CallService.instance.findMatch(
+        mode: widget.mode,
+        excludeUserIds: exclude,
+      );
+    } catch (e) {
+      Loggers.error('Match preview fetch: $e');
+      return null;
+    }
+  }
+
+  Future<void> _applyCandidate(MatchRecommendation next, {required bool appendToCycle}) async {
+    _match = next;
+    final id = next.user.id ?? 0;
+    if (id > 0 && !_seenIds.contains(id)) {
+      _seenIds.add(id);
+    }
+    if (appendToCycle) {
+      final already = _cycle.any((m) => (m.user.id ?? 0) == id && id > 0);
+      if (!already) {
+        _cycle.add(next);
+        _cycleIndex = _cycle.length - 1;
+      } else {
+        _cycleIndex = _cycle.indexWhere((m) => (m.user.id ?? 0) == id);
+      }
+    }
+    setState(() => _busy = false);
+    await _connectCurrent();
+  }
+
+  Future<void> _wrapCycleToStart() async {
+    if (_cycle.isEmpty) return;
+    _cycleIndex = 0;
+    _match = _cycle.first;
+    // Mantiene el orden del ciclo; al terminar otra vuelta se pedirán nuevos al API.
+    _seenIds = [
+      for (final m in _cycle)
+        if ((m.user.id ?? 0) > 0) m.user.id!,
+    ];
+    setState(() => _busy = false);
+    await _connectCurrent();
+  }
+
   Future<void> _loadNext() async {
     if (_busy || _closing) return;
-    setState(() => _busy = true);
+    _connectGen++;
+    _timer?.cancel();
+    _countdownArmed = false;
+    setState(() {
+      _busy = true;
+      _dragDx = 0;
+      _status = 'Conectando…';
+      _secondsLeft = _previewSeconds;
+    });
+    if (kIsWeb) {
+      passThroughMatchVideoClicks();
+    }
     try {
-      final next = await CallService.instance.findMatch(
-        mode: widget.mode,
-        excludeUserIds: _seenIds,
-      );
-      if (!mounted || _closing) return;
-      _match = next;
-      final id = next.user.id ?? 0;
-      if (id > 0 && !_seenIds.contains(id)) {
-        _seenIds.add(id);
+      // Si aún hay siguientes en el ciclo local (p.ej. ya vistos 3,1,2), avanza ahí.
+      if (_cycleIndex + 1 < _cycle.length) {
+        _cycleIndex += 1;
+        _match = _cycle[_cycleIndex];
+        setState(() => _busy = false);
+        await _connectCurrent();
+        return;
       }
-      setState(() => _busy = false);
-      await _connectCurrent();
-    } catch (e) {
-      Loggers.error('Match preview next: $e');
+
+      // Pide uno nuevo al pool (excluye ya vistos en esta vuelta).
+      var next = await _fetchNextCandidate(_seenIds);
       if (!mounted || _closing) return;
+
+      if (next != null) {
+        final nextId = next.user.id ?? 0;
+        final dup = nextId > 0 &&
+            _cycle.any((m) => (m.user.id ?? 0) == nextId);
+        if (!dup) {
+          await _applyCandidate(next, appendToCycle: true);
+          return;
+        }
+      }
+
+      // Fin de pool: vuelve al inicio del ciclo (3 → 1 → 2 → 3 …).
+      if (_cycle.length > 1) {
+        await _wrapCycleToStart();
+        return;
+      }
+
+      // Un solo streamer: reconsulta sin excludes o reutiliza el actual.
+      next = await _fetchNextCandidate(const []);
+      if (!mounted || _closing) return;
+      if (next != null) {
+        await _applyCandidate(next, appendToCycle: false);
+        return;
+      }
+      if (_cycle.isNotEmpty) {
+        await _wrapCycleToStart();
+        return;
+      }
+
       setState(() => _busy = false);
       Get.snackbar(
         LKey.matchLabel.tr,
@@ -208,7 +317,30 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
         colorText: Colors.white,
         margin: const EdgeInsets.all(12),
       );
-      Get.back();
+      if (_status == 'Conectando…') {
+        setState(() => _status = '');
+      }
+      _startCountdown();
+    } catch (e) {
+      Loggers.error('Match preview next: $e');
+      if (!mounted || _closing) return;
+      if (_cycle.length > 1) {
+        await _wrapCycleToStart();
+        return;
+      }
+      setState(() => _busy = false);
+      Get.snackbar(
+        LKey.matchLabel.tr,
+        LKey.noMoreMatchStreamers.tr,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+      );
+      if (_status == 'Conectando…') {
+        setState(() => _status = '');
+      }
+      _startCountdown();
     }
   }
 
@@ -325,132 +457,135 @@ class _MatchPreviewScreenState extends State<MatchPreviewScreen> {
       },
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: GestureDetector(
-          onHorizontalDragUpdate: _onHorizontalDragUpdate,
-          onHorizontalDragEnd: _onHorizontalDragEnd,
-          child: Column(
-            children: [
-              ColoredBox(
-                color: Colors.black,
-                child: SafeArea(
-                  bottom: false,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              onPressed: _busy ? null : Get.back,
-                              icon: const Icon(Icons.close,
-                                  color: Colors.white, size: 22),
-                            ),
-                            CustomImage(
-                              size: const Size(36, 36),
-                              image: _user.profilePhoto?.addBaseURL(),
-                              fullName: name,
-                              radius: 18,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyleCustom.outFitSemiBold600(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                ),
+        body: Column(
+          children: [
+            ColoredBox(
+              color: Colors.black,
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            onPressed: _busy ? null : Get.back,
+                            icon: const Icon(Icons.close,
+                                color: Colors.white, size: 22),
+                          ),
+                          CustomImage(
+                            size: const Size(36, 36),
+                            image: _user.profilePhoto?.addBaseURL(),
+                            fullName: name,
+                            radius: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyleCustom.outFitSemiBold600(
+                                color: Colors.white,
+                                fontSize: 15,
                               ),
                             ),
-                            _CountdownBadge(seconds: _secondsLeft),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: LinearProgressIndicator(
-                            value: _previewSeconds > 0
-                                ? (_secondsLeft / _previewSeconds)
-                                    .clamp(0.0, 1.0)
-                                : 0,
-                            minHeight: 6,
-                            backgroundColor: Colors.white24,
-                            color: ClientColors.secondary,
                           ),
+                          _CountdownBadge(seconds: _secondsLeft),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: _previewSeconds > 0
+                              ? (_secondsLeft / _previewSeconds).clamp(0.0, 1.0)
+                              : 0,
+                          minHeight: 6,
+                          backgroundColor: Colors.white24,
+                          color: ClientColors.secondary,
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragUpdate: _onHorizontalDragUpdate,
+                onHorizontalDragEnd: _onHorizontalDragEnd,
+                child: Transform.translate(
+                  offset: Offset(_dragDx * 0.35, 0),
+                  child: _VideoLayer(
+                    lkTag: _lkTag,
+                    streamerIdentity: streamerId,
+                    status: _status,
+                    photoUrl: _user.profilePhoto?.addBaseURL(),
+                    displayName: name,
                   ),
                 ),
               ),
-              Expanded(
-                child: _VideoLayer(
-                  lkTag: _lkTag,
-                  streamerIdentity: streamerId,
-                  status: _status,
-                  photoUrl: _user.profilePhoto?.addBaseURL(),
-                  displayName: name,
-                ),
-              ),
-              ColoredBox(
-                color: Colors.black,
-                child: SafeArea(
-                  top: false,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 10),
-                        child: Text(
-                          'Desliza para otra streamer · ${_previewSeconds}s de Match',
-                          textAlign: TextAlign.center,
-                          style: TextStyleCustom.outFitRegular400(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
+            ),
+            Material(
+              color: Colors.black,
+              elevation: 24,
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 10),
+                      child: Text(
+                        'Desliza para otra streamer · ${_previewSeconds}s de Match',
+                        textAlign: TextAlign.center,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white70,
+                          fontSize: 12,
                         ),
                       ),
-                      if (_busy)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 18),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white70,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _ActionButton(
+                              label: 'Siguiente',
+                              icon: Icons.skip_next_rounded,
+                              filled: false,
+                              enabled: !_busy && !_closing,
+                              onTap: () {
+                                if (kIsWeb) passThroughMatchVideoClicks();
+                                unawaited(_loadNext());
+                              },
+                            ),
                           ),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _ActionButton(
-                                  label: 'Siguiente',
-                                  icon: Icons.skip_next_rounded,
-                                  filled: false,
-                                  onTap: _loadNext,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: _ActionButton(
-                                  label: 'Aceptar',
-                                  icon: Icons.favorite_rounded,
-                                  filled: true,
-                                  onTap: _accept,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: _ActionButton(
+                              label: 'Aceptar',
+                              icon: Icons.favorite_rounded,
+                              filled: true,
+                              enabled: !_busy && !_closing,
+                              onTap: () {
+                                if (kIsWeb) passThroughMatchVideoClicks();
+                                unawaited(_accept());
+                              },
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -616,42 +751,59 @@ class _ActionButton extends StatelessWidget {
     required this.icon,
     required this.filled,
     required this.onTap,
+    this.enabled = true,
   });
 
   final String label;
   final IconData icon;
   final bool filled;
   final VoidCallback onTap;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: filled ? ClientColors.primary : ClientColors.surfaceDarkAlt,
-      borderRadius: BorderRadius.circular(28),
-      child: InkWell(
-        onTap: onTap,
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: Material(
+        color: filled ? ClientColors.primary : ClientColors.surfaceDarkAlt,
         borderRadius: BorderRadius.circular(28),
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: filled ? ClientColors.primaryHover : ClientColors.secondarySoft,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: ClientColors.textOnDark, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyleCustom.outFitSemiBold600(
-                  color: ClientColors.textOnDark,
-                  fontSize: 15,
-                ),
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(28),
+          child: Container(
+            height: 52,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: filled
+                    ? ClientColors.primaryHover
+                    : ClientColors.secondarySoft,
               ),
-            ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (!enabled && label == 'Siguiente')
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white70,
+                    ),
+                  )
+                else
+                  Icon(icon, color: ClientColors.textOnDark, size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: ClientColors.textOnDark,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
