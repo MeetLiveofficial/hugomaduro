@@ -12,6 +12,7 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/widget/call_price_min_chip.dart';
 import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/match_connecting_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
@@ -94,98 +95,128 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen> {
         if (didPop) return;
         await controller.cancelAndClose();
       },
-      child: Scaffold(
-        backgroundColor: RolePalette.bg,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 24),
-                Obx(() => Text(
-                      controller.subtitle.value,
-                      textAlign: TextAlign.center,
-                      style: TextStyleCustom.outFitRegular400(
-                        color: whitePure(context).withValues(alpha: 0.75),
-                        fontSize: 15,
-                      ),
-                    )),
-                const SizedBox(height: 36),
-                Center(
-                  child: CustomImage(
-                    size: const Size(120, 120),
-                    image: callee.profilePhoto?.addBaseURL(),
-                    fullName: callee.fullname ?? callee.username,
-                    strokeWidth: 0,
-                  ),
-                ),
-                const SizedBox(height: 22),
-                Text(
-                  callee.fullname ?? callee.username ?? '-',
-                  textAlign: TextAlign.center,
-                  style: TextStyleCustom.unboundedSemiBold600(
-                    color: whitePure(context),
-                    fontSize: 24,
-                  ),
-                ),
-                if ((callee.username ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    '@${callee.username}',
+      child: widget.isMatch
+          ? _buildMatchConnecting(context, callee)
+          : _buildClassicOutgoing(context, callee, cost),
+    );
+  }
+
+  Widget _hangUpButton() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: controller.cancelAndClose,
+          borderRadius: BorderRadius.circular(40),
+          child: const CircleAvatar(
+            radius: 34,
+            backgroundColor: ColorRes.likeRed,
+            child: Icon(Icons.call_end, color: Colors.white, size: 32),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          LKey.cancelCall.tr,
+          textAlign: TextAlign.center,
+          style: TextStyleCustom.outFitMedium500(
+            color: Colors.white.withValues(alpha: 0.85),
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMatchConnecting(BuildContext context, User callee) {
+    final me = SessionManager.instance.getUser();
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3C2D8),
+      body: Obx(
+        () => MatchConnectingView(
+          left: MatchConnectingParty.fromUser(me),
+          right: MatchConnectingParty.fromUser(callee),
+          subtitle: controller.subtitle.value,
+          errorText: controller.errorText.value,
+          bottom: _hangUpButton(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClassicOutgoing(BuildContext context, User callee, int cost) {
+    return Scaffold(
+      backgroundColor: RolePalette.bg,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 24),
+              Obx(() => Text(
+                    controller.subtitle.value,
                     textAlign: TextAlign.center,
                     style: TextStyleCustom.outFitRegular400(
-                      color: whitePure(context).withValues(alpha: 0.55),
-                      fontSize: 14,
+                      color: whitePure(context).withValues(alpha: 0.75),
+                      fontSize: 15,
                     ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                Center(
-                  child: CallPriceMinChip(coins: cost),
+                  )),
+              const SizedBox(height: 36),
+              Center(
+                child: CustomImage(
+                  size: const Size(120, 120),
+                  image: callee.profilePhoto?.addBaseURL(),
+                  fullName: callee.fullname ?? callee.username,
+                  strokeWidth: 0,
                 ),
-                const Spacer(),
-                Obx(() {
-                  final err = controller.errorText.value;
-                  if (err == null || err.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      err,
-                      textAlign: TextAlign.center,
-                      style: TextStyleCustom.outFitRegular400(
-                        color: ColorRes.likeRed,
-                        fontSize: 14,
-                      ),
-                    ),
-                  );
-                }),
-                Center(
-                  child: InkWell(
-                    onTap: controller.cancelAndClose,
-                    borderRadius: BorderRadius.circular(40),
-                    child: const CircleAvatar(
-                      radius: 34,
-                      backgroundColor: ColorRes.likeRed,
-                      child: Icon(Icons.call_end,
-                          color: Colors.white, size: 32),
-                    ),
-                  ),
+              ),
+              const SizedBox(height: 22),
+              Text(
+                callee.fullname ?? callee.username ?? '-',
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.unboundedSemiBold600(
+                  color: whitePure(context),
+                  fontSize: 24,
                 ),
-                const SizedBox(height: 12),
+              ),
+              if ((callee.username ?? '').isNotEmpty) ...[
+                const SizedBox(height: 6),
                 Text(
-                  LKey.cancelCall.tr,
+                  '@${callee.username}',
                   textAlign: TextAlign.center,
-                  style: TextStyleCustom.outFitMedium500(
-                    color: whitePure(context).withValues(alpha: 0.8),
+                  style: TextStyleCustom.outFitRegular400(
+                    color: whitePure(context).withValues(alpha: 0.55),
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 28),
               ],
-            ),
+              const SizedBox(height: 14),
+              Center(
+                child: Obx(
+                  () => CallPriceMinChip(coins: controller.displayCost.value),
+                ),
+              ),
+              const Spacer(),
+              Obx(() {
+                final err = controller.errorText.value;
+                if (err == null || err.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    err,
+                    textAlign: TextAlign.center,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: ColorRes.likeRed,
+                      fontSize: 14,
+                    ),
+                  ),
+                );
+              }),
+              Center(child: _hangUpButton()),
+              const SizedBox(height: 28),
+            ],
           ),
         ),
       ),
@@ -202,13 +233,15 @@ class OutgoingCallController extends BaseController {
     this.onBusyRedirectToNextLive = false,
     this.existingCall,
     this.matchMode,
-  }) : subtitle = (isMatch ? 'Match…' : LKey.calling.tr).obs;
+  }) : subtitle = (isMatch ? 'Match…' : LKey.calling.tr).obs,
+       displayCost = cost.obs;
 
   /// Instancia activa para cerrar desde FCM `call_rejected` / `call_accepted`.
   static OutgoingCallController? activeInstance;
 
   final User callee;
   final int cost;
+  final RxInt displayCost;
   final bool isMatch;
   final int matchFreeSeconds;
   final bool onBusyRedirectToNextLive;
@@ -492,6 +525,9 @@ class OutgoingCallController extends BaseController {
           coinsCost: cost > 0 ? cost : null,
           mode: isMatch ? (matchMode ?? 'random') : null,
         );
+        if (call != null && call!.coinsCost > 0) {
+          displayCost.value = call!.coinsCost;
+        }
         final me = SessionManager.instance.getUser();
         if (me != null && cost > 0) {
           me.removeCoinFromWallet(cost);

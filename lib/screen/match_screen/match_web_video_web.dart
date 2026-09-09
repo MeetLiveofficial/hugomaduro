@@ -50,3 +50,32 @@ void _raisePlatformView(html.Element video, String z, {required bool fill}) {
     hops++;
   }
 }
+
+/// En Web el &lt;video&gt; de LiveKit se pinta encima del canvas. Hay que
+/// ocultarlo para que el GIF de Match se vea a pantalla completa, sin
+/// desmontar el renderer (si se desmonta, LiveKit pierde la sala y el
+/// servidor cierra el Match).
+void setMatchConnectingOverlay(bool connecting) {
+  for (final node in html.document.querySelectorAll('video')) {
+    final el = node as html.Element;
+    el.style.visibility = connecting ? 'hidden' : '';
+    el.style.opacity = connecting ? '0' : '';
+    html.Element? p = el.parent;
+    var hops = 0;
+    while (p != null && hops < 16) {
+      final tag = p.tagName.toLowerCase();
+      final isHost = tag.contains('flt-platform-view') ||
+          tag.contains('flt-platform-view-slot');
+      if (isHost) {
+        p.style.visibility = connecting ? 'hidden' : '';
+        p.style.opacity = connecting ? '0' : '';
+        break;
+      }
+      p = p.parent;
+      hops++;
+    }
+  }
+  if (!connecting) {
+    passThroughMatchVideoClicks();
+  }
+}

@@ -16,6 +16,7 @@ import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/api/gift_wallet_service.dart';
 import 'package:krimson/common/service/translation/chat_translator_service.dart';
 import 'package:krimson/common/widget/livekit/livekit_video_view.dart';
+import 'package:krimson/common/widget/match_connecting_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/general/settings_model.dart';
@@ -67,7 +68,10 @@ class VideoCallScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: client ? ClientColors.surfaceDark : const Color(0xFF140E18),
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          SafeArea(
         child: Column(
           children: [
             Padding(
@@ -319,6 +323,40 @@ class VideoCallScreen extends StatelessWidget {
           ],
         ),
       ),
+          Obx(() {
+            controller.liveKit.mediaRevision.value;
+            controller.matchUi.value;
+            controller.liveKit.isConnecting.value;
+            controller.liveKit.isConnected.value;
+            controller.status.value;
+            final connecting = controller.showMatchConnectingOverlay;
+            if (kIsWeb) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                setMatchConnectingOverlay(connecting);
+              });
+            }
+            if (!connecting) return const SizedBox.shrink();
+            final hideHangup = !controller.isMatchCaller;
+            return Positioned.fill(
+              child: MatchConnectingView(
+                left: MatchConnectingParty.callerOf(controller.call),
+                right: MatchConnectingParty.calleeOf(controller.call),
+                subtitle: controller.status.value,
+                bottom: hideHangup
+                    ? null
+                    : _RoundBtn(
+                        icon: Icons.call_end,
+                        color: Colors.red,
+                        onTap: () {
+                          if (kIsWeb) passThroughMatchVideoClicks();
+                          unawaited(controller.hangUp());
+                        },
+                      ),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 }
@@ -433,6 +471,15 @@ class VideoCallController extends BaseController {
   }
 
   bool get isMatchClient => isMatchCaller;
+
+  /// GIF a pantalla completa hasta que el otro entra a LiveKit.
+  /// El layout de video se mantiene montado debajo (si se desmonta, el
+  /// servidor ve occupancy 0 y cierra el Match).
+  bool get showMatchConnectingOverlay {
+    if (!matchUi.value) return false;
+    if (liveKit.isConnecting.value || !liveKit.isConnected.value) return true;
+    return liveKit.remoteParticipants.isEmpty;
+  }
 
   int get matchDurationSeconds => _matchDuration;
 

@@ -78,12 +78,17 @@ class LiveIncomingCallOverlay {
         context: ctx,
         barrierDismissible: false,
         barrierLabel: 'incoming_call',
-        barrierColor: Colors.black54,
+        barrierColor: call.isMatchSession
+            ? const Color(0xCC12081C)
+            : Colors.black54,
         useRootNavigator: true,
         pageBuilder: (context, animation, secondaryAnimation) {
           return IncomingCallScreen(call: call, asDialog: true);
         },
         transitionBuilder: (context, animation, secondaryAnimation, child) {
+          if (call.isMatchSession) {
+            return FadeTransition(opacity: animation, child: child);
+          }
           final offset = Tween<Offset>(
             begin: const Offset(0, 1),
             end: Offset.zero,

@@ -220,12 +220,22 @@ class ExploreScreenController extends BaseController {
       );
       return;
     }
-    final cost = CallAvailability.callCost(user);
+    showLoader();
+    User billed = user;
+    try {
+      final fresh = await UserService.instance.fetchUserDetails(userId: user.id);
+      if (fresh != null) billed = fresh;
+    } catch (e) {
+      Loggers.error('explore startCall details: $e');
+    } finally {
+      stopLoader();
+    }
+    final cost = CallAvailability.callCost(billed);
     if (cost > 0 &&
         !CoinGate.ensureEnough(cost, message: LKey.insufficientCoins.tr)) {
       return;
     }
-    Get.to(() => OutgoingCallScreen(callee: user, cost: cost));
+    Get.to(() => OutgoingCallScreen(callee: billed, cost: cost));
   }
 
   Future<void> _openLive(User user) async {

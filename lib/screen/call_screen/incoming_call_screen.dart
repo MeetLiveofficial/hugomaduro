@@ -8,6 +8,7 @@ import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/widget/call_price_min_chip.dart';
 import 'package:krimson/common/widget/custom_image.dart';
+import 'package:krimson/common/widget/match_connecting_view.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
@@ -36,6 +37,10 @@ class IncomingCallScreen extends StatelessWidget {
         : Get.put(IncomingCallController(call, asDialog: asDialog), tag: tag);
     controller.asDialog = asDialog;
     final peer = call.caller;
+
+    if (call.isMatchSession) {
+      return _buildMatchIncoming(context, controller);
+    }
 
     if (asDialog) {
       // Half-sheet: ~50% pantalla; el fondo (Match/LIVE/dashboard) sigue visible.
@@ -252,6 +257,71 @@ class IncomingCallScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: RolePalette.bg,
         body: content,
+      ),
+    );
+  }
+
+  Widget _buildMatchIncoming(
+    BuildContext context,
+    IncomingCallController controller,
+  ) {
+    final actions = Obx(() {
+      final err = controller.errorText.value;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (err != null && err.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                err,
+                textAlign: TextAlign.center,
+                style: TextStyleCustom.outFitRegular400(
+                  color: Colors.redAccent,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _CircleAction(
+                color: Colors.red,
+                icon: Icons.call_end,
+                label: 'Decline',
+                onTap: controller.reject,
+              ),
+              _CircleAction(
+                color: Colors.green,
+                icon: Icons.call,
+                label: LKey.accept.tr,
+                onTap: controller.accept,
+              ),
+            ],
+          ),
+        ],
+      );
+    });
+
+    final body = MatchConnectingView(
+      left: MatchConnectingParty.callerOf(call),
+      right: MatchConnectingParty.calleeOf(call),
+      subtitle: LKey.matchLabel.tr,
+      bottom: actions,
+    );
+
+    if (asDialog) {
+      return Material(
+        color: Colors.transparent,
+        child: SizedBox.expand(child: body),
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF3C2D8),
+        body: body,
       ),
     );
   }
