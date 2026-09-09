@@ -290,18 +290,21 @@ class VideoCallScreen extends StatelessWidget {
                                 unawaited(controller.flipCamera());
                               },
                             ),
-                          _RoundBtn(
-                            icon: controller.liveKit.cameraEnabled.value
-                                ? Icons.videocam
-                                : Icons.videocam_off,
-                            color: client
-                                ? ClientColors.surfaceDarkAlt
-                                : const Color(0xFF3A3144),
-                            onTap: () {
-                              if (kIsWeb) passThroughMatchVideoClicks();
-                              unawaited(controller.toggleCamera());
-                            },
-                          ),
+                          // Streamer: no mostrar apagar cámara (solo reactivar si está off).
+                          if (!AppRole.isStreamer() ||
+                              !controller.liveKit.cameraEnabled.value)
+                            _RoundBtn(
+                              icon: controller.liveKit.cameraEnabled.value
+                                  ? Icons.videocam
+                                  : Icons.videocam_off,
+                              color: client
+                                  ? ClientColors.surfaceDarkAlt
+                                  : const Color(0xFF3A3144),
+                              onTap: () {
+                                if (kIsWeb) passThroughMatchVideoClicks();
+                                unawaited(controller.toggleCamera());
+                              },
+                            ),
                           _RoundBtn(
                             icon: Icons.card_giftcard_rounded,
                             color: client
@@ -1079,6 +1082,11 @@ class VideoCallController extends BaseController {
 
   Future<void> toggleCamera() async {
     final turningOff = liveKit.cameraEnabled.value;
+    // Streamer en llamada: cámara siempre on (sí puede reactivar si se cayó).
+    if (turningOff && AppRole.isStreamer()) {
+      showSnackBar('La cámara debe permanecer activa');
+      return;
+    }
     if (turningOff &&
         _mustPayCameraFeatures &&
         !cameraOffUnlocked.value) {
