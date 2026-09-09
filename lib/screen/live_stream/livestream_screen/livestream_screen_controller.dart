@@ -1996,6 +1996,7 @@ class LivestreamScreenController extends BaseController {
           hostId == battleBlueUserId ? BattleView.blue : BattleView.red,
       streamUsers: [host],
       onCompletion: (gm) async {
+        dismissGiftBoostBanner();
         GiftManager.showAnimationDialog(gm.gift);
         await broadcastGift(gm.gift, battleForUserId: hostId);
       },
@@ -2084,6 +2085,8 @@ class LivestreamScreenController extends BaseController {
         showSnackBar(detailed.message ?? LKey.giftNotAvailable.tr);
         return;
       }
+      // Cualquier envío exitoso cumple el pedido (barra / diálogo / slider).
+      dismissGiftBoostBanner();
       if (detailed.coinPrice > 0) {
         gift.coinPrice = detailed.coinPrice;
       }
@@ -2447,6 +2450,8 @@ class LivestreamScreenController extends BaseController {
   }
 
   void dismissGiftBoostBanner() {
+    _giftBoostBannerTimer?.cancel();
+    _giftBoostBannerTimer = null;
     giftBoostBanner.value = null;
   }
 
@@ -3644,6 +3649,8 @@ class LivestreamScreenController extends BaseController {
   }
 
   Future<void> setCameraEnabled(bool enabled) async {
+    // Streamer en LIVE: no permitir apagar cámara (sí reactivar si se cayó).
+    if (isHost && !enabled) return;
     await liveKit?.setCameraEnabled(enabled);
   }
 

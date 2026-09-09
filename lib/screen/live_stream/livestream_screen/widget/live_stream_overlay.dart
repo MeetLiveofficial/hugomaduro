@@ -1828,7 +1828,8 @@ class _ComposerRow extends StatelessWidget {
             onQuality: c.openQualitySheet,
             onPause: c.togglePauseLive,
             onMic: c.toggleLiveAudioMute,
-            onCamera: c.liveKit?.toggleCamera,
+            // Streamer: cámara siempre on (no opción de apagar en Options).
+            onCamera: null,
             onGiftSenders: c.openGiftSendersSheet,
             giftSendersSubtitle: hasReceivedGifts
                 ? LKey.seeGiftSenders.tr
