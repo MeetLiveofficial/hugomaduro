@@ -27,8 +27,12 @@ class LiveKitRoomController extends GetxController {
   final RxBool cameraIsFront = true.obs;
   /// Mute local del audio remoto (audiencia silencia el mic del host).
   final RxBool remoteAudioMuted = false.obs;
-  /// Pausa local: host corta cam/mic; audiencia congela video + audio.
+  /// Pausa local: host mutea mic (+ overlay); audiencia congela video + audio.
+  /// La cámara del streamer/host NUNCA se apaga si [allowCameraDisable] es false.
   final RxBool streamPaused = false.obs;
+  /// Si false, [setCameraEnabled](false) / [toggleCamera] no apagan la cámara.
+  /// LIVE host / streamer en llamada: false. Match/cliente: true.
+  bool allowCameraDisable = true;
   final RxString statusMessage = ''.obs;
   final Rxn<LocalParticipant> localParticipant = Rxn<LocalParticipant>();
   final RxList<RemoteParticipant> remoteParticipants = <RemoteParticipant>[].obs;
@@ -100,6 +104,7 @@ class LiveKitRoomController extends GetxController {
     bool adaptiveStream = true,
     bool dynacast = true,
     bool allowRearCamera = true,
+    bool allowCameraDisable = true,
   }) async {
     if (isClosed) {
       throw StateError('LiveKitRoomService disposed');
@@ -123,6 +128,7 @@ class LiveKitRoomController extends GetxController {
       throw StateError('LiveKitRoomService disposed');
     }
 
+    this.allowCameraDisable = allowCameraDisable;
     isConnecting.value = true;
     statusMessage.value = 'Conectando…';
 
@@ -185,6 +191,7 @@ class LiveKitRoomController extends GetxController {
     bool publishCamera = false,
     bool publishMicrophone = false,
     String? wsUrl,
+    bool allowCameraDisable = true,
   }) async {
     if (isConnecting.value) return;
     try {
@@ -198,6 +205,7 @@ class LiveKitRoomController extends GetxController {
       publishMicrophone: publishMicrophone,
       wsUrl: wsUrl,
       forceProfile: LiveKitQualityProfile.low,
+      allowCameraDisable: allowCameraDisable,
     );
   }
 
@@ -218,6 +226,11 @@ class LiveKitRoomController extends GetxController {
   }
 
   Future<void> setCameraEnabled(bool enabled) async {
+    // Streamer/host LIVE: nunca apagar cámara (sí reactivar si se cayó).
+    if (!enabled && !allowCameraDisable) {
+      Loggers.info('setCameraEnabled(false) blocked (allowCameraDisable=false)');
+      return;
+    }
     await _service.setCameraEnabled(enabled);
     cameraEnabled.value = enabled;
     _syncFromService();
@@ -316,7 +329,8 @@ class LiveKitRoomController extends GetxController {
   Future<void> toggleRemoteAudio() =>
       setRemoteAudioMuted(!remoteAudioMuted.value);
 
-  /// Host: pausa publicación cam/mic. Audiencia: deshabilita video/audio remoto.
+  /// Host: mutea mic (cámara sigue on si [allowCameraDisable] es false).
+  /// Audiencia: deshabilita video/audio remoto.
   Future<void> setStreamPaused({
     required bool paused,
     required bool asHost,
@@ -324,10 +338,15 @@ class LiveKitRoomController extends GetxController {
     streamPaused.value = paused;
     if (asHost) {
       if (paused) {
-        await setCameraEnabled(false);
+        // Nunca apagar cámara del streamer; solo mic + overlay en UI.
+        if (allowCameraDisable) {
+          await setCameraEnabled(false);
+        }
         await setMicrophoneEnabled(false);
       } else {
-        await setCameraEnabled(true);
+        if (allowCameraDisable || !cameraEnabled.value) {
+          await setCameraEnabled(true);
+        }
         await setMicrophoneEnabled(true);
       }
     } else {

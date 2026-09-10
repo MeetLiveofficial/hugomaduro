@@ -979,6 +979,8 @@ class VideoCallController extends BaseController {
             publishMicrophone: true,
             wsUrl: liveKitWsUrl,
             allowRearCamera: !AppRole.isStreamer(),
+            // Streamer en llamada: cámara siempre on.
+            allowCameraDisable: !AppRole.isStreamer(),
           );
           connectError = null;
           break;

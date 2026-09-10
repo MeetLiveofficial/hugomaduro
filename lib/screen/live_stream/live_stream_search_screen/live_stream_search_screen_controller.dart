@@ -105,6 +105,16 @@ class LiveStreamSearchScreenController extends BaseController {
   /// Poner en `true` para reactivar filtros.
   static const bool kPreLiveBeautyFiltersEnabled = false;
 
+  /// Preview del estudio listo (misma lógica que [_StudioBackdrop]).
+  /// Start Live permanece disabled hasta que esto sea true.
+  bool get isPreLiveCameraReady {
+    if (cameraPreviewLoading.value) return false;
+    if (!cameraPreviewActive.value) return false;
+    if (kIsWeb) return beautyPipeline.isReady;
+    if (gpuPixelPreviewActive.value) return gpuPixel.hasTexture;
+    return beautyPipeline.isReady;
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -238,6 +248,13 @@ class LiveStreamSearchScreenController extends BaseController {
 
   Future<void> onTapGoLive() async {
     FocusManager.instance.primaryFocus?.unfocus();
+    if (!isPreLiveCameraReady) {
+      showSnackBar('Espera a que la cámara esté lista');
+      if (!cameraPreviewLoading.value && !cameraPreviewActive.value) {
+        unawaited(startBeautyCameraPreview());
+      }
+      return;
+    }
     final user = SessionManager.instance.getUser();
     final settings = SessionManager.instance.getSettings();
     if (user == null) {
@@ -291,7 +308,10 @@ class LiveStreamSearchScreenController extends BaseController {
       await StreamerCameraLock.releaseMatchWaitIfAny();
       await stopBeautyCameraPreview();
       releaseNativeCameraIfNeeded();
-      await Future.delayed(const Duration(milliseconds: 200));
+      // Android Camera2: dar margen tras liberar el preview antes de LiveKit.
+      await Future.delayed(
+        Duration(milliseconds: Platform.isAndroid ? 450 : 200),
+      );
       await _startLive(
         user,
         beautyOn: snapBeautyOn,
@@ -1007,21 +1027,35 @@ class _StartLiveSheet extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
       child: SizedBox(
         width: double.infinity,
-        child: ElevatedButton(
-          onPressed: () {
-            FocusScope.of(context).unfocus();
-            Get.back(result: true);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: themeColor(context),
-            foregroundColor: whitePure(context),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        child: Obx(() {
+          final ready = controller.isPreLiveCameraReady;
+          controller.cameraPreviewActive.value;
+          controller.cameraPreviewLoading.value;
+          controller.gpuPixelPreviewActive.value;
+          return ElevatedButton(
+            onPressed: ready
+                ? () {
+                    FocusScope.of(context).unfocus();
+                    Get.back(result: true);
+                  }
+                : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeColor(context),
+              foregroundColor: whitePure(context),
+              disabledBackgroundColor:
+                  themeColor(context).withValues(alpha: 0.35),
+              disabledForegroundColor:
+                  whitePure(context).withValues(alpha: 0.7),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-          ),
-          child: Text(LKey.startLive.tr),
-        ),
+            child: Text(
+              ready ? LKey.startLive.tr : 'Preparando cámara…',
+            ),
+          );
+        }),
       ),
     );
 

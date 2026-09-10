@@ -1194,6 +1194,8 @@ class LivestreamScreenController extends BaseController {
         // Host o rival de PK publican A/V; resto solo reciben.
         publishCamera: shouldPublishAv,
         publishMicrophone: shouldPublishAv,
+        // Quien publica en LIVE nunca puede apagar la cámara.
+        allowCameraDisable: !shouldPublishAv,
         wsUrl: liveKitWsUrl,
         forceProfile: LiveKitQualityProfile.medium,
         // Si quedó una conexión fantasma (sala no cerrada), forzar rejoin.
@@ -1203,6 +1205,7 @@ class LivestreamScreenController extends BaseController {
       _connectedLiveKitRoom = avRoomId;
       if (isHost) {
         _disarmHostConnectWatchdog();
+        await _ensureHostCameraPublishing();
         await applyBeauty();
       }
     } catch (e) {
@@ -1228,6 +1231,28 @@ class LivestreamScreenController extends BaseController {
     _checkHostPresence();
 
     update();
+  }
+
+  /// Tras conectar, espera track local o reintenta publicar (Android Camera2).
+  Future<void> _ensureHostCameraPublishing() async {
+    final lk = liveKit;
+    if (lk == null || !shouldPublishAv) return;
+    for (var i = 0; i < 12; i++) {
+      if (firstVideoTrackOf(lk.localParticipant.value) != null) {
+        return;
+      }
+      try {
+        await lk.setCameraEnabled(true);
+      } catch (e) {
+        Loggers.error('_ensureHostCameraPublishing: $e');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      lk.mediaRevision.value++;
+    }
+    if (firstVideoTrackOf(lk.localParticipant.value) == null) {
+      statusMessage.value = 'Sin video. Toca Reintentar.';
+      Loggers.error('Host LIVE connected without local video track');
+    }
   }
 
   void _armHostConnectWatchdog() {
@@ -1271,6 +1296,7 @@ class LivestreamScreenController extends BaseController {
         name: me.fullname ?? me.username ?? 'user',
         publishCamera: shouldPublishAv,
         publishMicrophone: shouldPublishAv,
+        allowCameraDisable: !shouldPublishAv,
         wsUrl: liveKitWsUrl,
       );
       _dataSub?.cancel();
@@ -2625,6 +2651,7 @@ class LivestreamScreenController extends BaseController {
           name: me.fullname ?? me.username ?? 'user',
           publishCamera: shouldPublishAv,
           publishMicrophone: shouldPublishAv,
+          allowCameraDisable: !shouldPublishAv,
           wsUrl: liveKitWsUrl,
           forceReconnect: true,
         );
@@ -3386,6 +3413,7 @@ class LivestreamScreenController extends BaseController {
         name: me.fullname ?? me.username ?? 'user',
         publishCamera: publish,
         publishMicrophone: publish,
+        allowCameraDisable: !publish,
         wsUrl: liveKitWsUrl,
         forceProfile: LiveKitQualityProfile.medium,
         forceReconnect: force || !onTarget || (publish && !cameraOk),

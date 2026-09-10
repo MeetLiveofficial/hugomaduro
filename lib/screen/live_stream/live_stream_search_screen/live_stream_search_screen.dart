@@ -550,46 +550,75 @@ class _BottomBar extends StatelessWidget {
                 ),
               );
             }),
-            // Siempre visible en esta pantalla (solo streamers llegan aquí).
-            // El permiso canGoLive se valida en onTapGoLive con mensaje claro.
-            Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(28),
-              child: InkWell(
+            // Disabled hasta preview de cámara listo (evita LIVE negro en Android).
+            // canGoLive se valida en onTapGoLive con mensaje claro.
+            Obx(() {
+              final ready = controller.isPreLiveCameraReady;
+              // Dependencias Rx leídas dentro del getter; reforzar suscripción:
+              controller.cameraPreviewActive.value;
+              controller.cameraPreviewLoading.value;
+              controller.gpuPixelPreviewActive.value;
+              return Material(
+                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(28),
-                onTap: controller.onTapGoLive,
-                child: Ink(
-                  decoration: BoxDecoration(
-                    gradient: StyleRes.themeGradient,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ColorRes.crimson.withValues(alpha: 0.45),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const LiveTvIcon(size: 22, color: Colors.white),
-                        const SizedBox(width: 10),
-                        Text(
-                          LKey.startLive.tr,
-                          style: TextStyleCustom.outFitSemiBold600(
-                            color: Colors.white,
-                            fontSize: 16,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(28),
+                  onTap: ready ? controller.onTapGoLive : null,
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      gradient: ready ? StyleRes.themeGradient : null,
+                      color: ready
+                          ? null
+                          : Colors.white.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: ready
+                          ? [
+                              BoxShadow(
+                                color:
+                                    ColorRes.crimson.withValues(alpha: 0.45),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (!ready) ...[
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ] else ...[
+                            const LiveTvIcon(size: 22, color: Colors.white),
+                            const SizedBox(width: 10),
+                          ],
+                          Text(
+                            ready
+                                ? LKey.startLive.tr
+                                : 'Preparando cámara…',
+                            style: TextStyleCustom.outFitSemiBold600(
+                              color: ready
+                                  ? Colors.white
+                                  : Colors.white.withValues(alpha: 0.72),
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            }),
           ],
         ),
       );

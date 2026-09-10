@@ -371,10 +371,16 @@ class _SendGiftDialogState extends State<SendGiftDialog>
       return _buildHalfScreenContent(size);
     }
     if (_fullscreen) {
-      return SizedBox(
-        width: size.width,
-        height: size.height,
-        child: _buildMedia(size.width, size.height, BoxFit.cover),
+      // 6% arriba/abajo: deja ver barra LIVE y chat (no edge-to-edge).
+      final inset = size.height * 0.06;
+      final mediaH = (size.height - inset * 2).clamp(1.0, size.height);
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: inset),
+        child: SizedBox(
+          width: size.width,
+          height: mediaH,
+          child: _buildMedia(size.width, mediaH, BoxFit.contain),
+        ),
       );
     }
     return Center(
@@ -393,19 +399,19 @@ class _SendGiftDialogState extends State<SendGiftDialog>
         behavior: HitTestBehavior.opaque,
         onTap: _videoMode ? null : _dismiss,
         child: ColoredBox(
-          color: _halfScreenBottom
-              ? Colors.transparent
-              : (_expandedDisplay
-                  ? Colors.black.withValues(alpha: 0.35)
-                  : Colors.transparent),
+          // Sin velo edge-to-edge: deja ver barra LIVE y chat.
+          color: Colors.transparent,
           child: AnimatedBuilder(
             animation: Listenable.merge([_ctrl, _exitCtrl]),
-            builder: (context, child) {
+            builder: (context, animationChild) {
               return Opacity(
                 opacity: _opacityValue,
                 child: _expandedDisplay
-                    ? child
-                    : Transform.scale(scale: _scale.value, child: child),
+                    ? animationChild
+                    : Transform.scale(
+                        scale: _scale.value,
+                        child: animationChild,
+                      ),
               );
             },
             child: IgnorePointer(child: _buildGiftContent(size)),
