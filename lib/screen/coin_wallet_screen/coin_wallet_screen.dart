@@ -16,6 +16,8 @@ class CoinWalletScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(CoinWalletScreenController());
+    // Get.put reutiliza el controller: refrescar saldo al entrar siempre.
+    controller.fetchData();
     final isEarner = AppRole.canEarn();
     return ThemeRes.applyIfClient(
       context,

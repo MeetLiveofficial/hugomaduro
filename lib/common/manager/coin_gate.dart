@@ -115,11 +115,10 @@ class _CoinShopSheet extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Obx(() {
-                      final coins =
-                          (controller.myUser.value?.coinWallet ?? initialCoins)
-                              .toInt();
+                      final coins = SessionManager.instance.coinWalletRx.value;
                       return Text(
                         LKey.myCoinsCount.trParams({'coins': '$coins'}),
+                        key: ValueKey('shop_coins_$coins'),
                         style: TextStyleCustom.outFitMedium500(
                           color: client
                               ? ClientColors.primary

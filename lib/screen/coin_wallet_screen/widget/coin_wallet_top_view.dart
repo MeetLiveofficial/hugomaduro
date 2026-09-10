@@ -37,10 +37,10 @@ class CoinWalletTopView extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Obx(() {
-            final user = controller.myUser.value;
-            final balance = user?.coinWallet ?? 0;
-            final estimated =
-                user?.coinEstimatedValue(coinValue.toDouble()) ?? 0;
+            // Fuente de verdad en vivo (regalos/llamadas/match).
+            final balance = SessionManager.instance.coinWalletRx.value;
+            final estimated = balance * coinValue.toDouble();
+            final balanceLabel = balance.fullNumberFormat;
             return Column(
               children: [
                 Text(
@@ -60,7 +60,8 @@ class CoinWalletTopView extends StatelessWidget {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          balance.fullNumberFormat,
+                          balanceLabel,
+                          key: ValueKey('wallet_balance_$balanceLabel'),
                           maxLines: 1,
                           style: TextStyleCustom.unboundedSemiBold600(
                             color: whitePure(context),

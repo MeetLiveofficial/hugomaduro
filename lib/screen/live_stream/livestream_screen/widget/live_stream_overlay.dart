@@ -909,13 +909,7 @@ class _LiveStatusChip extends StatelessWidget {
     return Obx(() {
       final battle = controller.isBattleRunning.value;
       final inCall = controller.hostInCall.value;
-      final elapsed = controller.liveElapsedSeconds.value;
-      final mm = (elapsed ~/ 60).toString().padLeft(2, '0');
-      final ss = (elapsed % 60).toString().padLeft(2, '0');
-      final hh = elapsed ~/ 3600;
-      final timeLabel = hh > 0
-          ? '${hh.toString().padLeft(2, '0')}:$mm:$ss'
-          : '$mm:$ss';
+      final timeLabel = controller.liveElapsedLabel;
       final statusLabel = inCall ? LKey.inCall.tr : (battle ? 'PK' : 'LIVE');
       final statusColor = inCall
           ? const Color(0xFFE67E22)

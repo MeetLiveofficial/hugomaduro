@@ -371,8 +371,8 @@ class _SendGiftDialogState extends State<SendGiftDialog>
       return _buildHalfScreenContent(size);
     }
     if (_fullscreen) {
-      // 6% arriba/abajo: deja ver barra LIVE y chat (no edge-to-edge).
-      final inset = size.height * 0.06;
+      // 5% arriba/abajo: deja ver barra LIVE y chat (no edge-to-edge).
+      final inset = size.height * 0.05;
       final mediaH = (size.height - inset * 2).clamp(1.0, size.height);
       return Padding(
         padding: EdgeInsets.symmetric(vertical: inset),

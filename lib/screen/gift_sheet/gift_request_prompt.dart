@@ -19,68 +19,81 @@ class GiftRequestPrompt {
         ? LKey.sendMeGifts.tr
         : msg.text!.trim();
     await Get.dialog<void>(
-      AlertDialog(
-        backgroundColor: const Color(0xFF1A1224),
-        title: Text(
-          LKey.giftMe.tr,
-          style: TextStyleCustom.outFitMedium500(
-            color: Colors.white,
-            fontSize: 16,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if ((msg.giftImage ?? '').isNotEmpty || msg.giftId != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: GiftMedia(
-                  path: msg.giftImage,
-                  width: 72,
-                  height: 72,
-                  fit: BoxFit.contain,
-                  muted: true,
-                  looping: true,
-                  placeholder: const Icon(
-                    Icons.card_giftcard,
-                    color: ColorRes.accentPeach,
-                    size: 48,
+      Builder(
+        builder: (context) {
+          void closeDialog() {
+            // No usar Get.back(): con snackbar abierto GetX cierra el snackbar
+            // y deja este diálogo colgado.
+            if (Get.isSnackbarOpen) {
+              Get.closeAllSnackbars();
+            }
+            Navigator.of(context).pop();
+          }
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1224),
+            title: Text(
+              LKey.giftMe.tr,
+              style: TextStyleCustom.outFitMedium500(
+                color: Colors.white,
+                fontSize: 16,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if ((msg.giftImage ?? '').isNotEmpty || msg.giftId != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: GiftMedia(
+                      path: msg.giftImage,
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.contain,
+                      muted: true,
+                      looping: true,
+                      placeholder: const Icon(
+                        Icons.card_giftcard,
+                        color: ColorRes.accentPeach,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                Text(
+                  coins > 0
+                      ? '$title\n${msg.userName} · $coins ${LKey.coins.tr}'
+                      : '$title\n${msg.userName}',
+                  textAlign: TextAlign.center,
+                  style: TextStyleCustom.outFitRegular400(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: closeDialog,
+                child: Text(
+                  LKey.notNow.tr,
+                  style: TextStyleCustom.outFitMedium500(color: Colors.white54),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  closeDialog();
+                  onSend();
+                },
+                child: Text(
+                  LKey.sendGifts.tr,
+                  style: TextStyleCustom.outFitMedium500(
+                    color: ColorRes.themeAccentSolid,
                   ),
                 ),
               ),
-            Text(
-              coins > 0
-                  ? '$title\n${msg.userName} · $coins ${LKey.coins.tr}'
-                  : '$title\n${msg.userName}',
-              textAlign: TextAlign.center,
-              style: TextStyleCustom.outFitRegular400(
-                color: Colors.white70,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: Get.back,
-            child: Text(
-              LKey.notNow.tr,
-              style: TextStyleCustom.outFitMedium500(color: Colors.white54),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Get.back();
-              onSend();
-            },
-            child: Text(
-              LKey.sendGifts.tr,
-              style: TextStyleCustom.outFitMedium500(
-                color: ColorRes.themeAccentSolid,
-              ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
       barrierDismissible: true,
     );

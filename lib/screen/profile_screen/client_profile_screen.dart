@@ -55,12 +55,19 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
   Future<void> _refresh() async {
     final id = userData.value?.id ?? SessionManager.instance.getUserID();
+    final localCoinsBefore = SessionManager.instance.coinWalletRx.value;
     try {
       final fresh = await UserService.instance.fetchUserDetails(userId: id);
       if (fresh != null) {
         // Estoy en la app: presencia ACTIVE en mi perfil.
         if (fresh.id == SessionManager.instance.getUserID()) {
           fresh.isActive = 1;
+        }
+        final apiCoins = (fresh.coinWallet ?? 0).toInt();
+        final localNow = SessionManager.instance.coinWalletRx.value;
+        // Si gastamos durante el fetch, no restaurar un saldo API más alto.
+        if (localNow < localCoinsBefore && apiCoins > localNow) {
+          fresh.coinWallet = localNow;
         }
         userData.value = fresh;
         SessionManager.instance.setUser(fresh);
@@ -84,7 +91,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           if (user == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          final coins = (user.coinWallet ?? 0).toInt();
+          // coinWalletRx se actualiza al gastar/recargar; userData puede ir detrás.
+          final coins = SessionManager.instance.coinWalletRx.value;
           final isMe = user.id == SessionManager.instance.getUserID();
           // En mi propio perfil, si estoy en la app soy ACTIVE.
           final isPresent = isMe || user.isActive == 1 || user.isLive == 1;
@@ -212,20 +220,25 @@ class _WalletShineCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       child: Stack(
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-            decoration: BoxDecoration(
-              gradient: StyleRes.themeGradient,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: ClientColors.primary.withValues(alpha: 0.35),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+          // Gradiente + shine DETRÁS del texto (antes el brillo tapaba el saldo
+          // y dejaba un fragmento blanco “pegado” al cambiar monedas).
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: StyleRes.themeGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: ClientColors.primary.withValues(alpha: 0.35),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const IgnorePointer(child: ShineSweep()),
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -247,6 +260,7 @@ class _WalletShineCard extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           coinsLabel,
+                          key: ValueKey('profile_wallet_$coinsLabel'),
                           maxLines: 1,
                           style: TextStyleCustom.unboundedSemiBold600(
                             color: Colors.white,
@@ -273,9 +287,6 @@ class _WalletShineCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          const Positioned.fill(
-            child: IgnorePointer(child: ShineSweep()),
           ),
         ],
       ),

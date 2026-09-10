@@ -26,6 +26,8 @@ class CoinWalletScreenController extends BaseController {
   Rx<User?> myUser = Rx<User?>(null);
   RxList<Package> offerings = <Package>[].obs;
   RxList<CoinPlan> coinPlans = <CoinPlan>[].obs;
+  Worker? _userWorker;
+  Worker? _coinWorker;
 
   Setting? get settings => SessionManager.instance.getSettings();
 
@@ -33,7 +35,25 @@ class CoinWalletScreenController extends BaseController {
   void onInit() {
     super.onInit();
     fetchData();
+    // CoinGate / promo hacen Get.put y el controller vive fuera de la ruta:
+    // hay que seguir SessionManager o el saldo queda stale hasta reiniciar.
+    _userWorker = ever<User?>(SessionManager.instance.userRx, (u) {
+      if (u != null) myUser.value = u;
+    });
+    _coinWorker = ever<int>(SessionManager.instance.coinWalletRx, (coins) {
+      final u = myUser.value;
+      if (u == null) return;
+      if ((u.coinWallet ?? 0).toInt() == coins) return;
+      myUser.value = u.copyWith(coinWallet: coins);
+    });
     _loadPlans();
+  }
+
+  @override
+  void onClose() {
+    _userWorker?.dispose();
+    _coinWorker?.dispose();
+    super.onClose();
   }
 
   Future<void> _loadPlans() async {

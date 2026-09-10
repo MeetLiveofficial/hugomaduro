@@ -1552,12 +1552,6 @@ class VideoCallController extends BaseController {
         GiftManager.showAnimationDialog(gift);
       }
     }
-    if (msg.type == 'gift_boost' && AppRole.isClient()) {
-      final me = SessionManager.instance.getUserID();
-      if (msg.userId != me) {
-        _promptGiftRequest(msg);
-      }
-    }
     if (msg.type == 'text' &&
         !msg.isTranslated &&
         (msg.text ?? '').trim().isNotEmpty) {
@@ -1566,35 +1560,6 @@ class VideoCallController extends BaseController {
         unawaited(_translateCallChat(msg));
       }
     }
-  }
-
-  void _promptGiftRequest(LiveChatMessage msg) {
-    final coins = msg.giftCoins ?? 0;
-    final title = msg.text ?? LKey.sendMeGifts.tr;
-    Get.snackbar(
-      'Regalos',
-      coins > 0 ? '$title 🎁' : title,
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Colors.black87,
-      colorText: Colors.white,
-      margin: const EdgeInsets.all(12),
-      borderRadius: 16,
-      duration: const Duration(seconds: 5),
-      onTap: (_) {
-        Get.closeCurrentSnackbar();
-        unawaited(sendRequestedGift(msg));
-      },
-      mainButton: TextButton(
-        onPressed: () {
-          Get.closeCurrentSnackbar();
-          unawaited(sendRequestedGift(msg));
-        },
-        child: const Text(
-          'Regalar',
-          style: TextStyle(color: ColorRes.themeAccentSolid),
-        ),
-      ),
-    );
   }
 
   Future<void> _translateCallChat(LiveChatMessage msg) async {
