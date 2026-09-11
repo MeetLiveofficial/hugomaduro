@@ -2,7 +2,7 @@ name: iOS TestFlight
 
 on:
   push:
-    branches: [feat/ios-2]
+    branches: [feat/ios-2-stable]
   workflow_dispatch:
     inputs:
       skip_upload:
