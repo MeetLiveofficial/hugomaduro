@@ -1427,6 +1427,7 @@ class VideoCallController extends BaseController {
       }
       if (detailed.coinPrice > 0) gift.coinPrice = detailed.coinPrice;
       if ((detailed.image ?? '').isNotEmpty) gift.image = detailed.image;
+      if (detailed.isFullscreen != 0) gift.isFullscreen = detailed.isFullscreen;
 
       final me = SessionManager.instance.getUser();
       me?.removeCoinFromWallet(gift.coinPrice ?? price);
@@ -1462,6 +1463,7 @@ class VideoCallController extends BaseController {
       giftId: gift.id,
       giftImage: gift.image,
       giftCoins: coins,
+      giftDisplay: gift.isFullscreen,
     );
     _appendCallChat(msg);
     try {
@@ -1548,6 +1550,7 @@ class VideoCallController extends BaseController {
           id: msg.giftId,
           image: msg.giftImage,
           coinPrice: msg.giftCoins,
+          isFullscreen: msg.giftDisplay ?? 0,
         );
         GiftManager.showAnimationDialog(gift);
       }

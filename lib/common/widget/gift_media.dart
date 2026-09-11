@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:video_player/video_player.dart';
 
 /// Media de regalos: GIF/WebP/PNG/JPG, SVG o MP4.
@@ -88,18 +91,14 @@ class GiftMedia extends StatelessWidget {
       );
     }
 
-    return Image.network(
-      url,
+    return _GiftRaster(
+      url: url,
       width: width,
       height: height,
       fit: fit,
-      filterQuality: FilterQuality.high,
-      gaplessPlayback: true,
-      errorBuilder: (_, __, ___) => SizedBox(
-        width: width,
-        height: height,
-        child: Center(child: _fallback()),
-      ),
+      fallback: _fallback(),
+      onReady: onVideoReady,
+      onFailed: onVideoEnded,
     );
   }
 }
@@ -145,10 +144,27 @@ class _GiftVideoState extends State<_GiftVideo> {
   }
 
   Future<void> _init() async {
-    final controller = VideoPlayerController.networkUrl(
-      Uri.parse(widget.url),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
+    VideoPlayerController controller;
+    if (!kIsWeb) {
+      final file = await GiftMediaCache.fileForUrl(widget.url);
+      if (!mounted) return;
+      if (file != null) {
+        controller = VideoPlayerController.file(
+          file,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+      } else {
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(widget.url),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+      }
+    } else {
+      controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.url),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+    }
     _controller = controller;
     try {
       await controller.initialize();
@@ -182,6 +198,10 @@ class _GiftVideoState extends State<_GiftVideo> {
       }
       if (mounted) {
         setState(() => _failed = true);
+      }
+      if (!_endedNotified) {
+        _endedNotified = true;
+        widget.onEnded?.call();
       }
     }
   }
@@ -246,6 +266,140 @@ class _GiftVideoState extends State<_GiftVideo> {
           width: c.value.size.width,
           height: c.value.size.height,
           child: VideoPlayer(c),
+        ),
+      ),
+    );
+  }
+}
+
+class _GiftRaster extends StatefulWidget {
+  const _GiftRaster({
+    required this.url,
+    required this.width,
+    required this.height,
+    required this.fit,
+    required this.fallback,
+    this.onReady,
+    this.onFailed,
+  });
+
+  final String url;
+  final double width;
+  final double height;
+  final BoxFit fit;
+  final Widget fallback;
+  final ValueChanged<Duration>? onReady;
+  final VoidCallback? onFailed;
+
+  @override
+  State<_GiftRaster> createState() => _GiftRasterState();
+}
+
+class _GiftRasterState extends State<_GiftRaster> {
+  File? _file;
+  bool _readyNotified = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  Future<void> _resolve() async {
+    if (kIsWeb) return;
+    final file = await GiftMediaCache.fileForUrl(widget.url);
+    if (!mounted) return;
+    if (file != null) {
+      setState(() => _file = file);
+    }
+  }
+
+  void _notifyReady() {
+    if (_readyNotified) return;
+    _readyNotified = true;
+    widget.onReady?.call(Duration.zero);
+  }
+
+  void _notifyFailed() {
+    if (_readyNotified) return;
+    _readyNotified = true;
+    widget.onFailed?.call();
+  }
+
+  Widget _box({required Widget child}) {
+    return SizedBox(width: widget.width, height: widget.height, child: child);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final image = _file != null
+        ? Image.file(
+            _file!,
+            width: widget.width,
+            height: widget.height,
+            fit: widget.fit,
+            filterQuality: FilterQuality.high,
+            gaplessPlayback: true,
+            frameBuilder: _frameBuilder,
+            errorBuilder: (_, __, ___) => Image.network(
+              widget.url,
+              width: widget.width,
+              height: widget.height,
+              fit: widget.fit,
+              filterQuality: FilterQuality.high,
+              gaplessPlayback: true,
+              frameBuilder: _frameBuilder,
+              loadingBuilder: _loadingBuilder,
+              errorBuilder: (_, __, ___) {
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _notifyFailed());
+                return _box(child: Center(child: widget.fallback));
+              },
+            ),
+          )
+        : Image.network(
+            widget.url,
+            width: widget.width,
+            height: widget.height,
+            fit: widget.fit,
+            filterQuality: FilterQuality.high,
+            gaplessPlayback: true,
+            frameBuilder: _frameBuilder,
+            loadingBuilder: _loadingBuilder,
+            errorBuilder: (_, __, ___) {
+              WidgetsBinding.instance
+                  .addPostFrameCallback((_) => _notifyFailed());
+              return _box(child: Center(child: widget.fallback));
+            },
+          );
+
+    return image;
+  }
+
+  Widget _frameBuilder(
+    BuildContext context,
+    Widget child,
+    int? frame,
+    bool wasSynchronouslyLoaded,
+  ) {
+    if (frame != null || wasSynchronouslyLoaded) {
+      _notifyReady();
+    }
+    return child;
+  }
+
+  Widget _loadingBuilder(
+    BuildContext context,
+    Widget child,
+    ImageChunkEvent? progress,
+  ) {
+    if (progress == null) return child;
+    return _box(
+      child: const Center(
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
     );

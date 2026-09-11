@@ -13,6 +13,7 @@ class LiveChatMessage {
     this.giftId,
     this.giftImage,
     this.giftCoins,
+    this.giftDisplay,
     this.replyToId,
     this.replyToUserName,
     this.replyToText,
@@ -36,6 +37,8 @@ class LiveChatMessage {
   final int? giftId;
   final String? giftImage;
   final int? giftCoins;
+  /// 0 original · 1 pantalla completa · 2 mitad inferior.
+  final int? giftDisplay;
   final String? replyToId;
   final String? replyToUserName;
   final String? replyToText;
@@ -115,6 +118,7 @@ class LiveChatMessage {
       giftId: giftId,
       giftImage: giftImage,
       giftCoins: giftCoins,
+      giftDisplay: giftDisplay,
       replyToId: replyToId,
       replyToUserName: replyToUserName,
       replyToText: replyToText,
@@ -138,6 +142,7 @@ class LiveChatMessage {
         'gift_id': giftId,
         'gift_image': giftImage,
         'gift_coins': giftCoins,
+        'gift_display': giftDisplay,
         'reply_to_id': replyToId,
         'reply_to_user_name': replyToUserName,
         'reply_to_text': replyToText,
@@ -172,6 +177,7 @@ class LiveChatMessage {
       giftId: asInt(json['gift_id']),
       giftImage: json['gift_image']?.toString(),
       giftCoins: asInt(json['gift_coins']),
+      giftDisplay: asInt(json['gift_display'] ?? json['is_fullscreen']),
       replyToId: json['reply_to_id']?.toString(),
       replyToUserName: json['reply_to_user_name']?.toString(),
       replyToText: json['reply_to_text']?.toString(),

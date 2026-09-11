@@ -1185,6 +1185,10 @@ class LivestreamScreenController extends BaseController {
       }
       update();
     });
+    ever(liveKit!.isConnected, (connected) {
+      if (connected) return;
+      unawaited(_onAudienceLiveKitDropped());
+    });
 
     try {
       await liveKit!.connect(
@@ -1429,7 +1433,7 @@ class LivestreamScreenController extends BaseController {
   /// Prefijo en comentarios Laravel para sincronizar regalos sin LiveKit.
   /// Formato corto: ðŸŽGIFT|{giftId}|{coins}|  (sin URL larga → evita max length)
   static final RegExp _giftPayloadRe =
-      RegExp(r'GIFT\|(\d+)\|(\d+)\|');
+      RegExp(r'GIFT\|(\d+)\|(\d+)\|(?:(\d)\|)?');
 
   void _pulseFloatingLike() {
     floatingLikes.value++;
@@ -1491,6 +1495,7 @@ class LivestreamScreenController extends BaseController {
           giftId: msg.giftId,
           giftImage: image,
           giftCoins: coins > 0 ? coins : msg.giftCoins,
+          giftDisplay: msg.giftDisplay,
           createdAt: msg.createdAt,
           replyToId: msg.replyToId,
           replyToUserName: msg.replyToUserName,
@@ -1538,6 +1543,7 @@ class LivestreamScreenController extends BaseController {
     if (m != null) {
       final giftId = int.tryParse(m.group(1) ?? '');
       var giftCoins = int.tryParse(m.group(2) ?? '') ?? 0;
+      final giftDisplay = int.tryParse(m.group(3) ?? '');
       // Tras GIFT|id|coins| puede venir image| (formato largo) o el texto.
       String? image;
       final after = text.substring(m.end);
@@ -1556,6 +1562,7 @@ class LivestreamScreenController extends BaseController {
         giftId: giftId,
         giftCoins: giftCoins,
         giftImage: image,
+        giftDisplay: giftDisplay,
         createdAt: msg.createdAt,
       );
       if (giftCoins <= 0) {
@@ -1570,6 +1577,7 @@ class LivestreamScreenController extends BaseController {
         giftId: giftId,
         giftCoins: giftCoins,
         giftImage: image,
+        giftDisplay: giftDisplay,
         createdAt: msg.createdAt,
       );
     }
@@ -1685,6 +1693,8 @@ class LivestreamScreenController extends BaseController {
 
   String? resolveGiftImage(int? giftId) {
     if (giftId == null) return null;
+    final known = GiftManager.knownById(giftId);
+    if ((known?.image ?? '').isNotEmpty) return known!.image;
     final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
     for (final g in gifts) {
       if (g.id == giftId && (g.image ?? '').isNotEmpty) return g.image;
@@ -1696,7 +1706,9 @@ class LivestreamScreenController extends BaseController {
 
   void _appendChatMessage(LiveChatMessage raw, {bool animateGift = false}) {
     final msg = _normalizeIncomingChat(raw);
-    if (msg.type == 'like' || msg.type == 'live_pause') return;
+    if (msg.type == 'like' ||
+        msg.type == 'live_pause' ||
+        msg.type == 'live_end') return;
     if (chatMessages.any((m) => m.id == msg.id)) {
       if (msg.type == 'gift') _upgradeGiftSenderCoins(msg);
       return;
@@ -1801,20 +1813,27 @@ class LivestreamScreenController extends BaseController {
     if (Get.context == null) return;
     final image = (msg.giftImage ?? '').trim();
     final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
-    Gift? gift;
-    for (final g in gifts) {
-      if ((msg.giftId != null && g.id == msg.giftId) ||
-          (image.isNotEmpty &&
-              ((g.image ?? '') == image ||
-                  _giftImageBasename(g.image ?? '') ==
-                      _giftImageBasename(image)))) {
-        gift = g;
-        break;
+    Gift? gift = GiftManager.knownById(msg.giftId);
+    if (gift == null) {
+      for (final g in gifts) {
+        if ((msg.giftId != null && g.id == msg.giftId) ||
+            (image.isNotEmpty &&
+                ((g.image ?? '') == image ||
+                    _giftImageBasename(g.image ?? '') ==
+                        _giftImageBasename(image)))) {
+          gift = g;
+          break;
+        }
       }
     }
     gift ??= image.isNotEmpty
-        ? Gift(id: msg.giftId, image: image, coinPrice: msg.giftCoins)
-        : null;
+        ? Gift(
+            id: msg.giftId,
+            image: image,
+            coinPrice: msg.giftCoins,
+            isFullscreen: msg.giftDisplay ?? 0,
+          )
+        : GiftManager.knownById(msg.giftId);
     // Si el tab quedó en 0, aplicar precio del regalo resuelto.
     final price = gift?.coinPrice ?? _resolveGiftCoins(msg);
     if (price > 0) {
@@ -1829,8 +1848,18 @@ class LivestreamScreenController extends BaseController {
       ));
     }
     if (gift == null) {
-      if (gifts.isEmpty) return;
-      gift = gifts.first;
+      return;
+    }
+    if ((msg.giftDisplay ?? 0) != 0 && gift.isFullscreen == 0) {
+      gift = Gift(
+        id: gift.id,
+        categoryId: gift.categoryId,
+        coinPrice: gift.coinPrice,
+        title: gift.title,
+        image: gift.image,
+        sound: gift.sound,
+        isFullscreen: msg.giftDisplay!,
+      );
     }
     try {
       GiftManager.showAnimationDialog(gift);
@@ -1842,6 +1871,12 @@ class LivestreamScreenController extends BaseController {
   void _onLiveData(DataReceivedEvent event) {
     final msg = LiveChatMessage.tryParseBytes(event.data);
     if (msg == null) return;
+    if (msg.type == 'live_end') {
+      if (!isHost) {
+        unawaited(leaveAndRedirectToNextLive());
+      }
+      return;
+    }
     if (msg.type == 'live_pause') {
       final paused = (msg.text ?? '').trim() == '1';
       if (isStreamPaused.value == paused) return;
@@ -2119,6 +2154,9 @@ class LivestreamScreenController extends BaseController {
       if ((detailed.image ?? '').isNotEmpty) {
         gift.image = detailed.image;
       }
+      if (detailed.isFullscreen != 0) {
+        gift.isFullscreen = detailed.isFullscreen;
+      }
 
       final me = SessionManager.instance.getUser();
       me?.removeCoinFromWallet(gift.coinPrice ?? price);
@@ -2169,12 +2207,13 @@ class LivestreamScreenController extends BaseController {
       giftId: gift.id,
       giftImage: image,
       giftCoins: coins,
+      giftDisplay: gift.isFullscreen,
     );
     // Ya se animó en openGiftSheet; aquí solo chat + tab.
     _appendChatMessage(msg, animateGift: false);
     // Payload corto (sin URL): evita max length del API y parseo frágil.
     final encoded =
-        'GIFT|${gift.id ?? 0}|$coins| $name ${LKey.sentAGift.tr} · $coins ${LKey.coins.tr}';
+        'GIFT|${gift.id ?? 0}|$coins|${gift.isFullscreen}| $name ${LKey.sentAGift.tr} · $coins ${LKey.coins.tr}';
     try {
       await LiveSessionService.instance.sendComment(
         roomId: roomId,
@@ -3893,18 +3932,61 @@ class LivestreamScreenController extends BaseController {
     try {
       final lives = await LiveSessionService.instance.listActive();
       final me = SessionManager.instance.getUserID();
+      final candidates = <Livestream>[];
       for (final live in lives) {
         if ((live.isDummyLive ?? 0) == 1) continue;
         final rid = (live.roomID ?? '').trim();
         if (rid.isEmpty || rid == roomId) continue;
         final hostId = live.hostId ?? live.hostUser?.userId ?? 0;
         if (hostId <= 0 || hostId == me) continue;
-        return live;
+        candidates.add(live);
       }
+      if (candidates.isEmpty) return null;
+      candidates.shuffle();
+      return candidates.first;
     } catch (e) {
       Loggers.error('pick next live: $e');
     }
     return null;
+  }
+
+  bool get _audienceShouldLeaveDeadRoom {
+    if (isHost || isDummy || isEnding.value || _redirectingToNextLive) {
+      return false;
+    }
+    if (_parkedForCall || pausedForCall.value || hostInCall.value) {
+      return false;
+    }
+    return true;
+  }
+
+  /// Sala LiveKit caida: si el LIVE ya no existe, otro LIVE o salir.
+  Future<void> _onAudienceLiveKitDropped() async {
+    if (!_audienceShouldLeaveDeadRoom) return;
+    try {
+      final payload = await LiveSessionService.instance
+          .fetchSession(roomId: roomId)
+          .timeout(const Duration(seconds: 4));
+      if (payload != null) return;
+    } catch (_) {}
+    if (!_audienceShouldLeaveDeadRoom) return;
+    await leaveAndRedirectToNextLive();
+  }
+
+  Future<void> _broadcastLiveEnded() async {
+    if (!isHost || isDummy) return;
+    final me = SessionManager.instance.getUser();
+    try {
+      await liveKit?.publishData(
+        LiveChatMessage(
+          id: 'live_end_${DateTime.now().millisecondsSinceEpoch}',
+          userId: me?.id ?? 0,
+          userName: me?.fullname ?? me?.username ?? 'host',
+          type: 'live_end',
+        ).toBytes(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    } catch (_) {}
   }
 
   /// Sale del LIVE actual y abre otro disponible (host ausente / live ended).
@@ -3967,6 +4049,9 @@ class LivestreamScreenController extends BaseController {
     _sessionPoll?.cancel();
     _commentPoll?.cancel();
     _callPoll?.cancel();
+    if (isHost && !isDummy) {
+      await _broadcastLiveEnded();
+    }
     // Si salimos a mitad de PK, cerrar batalla en servidor para no dejar
     // la sala primaria "fantasma" (rival en Esperando cámara…).
     if (!isDummy && (isBattleRunning.value || isBattleWaiting.value)) {

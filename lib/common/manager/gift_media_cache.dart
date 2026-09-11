@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
@@ -29,6 +31,22 @@ class GiftMediaCache {
         fileService: HttpFileService(),
       ),
     );
+  }
+
+  static Future<File?> fileForUrl(String url) async {
+    if (kIsWeb) return null;
+    if (url.isEmpty) return null;
+    final cache = manager;
+    if (cache == null) return null;
+    try {
+      final hit = await cache.getFileFromCache(url);
+      if (hit != null && await hit.file.exists()) return hit.file;
+      final file = await cache.getSingleFile(url);
+      if (await file.exists()) return file;
+    } catch (e) {
+      Loggers.error('Gift cache get failed ($url): $e');
+    }
+    return null;
   }
 
   static Future<void> precacheGifts(List<Gift>? gifts) async {

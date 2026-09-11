@@ -12,8 +12,9 @@ import 'package:krimson/model/general/settings_model.dart';
 /// El audio auxiliar se recorta a la duración de la animación (nunca al revés).
 class SendGiftDialog extends StatefulWidget {
   final Gift gift;
+  final VoidCallback? onFinished;
 
-  const SendGiftDialog({super.key, required this.gift});
+  const SendGiftDialog({super.key, required this.gift, this.onFinished});
 
   @override
   State<SendGiftDialog> createState() => _SendGiftDialogState();
@@ -81,7 +82,7 @@ class _SendGiftDialogState extends State<SendGiftDialog>
           .chain(CurveTween(curve: Curves.easeOut))
           .animate(_ctrl);
       _ctrl.forward();
-      _safetyTimer = Timer(const Duration(seconds: 45), () {
+      _safetyTimer = Timer(const Duration(seconds: 12), () {
         if (!_closing && mounted) _startVideoExit();
       });
     } else {
@@ -136,7 +137,11 @@ class _SendGiftDialogState extends State<SendGiftDialog>
       });
       // El último ~22 % es el fade de salida: cortar el audio ahí.
       _ctrl.addListener(_onImageAnimTick);
-      _ctrl.forward();
+      _safetyTimer = Timer(const Duration(seconds: 8), () {
+        if (!_closing && mounted && !_ctrl.isAnimating && _ctrl.value == 0) {
+          _ctrl.forward();
+        }
+      });
     }
   }
 
@@ -149,10 +154,17 @@ class _SendGiftDialogState extends State<SendGiftDialog>
 
   double get _opacityValue {
     if (_exiting) return _opacityOut.value.clamp(0.0, 1.0);
+    if (!_videoMode && _ctrl.value == 0) return 1.0;
     return _opacityIn.value.clamp(0.0, 1.0);
   }
 
   void _onVideoReady(Duration duration) {
+    if (!_videoMode) {
+      if (!_ctrl.isAnimating && _ctrl.value == 0 && mounted) {
+        _ctrl.forward();
+      }
+      return;
+    }
     if (duration.inMilliseconds <= 0) return;
     _videoDuration = duration;
     if (!_videoReady.isCompleted) {
@@ -166,7 +178,11 @@ class _SendGiftDialogState extends State<SendGiftDialog>
   }
 
   void _onVideoEnded() {
-    if (!_videoMode || _closing || !mounted) return;
+    if (_closing || !mounted) return;
+    if (!_videoMode) {
+      _dismiss();
+      return;
+    }
     _startVideoExit();
   }
 
@@ -180,14 +196,11 @@ class _SendGiftDialogState extends State<SendGiftDialog>
   }
 
   void _dismiss() {
-    if (_closing || !mounted) return;
+    if (_closing) return;
     _closing = true;
     _safetyTimer?.cancel();
     unawaited(_stopGiftSound(fade: false));
-    final nav = Navigator.of(context, rootNavigator: true);
-    if (nav.canPop()) {
-      nav.pop();
-    }
+    widget.onFinished?.call();
   }
 
   /// La animación manda: el MP3 no alarga el overlay ni sigue sonando después.
@@ -395,27 +408,22 @@ class _SendGiftDialogState extends State<SendGiftDialog>
     return Material(
       type: MaterialType.transparency,
       color: Colors.transparent,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _videoMode ? null : _dismiss,
-        child: ColoredBox(
-          // Sin velo edge-to-edge: deja ver barra LIVE y chat.
-          color: Colors.transparent,
-          child: AnimatedBuilder(
-            animation: Listenable.merge([_ctrl, _exitCtrl]),
-            builder: (context, animationChild) {
-              return Opacity(
-                opacity: _opacityValue,
-                child: _expandedDisplay
-                    ? animationChild
-                    : Transform.scale(
-                        scale: _scale.value,
-                        child: animationChild,
-                      ),
-              );
-            },
-            child: IgnorePointer(child: _buildGiftContent(size)),
-          ),
+      child: ColoredBox(
+        color: Colors.transparent,
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_ctrl, _exitCtrl]),
+          builder: (context, animationChild) {
+            return Opacity(
+              opacity: _opacityValue,
+              child: _expandedDisplay
+                  ? animationChild
+                  : Transform.scale(
+                      scale: _scale.value,
+                      child: animationChild,
+                    ),
+            );
+          },
+          child: _buildGiftContent(size),
         ),
       ),
     );

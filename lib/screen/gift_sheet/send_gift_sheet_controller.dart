@@ -8,6 +8,7 @@ import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/haptic_manager.dart';
+import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/gift_wallet_service.dart';
@@ -117,6 +118,7 @@ class SendGiftSheetController extends BaseController {
       hasMore.value = result.hasMore;
       if (result.gifts.isNotEmpty) {
         _lastItemId = result.gifts.last.id;
+        GiftManager.rememberAll(result.gifts);
         GiftMediaCache.precacheGifts(result.gifts);
       }
     } catch (e) {
@@ -138,6 +140,7 @@ class SendGiftSheetController extends BaseController {
         : all.where((g) => (g.categoryId ?? 0) == categoryId).toList();
     visibleGifts.assignAll(filtered);
     hasMore.value = false;
+    GiftManager.rememberAll(filtered);
     GiftMediaCache.precacheGifts(filtered);
   }
 
@@ -209,6 +212,9 @@ class SendGiftSheetController extends BaseController {
       if ((detailed.image ?? '').isNotEmpty) {
         gift.image = detailed.image;
       }
+      if (detailed.isFullscreen != 0) {
+        gift.isFullscreen = detailed.isFullscreen;
+      }
       // Deduct gift coins from user wallet
       myUser.update((val) {
         val?.removeCoinFromWallet(coinPrice);
@@ -243,6 +249,20 @@ class GiftManager {
   AppUser? streamUser;
 
   GiftManager(this.gift, {this.streamUser});
+
+  static final Map<int, Gift> _knownGifts = {};
+
+  static void rememberAll(List<Gift>? gifts) {
+    if (gifts == null || gifts.isEmpty) return;
+    for (final g in gifts) {
+      if (g.id != null) _knownGifts[g.id!] = g;
+    }
+  }
+
+  static Gift? knownById(int? id) {
+    if (id == null) return null;
+    return _knownGifts[id];
+  }
 
   static Future<void> openGiftSheet(
       {int? userId,
@@ -279,44 +299,89 @@ class GiftManager {
   }
 
   static bool _giftDialogOpen = false;
+  static OverlayEntry? _giftOverlay;
+
+  static Gift _hydrateFromCatalog(Gift gift) {
+    rememberAll(SessionManager.instance.getSettings()?.gifts);
+    Gift? match = gift.id != null ? _knownGifts[gift.id!] : null;
+    final image = (gift.image ?? '').trim();
+    if (match == null && image.isNotEmpty) {
+      for (final g in _knownGifts.values) {
+        if ((g.image ?? '').trim() == image) {
+          match = g;
+          break;
+        }
+      }
+    }
+    if (match == null) {
+      final catalog = SessionManager.instance.getSettings()?.gifts ?? [];
+      if (gift.id != null) {
+        for (final g in catalog) {
+          if (g.id == gift.id) {
+            match = g;
+            break;
+          }
+        }
+      }
+      if (match == null && image.isNotEmpty) {
+        for (final g in catalog) {
+          if ((g.image ?? '').trim() == image) {
+            match = g;
+            break;
+          }
+        }
+      }
+    }
+    if (match == null) return gift;
+    rememberAll([match]);
+    return Gift(
+      id: match.id ?? gift.id,
+      categoryId: match.categoryId,
+      coinPrice: gift.coinPrice ?? match.coinPrice,
+      title: match.title ?? gift.title,
+      image: image.isNotEmpty ? gift.image : match.image,
+      sound: ((gift.sound ?? '').trim().isNotEmpty) ? gift.sound : match.sound,
+      isFullscreen:
+          gift.isFullscreen != 0 ? gift.isFullscreen : match.isFullscreen,
+    );
+  }
+
+  static void _removeGiftOverlay() {
+    final entry = _giftOverlay;
+    _giftOverlay = null;
+    _giftDialogOpen = false;
+    entry?.remove();
+    LiveKitRoomController.bumpAllRenderers();
+  }
 
   static void showAnimationDialog(Gift gift) {
-    final ctx = Get.context;
+    final ctx = Get.overlayContext ?? Get.context;
     if (ctx == null) return;
-    if ((gift.image ?? '').trim().isEmpty) return;
+    final resolved = _hydrateFromCatalog(gift);
+    if ((resolved.image ?? '').trim().isEmpty) return;
+    GiftManager.rememberAll([resolved]);
 
-    // Si ya hay uno, cerrarlo para no apilar stickers.
-    if (_giftDialogOpen) {
-      try {
-        final nav = Navigator.of(ctx, rootNavigator: true);
-        if (nav.canPop()) nav.pop();
-      } catch (_) {}
-      _giftDialogOpen = false;
+    if (_giftOverlay != null || _giftDialogOpen) {
+      _removeGiftOverlay();
     }
 
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => IgnorePointer(
+        child: SendGiftDialog(
+          gift: resolved,
+          onFinished: () {
+            if (_giftOverlay == entry) {
+              _removeGiftOverlay();
+            }
+          },
+        ),
+      ),
+    );
+    _giftOverlay = entry;
     _giftDialogOpen = true;
-    showGeneralDialog(
-      context: ctx,
-      barrierDismissible: true,
-      barrierLabel: 'gift',
-      barrierColor: Colors.transparent,
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return SendGiftDialog(gift: gift);
-      },
-      // La animación visual la hace SendGiftDialog (entrada + hold + salida).
-      transitionDuration: const Duration(milliseconds: 80),
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        if (animation.status == AnimationStatus.forward) {
-          HapticManager.shared.light();
-        }
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
-      },
-    ).whenComplete(() {
-      _giftDialogOpen = false;
-    });
+    HapticManager.shared.light();
+    Overlay.of(ctx, rootOverlay: true).insert(entry);
   }
 
   static void sendNotification(Post? post) {

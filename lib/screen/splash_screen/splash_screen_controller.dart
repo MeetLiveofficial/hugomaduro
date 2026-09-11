@@ -9,6 +9,7 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
 import 'package:krimson/common/manager/gift_media_cache.dart';
+import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/session_restore.dart';
@@ -95,6 +96,7 @@ class SplashScreenController extends BaseController {
       final translations = Get.find<DynamicTranslations>();
       var setting = SessionManager.instance.getSettings();
       // Prefetch gift GIFs into disk cache (non-blocking).
+      GiftManager.rememberAll(setting?.gifts);
       GiftMediaCache.precacheGifts(setting?.gifts);
       var languages = setting?.languages ?? [];
       List<Language> downloadLanguages =

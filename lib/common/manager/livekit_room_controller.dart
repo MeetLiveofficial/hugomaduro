@@ -67,9 +67,20 @@ class LiveKitRoomController extends GetxController {
 
   bool _canEmit() => !isClosed;
 
+  static final Set<LiveKitRoomController> _liveInstances = {};
+
+  /// Tras un overlay (regalo MP4) el renderer iOS a veces no recupera el track.
+  static void bumpAllRenderers() {
+    for (final c in List<LiveKitRoomController>.from(_liveInstances)) {
+      if (c.isClosed) continue;
+      c.mediaRevision.value++;
+    }
+  }
+
   @override
   void onInit() {
     super.onInit();
+    _liveInstances.add(this);
     _mediaSub = _service.onMediaChanged.listen((_) {
       if (!_canEmit()) return;
       _syncFromService();
@@ -409,6 +420,7 @@ class LiveKitRoomController extends GetxController {
 
   @override
   void onClose() {
+    _liveInstances.remove(this);
     _mediaSub?.cancel();
     _statusSub?.cancel();
     _statsSub?.cancel();

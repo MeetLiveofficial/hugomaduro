@@ -61,7 +61,7 @@ class GiftWalletService {
   }
 
   /// Envía regalo y devuelve el precio real confirmado por el backend.
-  Future<({bool ok, String? message, int coinPrice, String? image})>
+  Future<({bool ok, String? message, int coinPrice, String? image, int isFullscreen})>
       sendGiftDetailed({int? userId, int? giftId, String? source}) async {
     final json = await ApiService.instance.call(
       url: WebService.giftWallet.sendGift,
@@ -76,6 +76,7 @@ class GiftWalletService {
     final data = json['data'];
     var coinPrice = 0;
     String? image;
+    var isFullscreen = 0;
     if (data is Map) {
       final raw = data['coin_price'] ?? data['coinPrice'];
       if (raw is num) {
@@ -84,12 +85,14 @@ class GiftWalletService {
         coinPrice = int.tryParse('$raw') ?? 0;
       }
       image = data['image']?.toString();
+      isFullscreen = int.tryParse('${data['is_fullscreen'] ?? data['isFullscreen'] ?? 0}') ?? 0;
     }
     return (
       ok: ok,
       message: json['message']?.toString(),
       coinPrice: coinPrice,
       image: image,
+      isFullscreen: isFullscreen,
     );
   }
 
