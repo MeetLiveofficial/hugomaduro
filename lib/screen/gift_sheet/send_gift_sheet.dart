@@ -223,7 +223,8 @@ class SendGiftSheet extends StatelessWidget {
                               height: 65,
                               fit: BoxFit.contain,
                               muted: true,
-                              looping: true,
+                              autoplay: false,
+                              looping: false,
                               placeholder: Image.asset(
                                 AssetRes.icGift,
                                 width: 65,

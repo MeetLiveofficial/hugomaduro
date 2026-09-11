@@ -51,7 +51,8 @@ class GiftRequestPrompt {
                       height: 72,
                       fit: BoxFit.contain,
                       muted: true,
-                      looping: true,
+                      autoplay: false,
+                      looping: false,
                       placeholder: const Icon(
                         Icons.card_giftcard,
                         color: ColorRes.accentPeach,
@@ -135,7 +136,8 @@ class GiftRequestBar extends StatelessWidget {
                 height: 36,
                 fit: BoxFit.contain,
                 muted: true,
-                looping: true,
+                autoplay: false,
+                looping: false,
                 placeholder: const Icon(
                   Icons.card_giftcard,
                   color: Colors.white,

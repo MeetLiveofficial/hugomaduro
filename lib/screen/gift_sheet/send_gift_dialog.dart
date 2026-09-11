@@ -137,11 +137,7 @@ class _SendGiftDialogState extends State<SendGiftDialog>
       });
       // El último ~22 % es el fade de salida: cortar el audio ahí.
       _ctrl.addListener(_onImageAnimTick);
-      _safetyTimer = Timer(const Duration(seconds: 8), () {
-        if (!_closing && mounted && !_ctrl.isAnimating && _ctrl.value == 0) {
-          _ctrl.forward();
-        }
-      });
+      _ctrl.forward();
     }
   }
 
@@ -154,17 +150,11 @@ class _SendGiftDialogState extends State<SendGiftDialog>
 
   double get _opacityValue {
     if (_exiting) return _opacityOut.value.clamp(0.0, 1.0);
-    if (!_videoMode && _ctrl.value == 0) return 1.0;
     return _opacityIn.value.clamp(0.0, 1.0);
   }
 
   void _onVideoReady(Duration duration) {
-    if (!_videoMode) {
-      if (!_ctrl.isAnimating && _ctrl.value == 0 && mounted) {
-        _ctrl.forward();
-      }
-      return;
-    }
+    if (!_videoMode) return;
     if (duration.inMilliseconds <= 0) return;
     _videoDuration = duration;
     if (!_videoReady.isCompleted) {
@@ -178,11 +168,7 @@ class _SendGiftDialogState extends State<SendGiftDialog>
   }
 
   void _onVideoEnded() {
-    if (_closing || !mounted) return;
-    if (!_videoMode) {
-      _dismiss();
-      return;
-    }
+    if (!_videoMode || _closing || !mounted) return;
     _startVideoExit();
   }
 

@@ -102,7 +102,8 @@ class _CallChatBubble extends StatelessWidget {
                         height: 28,
                         fit: BoxFit.contain,
                         muted: true,
-                        looping: true,
+                        autoplay: false,
+                        looping: false,
                         placeholder: const Icon(
                           Icons.card_giftcard,
                           color: ColorRes.accentPeach,

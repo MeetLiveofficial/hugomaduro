@@ -113,7 +113,8 @@ class LiveGiftBoostSheet extends StatelessWidget {
                               height: 52,
                               fit: BoxFit.contain,
                               muted: true,
-                              looping: true,
+                              autoplay: false,
+                              looping: false,
                               placeholder: const Icon(
                                 Icons.card_giftcard,
                                 color: Colors.white54,

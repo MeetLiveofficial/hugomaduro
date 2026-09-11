@@ -10,6 +10,7 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
+import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
@@ -215,9 +216,11 @@ class LivestreamScreenController extends BaseController {
   Timer? _commentPoll;
   Timer? _callPoll;
   Timer? _hostConnectWatchdog;
+  Timer? _audienceJoinWatchdog;
   DateTime? _lastPresenceHeartbeat;
   int _hostSessionMissingCount = 0;
   static const int hostConnectTimeoutSecs = 75;
+  static const int audienceJoinTimeoutSecs = 30;
   int _lastCommentServerId = 0;
   bool _commentPollBusy = false;
   bool _callPollBusy = false;
@@ -366,6 +369,7 @@ class LivestreamScreenController extends BaseController {
     commentFocusNode.addListener(_onCommentFocusChanged);
     unawaited(refreshUnreadChats());
     _armHostConnectWatchdog();
+    _armAudienceJoinWatchdog();
     _bootstrap();
   }
 
@@ -548,6 +552,9 @@ class LivestreamScreenController extends BaseController {
       await _joinLiveKit();
       if (isHost && liveKit?.isConnected.value == true) {
         _disarmHostConnectWatchdog();
+      }
+      if (!isHost && liveKit?.isConnected.value == true) {
+        _disarmAudienceJoinWatchdog();
       }
       _startSessionPolling();
       _startCommentPolling();
@@ -1186,7 +1193,10 @@ class LivestreamScreenController extends BaseController {
       update();
     });
     ever(liveKit!.isConnected, (connected) {
-      if (connected) return;
+      if (connected) {
+        _disarmAudienceJoinWatchdog();
+        return;
+      }
       unawaited(_onAudienceLiveKitDropped());
     });
 
@@ -1278,6 +1288,37 @@ class LivestreamScreenController extends BaseController {
   void _disarmHostConnectWatchdog() {
     _hostConnectWatchdog?.cancel();
     _hostConnectWatchdog = null;
+  }
+
+  void _armAudienceJoinWatchdog() {
+    if (isHost || isDummy) return;
+    _audienceJoinWatchdog?.cancel();
+    _audienceJoinWatchdog = Timer(
+      const Duration(seconds: audienceJoinTimeoutSecs),
+      () {
+        if (isEnding.value || _parkedForCall || _redirectingToNextLive) return;
+        if (liveKit?.isConnected.value == true) return;
+        Loggers.error('audience LiveKit join timeout (${audienceJoinTimeoutSecs}s)');
+        unawaited(_failAudienceJoinAndReset());
+      },
+    );
+  }
+
+  void _disarmAudienceJoinWatchdog() {
+    _audienceJoinWatchdog?.cancel();
+    _audienceJoinWatchdog = null;
+  }
+
+  Future<void> _failAudienceJoinAndReset() async {
+    if (isHost || isEnding.value || _redirectingToNextLive) return;
+    if (_parkedForCall) return;
+    showSnackBar('No se pudo conectar al LIVE. Intenta de nuevo.');
+    try {
+      imageCache.clear();
+      imageCache.clearLiveImages();
+    } catch (_) {}
+    unawaited(GiftMediaCache.clearAll());
+    await endOrLeave();
   }
 
   /// Reintenta LiveKit forzando calidad baja (red débil).
@@ -1708,7 +1749,8 @@ class LivestreamScreenController extends BaseController {
     final msg = _normalizeIncomingChat(raw);
     if (msg.type == 'like' ||
         msg.type == 'live_pause' ||
-        msg.type == 'live_end') return;
+        msg.type == 'live_end' ||
+        msg.type == 'live_host_call') return;
     if (chatMessages.any((m) => m.id == msg.id)) {
       if (msg.type == 'gift') _upgradeGiftSenderCoins(msg);
       return;
@@ -1871,6 +1913,12 @@ class LivestreamScreenController extends BaseController {
   void _onLiveData(DataReceivedEvent event) {
     final msg = LiveChatMessage.tryParseBytes(event.data);
     if (msg == null) return;
+    if (msg.type == 'live_host_call') {
+      if (!isHost && !_parkedForCall) {
+        unawaited(leaveAndRedirectToNextLive());
+      }
+      return;
+    }
     if (msg.type == 'live_end') {
       if (!isHost) {
         unawaited(leaveAndRedirectToNextLive());
@@ -2638,9 +2686,12 @@ class LivestreamScreenController extends BaseController {
 
   /// Libera cámara/mic del LIVE sin salir de la sesión (para videollamada).
   Future<void> pauseLiveKitForCall() async {
-    hostInCall.value = true;
     pausedForCall.value = true;
-    statusMessage.value = LKey.livePausedInCall.tr;
+    if (isHost) {
+      hostInCall.value = true;
+      statusMessage.value = LKey.livePausedInCall.tr;
+      await _broadcastHostBusyForCall();
+    }
     update();
     try {
       await liveKit?.disconnect(silent: true);
@@ -2677,6 +2728,14 @@ class LivestreamScreenController extends BaseController {
       Future<void> join() async {
         if (liveKit == null) {
           await _joinLiveKit();
+          if (isHost) {
+            await _ensureHostAvAfterCall();
+          } else {
+            await liveKit?.setRemoteAudioMuted(false);
+            try {
+              await liveKit?.subscribeRemoteVideos();
+            } catch (_) {}
+          }
           return;
         }
         try {
@@ -2698,7 +2757,12 @@ class LivestreamScreenController extends BaseController {
         _dataSub?.cancel();
         _dataSub = liveKit!.onDataReceived.listen(_onLiveData);
         if (isHost) {
-          await applyBeauty();
+          await _ensureHostAvAfterCall();
+        } else {
+          await liveKit!.setRemoteAudioMuted(false);
+          try {
+            await liveKit!.subscribeRemoteVideos();
+          } catch (_) {}
         }
       }
 
@@ -2719,6 +2783,13 @@ class LivestreamScreenController extends BaseController {
           }
           await Future<void>.delayed(const Duration(milliseconds: 400));
         }
+        try {
+          await liveKit!.setRemoteAudioMuted(false);
+        } catch (_) {}
+      }
+
+      if (isHost && liveKit?.isConnected.value == true) {
+        await _ensureHostAvAfterCall();
       }
 
       if (liveKit?.isConnected.value == true) {
@@ -3950,24 +4021,80 @@ class LivestreamScreenController extends BaseController {
     return null;
   }
 
+  Future<void> _ensureHostAvAfterCall() async {
+    final lk = liveKit;
+    if (lk == null || !isHost) return;
+    isStreamPaused.value = false;
+    lk.streamPaused.value = false;
+    try {
+      await lk.setCameraEnabled(true);
+    } catch (e) {
+      Loggers.error('resume camera: $e');
+    }
+    try {
+      await lk.setMicrophoneEnabled(true);
+    } catch (e) {
+      Loggers.error('resume mic: $e');
+    }
+    await _ensureHostCameraPublishing();
+    try {
+      await lk.setMicrophoneEnabled(true);
+    } catch (_) {}
+    isLiveAudioMuted.value = !lk.microphoneEnabled.value;
+    if (isLiveAudioMuted.value) {
+      try {
+        await lk.setMicrophoneEnabled(true);
+      } catch (_) {}
+      isLiveAudioMuted.value = false;
+    }
+    try {
+      await applyBeauty();
+    } catch (_) {}
+    lk.mediaRevision.value++;
+    update();
+  }
+
+  Future<void> _broadcastHostBusyForCall() async {
+    if (!isHost || isDummy) return;
+    final me = SessionManager.instance.getUser();
+    try {
+      await liveKit?.publishData(
+        LiveChatMessage(
+          id: 'host_call_${DateTime.now().millisecondsSinceEpoch}',
+          userId: me?.id ?? 0,
+          userName: me?.fullname ?? me?.username ?? 'host',
+          type: 'live_host_call',
+        ).toBytes(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    } catch (_) {}
+  }
+
   bool get _audienceShouldLeaveDeadRoom {
     if (isHost || isDummy || isEnding.value || _redirectingToNextLive) {
       return false;
     }
-    if (_parkedForCall || pausedForCall.value || hostInCall.value) {
-      return false;
-    }
+    // El cliente que está en la llamada no se saca; el resto sí.
+    if (_parkedForCall) return false;
     return true;
   }
 
-  /// Sala LiveKit caida: si el LIVE ya no existe, otro LIVE o salir.
+  /// Sala LiveKit caida: LIVE cerrado o host en llamada → otro LIVE o salir.
   Future<void> _onAudienceLiveKitDropped() async {
     if (!_audienceShouldLeaveDeadRoom) return;
     try {
       final payload = await LiveSessionService.instance
           .fetchSession(roomId: roomId)
           .timeout(const Duration(seconds: 4));
-      if (payload != null) return;
+      if (payload != null) {
+        final hostId = payload.session.hostId ?? livestream.hostId ?? 0;
+        final hostRow = payload.participants
+            .firstWhereOrNull((p) => p.userId == hostId);
+        if (hostRow?.inCall == true || hostInCall.value) {
+          await leaveAndRedirectToNextLive();
+        }
+        return;
+      }
     } catch (_) {}
     if (!_audienceShouldLeaveDeadRoom) return;
     await leaveAndRedirectToNextLive();
@@ -4201,6 +4328,7 @@ class LivestreamScreenController extends BaseController {
     _commentPoll?.cancel();
     _callPoll?.cancel();
     _hostConnectWatchdog?.cancel();
+    _audienceJoinWatchdog?.cancel();
     _followBannerTimer?.cancel();
     _joinBannerTimer?.cancel();
     _giftBoostBannerTimer?.cancel();

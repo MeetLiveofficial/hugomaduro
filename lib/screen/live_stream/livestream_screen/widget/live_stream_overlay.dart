@@ -1306,7 +1306,8 @@ class _ChatBubble extends StatelessWidget {
                         height: 28,
                         fit: BoxFit.contain,
                         muted: true,
-                        looping: true,
+                        autoplay: false,
+                        looping: false,
                         placeholder: const Icon(
                           Icons.card_giftcard,
                           color: ColorRes.accentPeach,
@@ -1346,7 +1347,8 @@ class _ChatBubble extends StatelessWidget {
                           height: 36,
                           fit: BoxFit.contain,
                           muted: true,
-                          looping: true,
+                          autoplay: false,
+                          looping: false,
                           placeholder: const Icon(
                             Icons.card_giftcard,
                             color: Colors.white70,
@@ -1596,7 +1598,8 @@ class _GiftIncentiveSlider extends StatelessWidget {
                                 height: 32,
                                 fit: BoxFit.contain,
                                 muted: true,
-                                looping: true,
+                                autoplay: false,
+                                looping: false,
                                 placeholder: const Icon(
                                   Icons.card_giftcard,
                                   color: ColorRes.accentPeach,

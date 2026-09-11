@@ -67,6 +67,15 @@ class GiftMedia extends StatelessWidget {
     }
 
     if (isVideoPath(raw) || isVideoPath(url)) {
+      // Miniaturas (autoplay: false): no crear VideoPlayer. En iOS un MP4
+      // en el chat/pedido ocupa el decoder y el overlay del regalo no se ve.
+      if (!autoplay) {
+        return SizedBox(
+          width: width,
+          height: height,
+          child: Center(child: _fallback()),
+        );
+      }
       return _GiftVideo(
         url: url,
         width: width,
@@ -98,7 +107,6 @@ class GiftMedia extends StatelessWidget {
       fit: fit,
       fallback: _fallback(),
       onReady: onVideoReady,
-      onFailed: onVideoEnded,
     );
   }
 }
@@ -144,34 +152,42 @@ class _GiftVideoState extends State<_GiftVideo> {
   }
 
   Future<void> _init() async {
-    VideoPlayerController controller;
+    File? cached;
     if (!kIsWeb) {
-      final file = await GiftMediaCache.fileForUrl(widget.url);
-      if (!mounted) return;
-      if (file != null) {
-        controller = VideoPlayerController.file(
-          file,
-          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-        );
-      } else {
-        controller = VideoPlayerController.networkUrl(
-          Uri.parse(widget.url),
-          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-        );
-      }
-    } else {
-      controller = VideoPlayerController.networkUrl(
-        Uri.parse(widget.url),
-        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-      );
+      cached = await GiftMediaCache.cachedFileIfReady(widget.url);
     }
+    if (!mounted) return;
+
+    var usedCache = cached != null;
+    var controller = _controllerFor(cached);
     _controller = controller;
     try {
       await controller.initialize();
-      if (!mounted) {
+    } catch (e) {
+      try {
         await controller.dispose();
+      } catch (_) {}
+      if (!mounted) return;
+      if (usedCache) {
+        usedCache = false;
+        controller = _controllerFor(null);
+        _controller = controller;
+        try {
+          await controller.initialize();
+        } catch (e2) {
+          await _failInit(controller, e2);
+          return;
+        }
+      } else {
+        await _failInit(controller, e);
         return;
       }
+    }
+    if (!mounted) {
+      await controller.dispose();
+      return;
+    }
+    try {
       await controller.setVolume(widget.muted ? 0.0 : 1.0);
       await controller.setLooping(widget.looping);
       if (!widget.looping) {
@@ -181,29 +197,41 @@ class _GiftVideoState extends State<_GiftVideo> {
       if (widget.autoplay) {
         await controller.play();
       } else {
-        // Mostrar primer frame como miniatura estática.
         await controller.seekTo(Duration.zero);
         await controller.pause();
       }
-      setState(() {});
+      if (mounted) setState(() {});
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('GiftMedia video failed: ${widget.url} → $e');
-      }
-      try {
-        await controller.dispose();
-      } catch (_) {}
-      if (_controller == controller) {
-        _controller = null;
-      }
-      if (mounted) {
-        setState(() => _failed = true);
-      }
-      if (!_endedNotified) {
-        _endedNotified = true;
-        widget.onEnded?.call();
-      }
+      await _failInit(controller, e);
     }
+  }
+
+  VideoPlayerController _controllerFor(File? file) {
+    final opts = VideoPlayerOptions(mixWithOthers: true);
+    if (file != null) {
+      return VideoPlayerController.file(file, videoPlayerOptions: opts);
+    }
+    return VideoPlayerController.networkUrl(
+      Uri.parse(widget.url),
+      videoPlayerOptions: opts,
+    );
+  }
+
+  Future<void> _failInit(VideoPlayerController controller, Object e) async {
+    if (kDebugMode) {
+      debugPrint('GiftMedia video failed: ${widget.url} → $e');
+    }
+    try {
+      await controller.dispose();
+    } catch (_) {}
+    if (_controller == controller) {
+      _controller = null;
+    }
+    if (mounted) {
+      setState(() => _failed = true);
+    }
+    // No onEnded: el overlay tiene timer de seguridad. Si avisamos al
+    // fallar, el regalo se cierra al instante y parece que "no salió".
   }
 
   void _onTick() {
@@ -280,7 +308,6 @@ class _GiftRaster extends StatefulWidget {
     required this.fit,
     required this.fallback,
     this.onReady,
-    this.onFailed,
   });
 
   final String url;
@@ -289,7 +316,6 @@ class _GiftRaster extends StatefulWidget {
   final BoxFit fit;
   final Widget fallback;
   final ValueChanged<Duration>? onReady;
-  final VoidCallback? onFailed;
 
   @override
   State<_GiftRaster> createState() => _GiftRasterState();
@@ -307,7 +333,7 @@ class _GiftRasterState extends State<_GiftRaster> {
 
   Future<void> _resolve() async {
     if (kIsWeb) return;
-    final file = await GiftMediaCache.fileForUrl(widget.url);
+    final file = await GiftMediaCache.cachedFileIfReady(widget.url);
     if (!mounted) return;
     if (file != null) {
       setState(() => _file = file);
@@ -321,9 +347,7 @@ class _GiftRasterState extends State<_GiftRaster> {
   }
 
   void _notifyFailed() {
-    if (_readyNotified) return;
-    _readyNotified = true;
-    widget.onFailed?.call();
+    // El overlay no se cierra: se ve el fallback y sigue la animación.
   }
 
   Widget _box({required Widget child}) {

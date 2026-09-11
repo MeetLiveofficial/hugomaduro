@@ -381,7 +381,9 @@ class GiftManager {
     _giftOverlay = entry;
     _giftDialogOpen = true;
     HapticManager.shared.light();
-    Overlay.of(ctx, rootOverlay: true).insert(entry);
+    final overlay = Navigator.of(ctx, rootNavigator: true).overlay ??
+        Overlay.of(ctx, rootOverlay: true);
+    overlay.insert(entry);
   }
 
   static void sendNotification(Post? post) {

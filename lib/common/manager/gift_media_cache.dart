@@ -33,6 +33,18 @@ class GiftMediaCache {
     );
   }
 
+  static Future<File?> cachedFileIfReady(String url) async {
+    if (kIsWeb) return null;
+    if (url.isEmpty) return null;
+    final cache = manager;
+    if (cache == null) return null;
+    try {
+      final hit = await cache.getFileFromCache(url);
+      if (hit != null && await hit.file.exists()) return hit.file;
+    } catch (_) {}
+    return null;
+  }
+
   static Future<File?> fileForUrl(String url) async {
     if (kIsWeb) return null;
     if (url.isEmpty) return null;
@@ -47,6 +59,13 @@ class GiftMediaCache {
       Loggers.error('Gift cache get failed ($url): $e');
     }
     return null;
+  }
+
+  static Future<void> clearAll() async {
+    _queued.clear();
+    try {
+      await manager?.emptyCache();
+    } catch (_) {}
   }
 
   static Future<void> precacheGifts(List<Gift>? gifts) async {
