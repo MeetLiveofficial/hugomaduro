@@ -31,6 +31,7 @@ import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 /// Iconos de filas: magenta/rosa en streamer; cyan/teal en cliente.
 Color settingRowIcon(Color streamerColor) {
