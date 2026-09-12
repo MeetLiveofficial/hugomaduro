@@ -1700,11 +1700,22 @@ class VideoCallController extends BaseController {
         (_insufficientNotified || _kickInsufficient || showMatchRecharge);
     final notifyApi = !isMatchCall || isMatchCaller;
     final live = LivestreamScreenController.activeInstance;
-    final shouldResume =
-        resumeLiveOnHangup || (live?.pausedForCall.value == true);
+    final returnClientToLive = !_originatedFromMatch && AppRole.isClient();
+    final streamerHostId = returnClientToLive
+        ? ((iAmCaller ? call.calleeId : call.callerId) ?? peer?.id)
+        : null;
+    final shouldResumeLive = !_originatedFromMatch &&
+        (resumeLiveOnHangup ||
+            live?.pausedForCall.value == true ||
+            (AppRole.isStreamer() && live != null && live.isHost));
     final ctrlTag = 'call_${call.id}';
     final lkTag = _tag;
     final stayOnMatch = _originatedFromMatch && AppRole.isStreamer();
+
+    // Liberar el guard de resumeLiveKit (si activeInstance sigue, no reconecta).
+    if (identical(activeInstance, this)) {
+      activeInstance = null;
+    }
 
     // Cerrar la UI YA (no esperar a LiveKit/API: ahí se quedaba colgado Match).
     _popCallUi();
@@ -1717,14 +1728,23 @@ class VideoCallController extends BaseController {
         await _cleanup(notifyApi: notifyApi, liveKitTag: lkTag)
             .timeout(const Duration(seconds: 4));
       } catch (_) {}
-      if (shouldResume) {
-        try {
-          // Liberar WebRTC de la llamada antes de reentrar al LIVE.
-          await Future<void>.delayed(const Duration(milliseconds: 700));
+      try {
+        if (Get.isRegistered<VideoCallController>(tag: ctrlTag)) {
+          Get.delete<VideoCallController>(tag: ctrlTag, force: true);
+        }
+      } catch (_) {}
+      try {
+        // Liberar WebRTC de la llamada antes de reentrar al LIVE.
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+        if (returnClientToLive && (streamerHostId ?? 0) > 0) {
+          await LivestreamScreenController.returnClientToStreamerLive(
+            streamerHostId!,
+          );
+        } else if (shouldResumeLive) {
           await (live ?? LivestreamScreenController.activeInstance)
               ?.resumeLiveKitAfterCall();
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
       if (_originatedFromMatch) {
         if (Get.isRegistered<MatchScreenController>()) {
           unawaited(Get.find<MatchScreenController>().resumeAfterCall());
@@ -1732,11 +1752,6 @@ class VideoCallController extends BaseController {
           Get.to(() => const MatchScreen());
         }
       }
-      try {
-        if (Get.isRegistered<VideoCallController>(tag: ctrlTag)) {
-          Get.delete<VideoCallController>(tag: ctrlTag, force: true);
-        }
-      } catch (_) {}
       if (shouldRecharge) {
         Future.microtask(() {
           unawaited(MatchRechargeDialog.showOutOfCoins(party: peer));

@@ -80,7 +80,7 @@ class BattleResultBanner {
 }
 
 class LivestreamScreenController extends BaseController {
-  /// Instancia activa (para IncomingCall → cerrar LIVE al aceptar).
+  /// Instancia activa (LIVE debajo de la videollamada; al colgar se reanuda).
   static LivestreamScreenController? activeInstance;
 
   final bool isHost;
@@ -105,8 +105,9 @@ class LivestreamScreenController extends BaseController {
       OutgoingCallController.activeInstance != null ||
       VideoCallController.activeInstance != null;
 
-  /// Cliente/host en llamada: no redirigir ni hacer pop del LIVE.
-  bool get _parkedForCall => pausedForCall.value || isCallUiActive;
+  /// Cliente/host en llamada o reconectando: no redirigir ni hacer pop del LIVE.
+  bool get _parkedForCall =>
+      pausedForCall.value || isCallUiActive || _resumingAfterCall;
 
   final RxBool beautyOn = false.obs;
   final RxDouble whiten = 50.0.obs;
@@ -1288,7 +1289,12 @@ class LivestreamScreenController extends BaseController {
     _hostConnectWatchdog = Timer(
       const Duration(seconds: hostConnectTimeoutSecs),
       () {
-        if (isEnding.value || pausedForCall.value || isCallUiActive) return;
+        if (isEnding.value ||
+            pausedForCall.value ||
+            isCallUiActive ||
+            _resumingAfterCall) {
+          return;
+        }
         if (liveKit?.isConnected.value == true) return;
         Loggers.error('host LiveKit never connected; ending live');
         statusMessage.value = 'No se pudo conectar. Cerrando LIVE…';
@@ -2760,6 +2766,69 @@ class LivestreamScreenController extends BaseController {
     } finally {
       update();
     }
+  }
+
+  /// Tras un privado: el cliente vuelve al LIVE de esa streamer (misma sala).
+  static Future<void> returnClientToStreamerLive(int streamerId) async {
+    if (streamerId <= 0) return;
+    final live = activeInstance;
+    if (live != null &&
+        !live.isHost &&
+        (live.livestream.hostId ?? 0) == streamerId &&
+        !live.isEnding.value) {
+      await live.resumeLiveKitAfterCall();
+      return;
+    }
+
+    Livestream? stream;
+    try {
+      final lives = await LiveSessionService.instance.listActive();
+      stream = lives.firstWhereOrNull((l) => (l.hostId ?? 0) == streamerId);
+    } catch (e) {
+      Loggers.error('returnClientToStreamerLive listActive: $e');
+    }
+    if (stream == null) {
+      try {
+        final user =
+            await UserService.instance.fetchUserDetails(userId: streamerId);
+        final roomId = (user?.liveRoomId ?? '').trim();
+        if (roomId.isNotEmpty) {
+          final payload =
+              await LiveSessionService.instance.fetchSession(roomId: roomId);
+          stream = payload?.session;
+        }
+      } catch (e) {
+        Loggers.error('returnClientToStreamerLive fetch: $e');
+      }
+    }
+    if (stream == null || (stream.roomID ?? '').trim().isEmpty) {
+      if (live != null && !live.isHost && !live.isEnding.value) {
+        await live.resumeLiveKitAfterCall();
+      }
+      return;
+    }
+
+    if (live != null &&
+        !live.isHost &&
+        (live.livestream.roomID ?? '') == (stream.roomID ?? '') &&
+        !live.isEnding.value) {
+      await live.resumeLiveKitAfterCall();
+      return;
+    }
+
+    if (live != null && !live.isHost && !live.isEnding.value) {
+      try {
+        await live.endOrLeave();
+      } catch (_) {}
+    }
+
+    final dest = stream;
+    Future.microtask(() {
+      Get.to(
+        () => LiveStreamAudienceScreen(isHost: false, livestream: dest),
+        preventDuplicates: false,
+      );
+    });
   }
 
   /// Reconecta al LIVE tras colgar la videollamada.
