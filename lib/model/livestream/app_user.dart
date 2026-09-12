@@ -28,14 +28,14 @@ class AppUser {
 
   AppUser.fromJson(Map<String, dynamic> json)
       : isActive = _asInt(json['is_active']) ?? 0,
-        isLive = _asInt(json['is_live']) ?? 0 {
+        isLive = _asInt(json['is_live']) ?? 0,
+        callRequestCoins = _asInt(json['call_request_coins']) ?? 0 {
     userId = json['user_id'];
     identity = json['identity'];
     username = json['username'];
     fullname = json['fullname'];
     profile = json['profile'];
     isVerify = json['is_verify'];
-    callRequestCoins = _asInt(json['call_request_coins']) ?? 0;
   }
 
   static int? _asInt(dynamic v) {
