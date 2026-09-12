@@ -70,6 +70,11 @@ class LiveKitRoomService {
   int _lastPingMs = 0;
   bool _samplingStats = false;
   bool _disposed = false;
+  /// Invalida un `connect()` en curso (p.ej. el usuario pulsa refrescar).
+  int _connectEpoch = 0;
+
+  bool _isCurrentConnect(int epoch) =>
+      !_disposed && epoch == _connectEpoch;
 
   void _emitStatus(String msg) {
     if (_disposed || _status.isClosed) return;
@@ -328,8 +333,12 @@ class LiveKitRoomService {
       LiveKitQualityProfile.low,
     ];
 
+    final epoch = ++_connectEpoch;
     Object? lastError;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      if (!_isCurrentConnect(epoch)) {
+        throw StateError('LiveKit connect superseded');
+      }
       final profile = profilesToTry[
           attempt < profilesToTry.length ? attempt : profilesToTry.length - 1];
       qualityProfile = profile;
@@ -348,13 +357,24 @@ class LiveKitRoomService {
           profile: profile,
           adaptiveStream: adaptiveStream,
           dynacast: dynacast,
+          epoch: epoch,
         );
         _emitStatus('');
         return room;
       } catch (e) {
         lastError = e;
+        if (e is StateError &&
+            e.message.contains('superseded')) {
+          rethrow;
+        }
         Loggers.error('LiveKit connect attempt ${attempt + 1}: $e');
+        if (!_isCurrentConnect(epoch)) {
+          throw StateError('LiveKit connect superseded');
+        }
         await _release();
+        if (!_isCurrentConnect(epoch)) {
+          throw StateError('LiveKit connect superseded');
+        }
         if (attempt < maxAttempts - 1) {
           await Future.delayed(Duration(milliseconds: 600 * (attempt + 1)));
         }
@@ -375,6 +395,7 @@ class LiveKitRoomService {
     required LiveKitQualityProfile profile,
     bool adaptiveStream = true,
     bool dynacast = true,
+    required int epoch,
   }) async {
     _emitStatus('Preparando…');
 
@@ -465,6 +486,21 @@ class LiveKitRoomService {
         await room.dispose();
       } catch (_) {}
       rethrow;
+    }
+
+    if (!_isCurrentConnect(epoch)) {
+      await warmVideo?.stop();
+      await warmVideo?.dispose();
+      await warmAudio?.stop();
+      await warmAudio?.dispose();
+      try {
+        await listener.dispose();
+      } catch (_) {}
+      try {
+        await room.disconnect();
+        await room.dispose();
+      } catch (_) {}
+      throw StateError('LiveKit connect superseded');
     }
 
     _room = room;
@@ -905,6 +941,7 @@ class LiveKitRoomService {
   }
 
   Future<void> disconnect() async {
+    _connectEpoch++;
     _statsTimer?.cancel();
     _statsTimer = null;
     _lastFps = 0;

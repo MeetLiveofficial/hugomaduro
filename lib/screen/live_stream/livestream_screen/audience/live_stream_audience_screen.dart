@@ -46,6 +46,7 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                 return Obx(() {
                   c.pausedForCall.value;
                   c.hostInCall.value;
+                  c.showJoinRefresh.value;
                   if (c.pausedForCall.value) {
                     return LivePausedForCallPane(controller: c);
                   }
@@ -147,6 +148,12 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                                   ),
                                 ),
                               ],
+                              if (c.showJoinRefresh.value &&
+                                  !hostBusy &&
+                                  !absent)
+                                _AudienceRefreshJoinButton(
+                                  onPressed: c.retryLiveConnection,
+                                ),
                             ],
                           ),
                         ),
@@ -181,9 +188,11 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                         ),
                       );
                     }
-                    return LiveKitParticipantVideo(
-                      participant: remotes.first,
-                    );
+                    if (c.audienceHasHostVideo) {
+                      return LiveKitParticipantVideo(
+                        participant: remotes.first,
+                      );
+                    }
                   }
                   final busy = lk?.isConnecting.value == true;
                   final failed =
@@ -251,7 +260,11 @@ class LiveStreamAudienceScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          ],
+                          ] else if (c.showJoinRefresh.value &&
+                              !c.hostInCall.value)
+                            _AudienceRefreshJoinButton(
+                              onPressed: c.retryLiveConnection,
+                            ),
                         ],
                       ),
                     ),
@@ -266,6 +279,49 @@ class LiveStreamAudienceScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AudienceRefreshJoinButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _AudienceRefreshJoinButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: ColorRes.themeAccentSolid,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onPressed,
+              child: const Padding(
+                padding: EdgeInsets.all(14),
+                child: Icon(
+                  Icons.refresh_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            LKey.refreshLiveConnection.tr,
+            textAlign: TextAlign.center,
+            style: TextStyleCustom.outFitMedium500(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }

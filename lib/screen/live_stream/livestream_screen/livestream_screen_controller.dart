@@ -10,7 +10,6 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/call_availability.dart';
 import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_app_helper.dart';
-import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
@@ -221,6 +220,9 @@ class LivestreamScreenController extends BaseController {
   int _hostSessionMissingCount = 0;
   static const int hostConnectTimeoutSecs = 75;
   static const int audienceJoinTimeoutSecs = 30;
+  /// Tras 30s sin video, el cliente puede refrescar la entrada a la sala.
+  final RxBool showJoinRefresh = false.obs;
+  bool _retryingLiveConnection = false;
   int _lastCommentServerId = 0;
   bool _commentPollBusy = false;
   bool _callPollBusy = false;
@@ -1191,13 +1193,21 @@ class LivestreamScreenController extends BaseController {
       if (isHost) {
         applyBeauty();
       }
+      if (!isHost && _audienceHasHostVideo) {
+        _disarmAudienceJoinWatchdog();
+        showJoinRefresh.value = false;
+      }
       update();
     });
     ever(liveKit!.isConnected, (connected) {
       if (connected) {
-        _disarmAudienceJoinWatchdog();
+        if (_audienceHasHostVideo) {
+          _disarmAudienceJoinWatchdog();
+          showJoinRefresh.value = false;
+        }
         return;
       }
+      if (_retryingLiveConnection) return;
       unawaited(_onAudienceLiveKitDropped());
     });
 
@@ -1225,9 +1235,11 @@ class LivestreamScreenController extends BaseController {
       }
     } catch (e) {
       // No tumbar el LIVE: chat sigue; UI ofrece Reintentar.
-      Loggers.error('live join LiveKit: $e');
-      if (statusMessage.value.isEmpty) {
-        statusMessage.value = 'Sin video (red débil). Toca Reintentar.';
+      if (!LiveKitRoomController.isSupersededConnectError(e)) {
+        Loggers.error('live join LiveKit: $e');
+        if (statusMessage.value.isEmpty) {
+          statusMessage.value = 'Sin video (red débil). Toca Reintentar.';
+        }
       }
     }
 
@@ -1294,13 +1306,20 @@ class LivestreamScreenController extends BaseController {
   void _armAudienceJoinWatchdog() {
     if (isHost || isDummy) return;
     _audienceJoinWatchdog?.cancel();
+    showJoinRefresh.value = false;
     _audienceJoinWatchdog = Timer(
       const Duration(seconds: audienceJoinTimeoutSecs),
       () {
         if (isEnding.value || _parkedForCall || _redirectingToNextLive) return;
-        if (liveKit?.isConnected.value == true) return;
-        Loggers.error('audience LiveKit join timeout (${audienceJoinTimeoutSecs}s)');
-        unawaited(_failAudienceJoinAndReset());
+        if (pausedForCall.value || hostInCall.value) return;
+        if (_audienceHasHostVideo) {
+          showJoinRefresh.value = false;
+          return;
+        }
+        Loggers.error(
+          'audience LiveKit join timeout (${audienceJoinTimeoutSecs}s) — showing refresh',
+        );
+        showJoinRefresh.value = true;
       },
     );
   }
@@ -1310,31 +1329,40 @@ class LivestreamScreenController extends BaseController {
     _audienceJoinWatchdog = null;
   }
 
-  Future<void> _failAudienceJoinAndReset() async {
-    if (isHost || isEnding.value || _redirectingToNextLive) return;
-    if (_parkedForCall) return;
-    showSnackBar('No se pudo conectar al LIVE. Intenta de nuevo.');
-    try {
-      imageCache.clear();
-      imageCache.clearLiveImages();
-    } catch (_) {}
-    unawaited(GiftMediaCache.clearAll());
-    await endOrLeave();
+  bool get audienceHasHostVideo => _audienceHasHostVideo;
+
+  bool get _audienceHasHostVideo {
+    final lk = liveKit;
+    if (lk == null || lk.isConnected.value != true) return false;
+    for (final p in lk.remoteParticipants) {
+      if (firstVideoTrackOf(p) != null) return true;
+    }
+    return false;
   }
 
   /// Reintenta LiveKit forzando calidad baja (red débil).
   Future<void> retryLiveConnection() async {
     if (pausedForCall.value && isCallUiActive) return;
+    _retryingLiveConnection = true;
+    showJoinRefresh.value = false;
     if (isHost) {
       _armHostConnectWatchdog();
+    } else {
+      _armAudienceJoinWatchdog();
     }
     final me = SessionManager.instance.getUser();
     if (me == null || liveKit == null) {
-      await _joinLiveKit();
+      try {
+        await _joinLiveKit();
+      } finally {
+        _retryingLiveConnection = false;
+      }
       update();
       return;
     }
-    statusMessage.value = 'Reintentando en calidad baja…';
+    statusMessage.value = isHost
+        ? 'Reintentando en calidad baja…'
+        : 'Reconectando al LIVE…';
     try {
       await liveKit!.reconnectLowQuality(
         roomName: avRoomId,
@@ -1352,10 +1380,19 @@ class LivestreamScreenController extends BaseController {
         statusMessage.value = '';
         _syncElapsedTimerWithPause();
         _disarmHostConnectWatchdog();
+        if (_audienceHasHostVideo) {
+          _disarmAudienceJoinWatchdog();
+          showJoinRefresh.value = false;
+        }
       }
     } catch (e) {
-      statusMessage.value = 'No se pudo conectar. Revisa tu red.';
-      Loggers.error('retryLiveConnection: $e');
+      if (!LiveKitRoomController.isSupersededConnectError(e)) {
+        statusMessage.value = 'No se pudo conectar. Revisa tu red.';
+        Loggers.error('retryLiveConnection: $e');
+        if (!isHost) showJoinRefresh.value = true;
+      }
+    } finally {
+      _retryingLiveConnection = false;
     }
     update();
   }

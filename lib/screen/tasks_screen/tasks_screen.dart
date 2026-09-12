@@ -49,25 +49,24 @@ class TasksScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          CustomAppBar(
-            title: LKey.tasks.tr,
-            showBack: !isDashBoard,
-            widget: _Tabs(controller: controller),
-          ),
+          Obx(() {
+            final showTabs = !controller.pageLoading.value &&
+                controller.tabCodes.isNotEmpty;
+            return CustomAppBar(
+              title: LKey.tasks.tr,
+              showBack: !isDashBoard,
+              widget: showTabs ? _Tabs(controller: controller) : null,
+            );
+          }),
           Expanded(
             child: Obx(() {
-              // No vaciar a loader en reload: assignAll antiguo dejaba
-              // categories vacío un frame y parpadeaba todo.
-              final showBootLoader = controller.pageLoading.value &&
-                  !controller.hasLoadedOnce &&
-                  controller.categories.isEmpty;
-              if (showBootLoader) {
+              if (controller.pageLoading.value) {
                 return const LoaderWidget();
               }
               return Stack(
                 children: [
                   RefreshIndicator(
-                    onRefresh: () => controller.loadTasks(silent: true),
+                    onRefresh: () => controller.loadTasks(),
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                       children: [
@@ -107,10 +106,8 @@ class _Tabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final selected = controller.selectedTab.value;
-      // Solo códigos de pestaña (no el contenido de categories → sin parpadeo).
-      final codes = controller.tabCodes.isNotEmpty
-          ? controller.tabCodes.toList()
-          : controller.visibleTabCodes;
+      final codes = controller.tabCodes.toList();
+      if (codes.isEmpty) return const SizedBox.shrink();
       return Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
         padding: const EdgeInsets.all(4),
@@ -153,13 +150,18 @@ class _Tabs extends StatelessWidget {
             borderRadius: BorderRadius.circular(30),
           ),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyleCustom.outFitMedium500(
-              color: active ? Colors.white : textLightGrey(context),
-              fontSize: 12,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: TextStyleCustom.outFitMedium500(
+                  color: active ? Colors.white : textLightGrey(context),
+                  fontSize: 12,
+                ),
+              ),
             ),
           ),
         ),

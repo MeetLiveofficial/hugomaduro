@@ -7,7 +7,6 @@ import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
-import 'package:krimson/common/widget/custom_drop_down.dart';
 import 'package:krimson/common/widget/custom_toggle.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -32,7 +31,6 @@ import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
 
 /// Iconos de filas: magenta/rosa en streamer; cyan/teal en cliente.
 Color settingRowIcon(Color streamerColor) {
@@ -187,67 +185,13 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
               SettingLabel(
-                  title: isAgency ? LKey.notifications : LKey.privacy),
+                  title: isAgency ||
+                          !AppRole.isStreamer(controller.myUser.value)
+                      ? LKey.notifications
+                      : LKey.privacy),
               BrandPanel(
                 child: Column(
                   children: [
-              if (!isAgency)
-                Obx(
-                  () => SettingIconTextWithArrow(
-                    icon: AssetRes.icEye_1,
-                    iconColor: settingRowIcon(ColorRes.crimson),
-                    title: LKey.whoCanSeePosts,
-                    widget: CustomDropDownBtn<WhoCanSeePost>(
-                      items: WhoCanSeePost.values,
-                      onChanged: controller.isUpdateApiCalled.value
-                          ? null
-                          : controller.onChangedWhoCanSeePost,
-                      selectedValue: controller.selectedWhoCanSeePost.value,
-                      style: TextStyleCustom.outFitRegular400(
-                          fontSize: 15,
-                          color: AppRole.isClient()
-                              ? ClientColors.textOnSurface
-                              : textLightGrey(context)),
-                      getTitle: (value) => value.title,
-                    ),
-                  ),
-                ),
-              if (!isAgency)
-                Obx(
-                  () {
-                    return SettingIconTextWithArrow(
-                      icon: AssetRes.icEye_1,
-                      iconColor: settingRowIcon(ColorRes.mlPurple),
-                      title: LKey.showMyFollowings,
-                      widget: CustomToggle(
-                        isOn:
-                            (controller.myUser.value?.showMyFollowing == 1).obs,
-                        onChanged: (value) {
-                          controller.onChangedToggle(
-                              value, SettingToggle.showMyFollowings);
-                        },
-                      ),
-                    );
-                  },
-                ),
-              if (!isAgency)
-                Obx(
-                  () {
-                    return SettingIconTextWithArrow(
-                      icon: AssetRes.icMessage,
-                      iconColor: settingRowIcon(ColorRes.roseBorder),
-                      title: LKey.showChatBtn,
-                      widget: CustomToggle(
-                        isOn:
-                            (controller.myUser.value?.receiveMessage == 1).obs,
-                        onChanged: (value) async {
-                          controller.onChangedToggle(
-                              value, SettingToggle.receiveMessage);
-                        },
-                      ),
-                    );
-                  },
-                ),
               if (AppRole.isStreamer(controller.myUser.value))
                 Obx(
                   () {

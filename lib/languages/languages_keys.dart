@@ -988,6 +988,7 @@ class LKey {
   static const String livePausedHostInCall = "LIVE paused · Host on a call";
   static const String livePausedInCall = "LIVE paused · On a call";
   static const String waitingForHost = "Waiting for host…";
+  static const String refreshLiveConnection = "Refresh connection";
   static const String enablingCamera = "Turning camera on…";
   static const String waitingForClient = "Waiting for a client…";
   static const String waitingMatchConnection =

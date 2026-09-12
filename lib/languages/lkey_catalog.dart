@@ -829,6 +829,7 @@ class LKeyCatalog {
     LKey.livePausedHostInCall,
     LKey.livePausedInCall,
     LKey.waitingForHost,
+    LKey.refreshLiveConnection,
     LKey.enablingCamera,
     LKey.waitingForClient,
     LKey.waitingMatchConnection,

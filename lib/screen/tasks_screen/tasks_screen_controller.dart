@@ -47,12 +47,10 @@ class TasksScreenController extends BaseController {
 
   bool get hasLoadedOnce => _hasLoadedOnce;
 
-  /// Prefer API order; fallback labels for known codes.
+  /// Prefer API order; no placeholder tabs before the first fetch.
   List<String> get visibleTabCodes {
     if (tabCodes.isNotEmpty) return List<String>.from(tabCodes);
-    final codes = categories.map((c) => c.code).toList();
-    if (codes.isNotEmpty) return codes;
-    return const ['live', 'other', 'private_bc'];
+    return categories.map((c) => c.code).toList();
   }
 
   @override
@@ -61,8 +59,6 @@ class TasksScreenController extends BaseController {
     if (Get.isRegistered<DynamicTranslations>()) {
       Get.find<DynamicTranslations>().ensureTaskFallbacks();
     }
-    // Pestañas visibles de inmediato (evita vacío → fallback → API).
-    tabCodes.value = ['live', 'other', 'private_bc'];
     loadTasks();
   }
 
@@ -102,16 +98,15 @@ class TasksScreenController extends BaseController {
   }
 
   Future<void> loadTasks({bool silent = false}) async {
-    final hasData = _hasLoadedOnce || categories.isNotEmpty;
-    // Solo pantalla completa en la 1ª carga. Refresh/claim no vacían ni
-    // parpadean las categorías.
-    if (!silent && !hasData) {
+    // silent = claim/background: se mantiene la lista.
+    // Recarga visible: loader a pantalla completa, sin tareas viejas.
+    if (!silent) {
       pageLoading.value = true;
     } else {
       refreshing.value = true;
     }
     try {
-      if (!silent && !hasData) {
+      if (!silent && !_hasLoadedOnce) {
         try {
           await TaskService.instance.reportProgress(actionType: 'open_app');
         } catch (_) {}
@@ -231,13 +226,21 @@ class TasksScreenController extends BaseController {
   }
 
   String tabLabel(String code) {
+    for (final cat in categories) {
+      if (cat.code == code) {
+        final name = cat.nameKey.trim();
+        if (name.isNotEmpty) return name;
+        break;
+      }
+    }
     switch (code) {
       case 'live':
         return LKey.taskCategoryLive.tr;
       case 'other':
         return LKey.taskCategoryOther.tr;
       case 'private_bc':
-        return 'B/C';
+      case 'private_newcb':
+        return 'NEW/C/B';
       case 'daily':
         return LKey.dailyTasks.tr;
       case 'special':

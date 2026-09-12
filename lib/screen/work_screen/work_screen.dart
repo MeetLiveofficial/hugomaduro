@@ -67,12 +67,10 @@ class WorkScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 _EarningsCard(data: data),
                 const SizedBox(height: 16),
-                _CallPricingCard(data: data, controller: controller),
+                _CallPricingCard(data: data),
                 const SizedBox(height: 16),
                 _TasksSection(),
                 if (controller.showDetail.value) ...[
-                  const SizedBox(height: 16),
-                  _DetailPanel(data: data),
                   const SizedBox(height: 16),
                   _BenefitsCard(benefits: data.benefits),
                 ],
@@ -398,8 +396,6 @@ class _MainGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gems =
-        (data.user.coinCollectedLifetime / 100).fullDecimalFormat;
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -419,18 +415,6 @@ class _MainGrid extends StatelessWidget {
           value: data.user.coinWallet.fullNumberFormat,
           color: WorkScreen._gold,
           iconAsset: AssetRes.icCoin,
-        ),
-        _StatCard(
-          label: LKey.diamonds.tr,
-          value: data.user.withdrawalPoints.fullNumberFormat,
-          color: ColorRes.baseLavender,
-          icon: Icons.diamond_outlined,
-        ),
-        _StatCard(
-          label: LKey.gems.tr,
-          value: gems,
-          color: WorkScreen._cyan,
-          icon: Icons.auto_awesome,
         ),
       ],
     );
@@ -531,15 +515,6 @@ class _PerfRow extends StatelessWidget {
             color: ColorRes.basePeach,
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MiniMetric(
-            label: LKey.positiveRating.tr,
-            value: '${data.today.positiveRate.toStringAsFixed(0)}%',
-            color: WorkScreen._green,
-            icon: Icons.thumb_up_alt_outlined,
-          ),
-        ),
       ],
     );
   }
@@ -550,13 +525,11 @@ class _MiniMetric extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
-    this.icon,
   });
 
   final String label;
   final String value;
   final Color color;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -568,7 +541,6 @@ class _MiniMetric extends StatelessWidget {
       ),
       child: Column(
         children: [
-          if (icon != null) Icon(icon, size: 14, color: color),
           Text(
             value,
             style: TextStyleCustom.outFitSemiBold600(color: color, fontSize: 13),
@@ -704,178 +676,6 @@ class _EarnItem extends StatelessWidget {
               fontSize: 10,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailPanel extends StatelessWidget {
-  const _DetailPanel({required this.data});
-
-  final StreamerWorkStats data;
-
-  @override
-  Widget build(BuildContext context) {
-    final tw = data.weeklyLevel.thisWeek;
-    final lw = data.weeklyLevel.lastWeek;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            _TinyMetric(
-              icon: Icons.favorite,
-              color: ColorRes.likeRed,
-              value: '${data.today.likes}',
-              label: LKey.likes.tr,
-            ),
-            const SizedBox(width: 8),
-            _TinyMetric(
-              icon: Icons.heart_broken,
-              color: WorkScreen._cyan,
-              value: '${data.today.rejections}',
-              label: LKey.rejections.tr,
-            ),
-            const SizedBox(width: 8),
-            _TinyMetric(
-              icon: Icons.pie_chart_outline,
-              color: WorkScreen._green,
-              value: '${data.today.rejectionRate.toStringAsFixed(0)}%',
-              label: LKey.rejectionRate.tr,
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Text(
-          LKey.weeklyLevelPrivateLiveOnly.tr,
-          style: TextStyleCustom.outFitSemiBold600(
-            color: Colors.white,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: WorkScreen._card,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
-              _TableHeader(),
-              _TableRow(LKey.levelResponseRate.tr, tw.responseRateLabel,
-                  '${lw.responseRate.toStringAsFixed(2)}%'),
-              _TableRow(
-                  LKey.levelAvgDuration.tr, tw.avgDuration, lw.avgDuration),
-              _TableRow(LKey.levelCalls.tr, '${tw.levelCalls}',
-                  '${lw.levelCalls}'),
-              _TableRow(LKey.levelUpdateTime.tr, tw.updatedAt ?? '-',
-                  lw.updatedAt ?? '-'),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TinyMetric extends StatelessWidget {
-  const _TinyMetric({
-    required this.icon,
-    required this.color,
-    required this.value,
-    required this.label,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: WorkScreen._card,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 4),
-            Text(value,
-                style:
-                    TextStyleCustom.outFitSemiBold600(color: color, fontSize: 18)),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: TextStyleCustom.outFitRegular400(
-                    color: Colors.white70, fontSize: 11)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TableHeader extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-              flex: 3,
-              child: Text(LKey.category.tr,
-                  style: TextStyleCustom.outFitMedium500(
-                      color: WorkScreen._yellow, fontSize: 11))),
-          Expanded(
-              child: Text(LKey.thisWeek.tr,
-                  textAlign: TextAlign.center,
-                  style: TextStyleCustom.outFitMedium500(
-                      color: WorkScreen._yellow, fontSize: 11))),
-          Expanded(
-              child: Text(LKey.lastWeek.tr,
-                  textAlign: TextAlign.center,
-                  style: TextStyleCustom.outFitMedium500(
-                      color: WorkScreen._yellow, fontSize: 11))),
-        ],
-      ),
-    );
-  }
-}
-
-class _TableRow extends StatelessWidget {
-  const _TableRow(this.cat, this.a, this.b);
-
-  final String cat;
-  final String a;
-  final String b;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-              flex: 3,
-              child: Text(cat,
-                  style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70, fontSize: 11))),
-          Expanded(
-              child: Text(a,
-                  textAlign: TextAlign.center,
-                  style: TextStyleCustom.outFitMedium500(
-                      color: Colors.white, fontSize: 11))),
-          Expanded(
-              child: Text(b,
-                  textAlign: TextAlign.center,
-                  style: TextStyleCustom.outFitMedium500(
-                      color: Colors.white, fontSize: 11))),
         ],
       ),
     );
@@ -1028,10 +828,9 @@ class _TasksSection extends StatelessWidget {
 }
 
 class _CallPricingCard extends StatelessWidget {
-  const _CallPricingCard({required this.data, required this.controller});
+  const _CallPricingCard({required this.data});
 
   final StreamerWorkStats data;
-  final WorkScreenController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -1061,110 +860,15 @@ class _CallPricingCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             canEdit
-                ? 'Grado $grade: puedes editar el precio (rango ${pricing?.min}-${pricing?.max}).'
+                ? 'Grado $grade: rango ${pricing?.min}-${pricing?.max}.'
                 : 'Grado $grade: precio fijo de la plataforma.',
             style: TextStyleCustom.outFitRegular400(
               color: Colors.white70,
               fontSize: 12,
             ),
           ),
-          const SizedBox(height: 12),
-          Obx(() {
-            final on = controller.matchEnabled.value;
-            return Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        LKey.receiveMatch.tr,
-                        style: TextStyleCustom.outFitMedium500(
-                          color: Colors.white,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        LKey.receiveMatchHint.tr,
-                        style: TextStyleCustom.outFitRegular400(
-                          color: Colors.white54,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                  Switch(
-                  value: on,
-                  activeThumbColor: WorkScreen._green,
-                  onChanged: controller.matchToggleBusy.value
-                      ? null
-                      : (v) => controller.setMatchEnabled(v),
-                ),
-              ],
-            );
-          }),
-          if (canEdit) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: () => _editPrice(context),
-                style: TextButton.styleFrom(
-                  backgroundColor: WorkScreen._pink,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(
-                  LKey.edit.tr,
-                  style: TextStyleCustom.outFitMedium500(
-                    color: Colors.white,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
-  }
-
-  Future<void> _editPrice(BuildContext context) async {
-    final pricing = data.callPricing;
-    if (pricing == null) return;
-    final field = TextEditingController(text: '${pricing.effectivePrice}');
-    final ok = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: WorkScreen._card,
-        title: Text(LKey.callPrice.tr,
-            style: TextStyleCustom.outFitSemiBold600(color: Colors.white)),
-        content: TextField(
-          controller: field,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: '${pricing.min} - ${pricing.max}',
-            hintStyle: const TextStyle(color: Colors.white54),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text(LKey.cancel.tr),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: Text(LKey.save.tr),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
-      final v = int.tryParse(field.text.trim());
-      if (v != null) {
-        await controller.updateCallPrice(v);
-      }
-    }
   }
 }

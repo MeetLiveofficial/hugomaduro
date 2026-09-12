@@ -46,6 +46,11 @@ class LiveKitRoomController extends GetxController {
   Stream<DataReceivedEvent> get onDataReceived => _service.onDataReceived;
 
   StreamSubscription? _qualitySub;
+  int _connectSeq = 0;
+
+  static bool isSupersededConnectError(Object e) {
+    return e is StateError && e.message.contains('superseded');
+  }
 
   /// Evita reutilizar un LiveKit ya cerrado (2º Match / preview).
   static LiveKitRoomController putFresh(String tag) {
@@ -120,17 +125,15 @@ class LiveKitRoomController extends GetxController {
     if (isClosed) {
       throw StateError('LiveKitRoomService disposed');
     }
-    if (isConnecting.value) {
-      if (!forceReconnect) return;
-      isConnecting.value = false;
-    }
+    if (isConnecting.value && !forceReconnect) return;
 
     // Si ya estamos en otra sala (o hay que forzar), cerrar antes.
     // Evita el no-op que dejaba la cámara en la sala vieja del PK.
     final sameRoom = isConnected.value && connectedRoomName == roomName;
-    if (isConnected.value && (!sameRoom || forceReconnect)) {
+    if (isConnecting.value ||
+        (isConnected.value && (!sameRoom || forceReconnect))) {
       try {
-        await disconnect();
+        await disconnect(silent: true);
       } catch (_) {}
     } else if (sameRoom && !forceReconnect) {
       return;
@@ -140,6 +143,7 @@ class LiveKitRoomController extends GetxController {
     }
 
     this.allowCameraDisable = allowCameraDisable;
+    final seq = ++_connectSeq;
     isConnecting.value = true;
     statusMessage.value = 'Conectando…';
 
@@ -157,7 +161,7 @@ class LiveKitRoomController extends GetxController {
         dynacast: dynacast,
         allowRearCamera: allowRearCamera,
       );
-      if (!_canEmit()) return;
+      if (!_canEmit() || seq != _connectSeq) return;
       _syncFromService();
       isConnected.value = true;
       connectedRoomName = roomName;
@@ -170,6 +174,9 @@ class LiveKitRoomController extends GetxController {
       Loggers.info(
           'LiveKit connected room=$roomName identity=$identity');
     } catch (e, st) {
+      if (isSupersededConnectError(e) || seq != _connectSeq) {
+        return;
+      }
       Loggers.error('LiveKit connect failed: $e\n$st');
       if (_canEmit()) {
         statusMessage.value = 'Sin video (red débil). Toca Reintentar.';
@@ -178,7 +185,7 @@ class LiveKitRoomController extends GetxController {
       connectedRoomName = null;
       rethrow;
     } finally {
-      if (_canEmit()) {
+      if (_canEmit() && seq == _connectSeq) {
         isConnecting.value = false;
       }
     }
@@ -204,10 +211,6 @@ class LiveKitRoomController extends GetxController {
     String? wsUrl,
     bool allowCameraDisable = true,
   }) async {
-    if (isConnecting.value) return;
-    try {
-      await disconnect();
-    } catch (_) {}
     await connect(
       roomName: roomName,
       identity: identity,
@@ -216,6 +219,7 @@ class LiveKitRoomController extends GetxController {
       publishMicrophone: publishMicrophone,
       wsUrl: wsUrl,
       forceProfile: LiveKitQualityProfile.low,
+      forceReconnect: true,
       allowCameraDisable: allowCameraDisable,
     );
   }

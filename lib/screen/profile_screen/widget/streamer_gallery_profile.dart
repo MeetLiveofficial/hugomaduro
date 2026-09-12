@@ -496,11 +496,6 @@ class _InfoSheet extends StatelessWidget {
                 ),
               ),
             ],
-            if ((user.levelTitle ?? '').trim().isNotEmpty ||
-                (user.levelNumber ?? 0) > 0) ...[
-              const SizedBox(height: 14),
-              _LevelBar(user: user),
-            ],
           ],
         ),
       ),
@@ -1545,42 +1540,6 @@ class _StarRow extends StatelessWidget {
             color: _callOrange,
             size: size,
           ),
-      ],
-    );
-  }
-}
-
-class _LevelBar extends StatelessWidget {
-  final User user;
-
-  const _LevelBar({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    final title = (user.levelTitle ?? '').trim();
-    final level = user.levelNumber ?? 0;
-    final label = title.isNotEmpty ? title : 'Level $level';
-    final progress = (level / 20).clamp(0.15, 1.0);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyleCustom.outFitMedium500(
-            color: Colors.white70,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 4,
-            backgroundColor: Colors.white12,
-            color: ColorRes.mlPurple,
-          ),
-        ),
       ],
     );
   }
