@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
+import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
@@ -46,7 +47,10 @@ class GiftRequestPrompt {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: GiftMedia(
-                      path: msg.giftImage,
+                      path: GiftManager.previewPath(
+                        giftId: msg.giftId,
+                        fallback: msg.giftImage,
+                      ),
                       width: 72,
                       height: 72,
                       fit: BoxFit.contain,
@@ -131,7 +135,10 @@ class GiftRequestBar extends StatelessWidget {
           child: Row(
             children: [
               GiftMedia(
-                path: message.giftImage,
+                path: GiftManager.previewPath(
+                  giftId: message.giftId,
+                  fallback: message.giftImage,
+                ),
                 width: 36,
                 height: 36,
                 fit: BoxFit.contain,

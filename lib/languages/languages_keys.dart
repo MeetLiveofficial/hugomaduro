@@ -36,6 +36,7 @@ class LKey {
   static const String coin = "Coin";
   static const String send = "Send";
   static const String sendGifts = "Send Gifts";
+  static const String chooseGift = "Choose gift";
   static const String all = "All";
   static const String yourGiftHasBeenSent = "Your gift has been sent";
   static const String successfully = "Successfully";
@@ -826,6 +827,8 @@ class LKey {
   static const String vipBadge = "VIP";
   static const String invitesToPrivateCall = "invites you to a private call";
   static const String boostGifts = "Boost gifts";
+  static const String boostGiftsHint =
+      "Pick a gift to request, or invite everyone to send gifts.";
   static const String inviteToCall = "Invite to call";
   static const String endBattle = "End battle";
   static const String battle = "Battle";

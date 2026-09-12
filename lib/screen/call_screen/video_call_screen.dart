@@ -30,7 +30,6 @@ import 'package:krimson/screen/gift_sheet/gift_request_prompt.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet.dart';
 import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
-import 'package:krimson/screen/live_stream/livestream_screen/widget/live_gift_boost_sheet.dart';
 import 'package:krimson/screen/match_screen/match_screen.dart';
 import 'package:krimson/screen/match_screen/match_screen_controller.dart';
 import 'package:krimson/screen/match_screen/match_web_video.dart';
@@ -1216,15 +1215,10 @@ class VideoCallController extends BaseController {
       showSnackBar(LKey.noActiveGifts.tr);
       return;
     }
-    await Get.bottomSheet(
-      LiveGiftBoostSheet(
-        gifts: gifts,
-        onBoost: (gift) {
-          unawaited(broadcastCallGiftBoost(gift));
-        },
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    await GiftManager.openGiftBoost(
+      onBoost: (gift) {
+        unawaited(broadcastCallGiftBoost(gift));
+      },
     );
   }
 
@@ -1307,6 +1301,13 @@ class VideoCallController extends BaseController {
     return null;
   }
 
+  String? giftPreview(int? giftId, {String? fallback}) {
+    return GiftManager.previewPath(
+      giftId: giftId,
+      fallback: fallback ?? _callGiftImage(giftId),
+    );
+  }
+
   int _callGiftCoins(LiveChatMessage msg) {
     if ((msg.giftCoins ?? 0) > 0) return msg.giftCoins!;
     final fromText = RegExp(r'\((\d+)').firstMatch(msg.text ?? '');
@@ -1374,6 +1375,7 @@ class VideoCallController extends BaseController {
           coinPrice: g.coinPrice,
           title: g.title,
           image: g.image,
+          thumbnail: g.thumbnail,
           isFullscreen: g.isFullscreen,
         );
         break;

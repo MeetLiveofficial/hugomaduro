@@ -179,17 +179,25 @@ class WalletHistoryUser {
 }
 
 class WalletHistoryGift {
-  WalletHistoryGift({this.id, this.image, this.coinPrice = 0});
+  WalletHistoryGift({this.id, this.image, this.thumbnail, this.coinPrice = 0});
 
   factory WalletHistoryGift.fromJson(Map<String, dynamic> json) {
     return WalletHistoryGift(
       id: WalletHistorySummary._asInt(json['id']),
       image: json['image']?.toString(),
+      thumbnail: json['thumbnail']?.toString(),
       coinPrice: WalletHistorySummary._asInt(json['coin_price']),
     );
   }
 
   final int? id;
   final String? image;
+  final String? thumbnail;
   final int coinPrice;
+
+  String get catalogImage {
+    final thumb = (thumbnail ?? '').trim();
+    if (thumb.isNotEmpty) return thumb;
+    return (image ?? '').trim();
+  }
 }

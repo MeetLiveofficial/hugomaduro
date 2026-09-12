@@ -44,7 +44,6 @@ import 'package:krimson/screen/live_stream/livestream_screen/widget/level_entran
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_sheet.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_battle_invite_dialog.dart';
-import 'package:krimson/screen/live_stream/livestream_screen/widget/live_gift_boost_sheet.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_private_call_sheet.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_unread_chats_sheet.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/audience/live_stream_audience_screen.dart';
@@ -995,7 +994,9 @@ class LivestreamScreenController extends BaseController {
       final gift = byId[slot.giftId];
       hydrated.add(slot.copyWith(
         coinPrice: slot.coinPrice ?? gift?.coinPrice,
-        image: (slot.image ?? '').isNotEmpty ? slot.image : gift?.image,
+        image: (gift?.catalogImage.isNotEmpty ?? false)
+            ? gift!.catalogImage
+            : slot.image,
         message: slot.trimmedMessage,
       ));
     }
@@ -1799,6 +1800,13 @@ class LivestreamScreenController extends BaseController {
     return null;
   }
 
+  String? resolveGiftPreview(int? giftId, {String? fallback}) {
+    return GiftManager.previewPath(
+      giftId: giftId,
+      fallback: fallback ?? resolveGiftImage(giftId),
+    );
+  }
+
   String? _resolveGiftImage(int? giftId) => resolveGiftImage(giftId);
 
   void _appendChatMessage(LiveChatMessage raw, {bool animateGift = false}) {
@@ -1955,6 +1963,7 @@ class LivestreamScreenController extends BaseController {
         coinPrice: gift.coinPrice,
         title: gift.title,
         image: gift.image,
+        thumbnail: gift.thumbnail,
         sound: gift.sound,
         isFullscreen: msg.giftDisplay!,
       );
@@ -2198,6 +2207,7 @@ class LivestreamScreenController extends BaseController {
           coinPrice: g.coinPrice,
           title: g.title,
           image: g.image,
+          thumbnail: g.thumbnail,
           isFullscreen: g.isFullscreen,
         );
         break;
@@ -2437,36 +2447,19 @@ class LivestreamScreenController extends BaseController {
   /// Host: sheet con regalos activos + incentiva a la audiencia.
   Future<void> openGiftBoostSheet() async {
     if (!isHost) return;
-    final configured = giftIncentives.toList();
-    final gifts = configured.isNotEmpty
-        ? configured
-            .map((e) => Gift(
-                  id: e.giftId,
-                  coinPrice: e.coinPrice,
-                  image: e.image,
-                ))
-            .toList()
-        : (SessionManager.instance.getSettings()?.gifts ?? []);
+    final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
     if (gifts.isEmpty) {
-      showSnackBar(configured.isEmpty
-          ? LKey.noActiveGifts.tr
-          : LKey.noIncentivizedGifts.tr);
+      showSnackBar(LKey.noActiveGifts.tr);
       return;
     }
-    await Get.bottomSheet(
-      LiveGiftBoostSheet(
-        gifts: gifts,
-        incentives: configured,
-        onBoost: (gift) {
-          final incentive = gift == null
-              ? null
-              : incentiveForGift(gift.id) ??
-                  configured.firstWhereOrNull((e) => e.giftId == gift.id);
-          unawaited(broadcastGiftBoost(gift, incentive: incentive));
-        },
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    await GiftManager.openGiftBoost(
+      onBoost: (gift) {
+        final incentive = gift == null
+            ? null
+            : incentiveForGift(gift.id) ??
+                giftIncentives.firstWhereOrNull((e) => e.giftId == gift.id);
+        unawaited(broadcastGiftBoost(gift, incentive: incentive));
+      },
     );
   }
 

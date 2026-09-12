@@ -20,6 +20,7 @@ import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/live_session_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
 import 'package:krimson/common/widget/gift_media.dart';
+import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/livestream.dart';
 import 'package:krimson/model/livestream/livestream_user_state.dart';
@@ -677,17 +678,13 @@ class LiveStreamSearchScreenController extends BaseController {
       showSnackBar(LKey.noGiftsInCatalog.tr);
       return;
     }
-    final selected = await Get.bottomSheet<Gift>(
-      _GiftPickerSheet(gifts: gifts),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-    );
+    final selected = await GiftManager.openGiftPicker();
     if (selected == null || selected.id == null) return;
     final prev = giftIncentiveSlots[position];
     giftIncentiveSlots[position] = prev.copyWith(
       giftId: selected.id,
       coinPrice: selected.coinPrice,
-      image: selected.image,
+      image: selected.catalogImage,
       message: prev.message,
     );
     giftIncentiveSlots.refresh();
@@ -1150,7 +1147,10 @@ class _IncentiveSlotCard extends StatelessWidget {
                       alignment: Alignment.center,
                       child: slot.isConfigured
                           ? GiftMedia(
-                              path: slot.image,
+                              path: GiftManager.previewPath(
+                                giftId: slot.giftId,
+                                fallback: slot.image,
+                              ),
                               width: 48,
                               height: 48,
                               fit: BoxFit.contain,
@@ -1221,105 +1221,6 @@ class _IncentiveSlotCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GiftPickerSheet extends StatelessWidget {
-  final List<Gift> gifts;
-
-  const _GiftPickerSheet({required this.gifts});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.sizeOf(context).height * 0.55,
-      decoration: BoxDecoration(
-        color: whitePure(context),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: bgGrey(context),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Elegir regalo',
-                    style: TextStyleCustom.outFitMedium500(
-                      color: textDarkGrey(context),
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: Get.back,
-                  icon: Icon(Icons.close, color: textLightGrey(context)),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.78,
-              ),
-              itemCount: gifts.length,
-              itemBuilder: (context, index) {
-                final g = gifts[index];
-                return InkWell(
-                  onTap: () => Get.back(result: g),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: bgGrey(context),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.black12),
-                    ),
-                    padding: const EdgeInsets.all(6),
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: GiftMedia(
-                            path: g.image,
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.contain,
-                            muted: true,
-                            looping: true,
-                            placeholder: const Icon(Icons.card_giftcard),
-                          ),
-                        ),
-                        Text(
-                          '${HostShare.displayCoins(g.coinPrice ?? 0)}',
-                          style: TextStyleCustom.outFitMedium500(
-                            color: ColorRes.themeAccentSolid,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
             ),
           ),
         ],

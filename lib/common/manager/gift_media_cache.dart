@@ -75,8 +75,8 @@ class GiftMediaCache {
     if (cache == null) return;
 
     for (final gift in gifts) {
-      final path = gift.image;
-      if (path == null || path.isEmpty) continue;
+      final path = gift.catalogImage;
+      if (path.isEmpty) continue;
       final url = path.addBaseURL();
       if (url.isEmpty || _queued.contains(url)) continue;
       _queued.add(url);

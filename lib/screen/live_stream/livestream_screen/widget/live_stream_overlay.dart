@@ -1299,9 +1299,10 @@ class _ChatBubble extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       GiftMedia(
-                        path: (message.giftImage ?? '').isNotEmpty
-                            ? message.giftImage
-                            : controller.resolveGiftImage(message.giftId),
+                        path: controller.resolveGiftPreview(
+                          message.giftId,
+                          fallback: message.giftImage,
+                        ),
                         width: 28,
                         height: 28,
                         fit: BoxFit.contain,
@@ -1340,9 +1341,10 @@ class _ChatBubble extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: GiftMedia(
-                          path: (message.giftImage ?? '').isNotEmpty
-                              ? message.giftImage
-                              : controller.resolveGiftImage(message.giftId),
+                          path: controller.resolveGiftPreview(
+                            message.giftId,
+                            fallback: message.giftImage,
+                          ),
                           width: 36,
                           height: 36,
                           fit: BoxFit.contain,
@@ -1593,7 +1595,10 @@ class _GiftIncentiveSlider extends StatelessWidget {
                           children: [
                             IgnorePointer(
                               child: GiftMedia(
-                                path: slot.image,
+                                path: controller.resolveGiftPreview(
+                                  slot.giftId,
+                                  fallback: slot.image,
+                                ),
                                 width: 32,
                                 height: 32,
                                 fit: BoxFit.contain,

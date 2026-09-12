@@ -425,16 +425,16 @@ class _MetaRow extends StatelessWidget {
     if (item.type == 'gift') {
       return Row(
         children: [
-          if ((item.gift?.image ?? '').isNotEmpty)
+          if ((item.gift?.catalogImage ?? '').isNotEmpty)
             GiftMedia(
-              path: item.gift!.image,
+              path: item.gift!.catalogImage,
               width: 22,
               height: 22,
               fit: BoxFit.contain,
               muted: true,
               looping: true,
             ),
-          if ((item.gift?.image ?? '').isNotEmpty) const SizedBox(width: 6),
+          if ((item.gift?.catalogImage ?? '').isNotEmpty) const SizedBox(width: 6),
           Text(
             'X ${item.quantity}',
             style: TextStyleCustom.outFitRegular400(

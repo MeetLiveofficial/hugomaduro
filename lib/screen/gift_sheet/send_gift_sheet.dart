@@ -19,12 +19,20 @@ import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
+enum GiftSheetMode {
+  send,
+  pick,
+  boost;
+}
+
 class SendGiftSheet extends StatelessWidget {
   final GiftType giftType;
   final BattleView battleViewType;
   final int? userId;
   final List<AppUser> streamUsers;
   final String? giftSource;
+  final GiftSheetMode mode;
+  final ValueChanged<Gift?>? onBoost;
 
   const SendGiftSheet(
       {super.key,
@@ -32,13 +40,31 @@ class SendGiftSheet extends StatelessWidget {
       this.battleViewType = BattleView.red,
       required this.userId,
       this.streamUsers = const [],
-      this.giftSource});
+      this.giftSource,
+      this.mode = GiftSheetMode.send,
+      this.onBoost});
+
+  String get _title {
+    switch (mode) {
+      case GiftSheetMode.pick:
+        return LKey.chooseGift.tr;
+      case GiftSheetMode.boost:
+        return LKey.boostGifts.tr;
+      case GiftSheetMode.send:
+        return LKey.sendGifts.tr;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(
-        SendGiftSheetController(giftType, userId, streamUsers,
-            giftSource: giftSource));
+    final controller = Get.put(SendGiftSheetController(
+      giftType,
+      userId,
+      streamUsers,
+      giftSource: giftSource,
+      mode: mode,
+      onBoost: onBoost,
+    ));
 
     return Container(
       height: Get.height / 1.5,
@@ -56,9 +82,20 @@ class SendGiftSheet extends StatelessWidget {
         child: Column(
           children: [
             BottomSheetTopView(
-                title: LKey.sendGifts.tr,
-                margin: const EdgeInsets.only(top: 15)),
-            switch (giftType) {
+                title: _title, margin: const EdgeInsets.only(top: 15)),
+            if (mode == GiftSheetMode.boost)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                child: Text(
+                  LKey.boostGiftsHint.tr,
+                  textAlign: TextAlign.center,
+                  style: TextStyleCustom.outFitRegular400(
+                    fontSize: 12,
+                    color: textLightGrey(context),
+                  ),
+                ),
+              ),
+            switch (mode == GiftSheetMode.send ? giftType : GiftType.none) {
               GiftType.none => const SizedBox(),
               GiftType.livestream => GiftForLiveStream(
                   controller: controller, streamUsers: streamUsers),
@@ -97,14 +134,16 @@ class SendGiftSheet extends StatelessWidget {
                   ),
                 ),
             },
-            const SizedBox(height: 10),
-            Obx(() => GradientText(
-                (controller.myUser.value?.coinWallet ?? '0').toString(),
-                gradient: StyleRes.themeGradient,
-                style: TextStyleCustom.unboundedSemiBold600(fontSize: 21))),
-            Text(LKey.coinsYouHave.tr,
-                style: TextStyleCustom.outFitRegular400(
-                    fontSize: 15, color: textLightGrey(context))),
+            if (mode == GiftSheetMode.send) ...[
+              const SizedBox(height: 10),
+              Obx(() => GradientText(
+                  (controller.myUser.value?.coinWallet ?? '0').toString(),
+                  gradient: StyleRes.themeGradient,
+                  style: TextStyleCustom.unboundedSemiBold600(fontSize: 21))),
+              Text(LKey.coinsYouHave.tr,
+                  style: TextStyleCustom.outFitRegular400(
+                      fontSize: 15, color: textLightGrey(context))),
+            ],
             Obx(() {
               // Hay que leer el id aquí: ListView.itemBuilder corre
               // fuera del tracker de Obx y el pill activo no se movía.
@@ -218,7 +257,7 @@ class SendGiftSheet extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             GiftMedia(
-                              path: gift.image,
+                              path: gift.catalogImage,
                               width: 65,
                               height: 65,
                               fit: BoxFit.contain,
@@ -252,10 +291,11 @@ class SendGiftSheet extends StatelessWidget {
                                 style: TextStyleCustom.outFitMedium500(
                                     fontSize: 13,
                                     color: textLightGrey(context))),
-                            GradientText(LKey.send.tr,
-                                gradient: StyleRes.themeGradient,
-                                style: TextStyleCustom.unboundedMedium500(
-                                    fontSize: 13))
+                            if (mode == GiftSheetMode.send)
+                              GradientText(LKey.send.tr,
+                                  gradient: StyleRes.themeGradient,
+                                  style: TextStyleCustom.unboundedMedium500(
+                                      fontSize: 13))
                           ],
                         ),
                       ),
@@ -263,7 +303,39 @@ class SendGiftSheet extends StatelessWidget {
                   },
                 );
               },
-            ))
+            )),
+            if (mode == GiftSheetMode.boost)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: StyleRes.themeGradient,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: controller.onBoostGeneral,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: whitePure(context),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      child: Text(
+                        LKey.sendMeGifts.tr,
+                        style: TextStyleCustom.outFitMedium500(
+                          color: whitePure(context),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

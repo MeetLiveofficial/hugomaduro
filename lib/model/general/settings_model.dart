@@ -652,6 +652,8 @@ class Gift {
   int? coinPrice;
   String? title;
   String? image;
+  /// Miniatura WebP del catálogo (grids / previews). La animación usa [image].
+  String? thumbnail;
   /// MP3/WAV/OGG reproducido al enviar el regalo (opcional).
   String? sound;
   /// 0 = tamaño original · 1 = pantalla completa · 2 = mitad inferior.
@@ -665,6 +667,7 @@ class Gift {
     this.coinPrice,
     this.title,
     this.image,
+    this.thumbnail,
     this.sound,
     this.isFullscreen = 0,
     this.createdAt,
@@ -679,6 +682,7 @@ class Gift {
             Setting._asInt(json["coinPrice"]),
         title: json["title"]?.toString(),
         image: json["image"]?.toString(),
+        thumbnail: json["thumbnail"]?.toString(),
         sound: json["sound"]?.toString(),
         isFullscreen: Setting._asInt(json["is_fullscreen"]) ??
             Setting._asInt(json["isFullscreen"]) ??
@@ -697,11 +701,19 @@ class Gift {
         "coin_price": coinPrice,
         "title": title,
         "image": image,
+        "thumbnail": thumbnail,
         "sound": sound,
         "is_fullscreen": isFullscreen,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };
+
+  /// Miniatura para grids; si no hay, el archivo original.
+  String get catalogImage {
+    final thumb = (thumbnail ?? '').trim();
+    if (thumb.isNotEmpty) return thumb;
+    return (image ?? '').trim();
+  }
 
   bool get fullscreen => isFullscreen == 1;
 

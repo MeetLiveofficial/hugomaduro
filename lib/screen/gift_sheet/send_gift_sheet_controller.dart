@@ -43,8 +43,13 @@ class SendGiftSheetController extends BaseController {
   int? _lastItemId;
   bool _loadingMore = false;
 
+  GiftSheetMode mode;
+  ValueChanged<Gift?>? onBoost;
+
   SendGiftSheetController(this.giftType, this.userId, this.liveUsers,
-      {this.giftSource});
+      {this.giftSource,
+      this.mode = GiftSheetMode.send,
+      this.onBoost});
 
   @override
   void onInit() {
@@ -157,6 +162,16 @@ class SendGiftSheetController extends BaseController {
       return showSnackBar('Gift Not Found');
     }
 
+    if (mode == GiftSheetMode.pick) {
+      Get.back(result: gift);
+      return;
+    }
+    if (mode == GiftSheetMode.boost) {
+      onBoost?.call(gift);
+      Get.back();
+      return;
+    }
+
     final price = gift.coinPrice ?? 0;
     final wallet = (myUser.value?.coinWallet ?? 0).toInt();
     if (wallet < price) {
@@ -165,6 +180,12 @@ class SendGiftSheetController extends BaseController {
     }
 
     sendGift(gift, context);
+  }
+
+  void onBoostGeneral() {
+    if (mode != GiftSheetMode.boost) return;
+    onBoost?.call(null);
+    Get.back();
   }
 
   Future<void> sendGift(Gift gift, BuildContext context) async {
@@ -276,10 +297,7 @@ class GiftManager {
     if (giftType == GiftType.none && !AppRole.canSendGifts()) {
       return;
     }
-    if (Get.isRegistered<SendGiftSheetController>()) {
-      Get.delete<SendGiftSheetController>(force: true);
-    }
-    await Get.bottomSheet<GiftManager>(
+    await _presentSheet<GiftManager>(
       SendGiftSheet(
         userId: userId,
         giftType: giftType,
@@ -287,15 +305,59 @@ class GiftManager {
         streamUsers: streamUsers,
         giftSource: giftSource,
       ),
-      isScrollControlled: true,
     ).then((gift) {
-      if (Get.isRegistered<SendGiftSheetController>()) {
-        Get.delete<SendGiftSheetController>(force: true);
-      }
       if (gift != null) {
         onCompletion(gift);
       }
     });
+  }
+
+  /// Elegir un regalo del catálogo (incentivos, configuración).
+  static Future<Gift?> openGiftPicker() {
+    return _presentSheet<Gift>(
+      const SendGiftSheet(userId: null, mode: GiftSheetMode.pick),
+    );
+  }
+
+  /// Host: pedir un regalo a la audiencia (LIVE o llamada).
+  static Future<void> openGiftBoost({
+    required ValueChanged<Gift?> onBoost,
+  }) {
+    return _presentSheet<void>(
+      SendGiftSheet(
+        userId: null,
+        mode: GiftSheetMode.boost,
+        onBoost: onBoost,
+      ),
+    );
+  }
+
+  static Future<T?> _presentSheet<T>(Widget sheet) async {
+    if (Get.isRegistered<SendGiftSheetController>()) {
+      Get.delete<SendGiftSheetController>(force: true);
+    }
+    try {
+      return await Get.bottomSheet<T>(
+        sheet,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+      );
+    } finally {
+      if (Get.isRegistered<SendGiftSheetController>()) {
+        Get.delete<SendGiftSheetController>(force: true);
+      }
+    }
+  }
+
+  /// Miniatura de catálogo para grids / chips; si no hay, [fallback].
+  static String? previewPath({int? giftId, String? fallback}) {
+    rememberAll(SessionManager.instance.getSettings()?.gifts);
+    final known = knownById(giftId);
+    if (known != null && known.catalogImage.isNotEmpty) {
+      return known.catalogImage;
+    }
+    final fb = (fallback ?? '').trim();
+    return fb.isEmpty ? null : fb;
   }
 
   static bool _giftDialogOpen = false;
@@ -340,6 +402,9 @@ class GiftManager {
       coinPrice: gift.coinPrice ?? match.coinPrice,
       title: match.title ?? gift.title,
       image: image.isNotEmpty ? gift.image : match.image,
+      thumbnail: ((gift.thumbnail ?? '').trim().isNotEmpty)
+          ? gift.thumbnail
+          : match.thumbnail,
       sound: ((gift.sound ?? '').trim().isNotEmpty) ? gift.sound : match.sound,
       isFullscreen:
           gift.isFullscreen != 0 ? gift.isFullscreen : match.isFullscreen,

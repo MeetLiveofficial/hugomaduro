@@ -97,7 +97,10 @@ class _CallChatBubble extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       GiftMedia(
-                        path: message.giftImage,
+                        path: controller.giftPreview(
+                          message.giftId,
+                          fallback: message.giftImage,
+                        ),
                         width: 28,
                         height: 28,
                         fit: BoxFit.contain,
