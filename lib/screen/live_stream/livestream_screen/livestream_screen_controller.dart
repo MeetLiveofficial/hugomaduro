@@ -1430,6 +1430,8 @@ class LivestreamScreenController extends BaseController {
                         Get.back();
                         await setLiveQuality(p);
                       },
+                      textColor: Colors.black87,
+                      iconColor: ColorRes.themeAccentSolid,
                       leading: Icon(
                         p == LiveKitQualityProfile.low
                             ? Icons.signal_cellular_alt_1_bar
@@ -1438,13 +1440,23 @@ class LivestreamScreenController extends BaseController {
                                 : Icons.signal_cellular_alt,
                         color: ColorRes.themeAccentSolid,
                       ),
-                      title: Text(qualityLabel(p)),
+                      title: Text(
+                        qualityLabel(p),
+                        style: TextStyleCustom.outFitMedium500(
+                          color: Colors.black87,
+                          fontSize: 16,
+                        ),
+                      ),
                       subtitle: Text(
                         p == LiveKitQualityProfile.low
                             ? LKey.qualityLowHint.tr
                             : p == LiveKitQualityProfile.medium
                                 ? LKey.qualityMediumHint.tr
                                 : LKey.qualityHighHint.tr,
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
                       ),
                       trailing: current == p
                           ? const Icon(Icons.check_circle,
