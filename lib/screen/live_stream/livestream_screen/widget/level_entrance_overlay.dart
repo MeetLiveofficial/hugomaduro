@@ -5,11 +5,21 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/haptic_manager.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 
-/// Video de entrada por nivel: 50% inferior de la pantalla del LIVE.
+/// Video / banner de entrada por nivel: 50% inferior de la pantalla del LIVE.
+///
+/// Se inserta como OverlayEntry (no dialog) para no bloquear el tacto.
 class LevelEntranceOverlay {
   LevelEntranceOverlay._();
 
+  static OverlayEntry? _entry;
   static bool _open = false;
+
+  static void _remove() {
+    final entry = _entry;
+    _entry = null;
+    _open = false;
+    entry?.remove();
+  }
 
   static void show(
     String? videoPath, {
@@ -21,49 +31,44 @@ class LevelEntranceOverlay {
   }) {
     final path = (videoPath ?? '').trim();
     if (path.isEmpty && !isVip) return;
-    final ctx = Get.context;
+    final ctx = Get.overlayContext ?? Get.context;
     if (ctx == null) return;
 
     if (_open) {
-      try {
-        final nav = Navigator.of(ctx, rootNavigator: true);
-        if (nav.canPop()) nav.pop();
-      } catch (_) {}
-      _open = false;
+      _remove();
     }
 
-    _open = true;
-    showGeneralDialog(
-      context: ctx,
-      barrierDismissible: false,
-      barrierLabel: 'level_entrance',
-      barrierColor: Colors.transparent,
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return _LevelEntranceDialog(
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => IgnorePointer(
+        child: _LevelEntranceDialog(
           videoPath: path,
           userName: userName,
           level: level,
           levelTitle: levelTitle,
           isSvip: isSvip,
           isVip: isVip,
-        );
-      },
-      transitionDuration: const Duration(milliseconds: 80),
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        if (animation.status == AnimationStatus.forward) {
-          HapticManager.shared.light();
-        }
-        return FadeTransition(opacity: animation, child: child);
-      },
-    ).whenComplete(() {
-      _open = false;
-    });
+          onFinished: () {
+            if (_entry == entry) {
+              _remove();
+            }
+          },
+        ),
+      ),
+    );
+    _entry = entry;
+    _open = true;
+    HapticManager.shared.light();
+    final overlay = Navigator.of(ctx, rootNavigator: true).overlay ??
+        Overlay.of(ctx, rootOverlay: true);
+    overlay.insert(entry);
   }
 }
 
 class _LevelEntranceDialog extends StatefulWidget {
   const _LevelEntranceDialog({
     required this.videoPath,
+    required this.onFinished,
     this.userName,
     this.level,
     this.levelTitle,
@@ -72,6 +77,7 @@ class _LevelEntranceDialog extends StatefulWidget {
   });
 
   final String videoPath;
+  final VoidCallback onFinished;
   final String? userName;
   final int? level;
   final String? levelTitle;
@@ -124,8 +130,7 @@ class _LevelEntranceDialogState extends State<_LevelEntranceDialog>
     _safetyTimer?.cancel();
     _fadeCtrl.reverse().whenComplete(() {
       if (!mounted) return;
-      final nav = Navigator.of(context, rootNavigator: true);
-      if (nav.canPop()) nav.pop();
+      widget.onFinished();
     });
   }
 
@@ -152,104 +157,102 @@ class _LevelEntranceDialogState extends State<_LevelEntranceDialog>
 
     return Material(
       type: MaterialType.transparency,
-      child: IgnorePointer(
-        child: FadeTransition(
-          opacity: _opacity,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SizedBox(
-              width: w,
-              height: h,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (widget.videoPath.trim().isNotEmpty)
-                    GiftMedia(
-                      path: widget.videoPath,
-                      width: w,
-                      height: h,
-                      fit: BoxFit.cover,
-                      muted: false,
-                      looping: false,
-                      onVideoEnded: _onVideoEnded,
-                      onVideoReady: _onVideoReady,
-                      placeholder: const SizedBox.shrink(),
-                    )
-                  else if (widget.isVip)
-                    Align(
-                      alignment: Alignment.center,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 24),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFFFFE082),
-                              Color(0xFFFFC107),
-                              Color(0xFFFF8F00),
-                            ],
-                          ),
-                        ),
-                        child: Text(
-                          name.isEmpty
-                              ? '👑 VIP ha entrado al LIVE'
-                              : '👑 VIP — $name ha entrado al LIVE',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Color(0xFF3E2723),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (widget.videoPath.trim().isNotEmpty &&
-                      (name.isNotEmpty || levelLabel.isNotEmpty))
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      top: 12,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (name.isNotEmpty)
-                            Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.95),
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                shadows: const [
-                                  Shadow(blurRadius: 8, color: Colors.black54),
-                                ],
-                              ),
-                            ),
-                          if (levelLabel.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              levelLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.88),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                shadows: const [
-                                  Shadow(blurRadius: 6, color: Colors.black54),
-                                ],
-                              ),
-                            ),
+      child: FadeTransition(
+        opacity: _opacity,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            width: w,
+            height: h,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (widget.videoPath.trim().isNotEmpty)
+                  GiftMedia(
+                    path: widget.videoPath,
+                    width: w,
+                    height: h,
+                    fit: BoxFit.cover,
+                    muted: false,
+                    looping: false,
+                    onVideoEnded: _onVideoEnded,
+                    onVideoReady: _onVideoReady,
+                    placeholder: const SizedBox.shrink(),
+                  )
+                else if (widget.isVip)
+                  Align(
+                    alignment: Alignment.center,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFFFE082),
+                            Color(0xFFFFC107),
+                            Color(0xFFFF8F00),
                           ],
-                        ],
+                        ),
+                      ),
+                      child: Text(
+                        name.isEmpty
+                            ? '👑 VIP ha entrado al LIVE'
+                            : '👑 VIP — $name ha entrado al LIVE',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFF3E2723),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                ],
-              ),
+                  ),
+                if (widget.videoPath.trim().isNotEmpty &&
+                    (name.isNotEmpty || levelLabel.isNotEmpty))
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    top: 12,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (name.isNotEmpty)
+                          Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              shadows: const [
+                                Shadow(blurRadius: 8, color: Colors.black54),
+                              ],
+                            ),
+                          ),
+                        if (levelLabel.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            levelLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.88),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              shadows: const [
+                                Shadow(blurRadius: 6, color: Colors.black54),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
