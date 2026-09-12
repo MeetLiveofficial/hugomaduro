@@ -540,6 +540,7 @@ class LivestreamScreenController extends BaseController {
         await _loadHostFollowStatus();
       } else {
         await StreamerCameraLock.releaseMatchWaitIfAny();
+        await _syncMyCallPrice();
         await _refreshSessionStats(silent: true);
         // Precargar traductor: comentarios de Clientes → idioma del Streamer.
         unawaited(ChatTranslatorService.instance.preloadForUserLanguage());
@@ -2457,9 +2458,19 @@ class LivestreamScreenController extends BaseController {
     showSnackBar('Invitación de regalos enviada');
   }
 
+  /// Precio efectivo del host (override si lo editó, si no el default del nivel).
+  Future<void> _syncMyCallPrice() async {
+    final me = SessionManager.instance.getUser();
+    if (me?.id == null) return;
+    try {
+      await UserService.instance.fetchUserDetails(userId: me!.id);
+    } catch (_) {}
+  }
+
   /// Host: invita a todos los clientes a llamada privada (precio del streamer).
   Future<void> inviteAudienceToCall() async {
     if (!isHost) return;
+    await _syncMyCallPrice();
     final me = SessionManager.instance.getUser();
     if (me?.id == null) return;
     final canReceive =
@@ -2483,7 +2494,7 @@ class LivestreamScreenController extends BaseController {
         content: Text(
           cost > 0
               ? 'Se enviará una invitación a todos los viewers.\n'
-                  'Precio: $cost coins.'
+                  'Precio: $cost/min.'
               : 'Se enviará una invitación a todos los viewers.',
           style: TextStyleCustom.outFitRegular400(
             color: Colors.white70,
@@ -2595,7 +2606,7 @@ class LivestreamScreenController extends BaseController {
         ),
         content: Text(
           cost > 0
-              ? '$name te invita a una videollamada.\nCosto: $cost coins.'
+              ? '$name te invita a una videollamada.\nCosto: $cost/min.'
               : '$name te invita a una videollamada.',
           style: TextStyleCustom.outFitRegular400(
             color: Colors.white70,
@@ -3578,11 +3589,7 @@ class LivestreamScreenController extends BaseController {
   Future<void> _searchInviteCandidates(String keyword) async {
     inviteLoading.value = true;
     try {
-      final users = await UserService.instance.searchUsers(
-        keyWord: keyword,
-        limit: 40,
-      );
-      inviteCandidates.assignAll(users);
+      inviteCandidates.assignAll(await _fetchClientInviteCandidates(keyword));
     } catch (e) {
       showSnackBar(e.toString());
     } finally {
@@ -3593,16 +3600,22 @@ class LivestreamScreenController extends BaseController {
   Future<void> _loadInviteCandidates() async {
     inviteLoading.value = true;
     try {
-      final users = await UserService.instance.searchUsers(
-        keyWord: '',
-        limit: 40,
-      );
-      inviteCandidates.assignAll(users);
+      inviteCandidates.assignAll(await _fetchClientInviteCandidates(''));
     } catch (e) {
       showSnackBar(e.toString());
     } finally {
       inviteLoading.value = false;
     }
+  }
+
+  /// LIVE “Invitar amigos”: solo clientes (nunca streamers).
+  Future<List<User>> _fetchClientInviteCandidates(String keyword) async {
+    final users = await UserService.instance.searchUsers(
+      keyWord: keyword,
+      appRole: AppRole.client,
+      limit: 40,
+    );
+    return users.where((u) => AppRole.isClient(u)).toList();
   }
 
   /// Rivales PK: solo hosts en LIVE y que no estén ya en batalla.
@@ -3674,6 +3687,7 @@ class LivestreamScreenController extends BaseController {
   Future<void> inviteUser(User user) async {
     final id = user.id;
     if (id == null) return;
+    if (!AppRole.isClient(user)) return;
     invitedIds.add(id);
     inviteCandidates.refresh();
 

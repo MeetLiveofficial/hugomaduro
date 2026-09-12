@@ -528,7 +528,7 @@ class LiveStreamSearchScreenController extends BaseController {
       selectedIds: invitedIds,
       onInvite: (user) async {
         final id = user.id;
-        if (id == null) return;
+        if (id == null || !AppRole.isClient(user)) return;
         invitedIds.add(id);
         inviteCandidates.refresh();
         showSnackBar(LKey.friendInvited.tr);
@@ -540,11 +540,7 @@ class LiveStreamSearchScreenController extends BaseController {
   Future<void> _searchInviteCandidates(String keyword) async {
     inviteLoading.value = true;
     try {
-      final users = await UserService.instance.searchUsers(
-        keyWord: keyword,
-        limit: 40,
-      );
-      inviteCandidates.assignAll(users);
+      inviteCandidates.assignAll(await _fetchClientInviteCandidates(keyword));
     } catch (e) {
       showSnackBar(e.toString());
     } finally {
@@ -555,16 +551,22 @@ class LiveStreamSearchScreenController extends BaseController {
   Future<void> _loadInviteCandidates() async {
     inviteLoading.value = true;
     try {
-      final users = await UserService.instance.searchUsers(
-        keyWord: '',
-        limit: 40,
-      );
-      inviteCandidates.assignAll(users);
+      inviteCandidates.assignAll(await _fetchClientInviteCandidates(''));
     } catch (e) {
       showSnackBar(e.toString());
     } finally {
       inviteLoading.value = false;
     }
+  }
+
+  /// LIVE “Invitar amigos”: solo clientes (nunca streamers).
+  Future<List<User>> _fetchClientInviteCandidates(String keyword) async {
+    final users = await UserService.instance.searchUsers(
+      keyWord: keyword,
+      appRole: AppRole.client,
+      limit: 40,
+    );
+    return users.where((u) => AppRole.isClient(u)).toList();
   }
 
   Future<void> pickLiveCover() async {

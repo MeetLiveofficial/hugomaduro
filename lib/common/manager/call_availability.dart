@@ -52,6 +52,8 @@ class CallAvailability {
     return null;
   }
 
+  /// Precio/min efectivo: el que el API resolvió (`call_request_coins` =
+  /// override del streamer si lo editó, si no el default del nivel).
   static int callCost(User? user) {
     if (user == null) return 0;
     if (user.callRequestCoins > 0) return user.callRequestCoins;

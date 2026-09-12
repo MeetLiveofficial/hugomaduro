@@ -389,13 +389,17 @@ class UserService {
   }
 
   Future<List<User>> searchUsers(
-      {int? lastItemId, String keyWord = '', required int limit}) async {
+      {int? lastItemId,
+      String keyWord = '',
+      String? appRole,
+      required int limit}) async {
     UsersModel model = await ApiService.instance.call(
         url: WebService.user.searchUsers,
         param: {
           if (lastItemId != null) Params.lastItemId: lastItemId,
           Params.limit: limit,
           if (keyWord.isNotEmpty) Params.keyword: keyWord,
+          if ((appRole ?? '').trim().isNotEmpty) Params.appRole: appRole!.trim(),
         },
         fromJson: UsersModel.fromJson);
     return model.data ?? [];

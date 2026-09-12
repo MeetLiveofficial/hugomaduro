@@ -9,6 +9,8 @@ class AppUser {
   int isActive;
   /// 1 = en transmisión LIVE ahora.
   int isLive;
+  /// Precio/min efectivo de llamada (override del streamer o default del nivel).
+  int callRequestCoins;
 
   AppUser({
     this.userId,
@@ -19,6 +21,7 @@ class AppUser {
     this.identity,
     this.isActive = 0,
     this.isLive = 0,
+    this.callRequestCoins = 0,
   });
 
   bool get isPresent => isActive == 1 || isLive == 1;
@@ -32,6 +35,7 @@ class AppUser {
     fullname = json['fullname'];
     profile = json['profile'];
     isVerify = json['is_verify'];
+    callRequestCoins = _asInt(json['call_request_coins']) ?? 0;
   }
 
   static int? _asInt(dynamic v) {
@@ -51,6 +55,7 @@ class AppUser {
     data['is_verify'] = isVerify;
     data['is_active'] = isActive;
     data['is_live'] = isLive;
+    data['call_request_coins'] = callRequestCoins;
     return data;
   }
 }
