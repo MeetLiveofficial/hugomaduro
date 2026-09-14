@@ -39,8 +39,9 @@ class CoinWalletTopView extends StatelessWidget {
           child: Obx(() {
             // Fuente de verdad en vivo (regalos/llamadas/match).
             final balance = SessionManager.instance.coinWalletRx.value;
-            final estimated = balance * coinValue.toDouble();
             final balanceLabel = balance.fullNumberFormat;
+            final showUsdValue = AppRole.canEarn();
+            final estimated = showUsdValue ? balance * coinValue.toDouble() : 0.0;
             return Column(
               children: [
                 Text(
@@ -75,18 +76,20 @@ class CoinWalletTopView extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    estimated.fullCurrencyFormat,
-                    maxLines: 1,
-                    style: TextStyleCustom.outFitLight300(
-                      color: whitePure(context).withValues(alpha: 0.85),
-                      fontSize: 13,
+                if (showUsdValue) ...[
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      estimated.fullCurrencyFormat,
+                      maxLines: 1,
+                      style: TextStyleCustom.outFitLight300(
+                        color: whitePure(context).withValues(alpha: 0.85),
+                        fontSize: 13,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
             );
           }),

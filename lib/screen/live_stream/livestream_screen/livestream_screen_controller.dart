@@ -2327,7 +2327,7 @@ class LivestreamScreenController extends BaseController {
     _appendChatMessage(msg, animateGift: false);
     // Payload corto (sin URL): evita max length del API y parseo frágil.
     final encoded =
-        'GIFT|${gift.id ?? 0}|$coins|${gift.isFullscreen}| $name ${LKey.sentAGift.tr} · $coins ${LKey.coins.tr}';
+        'GIFT|${gift.id ?? 0}|$coins|${gift.isFullscreen}| $name ${LKey.sentAGift.tr}';
     try {
       await LiveSessionService.instance.sendComment(
         roomId: roomId,

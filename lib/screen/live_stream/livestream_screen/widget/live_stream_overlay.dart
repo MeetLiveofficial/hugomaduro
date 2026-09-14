@@ -26,16 +26,6 @@ String _liveJoinLabel(LiveChatMessage message) {
   return LKey.joinedTheLive.tr;
 }
 
-String _liveGiftLabel(LiveChatMessage message) {
-  // Precio completo del regalo (el marcador PK también usa el 100%).
-  final coins = message.giftCoins ?? 0;
-  final base = LKey.sentAGift.tr;
-  if (coins > 0) {
-    return '$base · $coins ${LKey.coins.tr}';
-  }
-  return base;
-}
-
 /// Overlay LIVE: host/viewers arriba; título + chat / regalos abajo.
 class LiveStreamOverlay extends StatelessWidget {
   final LivestreamScreenController controller;
@@ -1360,7 +1350,7 @@ class _ChatBubble extends StatelessWidget {
                       ),
                       Flexible(
                         child: Text(
-                          _liveGiftLabel(message),
+                          LKey.sentAGift.tr,
                           style: TextStyleCustom.outFitRegular400(
                             color: Colors.white,
                             fontSize: 13,
