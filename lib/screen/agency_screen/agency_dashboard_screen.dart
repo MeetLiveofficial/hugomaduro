@@ -30,6 +30,7 @@ class _AgencyDashboardScreenState extends State<AgencyDashboardScreen> {
   void initState() {
     super.initState();
     Get.put(DashboardScreenController());
+    Get.put(AgencyHomeController());
   }
 
   @override
@@ -44,7 +45,8 @@ class _AgencyDashboardScreenState extends State<AgencyDashboardScreen> {
           IndexedStack(
             index: _tab,
             children: const [
-              AgencyHomeScreen(),
+              AgencyMetricsScreen(),
+              AgencyStreamersScreen(),
               MessageScreen(),
               SettingsScreen(showBack: false),
             ],
@@ -60,7 +62,13 @@ class _AgencyDashboardScreenState extends State<AgencyDashboardScreen> {
           backgroundColor: ColorRes.whitePure,
           selectedItemColor: ColorRes.crimson,
           unselectedItemColor: Colors.black45,
+          selectedFontSize: 12,
+          unselectedFontSize: 11,
           items: [
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.insights_rounded),
+              label: LKey.agencyDashboardTab.tr,
+            ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.groups_rounded),
               label: LKey.agencyStreamers.tr,
@@ -84,8 +92,8 @@ class _AgencyDashboardScreenState extends State<AgencyDashboardScreen> {
   }
 }
 
-class AgencyHomeScreen extends StatelessWidget {
-  const AgencyHomeScreen({super.key});
+class AgencyMetricsScreen extends StatelessWidget {
+  const AgencyMetricsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -95,9 +103,59 @@ class AgencyHomeScreen extends StatelessWidget {
         CustomAppBar(
           title: LKey.agencyDashboardTitle.tr,
           showBack: false,
+          subTitle: LKey.agencyMetricsTitle.tr,
+        ),
+        Expanded(
+          child: Obx(() {
+            if (c.isLoading.value &&
+                c.dashboard.value.agencyId == 0 &&
+                c.workers.isEmpty) {
+              return const Center(
+                child: CircularProgressIndicator(color: ColorRes.crimson),
+              );
+            }
+            final dash = c.dashboard.value;
+            return RefreshIndicator(
+              onRefresh: c.loadWorkers,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  _AgencyTotalsCard(
+                    wallet: dash.agencyWallet,
+                    streamerCount: dash.workers.length,
+                    totals: dash.totals,
+                    withdrawals: dash.withdrawals,
+                    streamerWithdrawals: dash.streamerWithdrawals,
+                  ),
+                  if (dash.recentWithdrawals.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _AgencyRecentWithdrawals(items: dash.recentWithdrawals),
+                  ],
+                ],
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
+
+class AgencyStreamersScreen extends StatelessWidget {
+  const AgencyStreamersScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Get.put(AgencyHomeController());
+    return Column(
+      children: [
+        CustomAppBar(
+          title: LKey.agencyStreamers.tr,
+          showBack: false,
           subTitle: LKey.agencyYourStreamers.tr,
           rowWidget: IconButton(
-            onPressed: () => _openCreate(context, c),
+            onPressed: () => openAgencyCreateStreamer(context),
             icon: const Icon(Icons.person_add_alt_1_rounded,
                 color: Colors.white),
           ),
@@ -109,65 +167,35 @@ class AgencyHomeScreen extends StatelessWidget {
                 child: CircularProgressIndicator(color: ColorRes.crimson),
               );
             }
-            final invite = _AgencyInviteCard(controller: c);
-            if (c.workers.isEmpty) {
-              return RefreshIndicator(
-                onRefresh: c.loadWorkers,
-                child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: [
-                  invite,
-                  const SizedBox(height: 24),
-                  const Icon(Icons.groups_outlined,
-                      size: 48, color: Colors.white54),
-                  const SizedBox(height: 12),
-                  Text(
-                    LKey.agencyNoStreamers.tr,
-                    textAlign: TextAlign.center,
-                    style: TextStyleCustom.outFitSemiBold600(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    LKey.agencyCreateStreamerHint.tr,
-                    textAlign: TextAlign.center,
-                    style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: TextButtonCustom(
-                      title: LKey.agencyCreateStreamer.tr,
-                      onTap: () => _openCreate(context, c),
-                      gradient: true,
-                      btnWidth: 200,
-                    ),
-                  ),
-                ],
-              ),
-              );
-            }
-            final totals = c.dashboard.value.totals;
             return RefreshIndicator(
               onRefresh: c.loadWorkers,
-              child: ListView.separated(
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                itemCount: c.workers.length + 2,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) {
-                  if (i == 0) return invite;
-                  if (i == 1) {
-                    return _AgencyTotalsCard(
-                      wallet: c.dashboard.value.agencyWallet,
-                      totals: totals,
-                    );
-                  }
-                  return _WorkerTile(worker: c.workers[i - 2]);
-                },
+                children: [
+                  _AgencyInviteCard(controller: c),
+                  const SizedBox(height: 16),
+                  if (c.loadError.value.isNotEmpty && c.workers.isEmpty)
+                    _AgencyEmptyBlock(
+                      icon: Icons.wifi_off_rounded,
+                      title: c.loadError.value,
+                      actionTitle: LKey.retry.tr,
+                      onTap: c.loadWorkers,
+                    )
+                  else if (c.workers.isEmpty)
+                    _AgencyEmptyBlock(
+                      icon: Icons.groups_outlined,
+                      title: LKey.agencyNoStreamers.tr,
+                      subtitle: LKey.agencyCreateStreamerHint.tr,
+                      actionTitle: LKey.agencyCreateStreamer.tr,
+                      onTap: () => openAgencyCreateStreamer(context),
+                    )
+                  else
+                    ...c.workers.map((w) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _WorkerTile(worker: w),
+                        )),
+                ],
               ),
             );
           }),
@@ -175,14 +203,15 @@ class AgencyHomeScreen extends StatelessWidget {
       ],
     );
   }
+}
 
-  Future<void> _openCreate(
-      BuildContext context, AgencyHomeController c) async {
+Future<void> openAgencyCreateStreamer(BuildContext context) async {
+  final c = Get.find<AgencyHomeController>();
     final fullname = TextEditingController();
     final email = TextEditingController();
     final password = TextEditingController();
     final username = TextEditingController();
-    final ok = await Get.dialog<bool>(
+    await Get.dialog<bool>(
       AlertDialog(
         backgroundColor: ColorRes.carbon,
         title: Text(
@@ -196,14 +225,14 @@ class AgencyHomeScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _field(fullname, LKey.fullName.tr),
+              _agencyCreateField(fullname, LKey.fullName.tr),
               const SizedBox(height: 10),
-              _field(email, LKey.enterYourEmail.tr,
+              _agencyCreateField(email, LKey.enterYourEmail.tr,
                   keyboard: TextInputType.emailAddress),
               const SizedBox(height: 10),
-              _field(password, LKey.password.tr, obscure: true),
+              _agencyCreateField(password, LKey.password.tr, obscure: true),
               const SizedBox(height: 10),
-              _field(username, LKey.username.tr),
+              _agencyCreateField(username, LKey.username.tr),
             ],
           ),
         ),
@@ -239,34 +268,30 @@ class AgencyHomeScreen extends StatelessWidget {
     email.dispose();
     password.dispose();
     username.dispose();
-    if (ok == true) {
-      // lista ya actualizada
-    }
-  }
+}
 
-  Widget _field(
-    TextEditingController controller,
-    String hint, {
-    bool obscure = false,
-    TextInputType? keyboard,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      keyboardType: keyboard,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white54),
-        filled: true,
-        fillColor: Colors.white12,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+Widget _agencyCreateField(
+  TextEditingController controller,
+  String hint, {
+  bool obscure = false,
+  TextInputType? keyboard,
+}) {
+  return TextField(
+    controller: controller,
+    obscureText: obscure,
+    keyboardType: keyboard,
+    style: const TextStyle(color: Colors.white),
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.white54),
+      filled: true,
+      fillColor: Colors.white12,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _AgencyInviteCard extends StatelessWidget {
@@ -306,18 +331,18 @@ class _AgencyInviteCard extends StatelessWidget {
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.22),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text(
+              child: SelectableText(
                 code.isEmpty ? '—' : code,
                 textAlign: TextAlign.center,
-                style: TextStyleCustom.unboundedBlack900(
+                style: TextStyleCustom.outFitSemiBold600(
                   color: ColorRes.accentPeach,
-                  fontSize: 20,
-                ).copyWith(letterSpacing: 2),
+                  fontSize: 13,
+                ).copyWith(letterSpacing: 0.4, height: 1.35),
               ),
             ),
             const SizedBox(height: 12),
@@ -353,9 +378,18 @@ class _AgencyInviteCard extends StatelessWidget {
 
 class _AgencyTotalsCard extends StatelessWidget {
   final int wallet;
+  final int streamerCount;
   final AgencyDashboardTotals totals;
+  final AgencyWithdrawalSummary withdrawals;
+  final AgencyWithdrawalSummary streamerWithdrawals;
 
-  const _AgencyTotalsCard({required this.wallet, required this.totals});
+  const _AgencyTotalsCard({
+    required this.wallet,
+    required this.streamerCount,
+    required this.totals,
+    required this.withdrawals,
+    required this.streamerWithdrawals,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -370,6 +404,14 @@ class _AgencyTotalsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
+            LKey.agencyMetricsTitle.tr,
+            style: TextStyleCustom.outFitSemiBold600(
+              color: Colors.white,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
             LKey.agencyWalletHint.tr,
             style: TextStyleCustom.outFitRegular400(
               color: Colors.white70,
@@ -381,32 +423,55 @@ class _AgencyTotalsCard extends StatelessWidget {
             children: [
               _miniStat(LKey.balance.tr, wallet),
               const SizedBox(width: 8),
-              _miniStat(LKey.agencyToday.tr, totals.agencyEarnedToday),
-              const SizedBox(width: 8),
-              _miniStat(
-                  LKey.agencyLifetime.tr, totals.agencyEarnedLifetime),
+              _miniStat(LKey.agencyStreamers.tr, streamerCount, showCoin: false),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              _miniStat(
-                  LKey.agencyStreamerEarned.tr, totals.streamerEarnedLifetime,
-                  flex: 2),
+              _miniStat(LKey.agencyYourShare.tr, totals.agencyEarnedLifetime),
               const SizedBox(width: 8),
               _miniStat(
-                  '${LKey.agencyStreamerEarned.tr} · ${LKey.agencyToday.tr}',
-                  totals.streamerEarnedToday),
+                  LKey.agencyStreamerEarned.tr, totals.streamerEarnedLifetime),
             ],
           ),
+          const SizedBox(height: 14),
+          Text(
+            LKey.agencyOwnWithdrawals.tr,
+            style: TextStyleCustom.outFitMedium500(
+              color: ColorRes.accentPeach,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _withdrawRow(withdrawals),
+          const SizedBox(height: 12),
+          Text(
+            LKey.agencyStreamerWithdrawals.tr,
+            style: TextStyleCustom.outFitMedium500(
+              color: ColorRes.accentPeach,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _withdrawRow(streamerWithdrawals),
         ],
       ),
     );
   }
 
-  Widget _miniStat(String label, int coins, {int flex = 1}) {
+  Widget _withdrawRow(AgencyWithdrawalSummary s) {
+    return Row(
+      children: [
+        _miniStat(LKey.pending.tr, s.pendingCoins),
+        const SizedBox(width: 8),
+        _miniStat(LKey.completed.tr, s.completedCoins),
+      ],
+    );
+  }
+
+  Widget _miniStat(String label, int coins, {bool showCoin = true}) {
     return Expanded(
-      flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
@@ -428,8 +493,10 @@ class _AgencyTotalsCard extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                Image.asset(AssetRes.icCoin, width: 12, height: 12),
-                const SizedBox(width: 4),
+                if (showCoin) ...[
+                  Image.asset(AssetRes.icCoin, width: 12, height: 12),
+                  const SizedBox(width: 4),
+                ],
                 Flexible(
                   child: Text(
                     coins.fullNumberFormat,
@@ -445,6 +512,148 @@ class _AgencyTotalsCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AgencyRecentWithdrawals extends StatelessWidget {
+  const _AgencyRecentWithdrawals({required this.items});
+
+  final List<AgencyWithdrawalItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            LKey.agencyRecentWithdrawals.tr,
+            style: TextStyleCustom.outFitSemiBold600(
+              color: Colors.white,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...items.take(12).map((item) {
+            final statusLabel = item.status == 1
+                ? LKey.completed.tr
+                : item.status == 2
+                    ? LKey.rejected.tr
+                    : LKey.pending.tr;
+            final who = item.isAgency
+                ? LKey.agencyDashboardTitle.tr
+                : (item.userName.isEmpty ? 'Streamer' : item.userName);
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          who,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyleCustom.outFitSemiBold600(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          statusLabel,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: item.status == 1
+                                ? const Color(0xFF7DFFB3)
+                                : item.status == 2
+                                    ? ColorRes.crimson
+                                    : ColorRes.accentPeach,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Image.asset(AssetRes.icCoin, width: 12, height: 12),
+                  const SizedBox(width: 4),
+                  Text(
+                    item.coins.fullNumberFormat,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _AgencyEmptyBlock extends StatelessWidget {
+  const _AgencyEmptyBlock({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    required this.actionTitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final String actionTitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        children: [
+          Icon(icon, size: 48, color: Colors.white54),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyleCustom.outFitSemiBold600(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
+          if ((subtitle ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              subtitle!,
+              textAlign: TextAlign.center,
+              style: TextStyleCustom.outFitRegular400(
+                color: Colors.white70,
+                fontSize: 13,
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          Center(
+            child: TextButtonCustom(
+              title: actionTitle,
+              onTap: onTap,
+              gradient: true,
+              btnWidth: 200,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -505,6 +714,9 @@ class _WorkerTile extends StatelessWidget {
                     children: [
                       _earnChip(LKey.agencyStreamerEarned.tr,
                           stats.streamerEarnedLifetime),
+                      const SizedBox(width: 6),
+                      _earnChip(
+                          LKey.agencyWithdrawn.tr, stats.withdrawnCompletedCoins),
                       const SizedBox(width: 6),
                       _earnChip(
                           LKey.agencyYourShare.tr, stats.agencyEarnedLifetime),

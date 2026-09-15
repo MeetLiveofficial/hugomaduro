@@ -11,7 +11,7 @@ class AgencyService {
   Future<AgencyDashboard> fetchDashboard() async {
     final json = await ApiService.instance.call<Map<String, dynamic>>(
       url: WebService.user.agencyListWorkers,
-      param: const {},
+      param: {},
       fromJson: (j) => j,
     );
     if (json['status'] != true) {

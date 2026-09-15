@@ -58,14 +58,14 @@ class DynamicTranslations extends Translations {
       });
       if (missing.isEmpty) return;
       toAppend[lang] = missing;
-      if (_keys.containsKey(lang)) {
-        _keys[lang]!.addAll(missing);
-      } else {
-        _keys[lang] = Map<String, String>.from(missing);
-      }
+      final bucket = Map<String, String>.from(_keys[lang] ?? const {});
+      bucket.addAll(missing);
+      _keys[lang] = bucket;
     });
     if (toAppend.isNotEmpty) {
-      Get.appendTranslations(toAppend);
+      try {
+        Get.appendTranslations(toAppend);
+      } catch (_) {}
     }
   }
 
@@ -521,6 +521,7 @@ const _agencyEn = <String, String>{
   LKey.walletAgencyShareFrom: 'Agency share from @name',
   LKey.agencyStreamers: 'Streamers',
   LKey.agencyDashboardTitle: 'Agency',
+  LKey.agencyDashboardTab: 'Dashboard',
   LKey.agencyYourStreamers: 'Your affiliated streamers',
   LKey.agencyNoStreamers: "You don't have streamers yet",
   LKey.agencyCreateStreamerHint:
@@ -549,6 +550,12 @@ const _agencyEn = <String, String>{
   LKey.agencyCodeCopied: 'Code copied',
   LKey.inviteLinkCopied: 'Invite link copied',
   LKey.agencyNoInviteCode: 'Invite code is not ready yet',
+  LKey.agencyMetricsTitle: 'Overview',
+  LKey.agencyOwnWithdrawals: 'Agency withdrawals',
+  LKey.agencyStreamerWithdrawals: 'Streamer withdrawals',
+  LKey.agencyWithdrawn: 'Withdrawn',
+  LKey.agencyRecentWithdrawals: 'Recent withdrawals',
+  LKey.agencyNoWithdrawals: 'No withdrawals yet',
   LKey.referrals: 'Referrals',
   LKey.referralCode: 'Referral code',
   LKey.enterReferralCode: 'Enter referral code',
@@ -568,6 +575,7 @@ const _agencyEs = <String, String>{
   LKey.walletAgencyShareFrom: 'Comisión de @name',
   LKey.agencyStreamers: 'Streamers',
   LKey.agencyDashboardTitle: 'Agencia',
+  LKey.agencyDashboardTab: 'Dashboard',
   LKey.agencyYourStreamers: 'Tus streamers afiliados',
   LKey.agencyNoStreamers: 'Aún no tienes streamers',
   LKey.agencyCreateStreamerHint:
@@ -596,6 +604,12 @@ const _agencyEs = <String, String>{
   LKey.agencyCodeCopied: 'Código copiado',
   LKey.inviteLinkCopied: 'Enlace copiado',
   LKey.agencyNoInviteCode: 'El código de invitación aún no está listo',
+  LKey.agencyMetricsTitle: 'Resumen',
+  LKey.agencyOwnWithdrawals: 'Retiros de la agencia',
+  LKey.agencyStreamerWithdrawals: 'Retiros de streamers',
+  LKey.agencyWithdrawn: 'Retirado',
+  LKey.agencyRecentWithdrawals: 'Retiros recientes',
+  LKey.agencyNoWithdrawals: 'Aún no hay retiros',
   LKey.referrals: 'Referidos',
   LKey.referralCode: 'Código de referido',
   LKey.enterReferralCode: 'Ingresa el código de referido',
@@ -616,6 +630,7 @@ const _agencyPt = <String, String>{
   LKey.walletAgencyShareFrom: 'Comissão de @name',
   LKey.agencyStreamers: 'Streamers',
   LKey.agencyDashboardTitle: 'Agência',
+  LKey.agencyDashboardTab: 'Dashboard',
   LKey.agencyYourStreamers: 'Seus streamers afiliados',
   LKey.agencyNoStreamers: 'Você ainda não tem streamers',
   LKey.agencyCreateStreamerHint:
@@ -644,6 +659,12 @@ const _agencyPt = <String, String>{
   LKey.agencyCodeCopied: 'Código copiado',
   LKey.inviteLinkCopied: 'Link copiado',
   LKey.agencyNoInviteCode: 'O código de convite ainda não está pronto',
+  LKey.agencyMetricsTitle: 'Resumo',
+  LKey.agencyOwnWithdrawals: 'Saques da agência',
+  LKey.agencyStreamerWithdrawals: 'Saques dos streamers',
+  LKey.agencyWithdrawn: 'Sacado',
+  LKey.agencyRecentWithdrawals: 'Saques recentes',
+  LKey.agencyNoWithdrawals: 'Ainda não há saques',
   LKey.referrals: 'Indicações',
   LKey.referralCode: 'Código de indicação',
   LKey.enterReferralCode: 'Digite o código de indicação',

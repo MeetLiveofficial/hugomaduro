@@ -874,6 +874,7 @@ class LKey {
   static const String walletAgencyShareFrom = "Agency share from @name";
   static const String agencyStreamers = "Streamers";
   static const String agencyDashboardTitle = "Agency";
+  static const String agencyDashboardTab = "Dashboard";
   static const String agencyYourStreamers = "Your affiliated streamers";
   static const String agencyNoStreamers = "You don't have streamers yet";
   static const String agencyCreateStreamerHint =
@@ -903,6 +904,12 @@ class LKey {
   static const String agencyCodeCopied = "Code copied";
   static const String inviteLinkCopied = "Invite link copied";
   static const String agencyNoInviteCode = "Invite code is not ready yet";
+  static const String agencyMetricsTitle = "Overview";
+  static const String agencyOwnWithdrawals = "Agency withdrawals";
+  static const String agencyStreamerWithdrawals = "Streamer withdrawals";
+  static const String agencyWithdrawn = "Withdrawn";
+  static const String agencyRecentWithdrawals = "Recent withdrawals";
+  static const String agencyNoWithdrawals = "No withdrawals yet";
   static const String referrals = "Referrals";
   static const String referralCode = "Referral code";
   static const String enterReferralCode = "Enter referral code";

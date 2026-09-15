@@ -81,6 +81,13 @@ class AgencyWorkerDetailScreen extends StatelessWidget {
                   _row(LKey.agencyLifetime.tr, s.agencyEarnedLifetime),
                 ]),
                 const SizedBox(height: 14),
+                _sectionTitle(LKey.withdrawals.tr),
+                _card([
+                  _row(LKey.pending.tr, s.withdrawnPendingCoins),
+                  _row(LKey.completed.tr, s.withdrawnCompletedCoins),
+                  _row(LKey.rejected.tr, s.withdrawnRejectedCoins),
+                ]),
+                const SizedBox(height: 14),
                 _sectionTitle(LKey.walletFilterAll.tr),
                 _card([
                   _row('LIVE', s.live),

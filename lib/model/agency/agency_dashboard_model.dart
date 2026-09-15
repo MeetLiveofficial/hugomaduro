@@ -6,18 +6,23 @@ class AgencyDashboard {
     this.agencyCollected = 0,
     this.count = 0,
     AgencyDashboardTotals? totals,
+    AgencyWithdrawalSummary? withdrawals,
+    AgencyWithdrawalSummary? streamerWithdrawals,
+    List<AgencyWithdrawalItem>? recentWithdrawals,
     List<AgencyWorker>? workers,
   })  : totals = totals ?? AgencyDashboardTotals(),
+        withdrawals = withdrawals ?? AgencyWithdrawalSummary(),
+        streamerWithdrawals = streamerWithdrawals ?? AgencyWithdrawalSummary(),
+        recentWithdrawals = recentWithdrawals ?? <AgencyWithdrawalItem>[],
         workers = workers ?? <AgencyWorker>[];
 
   factory AgencyDashboard.fromJson(Map<String, dynamic> json) {
     final data = json['data'] is Map
         ? Map<String, dynamic>.from(json['data'] as Map)
         : json;
-    final rawWorkers = data['workers'];
     return AgencyDashboard(
       agencyId: _asInt(data['agency_id']),
-      agencyCode: (data['agency_code'] ?? '').toString().trim().toUpperCase(),
+      agencyCode: _normalizeAgencyCode(data['agency_code']),
       agencyWallet: _asInt(data['agency_wallet']),
       agencyCollected: _asInt(data['agency_collected']),
       count: _asInt(data['count']),
@@ -25,13 +30,31 @@ class AgencyDashboard {
           ? AgencyDashboardTotals.fromJson(
               Map<String, dynamic>.from(data['totals'] as Map))
           : AgencyDashboardTotals(),
-      workers: rawWorkers is List
-          ? rawWorkers
-              .whereType<Map>()
-              .map((e) =>
-                  AgencyWorker.fromJson(Map<String, dynamic>.from(e)))
-              .toList()
-          : <AgencyWorker>[],
+      withdrawals: data['withdrawals'] is Map
+          ? AgencyWithdrawalSummary.fromJson(
+              Map<String, dynamic>.from(data['withdrawals'] as Map))
+          : AgencyWithdrawalSummary(),
+      streamerWithdrawals: data['streamer_withdrawals'] is Map
+          ? AgencyWithdrawalSummary.fromJson(
+              Map<String, dynamic>.from(data['streamer_withdrawals'] as Map))
+          : AgencyWithdrawalSummary(),
+      recentWithdrawals: _parseRecent(data['recent_withdrawals']),
+      workers: _parseWorkers(data['workers']),
+    );
+  }
+
+  AgencyDashboard withCode(String code) {
+    return AgencyDashboard(
+      agencyId: agencyId,
+      agencyCode: _normalizeAgencyCode(code),
+      agencyWallet: agencyWallet,
+      agencyCollected: agencyCollected,
+      count: count,
+      totals: totals,
+      withdrawals: withdrawals,
+      streamerWithdrawals: streamerWithdrawals,
+      recentWithdrawals: recentWithdrawals,
+      workers: workers,
     );
   }
 
@@ -41,6 +64,9 @@ class AgencyDashboard {
   final int agencyCollected;
   final int count;
   final AgencyDashboardTotals totals;
+  final AgencyWithdrawalSummary withdrawals;
+  final AgencyWithdrawalSummary streamerWithdrawals;
+  final List<AgencyWithdrawalItem> recentWithdrawals;
   final List<AgencyWorker> workers;
 }
 
@@ -79,6 +105,89 @@ class AgencyDashboardTotals {
   final int agencyEarnedLifetime;
 }
 
+class AgencyWithdrawalSummary {
+  AgencyWithdrawalSummary({
+    this.pendingCount = 0,
+    this.completedCount = 0,
+    this.rejectedCount = 0,
+    this.pendingCoins = 0,
+    this.completedCoins = 0,
+    this.rejectedCoins = 0,
+    this.pendingUsd = 0,
+    this.completedUsd = 0,
+    this.completedNetUsd = 0,
+  });
+
+  factory AgencyWithdrawalSummary.fromJson(Map<String, dynamic> json) {
+    return AgencyWithdrawalSummary(
+      pendingCount: _asInt(json['pending_count']),
+      completedCount: _asInt(json['completed_count']),
+      rejectedCount: _asInt(json['rejected_count']),
+      pendingCoins: _asInt(json['pending_coins']),
+      completedCoins: _asInt(json['completed_coins']),
+      rejectedCoins: _asInt(json['rejected_coins']),
+      pendingUsd: _asDouble(json['pending_usd']),
+      completedUsd: _asDouble(json['completed_usd']),
+      completedNetUsd: _asDouble(json['completed_net_usd']),
+    );
+  }
+
+  final int pendingCount;
+  final int completedCount;
+  final int rejectedCount;
+  final int pendingCoins;
+  final int completedCoins;
+  final int rejectedCoins;
+  final double pendingUsd;
+  final double completedUsd;
+  final double completedNetUsd;
+
+  bool get hasAny =>
+      pendingCount + completedCount + rejectedCount + pendingCoins + completedCoins >
+      0;
+}
+
+class AgencyWithdrawalItem {
+  AgencyWithdrawalItem({
+    this.id = 0,
+    this.requestNumber = '',
+    this.userId = 0,
+    this.userName = '',
+    this.isAgency = false,
+    this.coins = 0,
+    this.amount = 0,
+    this.status = 0,
+    this.gateway = '',
+    this.createdAt = '',
+  });
+
+  factory AgencyWithdrawalItem.fromJson(Map<String, dynamic> json) {
+    return AgencyWithdrawalItem(
+      id: _asInt(json['id']),
+      requestNumber: (json['request_number'] ?? '').toString(),
+      userId: _asInt(json['user_id']),
+      userName: (json['user_name'] ?? '').toString(),
+      isAgency: json['is_agency'] == true || json['is_agency'] == 1,
+      coins: _asInt(json['coins']),
+      amount: _asDouble(json['amount']),
+      status: _asInt(json['status']),
+      gateway: (json['gateway'] ?? '').toString(),
+      createdAt: (json['created_at'] ?? '').toString(),
+    );
+  }
+
+  final int id;
+  final String requestNumber;
+  final int userId;
+  final String userName;
+  final bool isAgency;
+  final int coins;
+  final double amount;
+  final int status;
+  final String gateway;
+  final String createdAt;
+}
+
 class AgencyWorker {
   AgencyWorker({required this.user, AgencyWorkerStats? stats})
       : stats = stats ?? AgencyWorkerStats();
@@ -91,8 +200,7 @@ class AgencyWorker {
               Map<String, dynamic>.from(json['stats'] as Map))
           : AgencyWorkerStats(
               streamerWallet: _asInt(json['coin_wallet']),
-              streamerEarnedLifetime:
-                  _asInt(json['coin_collected_lifetime']),
+              streamerEarnedLifetime: _asInt(json['coin_collected_lifetime']),
             ),
     );
   }
@@ -163,6 +271,14 @@ class AgencyWorkerStats {
     this.agencyEarnedMonth = 0,
     this.giftsCount = 0,
     this.callsCount = 0,
+    this.withdrawnPendingCoins = 0,
+    this.withdrawnCompletedCoins = 0,
+    this.withdrawnRejectedCoins = 0,
+    this.withdrawnPendingCount = 0,
+    this.withdrawnCompletedCount = 0,
+    this.withdrawnRejectedCount = 0,
+    this.withdrawnPendingUsd = 0,
+    this.withdrawnCompletedUsd = 0,
     this.live = 0,
     this.chat = 0,
     this.call = 0,
@@ -185,6 +301,14 @@ class AgencyWorkerStats {
       agencyEarnedMonth: _asInt(json['agency_earned_month']),
       giftsCount: _asInt(json['gifts_count']),
       callsCount: _asInt(json['calls_count']),
+      withdrawnPendingCoins: _asInt(json['withdrawn_pending_coins']),
+      withdrawnCompletedCoins: _asInt(json['withdrawn_completed_coins']),
+      withdrawnRejectedCoins: _asInt(json['withdrawn_rejected_coins']),
+      withdrawnPendingCount: _asInt(json['withdrawn_pending_count']),
+      withdrawnCompletedCount: _asInt(json['withdrawn_completed_count']),
+      withdrawnRejectedCount: _asInt(json['withdrawn_rejected_count']),
+      withdrawnPendingUsd: _asDouble(json['withdrawn_pending_usd']),
+      withdrawnCompletedUsd: _asDouble(json['withdrawn_completed_usd']),
       live: _asInt(bySource['live']),
       chat: _asInt(bySource['chat']),
       call: _asInt(bySource['call']),
@@ -203,14 +327,57 @@ class AgencyWorkerStats {
   final int agencyEarnedMonth;
   final int giftsCount;
   final int callsCount;
+  final int withdrawnPendingCoins;
+  final int withdrawnCompletedCoins;
+  final int withdrawnRejectedCoins;
+  final int withdrawnPendingCount;
+  final int withdrawnCompletedCount;
+  final int withdrawnRejectedCount;
+  final double withdrawnPendingUsd;
+  final double withdrawnCompletedUsd;
   final int live;
   final int chat;
   final int call;
   final int gift;
 }
 
+List<AgencyWorker> _parseWorkers(dynamic raw) {
+  Iterable<dynamic> items = const [];
+  if (raw is List) {
+    items = raw;
+  } else if (raw is Map) {
+    items = raw.values;
+  }
+  return items
+      .whereType<Map>()
+      .map((e) => AgencyWorker.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
+}
+
+List<AgencyWithdrawalItem> _parseRecent(dynamic raw) {
+  if (raw is! List) return <AgencyWithdrawalItem>[];
+  return raw
+      .whereType<Map>()
+      .map((e) =>
+          AgencyWithdrawalItem.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
+}
+
+String _normalizeAgencyCode(dynamic value) {
+  final code = (value ?? '').toString().trim();
+  if (code.isEmpty || code == '—') return '';
+  if (code.contains('-')) return code.toLowerCase();
+  return code.toUpperCase();
+}
+
 int _asInt(dynamic value) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   return int.tryParse('$value') ?? 0;
+}
+
+double _asDouble(dynamic value) {
+  if (value is double) return value;
+  if (value is num) return value.toDouble();
+  return double.tryParse('$value') ?? 0;
 }

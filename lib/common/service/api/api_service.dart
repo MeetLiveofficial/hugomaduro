@@ -69,10 +69,11 @@ class ApiService {
     }
 
     Map<String, String> params = {};
-    param?.removeWhere((key, value) =>
+    final incoming = param == null ? null : Map<String, dynamic>.from(param);
+    incoming?.removeWhere((key, value) =>
         key != Params.deviceToken &&
         (value == null || value == 'null' || value == ''));
-    param?.forEach((key, value) {
+    incoming?.forEach((key, value) {
       if (key == Params.deviceToken) {
         final token = "$value";
         params[key] = (token.isEmpty || token == 'null')

@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/streamer_invite.dart';
 import 'package:krimson/common/service/api/agency_service.dart';
 import 'package:krimson/languages/dynamic_translations.dart';
@@ -10,6 +11,7 @@ import 'package:krimson/model/agency/agency_dashboard_model.dart';
 class AgencyHomeController extends BaseController {
   final dashboard = AgencyDashboard().obs;
   final creating = false.obs;
+  final loadError = ''.obs;
 
   List<AgencyWorker> get workers => dashboard.value.workers;
 
@@ -24,10 +26,18 @@ class AgencyHomeController extends BaseController {
 
   Future<void> loadWorkers() async {
     isLoading.value = true;
+    loadError.value = '';
     try {
-      dashboard.value = await AgencyService.instance.fetchDashboard();
+      var dash = await AgencyService.instance.fetchDashboard();
+      final sessionCode =
+          (SessionManager.instance.getUser()?.agencyCode ?? '').trim();
+      if (dash.agencyCode.trim().isEmpty && sessionCode.isNotEmpty) {
+        dash = dash.withCode(sessionCode);
+      }
+      dashboard.value = dash;
     } catch (e) {
-      showSnackBar(e.toString().replaceFirst('Exception: ', ''));
+      loadError.value = e.toString().replaceFirst('Exception: ', '');
+      showSnackBar(loadError.value);
     } finally {
       isLoading.value = false;
     }

@@ -125,6 +125,7 @@ class User {
       this.appRole,
       this.agencyId,
       this.agencyName,
+      this.agencyCode,
       this.isAgencyWorker = 0,
       this.weeklyCallGrade,
       this.levelBenefits = const [],
@@ -369,6 +370,7 @@ class User {
     appRole = json['app_role']?.toString();
     agencyId = _asInt(json['agency_id']);
     agencyName = json['agency_name']?.toString();
+    agencyCode = json['agency_code']?.toString();
     isAgencyWorker = _asInt(json['is_agency_worker']) ?? 0;
     weeklyCallGrade = json['weekly_call_grade']?.toString();
     isLive = _asInt(json['is_live']) ?? 0;
@@ -504,6 +506,7 @@ class User {
   String? appRole;
   int? agencyId;
   String? agencyName;
+  String? agencyCode;
   int isAgencyWorker = 0;
   /// Rango de rendimiento (AVG 30 días): NEW, C, B, A, S.
   String? weeklyCallGrade;
@@ -621,6 +624,7 @@ class User {
     map['app_role'] = appRole;
     map['agency_id'] = agencyId;
     map['agency_name'] = agencyName;
+    map['agency_code'] = agencyCode;
     map['is_agency_worker'] = isAgencyWorker;
     map['weekly_call_grade'] = weeklyCallGrade;
     map['level_benefits'] = levelBenefits;
