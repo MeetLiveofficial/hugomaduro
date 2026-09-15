@@ -903,6 +903,19 @@ class LKey {
   static const String agencyCodeCopied = "Code copied";
   static const String inviteLinkCopied = "Invite link copied";
   static const String agencyNoInviteCode = "Invite code is not ready yet";
+  static const String referrals = "Referrals";
+  static const String referralCode = "Referral code";
+  static const String enterReferralCode = "Enter referral code";
+  static const String referralInviteHint =
+      "Share this tracking code or link. When a client registers with it and makes their first recharge, you receive @percent% in coins. One time only.";
+  static const String referralShareText =
+      "Use my Meet&Live code @code when you sign up.";
+  static const String referralCodeCopied = "Referral code copied";
+  static const String referralCodeNotReady = "Referral code is not ready yet";
+  static const String referralClients = "Referred clients";
+  static const String referralPaid = "First-recharge commissions";
+  static const String referralCoinsEarned = "Coins earned";
+  static const String walletReferralFrom = "Referral bonus from @name";
 
   // UI copy that was hardcoded (must go through .tr)
   static const String addMore = "Add more";

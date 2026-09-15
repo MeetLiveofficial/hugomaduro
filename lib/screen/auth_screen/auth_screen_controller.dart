@@ -14,6 +14,8 @@ import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/manager/session_restore.dart';
+import 'package:krimson/common/manager/referral_store.dart';
+import 'package:app_links/app_links.dart';
 import 'package:krimson/common/service/api/common_service.dart';
 import 'package:krimson/common/service/api/notification_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
@@ -38,6 +40,7 @@ class AuthScreenController extends BaseController {
   TextEditingController forgetEmailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   TextEditingController confirmPassController = TextEditingController();
+  TextEditingController referralCodeController = TextEditingController();
 
   final Rxn<DateTime> birthDate = Rxn<DateTime>();
   final Rxn<Country> selectedCountry = Rxn<Country>();
@@ -67,6 +70,29 @@ class AuthScreenController extends BaseController {
     } catch (_) {}
     unawaited(_hydrateSavedGuestFromDevice());
     unawaited(_tryAutoRestoreSession());
+    unawaited(_capturePendingReferral());
+  }
+
+  Future<void> _capturePendingReferral() async {
+    try {
+      final uri = await AppLinks().getInitialLink();
+      if (uri != null) {
+        ReferralStore.captureFromUri(uri);
+      }
+    } catch (_) {}
+    final pending = ReferralStore.pending;
+    if (pending.isNotEmpty && referralCodeController.text.trim().isEmpty) {
+      referralCodeController.text = pending;
+    }
+  }
+
+  String _referralCodeToSend() {
+    final typed = ReferralStore.normalize(referralCodeController.text);
+    if (typed.isNotEmpty) {
+      ReferralStore.save(typed);
+      return typed;
+    }
+    return ReferralStore.pending;
   }
 
   void refreshSavedGuest() {
@@ -349,6 +375,7 @@ class AuthScreenController extends BaseController {
         countryCode: selectedCountry.value?.countryCode,
         appLanguage: lang,
         keepAuthToken: linkingGuest,
+        referralCode: _referralCodeToSend(),
       )
           .timeout(const Duration(seconds: 25), onTimeout: () {
         throw TimeoutException('El servidor tardó demasiado en responder');
@@ -357,6 +384,7 @@ class AuthScreenController extends BaseController {
       if (data == null) {
         return;
       }
+      ReferralStore.clear();
 
       data.appLanguage = lang;
       data.country = selectedCountry.value?.countryName;
@@ -658,11 +686,13 @@ class AuthScreenController extends BaseController {
       deviceToken: deviceToken,
       fullName: fullname,
       keepAuthToken: GuestGate.isAnonymous,
+      referralCode: _referralCodeToSend(),
     );
     if (data == null) {
       showSnackBar(LKey.somethingWentWrong.tr);
       return null;
     }
+    ReferralStore.clear();
     SessionManager.instance.setUser(data);
     SessionManager.instance.setAuthToken(data.token);
     _notifyRegistrationBonusIfNeeded(data);

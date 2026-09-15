@@ -549,6 +549,18 @@ const _agencyEn = <String, String>{
   LKey.agencyCodeCopied: 'Code copied',
   LKey.inviteLinkCopied: 'Invite link copied',
   LKey.agencyNoInviteCode: 'Invite code is not ready yet',
+  LKey.referrals: 'Referrals',
+  LKey.referralCode: 'Referral code',
+  LKey.enterReferralCode: 'Enter referral code',
+  LKey.referralInviteHint:
+      'Share this tracking code or link. When a client registers with it and makes their first recharge, you receive @percent% in coins. One time only.',
+  LKey.referralShareText: 'Use my Meet&Live code @code when you sign up.',
+  LKey.referralCodeCopied: 'Referral code copied',
+  LKey.referralCodeNotReady: 'Referral code is not ready yet',
+  LKey.referralClients: 'Referred clients',
+  LKey.referralPaid: 'First-recharge commissions',
+  LKey.referralCoinsEarned: 'Coins earned',
+  LKey.walletReferralFrom: 'Referral bonus from @name',
 };
 
 const _agencyEs = <String, String>{
@@ -584,6 +596,19 @@ const _agencyEs = <String, String>{
   LKey.agencyCodeCopied: 'Código copiado',
   LKey.inviteLinkCopied: 'Enlace copiado',
   LKey.agencyNoInviteCode: 'El código de invitación aún no está listo',
+  LKey.referrals: 'Referidos',
+  LKey.referralCode: 'Código de referido',
+  LKey.enterReferralCode: 'Ingresa el código de referido',
+  LKey.referralInviteHint:
+      'Comparte este tracking o el enlace. Cuando un cliente se registre con él y recargue por primera vez, recibes @percent% en coins. Solo una vez.',
+  LKey.referralShareText:
+      'Usa mi código Meet&Live @code al registrarte.',
+  LKey.referralCodeCopied: 'Código de referido copiado',
+  LKey.referralCodeNotReady: 'El código de referido aún no está listo',
+  LKey.referralClients: 'Clientes referidos',
+  LKey.referralPaid: 'Comisiones de primera recarga',
+  LKey.referralCoinsEarned: 'Coins ganadas',
+  LKey.walletReferralFrom: 'Bono de referido de @name',
 };
 
 const _agencyPt = <String, String>{
@@ -619,6 +644,19 @@ const _agencyPt = <String, String>{
   LKey.agencyCodeCopied: 'Código copiado',
   LKey.inviteLinkCopied: 'Link copiado',
   LKey.agencyNoInviteCode: 'O código de convite ainda não está pronto',
+  LKey.referrals: 'Indicações',
+  LKey.referralCode: 'Código de indicação',
+  LKey.enterReferralCode: 'Digite o código de indicação',
+  LKey.referralInviteHint:
+      'Compartilhe este tracking ou o link. Quando um cliente se cadastrar com ele e recarregar pela primeira vez, você recebe @percent% em coins. Só uma vez.',
+  LKey.referralShareText:
+      'Use meu código Meet&Live @code ao se cadastrar.',
+  LKey.referralCodeCopied: 'Código de indicação copiado',
+  LKey.referralCodeNotReady: 'O código de indicação ainda não está pronto',
+  LKey.referralClients: 'Clientes indicados',
+  LKey.referralPaid: 'Comissões da primeira recarga',
+  LKey.referralCoinsEarned: 'Coins ganhas',
+  LKey.walletReferralFrom: 'Bônus de indicação de @name',
 };
 
 const _callEn = <String, String>{

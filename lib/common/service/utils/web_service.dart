@@ -154,6 +154,8 @@ class _User {
   String fetchUserDetails = "${apiURL}user/fetchUserDetails";
   String agencyListWorkers = "${apiURL}user/agencyListWorkers";
   String agencyCreateWorker = "${apiURL}user/agencyCreateWorker";
+  String fetchMyReferral = "${apiURL}user/fetchMyReferral";
+  String applyReferralCode = "${apiURL}user/applyReferralCode";
   String updateUserDetails = "${apiURL}user/updateUserDetails";
   String checkUsernameAvailability = "${apiURL}user/checkUsernameAvailability";
   String addUserLink = "${apiURL}user/addUserLink";

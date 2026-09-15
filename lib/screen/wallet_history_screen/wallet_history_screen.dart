@@ -345,6 +345,8 @@ class _HistoryCard extends StatelessWidget {
         return LKey.walletWithdrawItem.tr;
       case 'recharge':
         return LKey.walletRechargeItem.tr;
+      case 'referral':
+        return LKey.walletReferralFrom.trParams({'name': name});
       case 'gift':
         switch (item.source) {
           case 'live':

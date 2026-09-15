@@ -147,6 +147,12 @@ class RegistrationScreen extends StatelessWidget {
                           hintText: LKey.enterPassword.tr,
                           isPasswordField: true,
                         ),
+                        AuthTextField(
+                          controller: controller.referralCodeController,
+                          title:
+                              '${LKey.referralCode.tr} (${LKey.agencyTrackingOptional.tr})',
+                          hintText: LKey.enterReferralCode.tr,
+                        ),
                         const SizedBox(height: 8),
                         TextButtonCustom(
                           onTap: controller.onCreateAccount,

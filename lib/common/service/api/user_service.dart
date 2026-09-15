@@ -12,6 +12,7 @@ import 'package:krimson/model/user_model/following_model.dart';
 import 'package:krimson/model/user_model/links_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/model/user_model/users_model.dart';
+import 'package:krimson/model/referral/streamer_referral.dart';
 import 'package:krimson/screen/edit_profile_screen/widget/add_edit_link_sheet.dart';
 import 'package:krimson/utilities/app_platform.dart';
 import 'package:krimson/utilities/app_res.dart';
@@ -47,6 +48,7 @@ class UserService {
     String? deviceToken,
     required LoginMethod loginMethod,
     bool keepAuthToken = false,
+    String? referralCode,
   }) async {
     UserModel model = await ApiService.instance.call(
         url: WebService.user.loginInUser,
@@ -56,7 +58,9 @@ class UserService {
           Params.identity: identity,
           Params.deviceToken: deviceToken,
           Params.device: AppPlatform.isAndroid ? 0 : 1,
-          Params.loginMethod: loginMethod.title()
+          Params.loginMethod: loginMethod.title(),
+          if (referralCode != null && referralCode.isNotEmpty)
+            Params.referralCode: referralCode,
         },
         fromJson: UserModel.fromJson);
 
@@ -114,6 +118,7 @@ class UserService {
     String? appLanguage,
     String? appRole,
     String? agencyCode,
+    String? referralCode,
     bool keepAuthToken = false,
   }) async {
     UserModel model = await ApiService.instance.call(
@@ -135,6 +140,8 @@ class UserService {
           if (appRole != null && appRole.isNotEmpty) Params.appRole: appRole,
           if (agencyCode != null && agencyCode.isNotEmpty)
             Params.agencyCode: agencyCode,
+          if (referralCode != null && referralCode.isNotEmpty)
+            Params.referralCode: referralCode,
         },
         fromJson: UserModel.fromJson);
 
@@ -591,5 +598,17 @@ class UserService {
       BaseController.share.showSnackBar(e.toString());
       return null;
     }
+  }
+
+  Future<StreamerReferral> fetchMyReferral() async {
+    final json = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.user.fetchMyReferral,
+      param: const {},
+      fromJson: (j) => j,
+    );
+    if (json['status'] != true) {
+      throw Exception(json['message'] ?? 'No se pudo cargar el referido');
+    }
+    return StreamerReferral.fromJson(json);
   }
 }

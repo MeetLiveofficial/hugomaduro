@@ -76,6 +76,7 @@ class Params {
   static const String appLanguage = 'app_language';
   static const String appRole = 'app_role';
   static const String agencyCode = 'agency_code';
+  static const String referralCode = 'referral_code';
   static const String storyId = 'story_id';
   static const String sound = 'sound';
   static const String soundID = 'sound_id';

@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:krimson/common/manager/content_protection.dart';
 import 'package:krimson/common/manager/logger.dart';
+import 'package:krimson/common/manager/referral_store.dart';
 import 'package:krimson/common/service/api/post_service.dart';
 import 'package:krimson/model/post_story/post_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
@@ -31,6 +32,9 @@ class ShareManager {
     isListenerConfigured = true;
     AppLinks().uriLinkStream.listen((uri) {
       Loggers.info('Share Link Opened: $uri ${uri.pathSegments} ${uri.path}');
+      if (ReferralStore.captureFromUri(uri)) {
+        return;
+      }
       if (uri.pathSegments.isNotEmpty) {
         var encoded = uri.pathSegments.last;
         Loggers.success(encoded);

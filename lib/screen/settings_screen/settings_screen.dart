@@ -19,6 +19,7 @@ import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/screen/edit_profile_screen/edit_profile_screen.dart';
 import 'package:krimson/screen/privilege_screen/privilege_hub_screen.dart';
 import 'package:krimson/screen/qr_code_screen/qr_code_screen.dart';
+import 'package:krimson/screen/referral_screen/streamer_referral_screen.dart';
 import 'package:krimson/screen/select_language_screen/select_language_screen.dart';
 import 'package:krimson/screen/settings_screen/settings_screen_controller.dart';
 import 'package:krimson/screen/settings_screen/widget/notifications_page.dart';
@@ -144,6 +145,15 @@ class SettingsScreen extends StatelessWidget {
                   title: LKey.withdrawals,
                   onTap: () {
                     Get.to(() => const WithdrawalsScreen());
+                  },
+                ),
+              if (AppRole.isStreamer())
+                SettingIconTextWithArrow(
+                  icon: AssetRes.icLink,
+                  iconColor: settingRowIcon(ColorRes.crimsonAlt),
+                  title: LKey.referrals,
+                  onTap: () {
+                    Get.to(() => const StreamerReferralScreen());
                   },
                 ),
               if (AppRole.isStreamer())
