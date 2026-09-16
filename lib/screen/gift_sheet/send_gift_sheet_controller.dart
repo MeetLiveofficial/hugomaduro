@@ -7,6 +7,7 @@ import 'package:krimson/common/manager/coin_gate.dart';
 import 'package:krimson/common/manager/firebase_notification_manager.dart';
 import 'package:krimson/common/manager/gift_media_cache.dart';
 import 'package:krimson/common/manager/guest_gate.dart';
+import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/manager/haptic_manager.dart';
 import 'package:krimson/common/manager/livekit_room_controller.dart';
 import 'package:krimson/common/manager/logger.dart';
@@ -276,7 +277,26 @@ class GiftManager {
   static void rememberAll(List<Gift>? gifts) {
     if (gifts == null || gifts.isEmpty) return;
     for (final g in gifts) {
-      if (g.id != null) _knownGifts[g.id!] = g;
+      if (g.id == null) continue;
+      final existing = _knownGifts[g.id!];
+      if (existing == null) {
+        _knownGifts[g.id!] = g;
+        continue;
+      }
+      // Settings cache vs catálogo paginado: no borrar miniatura/animación.
+      _knownGifts[g.id!] = Gift(
+        id: g.id,
+        categoryId: g.categoryId ?? existing.categoryId,
+        coinPrice: (g.coinPrice ?? 0) > 0 ? g.coinPrice : existing.coinPrice,
+        title: (g.title ?? '').trim().isNotEmpty ? g.title : existing.title,
+        image: (g.image ?? '').trim().isNotEmpty ? g.image : existing.image,
+        thumbnail: (g.thumbnail ?? '').trim().isNotEmpty
+            ? g.thumbnail
+            : existing.thumbnail,
+        sound: (g.sound ?? '').trim().isNotEmpty ? g.sound : existing.sound,
+        isFullscreen:
+            g.isFullscreen != 0 ? g.isFullscreen : existing.isFullscreen,
+      );
     }
   }
 
@@ -349,15 +369,90 @@ class GiftManager {
     }
   }
 
-  /// Miniatura de catálogo para grids / chips; si no hay, [fallback].
+  /// Miniatura estática para chat / chips. Nunca el GIF o video de animación.
   static String? previewPath({int? giftId, String? fallback}) {
-    rememberAll(SessionManager.instance.getSettings()?.gifts);
-    final known = knownById(giftId);
-    if (known != null && known.catalogImage.isNotEmpty) {
-      return known.catalogImage;
+    var known = knownById(giftId);
+    var fromKnown = (known?.staticPreview ?? '').trim();
+    if (fromKnown.isNotEmpty) return fromKnown;
+    if (known == null) {
+      rememberAll(SessionManager.instance.getSettings()?.gifts);
+      known = knownById(giftId);
+      fromKnown = (known?.staticPreview ?? '').trim();
+      if (fromKnown.isNotEmpty) return fromKnown;
     }
     final fb = (fallback ?? '').trim();
-    return fb.isEmpty ? null : fb;
+    if (fb.isEmpty || Gift.isAnimatedAsset(fb)) return null;
+    return fb;
+  }
+
+  /// Precio que paga el cliente (100%). No usar en UI de streamer.
+  static int catalogCoins(int? giftId, {int? fallback, Gift? gift}) {
+    if ((gift?.coinPrice ?? 0) > 0) {
+      final selected = gift!;
+      rememberAll([selected]);
+      return selected.coinPrice!;
+    }
+    final known = knownById(giftId);
+    if ((known?.coinPrice ?? 0) > 0) return known!.coinPrice!;
+    rememberAll(SessionManager.instance.getSettings()?.gifts);
+    final fromSettings = knownById(giftId)?.coinPrice ?? 0;
+    if (fromSettings > 0) return fromSettings;
+    return fallback ?? 0;
+  }
+
+  /// Precio visible: streamer ve su %; cliente ve el 100%.
+  static int visibleCoins(int fullPrice) => HostShare.displayCoins(fullPrice);
+
+  static int visibleCatalogCoins(int? giftId, {int? fallback, Gift? gift}) {
+    return visibleCoins(catalogCoins(giftId, fallback: fallback, gift: gift));
+  }
+
+  /// Chat LIVE: la host ve su comisión; la audiencia ve lo que paga el cliente.
+  static int liveChatCoins(int? giftId, {int? fallback, required bool isHost}) {
+    final full = catalogCoins(giftId, fallback: fallback);
+    if (isHost) return HostShare.hostCoins(full);
+    return full;
+  }
+
+  static String _labelWithCoins(String? text, int coins) {
+    final raw = (text ?? '').trim();
+    final stripped = raw
+        .replaceAll(RegExp(r'\s*\(\d+(\s+[^)]+)?\)\s*$'), '')
+        .trim();
+    if (coins <= 0) {
+      return raw.isEmpty ? LKey.sendMeGifts.tr : raw;
+    }
+    if (stripped.isEmpty) {
+      return '${LKey.giftMe.tr} ($coins ${LKey.coins.tr})';
+    }
+    return '$stripped ($coins ${LKey.coins.tr})';
+  }
+
+  /// Texto en el canal (precio 100% para cobro).
+  static String boostWireLabel(String? text, int? giftId,
+      {int? fallbackCoins, Gift? gift}) {
+    return _labelWithCoins(
+      text,
+      catalogCoins(giftId, fallback: fallbackCoins, gift: gift),
+    );
+  }
+
+  /// Texto visible: streamer ve su %; cliente ve el 100%.
+  static String boostLabel(String? text, int? giftId,
+      {int? fallbackCoins, Gift? gift}) {
+    return _labelWithCoins(
+      text,
+      visibleCatalogCoins(giftId, fallback: fallbackCoins, gift: gift),
+    );
+  }
+
+  /// Pedido de gift en el chat LIVE: host ve su parte; audiencia el precio cliente.
+  static String liveBoostLabel(String? text, int? giftId,
+      {int? fallbackCoins, required bool isHost}) {
+    return _labelWithCoins(
+      text,
+      liveChatCoins(giftId, fallback: fallbackCoins, isHost: isHost),
+    );
   }
 
   static bool _giftDialogOpen = false;
@@ -396,12 +491,13 @@ class GiftManager {
     }
     if (match == null) return gift;
     rememberAll([match]);
+    final matchImage = (match.image ?? '').trim();
     return Gift(
       id: match.id ?? gift.id,
       categoryId: match.categoryId,
       coinPrice: gift.coinPrice ?? match.coinPrice,
       title: match.title ?? gift.title,
-      image: image.isNotEmpty ? gift.image : match.image,
+      image: matchImage.isNotEmpty ? match.image : gift.image,
       thumbnail: ((gift.thumbnail ?? '').trim().isNotEmpty)
           ? gift.thumbnail
           : match.thumbnail,

@@ -15,10 +15,16 @@ class GiftRequestPrompt {
     required LiveChatMessage msg,
     required VoidCallback onSend,
   }) async {
-    final coins = msg.giftCoins ?? 0;
-    final title = (msg.text ?? '').trim().isEmpty
-        ? LKey.sendMeGifts.tr
-        : msg.text!.trim();
+    final fullCoins = GiftManager.catalogCoins(
+      msg.giftId,
+      fallback: msg.giftCoins ?? 0,
+    );
+    final coins = GiftManager.visibleCoins(fullCoins);
+    final title = GiftManager.boostLabel(
+      msg.text,
+      msg.giftId,
+      fallbackCoins: fullCoins,
+    );
     await Get.dialog<void>(
       Builder(
         builder: (context) {
@@ -47,10 +53,7 @@ class GiftRequestPrompt {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: GiftMedia(
-                      path: GiftManager.previewPath(
-                        giftId: msg.giftId,
-                        fallback: msg.giftImage,
-                      ),
+                      path: GiftManager.previewPath(giftId: msg.giftId),
                       width: 72,
                       height: 72,
                       fit: BoxFit.contain,
@@ -120,10 +123,16 @@ class GiftRequestBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final coins = message.giftCoins ?? 0;
-    final title = (message.text ?? '').trim().isEmpty
-        ? LKey.sendMeGifts.tr
-        : message.text!.trim();
+    final fullCoins = GiftManager.catalogCoins(
+      message.giftId,
+      fallback: message.giftCoins ?? 0,
+    );
+    final coins = GiftManager.visibleCoins(fullCoins);
+    final title = GiftManager.boostLabel(
+      message.text,
+      message.giftId,
+      fallbackCoins: fullCoins,
+    );
     return Material(
       color: ColorRes.themeAccentSolid.withValues(alpha: 0.95),
       borderRadius: BorderRadius.circular(14),

@@ -715,6 +715,25 @@ class Gift {
     return (image ?? '').trim();
   }
 
+  /// GIF/MP4/WebM: animación al enviar, no chip de chat.
+  static bool isAnimatedAsset(String? raw) {
+    final p = (raw ?? '').toLowerCase().split('?').first.trim();
+    return p.endsWith('.gif') ||
+        p.endsWith('.mp4') ||
+        p.endsWith('.m4v') ||
+        p.endsWith('.webm') ||
+        p.endsWith('.mov');
+  }
+
+  /// Miniatura estática para chat / listas. Nunca el GIF o video de animación.
+  String get staticPreview {
+    final thumb = (thumbnail ?? '').trim();
+    if (thumb.isNotEmpty && !isAnimatedAsset(thumb)) return thumb;
+    final img = (image ?? '').trim();
+    if (img.isNotEmpty && !isAnimatedAsset(img)) return img;
+    return '';
+  }
+
   bool get fullscreen => isFullscreen == 1;
 
   bool get halfScreenBottom => isFullscreen == 2;

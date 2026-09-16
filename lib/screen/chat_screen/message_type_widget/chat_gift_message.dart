@@ -22,8 +22,9 @@ class ChatGiftMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final raw = int.tryParse(message.textMessage ?? '') ?? 0;
-    final coins = HostShare.displayCoins(raw);
+    final coins = HostShare.displayCoins(
+      int.tryParse(message.textMessage ?? '') ?? 0,
+    );
     final client = AppRole.isClient();
     final titleColor =
         client ? ClientColors.textOnSurface : textDarkGrey(context);

@@ -352,6 +352,7 @@ class LivestreamScreenController extends BaseController {
       CallAvailability.watchingLiveHostId = livestream.hostId;
     }
     _enterImmersiveLive();
+    GiftManager.rememberAll(SessionManager.instance.getSettings()?.gifts);
     selectedGiftUser.value = livestream.hostUser;
     invitedIds.addAll(livestream.coHostIds ?? []);
     watchingCount.value = livestream.watchingCount ?? 0;
@@ -929,8 +930,10 @@ class LivestreamScreenController extends BaseController {
     }
   }
 
-  /// Precio real del regalo (payload → texto → catálogo settings).
+  /// Precio real del regalo (catálogo → payload → texto).
   int _resolveGiftCoins(LiveChatMessage msg) {
+    final catalog = GiftManager.catalogCoins(msg.giftId);
+    if (catalog > 0) return catalog;
     if ((msg.giftCoins ?? 0) > 0) return msg.giftCoins!;
     final fromText = RegExp(r'(\d+)\s*coins', caseSensitive: false)
         .firstMatch(msg.text ?? '');
@@ -987,15 +990,23 @@ class LivestreamScreenController extends BaseController {
       for (final g in catalog)
         if (g.id != null) g.id!: g,
     };
-    final source = remote ?? livestream.giftIncentives ?? const [];
+    final remoteConfigured =
+        remote?.where((e) => e.isConfigured).toList() ?? const [];
+    // Poll/join vacío no debe borrar los atajos que el host ya configuró.
+    if (remoteConfigured.isEmpty && giftIncentives.any((e) => e.isConfigured)) {
+      return;
+    }
+    final source = remoteConfigured.isNotEmpty
+        ? remoteConfigured
+        : (livestream.giftIncentives ?? const []);
     final hydrated = <LiveGiftIncentive>[];
     for (final slot in source) {
       if (!slot.isConfigured) continue;
       final gift = byId[slot.giftId];
       hydrated.add(slot.copyWith(
-        coinPrice: slot.coinPrice ?? gift?.coinPrice,
-        image: (gift?.catalogImage.isNotEmpty ?? false)
-            ? gift!.catalogImage
+        coinPrice: gift?.coinPrice ?? slot.coinPrice,
+        image: (gift?.staticPreview.isNotEmpty ?? false)
+            ? gift!.staticPreview
             : slot.image,
         message: slot.trimmedMessage,
       ));
@@ -1557,11 +1568,12 @@ class LivestreamScreenController extends BaseController {
     if (msg.type == 'call_invite') return msg;
     if (msg.type == 'gift_boost') {
       final coins = _resolveGiftCoins(msg);
-      final image = (msg.giftImage ?? '').trim().isNotEmpty
-          ? msg.giftImage
-          : _resolveGiftImage(msg.giftId);
-      if ((coins > 0 && (msg.giftCoins == null || msg.giftCoins == 0)) ||
-          ((msg.giftImage ?? '').isEmpty && (image ?? '').isNotEmpty)) {
+      final image = GiftManager.previewPath(
+        giftId: msg.giftId,
+        fallback: msg.giftImage,
+      );
+      if ((coins > 0 && coins != (msg.giftCoins ?? 0)) ||
+          ((image ?? '') != (msg.giftImage ?? ''))) {
         return LiveChatMessage(
           id: msg.id,
           userId: msg.userId,
@@ -1577,13 +1589,13 @@ class LivestreamScreenController extends BaseController {
       return msg;
     }
     if (msg.type == 'gift') {
-      // Completar coins/imagen desde catálogo si vienen vacíos.
       final coins = _resolveGiftCoins(msg);
-      final image = (msg.giftImage ?? '').trim().isNotEmpty
-          ? msg.giftImage
-          : _resolveGiftImage(msg.giftId);
-      if ((coins > 0 && (msg.giftCoins == null || msg.giftCoins == 0)) ||
-          ((msg.giftImage ?? '').isEmpty && (image ?? '').isNotEmpty)) {
+      final image = GiftManager.previewPath(
+        giftId: msg.giftId,
+        fallback: msg.giftImage,
+      );
+      if ((coins > 0 && coins != (msg.giftCoins ?? 0)) ||
+          ((image ?? '') != (msg.giftImage ?? ''))) {
         return LiveChatMessage(
           id: msg.id,
           userId: msg.userId,
@@ -1627,11 +1639,12 @@ class LivestreamScreenController extends BaseController {
         userId: giftBoost.userId,
         userName: giftBoost.userName,
         type: 'gift_boost',
-        text: (giftBoost.text ?? LKey.sendMeGifts.tr).trim(),
+        text: giftBoost.text,
         giftId: giftId,
-        giftImage: (giftBoost.giftImage ?? '').isNotEmpty
-            ? giftBoost.giftImage
-            : _resolveGiftImage(giftId),
+        giftImage: GiftManager.previewPath(
+          giftId: giftId,
+          fallback: giftBoost.giftImage,
+        ),
         giftCoins: coins > 0 ? coins : giftBoost.giftCoins,
         createdAt: giftBoost.createdAt,
       );
@@ -1640,32 +1653,18 @@ class LivestreamScreenController extends BaseController {
     final m = _giftPayloadRe.firstMatch(text);
     if (m != null) {
       final giftId = int.tryParse(m.group(1) ?? '');
-      var giftCoins = int.tryParse(m.group(2) ?? '') ?? 0;
       final giftDisplay = int.tryParse(m.group(3) ?? '');
-      // Tras GIFT|id|coins| puede venir image| (formato largo) o el texto.
-      String? image;
-      final after = text.substring(m.end);
-      final imgMatch = RegExp(r'^([^|\s][^|]*)\|').firstMatch(after);
-      if (imgMatch != null) {
-        final raw = (imgMatch.group(1) ?? '').trim();
-        if (raw.isNotEmpty) image = raw;
-      }
-      image ??= _resolveGiftImage(giftId);
-      final partial = LiveChatMessage(
+      final image = GiftManager.previewPath(giftId: giftId);
+      final giftCoins = _resolveGiftCoins(LiveChatMessage(
         id: msg.id,
         userId: msg.userId,
         userName: msg.userName,
         type: 'gift',
-        text: LKey.sentAGift.tr,
         giftId: giftId,
-        giftCoins: giftCoins,
+        giftCoins: int.tryParse(m.group(2) ?? '') ?? 0,
         giftImage: image,
-        giftDisplay: giftDisplay,
         createdAt: msg.createdAt,
-      );
-      if (giftCoins <= 0) {
-        giftCoins = _resolveGiftCoins(partial);
-      }
+      ));
       return LiveChatMessage(
         id: msg.id,
         userId: msg.userId,
@@ -1803,7 +1802,7 @@ class LivestreamScreenController extends BaseController {
   String? resolveGiftPreview(int? giftId, {String? fallback}) {
     return GiftManager.previewPath(
       giftId: giftId,
-      fallback: fallback ?? resolveGiftImage(giftId),
+      fallback: fallback,
     );
   }
 
@@ -2295,6 +2294,33 @@ class LivestreamScreenController extends BaseController {
     );
   }
 
+  /// Host: atajo del banner para pedir ese gift a la audiencia.
+  Future<void> boostIncentiveGift(LiveGiftIncentive slot) async {
+    if (!isHost) return;
+    if (!slot.isConfigured) return;
+    if (sendingGiftId.value != null) return;
+    sendingGiftId.value = slot.giftId;
+    try {
+      Gift? gift;
+      final catalog = SessionManager.instance.getSettings()?.gifts ?? [];
+      for (final g in catalog) {
+        if (g.id == slot.giftId) {
+          gift = g;
+          break;
+        }
+      }
+      gift ??= Gift(
+        id: slot.giftId,
+        image: slot.image,
+        thumbnail: slot.image,
+        coinPrice: slot.coinPrice,
+      );
+      await broadcastGiftBoost(gift, incentive: slot);
+    } finally {
+      sendingGiftId.value = null;
+    }
+  }
+
   /// Publica el regalo para que host/audiencia lo vean (anim + chat + tab).
   Future<void> broadcastGift(Gift gift, {int? battleForUserId}) async {
     final me = SessionManager.instance.getUser();
@@ -2311,6 +2337,7 @@ class LivestreamScreenController extends BaseController {
         }
       }
     }
+    GiftManager.rememberAll([gift]);
     final image = gift.image;
     final msg = LiveChatMessage(
       id: clientId,
@@ -2473,21 +2500,34 @@ class LivestreamScreenController extends BaseController {
     final clientId =
         '${me!.id}_giftboost_${DateTime.now().millisecondsSinceEpoch}';
     final name = _liveDisplayName(me);
-    final coins = incentive?.coinPrice ?? gift?.coinPrice ?? 0;
+    final giftId = gift?.id ?? incentive?.giftId;
+    if (gift != null) GiftManager.rememberAll([gift]);
+    final coins = GiftManager.catalogCoins(
+      giftId,
+      fallback: gift?.coinPrice ?? incentive?.coinPrice ?? 0,
+      gift: gift,
+    );
     final customMsg = (incentive?.trimmedMessage ?? '').trim();
-    final text = gift == null
-        ? LKey.sendMeGifts.tr
-        : (customMsg.isNotEmpty
-            ? '$customMsg ($coins)'
-            : '${LKey.giftMe.tr} ($coins ${LKey.coins.tr})');
+    final text = GiftManager.boostWireLabel(
+      customMsg.isNotEmpty
+          ? customMsg
+          : (gift == null && giftId == null ? LKey.sendMeGifts.tr : LKey.giftMe.tr),
+      giftId,
+      fallbackCoins: coins,
+      gift: gift,
+    );
+    final preview = GiftManager.previewPath(
+      giftId: giftId,
+      fallback: gift?.staticPreview ?? incentive?.image,
+    );
     final msg = LiveChatMessage(
       id: clientId,
       userId: me.id!,
       userName: name,
       type: 'gift_boost',
       text: text,
-      giftId: gift?.id ?? incentive?.giftId,
-      giftImage: gift?.image ?? incentive?.image,
+      giftId: giftId,
+      giftImage: preview,
       giftCoins: coins > 0 ? coins : gift?.coinPrice,
     );
     _appendChatMessage(msg);
@@ -2496,7 +2536,7 @@ class LivestreamScreenController extends BaseController {
         roomId: roomId,
         clientId: clientId,
         type: 'text',
-        text: '🎁BOOST|${gift?.id ?? incentive?.giftId ?? 0}|$text',
+        text: '🎁BOOST|${giftId ?? 0}|$text',
       );
     } catch (_) {}
     try {
@@ -2615,7 +2655,10 @@ class LivestreamScreenController extends BaseController {
         unawaited(sendGiftDirectly(
           giftId: msg.giftId,
           giftImage: msg.giftImage,
-          coinPrice: msg.giftCoins,
+          coinPrice: GiftManager.catalogCoins(
+            msg.giftId,
+            fallback: msg.giftCoins,
+          ),
         ));
       },
     );

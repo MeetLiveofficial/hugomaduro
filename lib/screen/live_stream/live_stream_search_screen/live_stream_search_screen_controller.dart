@@ -11,7 +11,6 @@ import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/user_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
-import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/media_permissions.dart';
 import 'package:krimson/common/manager/session_manager.dart';
@@ -784,6 +783,16 @@ class LiveStreamSearchScreenController extends BaseController {
         }
       }
 
+      if (configuredGiftIncentives.isNotEmpty) {
+        final fromApi = stream.giftIncentives
+                ?.where((e) => e.isConfigured)
+                .toList() ??
+            const <LiveGiftIncentive>[];
+        if (fromApi.isEmpty) {
+          stream.giftIncentives = configuredGiftIncentives;
+        }
+      }
+
       stopLoader();
       await Get.to(() => LivestreamHostScreen(
             isHost: true,
@@ -1192,7 +1201,7 @@ class _IncentiveSlotCard extends StatelessWidget {
                     right: 4,
                     bottom: 4,
                     child: Text(
-                      '${HostShare.displayCoins(slot.coinPrice ?? 0)}',
+                      '${GiftManager.visibleCoins(slot.coinPrice ?? 0)}',
                       style: TextStyleCustom.outFitMedium500(
                         fontSize: 10,
                         color: ColorRes.themeAccentSolid,

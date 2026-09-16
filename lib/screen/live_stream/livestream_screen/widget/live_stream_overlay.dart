@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
-import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/service/livekit/livekit_room_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/gift_sheet/gift_request_prompt.dart';
+import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/livestream_screen_controller.dart';
 import 'package:krimson/screen/live_stream/livestream_screen/widget/live_host_panel.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -94,7 +94,10 @@ class LiveStreamOverlay extends StatelessWidget {
                     controller.sendGiftDirectly(
                       giftId: banner.giftId,
                       giftImage: banner.giftImage,
-                      coinPrice: banner.giftCoins,
+                      coinPrice: GiftManager.catalogCoins(
+                        banner.giftId,
+                        fallback: banner.giftCoins,
+                      ),
                     );
                   },
                   onDismiss: controller.dismissGiftBoostBanner,
@@ -179,8 +182,7 @@ class LiveStreamOverlay extends StatelessWidget {
                   ),
             ),
             const SizedBox(height: 8),
-            if (!controller.isHost)
-              _GiftIncentiveSlider(controller: controller),
+            _GiftIncentiveStrip(controller: controller),
             _ComposerRow(
               controller: controller,
               showHostControls: showHostControls,
@@ -1280,7 +1282,14 @@ class _ChatBubble extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          message.text ?? LKey.sendMeGifts.tr,
+                          message.text == null
+                              ? LKey.sendMeGifts.tr
+                              : GiftManager.liveBoostLabel(
+                                  message.text,
+                                  message.giftId,
+                                  fallbackCoins: message.giftCoins,
+                                  isHost: controller.isHost,
+                                ),
                           style: TextStyleCustom.outFitMedium500(
                             color: ColorRes.accentPeach,
                             fontSize: 13,
@@ -1289,10 +1298,7 @@ class _ChatBubble extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       GiftMedia(
-                        path: controller.resolveGiftPreview(
-                          message.giftId,
-                          fallback: message.giftImage,
-                        ),
+                        path: controller.resolveGiftPreview(message.giftId),
                         width: 28,
                         height: 28,
                         fit: BoxFit.contain,
@@ -1325,40 +1331,47 @@ class _ChatBubble extends StatelessWidget {
                     ),
                   )
                 else if (message.type == 'gift')
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: GiftMedia(
-                          path: controller.resolveGiftPreview(
-                            message.giftId,
-                            fallback: message.giftImage,
-                          ),
-                          width: 36,
-                          height: 36,
-                          fit: BoxFit.contain,
-                          muted: true,
-                          autoplay: false,
-                          looping: false,
-                          placeholder: const Icon(
-                            Icons.card_giftcard,
-                            color: Colors.white70,
-                            size: 28,
-                          ),
-                        ),
-                      ),
-                      Flexible(
-                        child: Text(
-                          LKey.sentAGift.tr,
-                          style: TextStyleCustom.outFitRegular400(
-                            color: Colors.white,
-                            fontSize: 13,
+                  Builder(builder: (_) {
+                    final coins = GiftManager.liveChatCoins(
+                      message.giftId,
+                      fallback: message.giftCoins,
+                      isHost: controller.isHost,
+                    );
+                    final label = coins > 0
+                        ? '${LKey.sentAGift.tr} · $coins ${LKey.coins.tr}'
+                        : LKey.sentAGift.tr;
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: GiftMedia(
+                            path: controller.resolveGiftPreview(message.giftId),
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.contain,
+                            muted: true,
+                            autoplay: false,
+                            looping: false,
+                            placeholder: const Icon(
+                              Icons.card_giftcard,
+                              color: Colors.white70,
+                              size: 28,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  )
+                        Flexible(
+                          child: Text(
+                            label,
+                            style: TextStyleCustom.outFitRegular400(
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  })
                 else
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1529,17 +1542,16 @@ class _SideDescriptionBanner extends StatelessWidget {
   }
 }
 
-class _GiftIncentiveSlider extends StatelessWidget {
+/// Listado horizontal encima del compositor: regalos atajo del streamer.
+class _GiftIncentiveStrip extends StatelessWidget {
   final LivestreamScreenController controller;
 
-  const _GiftIncentiveSlider({required this.controller});
+  const _GiftIncentiveStrip({required this.controller});
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final sendingId = controller.sendingGiftId.value;
-      final count = controller.giftIncentives.length;
-      if (count <= 0) return const SizedBox.shrink();
       final slots = controller.giftIncentives
           .where((e) => e.isConfigured)
           .toList(growable: false);
@@ -1547,7 +1559,7 @@ class _GiftIncentiveSlider extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: SizedBox(
-          height: 56,
+          height: 58,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -1555,14 +1567,21 @@ class _GiftIncentiveSlider extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(width: 6),
             itemBuilder: (context, index) {
               final slot = slots[index];
-              final msg = slot.trimmedMessage;
               final sending = sendingId != null && sendingId == slot.giftId;
+              final coins = GiftManager.liveChatCoins(
+                slot.giftId,
+                fallback: slot.coinPrice ?? 0,
+                isHost: controller.isHost,
+              );
               return Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
-                    if (controller.isHost) return;
                     if (controller.sendingGiftId.value != null) return;
+                    if (controller.isHost) {
+                      controller.boostIncentiveGift(slot);
+                      return;
+                    }
                     controller.sendIncentiveGift(slot);
                   },
                   borderRadius: BorderRadius.circular(12),
@@ -1609,7 +1628,9 @@ class _GiftIncentiveSlider extends StatelessWidget {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    msg.isEmpty ? LKey.giftMe.tr : msg,
+                                    slot.trimmedMessage.isEmpty
+                                        ? LKey.giftMe.tr
+                                        : slot.trimmedMessage,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyleCustom.outFitMedium500(
@@ -1618,7 +1639,7 @@ class _GiftIncentiveSlider extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    '(${HostShare.displayCoins(slot.coinPrice ?? 0)})',
+                                    '($coins)',
                                     style: TextStyleCustom.outFitRegular400(
                                       color: ColorRes.accentPeach,
                                       fontSize: 10,
