@@ -18,10 +18,17 @@ class HostShare {
     return standard;
   }
 
-  /// Precio visible. El cobro al cliente sigue siendo el 100%.
+  /// Precio visible por rol. El cobro al cliente sigue siendo el 100%.
+  /// Streamer: su % (LIVE A/S o estándar). Cliente: precio completo.
   static int displayCoins(int fullPrice) {
     if (fullPrice <= 0) return 0;
     if (!AppRole.isStreamer()) return fullPrice;
+    return hostCoins(fullPrice);
+  }
+
+  /// Parte de la streamer (comisión ya descontada). Sin mirar el rol.
+  static int hostCoins(int fullPrice) {
+    if (fullPrice <= 0) return 0;
     return (fullPrice * streamerPercent() / 100).floor();
   }
 }

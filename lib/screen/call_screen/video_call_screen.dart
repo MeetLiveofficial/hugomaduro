@@ -1227,10 +1227,18 @@ class VideoCallController extends BaseController {
     if (me?.id == null) return;
     final clientId =
         '${me!.id}_giftboost_${DateTime.now().millisecondsSinceEpoch}';
-    final coins = gift?.coinPrice ?? 0;
-    final text = gift == null
-        ? LKey.sendMeGifts.tr
-        : '${LKey.giftMe.tr} ($coins ${LKey.coins.tr})';
+    final coins = GiftManager.catalogCoins(
+      gift?.id,
+      fallback: gift?.coinPrice ?? 0,
+      gift: gift,
+    );
+    if (gift != null) GiftManager.rememberAll([gift]);
+    final text = GiftManager.boostWireLabel(
+      gift == null ? LKey.sendMeGifts.tr : LKey.giftMe.tr,
+      gift?.id,
+      fallbackCoins: coins,
+      gift: gift,
+    );
     final msg = LiveChatMessage(
       id: clientId,
       userId: me.id!,
@@ -1282,7 +1290,10 @@ class VideoCallController extends BaseController {
     await sendGiftDirectly(
       giftId: msg.giftId,
       giftImage: msg.giftImage,
-      coinPrice: msg.giftCoins,
+      coinPrice: GiftManager.catalogCoins(
+        msg.giftId,
+        fallback: msg.giftCoins,
+      ),
     );
   }
 
@@ -1304,19 +1315,16 @@ class VideoCallController extends BaseController {
   String? giftPreview(int? giftId, {String? fallback}) {
     return GiftManager.previewPath(
       giftId: giftId,
-      fallback: fallback ?? _callGiftImage(giftId),
+      fallback: fallback,
     );
   }
 
   int _callGiftCoins(LiveChatMessage msg) {
-    if ((msg.giftCoins ?? 0) > 0) return msg.giftCoins!;
+    final catalog = GiftManager.catalogCoins(msg.giftId, fallback: msg.giftCoins);
+    if (catalog > 0) return catalog;
     final fromText = RegExp(r'\((\d+)').firstMatch(msg.text ?? '');
     final parsed = int.tryParse(fromText?.group(1) ?? '') ?? 0;
     if (parsed > 0) return parsed;
-    final gifts = SessionManager.instance.getSettings()?.gifts ?? [];
-    for (final g in gifts) {
-      if (g.id == msg.giftId && (g.coinPrice ?? 0) > 0) return g.coinPrice!;
-    }
     return 0;
   }
 
@@ -1332,7 +1340,7 @@ class VideoCallController extends BaseController {
       userId: boost.userId,
       userName: boost.userName,
       type: 'gift_boost',
-      text: (boost.text ?? LKey.sendMeGifts.tr).trim(),
+      text: boost.text,
       giftId: boost.giftId,
       giftImage: image,
       giftCoins: coins > 0 ? coins : boost.giftCoins,
@@ -1548,13 +1556,16 @@ class VideoCallController extends BaseController {
     if (msg.type == 'gift') {
       final me = SessionManager.instance.getUserID();
       if (msg.userId != me) {
-        final gift = Gift(
-          id: msg.giftId,
-          image: msg.giftImage,
-          coinPrice: msg.giftCoins,
-          isFullscreen: msg.giftDisplay ?? 0,
+        final known = GiftManager.knownById(msg.giftId);
+        GiftManager.showAnimationDialog(
+          known ??
+              Gift(
+                id: msg.giftId,
+                image: _callGiftImage(msg.giftId) ?? msg.giftImage,
+                coinPrice: _callGiftCoins(msg),
+                isFullscreen: msg.giftDisplay ?? 0,
+              ),
         );
-        GiftManager.showAnimationDialog(gift);
       }
     }
     if (msg.type == 'text' &&

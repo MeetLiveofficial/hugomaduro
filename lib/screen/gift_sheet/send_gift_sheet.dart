@@ -2,7 +2,6 @@ import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
-import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/widget/bottom_sheet_top_view.dart';
 import 'package:krimson/common/widget/custom_image.dart';
@@ -257,7 +256,9 @@ class SendGiftSheet extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             GiftMedia(
-                              path: gift.catalogImage,
+                              path: gift.staticPreview.isNotEmpty
+                                  ? gift.staticPreview
+                                  : gift.catalogImage,
                               width: 65,
                               height: 65,
                               fit: BoxFit.contain,
@@ -287,7 +288,7 @@ class SendGiftSheet extends StatelessWidget {
                                 ),
                               ),
                             Text(
-                                '${HostShare.displayCoins(gift.coinPrice ?? 0).numberFormat} ${LKey.coins.tr}',
+                                '${GiftManager.visibleCoins(gift.coinPrice ?? 0).numberFormat} ${LKey.coins.tr}',
                                 style: TextStyleCustom.outFitMedium500(
                                     fontSize: 13,
                                     color: textLightGrey(context))),

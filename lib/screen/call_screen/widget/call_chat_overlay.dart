@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
@@ -7,6 +5,7 @@ import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/livestream/live_chat_message.dart';
 import 'package:krimson/screen/call_screen/video_call_screen.dart';
+import 'package:krimson/screen/gift_sheet/send_gift_sheet_controller.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
@@ -88,7 +87,11 @@ class _CallChatBubble extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          message.text ?? LKey.sendMeGifts.tr,
+                          GiftManager.boostLabel(
+                            message.text,
+                            message.giftId,
+                            fallbackCoins: message.giftCoins,
+                          ),
                           style: TextStyleCustom.outFitMedium500(
                             color: ColorRes.accentPeach,
                             fontSize: 13,
@@ -132,6 +135,47 @@ class _CallChatBubble extends StatelessWidget {
                       ),
                     ),
                   )
+                else if (message.type == 'gift')
+                  Builder(builder: (_) {
+                    final coins = GiftManager.visibleCatalogCoins(
+                      message.giftId,
+                      fallback: message.giftCoins,
+                    );
+                    final label = coins > 0
+                        ? '${LKey.sentAGift.tr} · $coins ${LKey.coins.tr}'
+                        : LKey.sentAGift.tr;
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: GiftMedia(
+                            path: controller.giftPreview(message.giftId),
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.contain,
+                            muted: true,
+                            autoplay: false,
+                            looping: false,
+                            placeholder: const Icon(
+                              Icons.card_giftcard,
+                              color: Colors.white70,
+                              size: 28,
+                            ),
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            label,
+                            style: TextStyleCustom.outFitRegular400(
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  })
                 else
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

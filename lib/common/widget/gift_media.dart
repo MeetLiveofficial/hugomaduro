@@ -49,6 +49,14 @@ class GiftMedia extends StatelessWidget {
     return p.endsWith('.mp4') || p.endsWith('.m4v') || p.endsWith('.webm');
   }
 
+  static bool isGifPath(String? raw) {
+    final p = (raw ?? '').toLowerCase().split('?').first.trim();
+    return p.endsWith('.gif');
+  }
+
+  static bool isAnimatedPath(String? raw) =>
+      isVideoPath(raw) || isGifPath(raw);
+
   Widget _fallback() {
     return placeholder ??
         Icon(Icons.card_giftcard, size: width * 0.75, color: Colors.white70);
