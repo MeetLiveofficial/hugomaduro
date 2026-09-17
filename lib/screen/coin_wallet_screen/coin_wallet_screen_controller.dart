@@ -195,14 +195,14 @@ class CoinWalletScreenController extends BaseController {
               ),
             ),
             const SizedBox(height: 16),
-            if (settings?.wompiEnabled != false)
+            if (settings?.voletEnabled != false)
               ListTile(
                 leading: Icon(
-                  Icons.credit_card,
+                  Icons.account_balance_wallet,
                   color: client ? ClientColors.primary : null,
                 ),
                 title: Text(
-                  LKey.payCardPseNequi.tr,
+                  LKey.payVolet.tr,
                   style: TextStyle(
                     color: client ? ClientColors.textOnSurface : null,
                     fontWeight: FontWeight.w600,
@@ -210,8 +210,8 @@ class CoinWalletScreenController extends BaseController {
                 ),
                 subtitle: Text(
                   offer.usdAmountText.isEmpty
-                      ? LKey.payWompi.tr
-                      : LKey.wompiLocalChargeHint.trParams(
+                      ? LKey.payVoletHint.tr
+                      : LKey.voletUsdHint.trParams(
                           {'amount': offer.usdAmountText},
                         ),
                   style: TextStyle(
@@ -222,7 +222,7 @@ class CoinWalletScreenController extends BaseController {
                   Get.back();
                   Future<void>.delayed(
                     const Duration(milliseconds: 180),
-                    () => onPurchaseWompi(offer),
+                    () => onPurchaseVolet(offer),
                   );
                 },
               ),
@@ -274,7 +274,7 @@ class CoinWalletScreenController extends BaseController {
                   onPurchaseStore(offer);
                 },
               ),
-            if (settings?.wompiEnabled == false &&
+            if (settings?.voletEnabled == false &&
                 settings?.nowpaymentsEnabled == false &&
                 !offer.canPurchaseViaStore)
               Padding(
@@ -384,7 +384,7 @@ class CoinWalletScreenController extends BaseController {
     );
   }
 
-  Future<void> onPurchaseWompi(CoinPlan offer) async {
+  Future<void> onPurchaseVolet(CoinPlan offer) async {
     if (offer.coinPackageId < 1) {
       showSnackBar(LKey.somethingWentWrong.tr);
       return;
@@ -393,13 +393,13 @@ class CoinWalletScreenController extends BaseController {
     showLoader(barrierDismissible: false);
     Map<String, dynamic> result;
     try {
-      result = await GiftWalletService.instance.createWompiPayment(
+      result = await GiftWalletService.instance.createVoletPayment(
         coinPackageId: offer.coinPackageId,
         appLanguage: Get.locale?.languageCode,
       );
     } catch (_) {
       stopLoader();
-      showSnackBar('No se pudo iniciar el pago con tarjeta. Intenta de nuevo.');
+      showSnackBar('No se pudo iniciar el pago con Volet. Intenta de nuevo.');
       return;
     }
     stopLoader();
@@ -407,7 +407,7 @@ class CoinWalletScreenController extends BaseController {
     if (result['ok'] != true) {
       showSnackBar(
         (result['message'] ??
-                'No se pudo iniciar el pago con tarjeta. Intenta de nuevo.')
+                'No se pudo iniciar el pago con Volet. Intenta de nuevo.')
             .toString(),
       );
       return;
@@ -415,7 +415,7 @@ class CoinWalletScreenController extends BaseController {
 
     final created = result['data'] as Map<String, dynamic>?;
     if (created == null) {
-      showSnackBar('No se pudo iniciar el pago con tarjeta. Intenta de nuevo.');
+      showSnackBar('No se pudo iniciar el pago con Volet. Intenta de nuevo.');
       return;
     }
 
@@ -429,12 +429,10 @@ class CoinWalletScreenController extends BaseController {
       return;
     }
 
-    // En Web el navegador bloquea popups tras el await de la API.
-    // En Android se intenta abrir igual; si falla, el diálogo tiene el botón.
     await invoiceUrl.lunchUrl;
     await _showPaymentPendingDialog(
       orderId,
-      _PaymentKind.wompi,
+      _PaymentKind.volet,
       checkoutUrl: invoiceUrl,
       amountUsd: created['amount_usd'] ?? offer.amountUsd,
     );
@@ -475,7 +473,7 @@ class CoinWalletScreenController extends BaseController {
   }
 }
 
-enum _PaymentKind { crypto, wompi }
+enum _PaymentKind { crypto, volet }
 
 class _PaymentPendingDialog extends StatefulWidget {
   final String orderId;
@@ -519,19 +517,19 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
     if (_checking) return;
     _checking = true;
     try {
-      final data = widget.kind == _PaymentKind.wompi
+      final data = widget.kind == _PaymentKind.volet
           ? await GiftWalletService.instance
-              .checkWompiPayment(orderId: widget.orderId)
+              .checkVoletPayment(orderId: widget.orderId)
           : await GiftWalletService.instance
               .checkCryptoPayment(orderId: widget.orderId);
       if (!mounted || data == null) return;
 
       final status = (data['status'] ?? 'pending').toString();
-      final isWompi = widget.kind == _PaymentKind.wompi;
+      final isVolet = widget.kind == _PaymentKind.volet;
       setState(() {
         _status = status;
         if (status == 'confirming') {
-          _message = isWompi
+          _message = isVolet
               ? LKey.confirmingPayment.tr
               : LKey.confirmingBlockchain.tr;
         } else if (status == 'partially_paid') {
@@ -539,8 +537,8 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
         } else if (status == 'failed' || status == 'expired') {
           _message = LKey.paymentNotCompleted.tr;
         } else {
-          _message = isWompi
-              ? LKey.waitingCardPayment.tr
+          _message = isVolet
+              ? LKey.waitingVoletPayment.tr
               : LKey.waitingCryptoPayment.tr;
         }
       });
@@ -586,8 +584,8 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
       title: Text(
         failed
             ? 'Pago no completado'
-            : (widget.kind == _PaymentKind.wompi
-                ? 'Pago con tarjeta en curso'
+            : (widget.kind == _PaymentKind.volet
+                ? 'Pago Volet en curso'
                 : 'Pago crypto en curso'),
         style: TextStyleCustom.outFitMedium500(
           color: textDarkGrey(context),
@@ -617,11 +615,11 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
             ),
           ),
           if (!failed &&
-              widget.kind == _PaymentKind.wompi &&
+              widget.kind == _PaymentKind.volet &&
               widget.amountUsd != null) ...[
             const SizedBox(height: 12),
             Text(
-              LKey.wompiLocalChargeHint.trParams({
+              LKey.voletUsdHint.trParams({
                 'amount': CoinPlan.formatUsdAmount(widget.amountUsd!),
               }),
               textAlign: TextAlign.center,
@@ -645,8 +643,8 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
           TextButton(
             onPressed: () => widget.checkoutUrl!.lunchUrl,
             child: Text(
-              widget.kind == _PaymentKind.wompi
-                  ? 'Abrir Wompi'
+              widget.kind == _PaymentKind.volet
+                  ? 'Abrir Volet'
                   : 'Abrir pago',
               style: TextStyle(color: StyleRes.brandAccent),
             ),

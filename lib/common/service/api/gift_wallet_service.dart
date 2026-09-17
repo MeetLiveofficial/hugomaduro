@@ -224,14 +224,14 @@ class GiftWalletService {
     return 0;
   }
 
-  /// Crea checkout Wompi (tarjeta / PSE / Nequi).
-  Future<Map<String, dynamic>> createWompiPayment({
+  /// Crea checkout Volet (Hosted Checkout).
+  Future<Map<String, dynamic>> createVoletPayment({
     required int coinPackageId,
     String? appLanguage,
   }) async {
     try {
       final json = await ApiService.instance.call(
-        url: WebService.giftWallet.createWompiPayment,
+        url: WebService.giftWallet.createVoletPayment,
         fromJson: (j) => j,
         param: {
           Params.coinPackageId: coinPackageId,
@@ -247,7 +247,7 @@ class GiftWalletService {
       }
       return {
         'ok': false,
-        'message': (json['message'] ?? 'No se pudo iniciar el pago con tarjeta')
+        'message': (json['message'] ?? 'No se pudo iniciar el pago con Volet')
             .toString(),
       };
     } catch (e) {
@@ -262,15 +262,15 @@ class GiftWalletService {
         'ok': false,
         'message': msg.isNotEmpty
             ? msg
-            : 'No se pudo iniciar el pago con tarjeta. Intenta de nuevo.',
+            : 'No se pudo iniciar el pago con Volet. Intenta de nuevo.',
       };
     }
   }
 
-  Future<Map<String, dynamic>?> checkWompiPayment(
+  Future<Map<String, dynamic>?> checkVoletPayment(
       {required String orderId}) async {
     final json = await ApiService.instance.call(
-      url: WebService.giftWallet.checkWompiPayment,
+      url: WebService.giftWallet.checkVoletPayment,
       fromJson: (j) => j,
       param: {Params.orderId: orderId},
     );
@@ -280,9 +280,9 @@ class GiftWalletService {
     return Map<String, dynamic>.from(data);
   }
 
-  Future<int> syncPendingWompiPayments() async {
+  Future<int> syncPendingVoletPayments() async {
     final json = await ApiService.instance.call(
-      url: WebService.giftWallet.syncPendingWompiPayments,
+      url: WebService.giftWallet.syncPendingVoletPayments,
       fromJson: (j) => j,
       param: {},
     );

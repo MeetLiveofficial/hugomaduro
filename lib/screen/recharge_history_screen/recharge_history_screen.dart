@@ -70,9 +70,11 @@ class RechargeHistoryScreen extends StatelessWidget {
                                           ? LKey.rechargeSourceAdmin.tr
                                           : item.source == 'crypto'
                                               ? LKey.rechargeSourceCrypto.tr
-                                              : item.source == 'wompi'
-                                                  ? LKey.rechargeSourceWompi.tr
-                                                  : LKey.inAppPurchase.tr),
+                                              : item.source == 'volet'
+                                                  ? LKey.rechargeSourceVolet.tr
+                                                  : item.source == 'wompi'
+                                                      ? LKey.rechargeSourceWompi.tr
+                                                      : LKey.inAppPurchase.tr),
                                   style: TextStyleCustom.outFitRegular400(
                                     color: textLightGrey(context),
                                     fontSize: 12,
@@ -124,7 +126,7 @@ class RechargeHistoryController extends BaseController {
     isLoading.value = true;
     try {
       await GiftWalletService.instance.syncPendingCryptoPayments();
-      await GiftWalletService.instance.syncPendingWompiPayments();
+      await GiftWalletService.instance.syncPendingVoletPayments();
       final list = await GiftWalletService.instance.fetchMyRecharges();
       items.assignAll(list);
       final user = await UserService.instance.fetchUserDetails(

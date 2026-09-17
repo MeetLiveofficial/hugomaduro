@@ -136,9 +136,9 @@ class _GiftWallet {
   String createCryptoPayment = "${apiURL}misc/createCryptoPayment";
   String checkCryptoPayment = "${apiURL}misc/checkCryptoPayment";
   String syncPendingCryptoPayments = "${apiURL}misc/syncPendingCryptoPayments";
-  String createWompiPayment = "${apiURL}misc/createWompiPayment";
-  String checkWompiPayment = "${apiURL}misc/checkWompiPayment";
-  String syncPendingWompiPayments = "${apiURL}misc/syncPendingWompiPayments";
+  String createVoletPayment = "${apiURL}misc/createVoletPayment";
+  String checkVoletPayment = "${apiURL}misc/checkVoletPayment";
+  String syncPendingVoletPayments = "${apiURL}misc/syncPendingVoletPayments";
 }
 
 class _User {
