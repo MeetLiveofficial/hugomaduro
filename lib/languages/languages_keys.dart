@@ -938,12 +938,12 @@ class LKey {
   static const String notNow = "Not now";
   static const String payCardPseNequi = "Card / PSE / Nequi";
   static const String payWompi = "Wompi · Colombia and International";
-  static const String payVolet = "Volet";
+  static const String payVolet = "pay_volet";
   static const String payVoletHint = "Volet.com · account, card and crypto";
   static const String voletUsdHint =
       "You will pay \$@amount USD on Volet (account, card or crypto).";
   static const String waitingVoletPayment = "Waiting for your Volet payment…";
-  static const String rechargeSourceVolet = "Volet";
+  static const String rechargeSourceVolet = "recharge_source_volet";
   static const String cryptocurrencies = "Cryptocurrencies";
   static const String usdtNowPayments = "USDT and more (NOWPayments)";
   static const String inAppPurchase = "In-app purchase";

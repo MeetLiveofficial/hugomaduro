@@ -155,6 +155,8 @@ EN_FOR_SPANISH_KEYS: dict[str, str] = {
     "avgActivity": "Activity",
     "avgQuality": "Quality",
     "freeMatchesUsed": "You already used your 2 free Matches today! Top up coins and keep the fun going.",
+    "payVolet": "Volet",
+    "rechargeSourceVolet": "Volet",
 }
 
 # Spanish for English LKey values missing from es.csv (and quality upgrades).
@@ -372,6 +374,8 @@ ES_MISSING: dict[str, str] = {
     "notNow": "Ahora no",
     "payCardPseNequi": "Tarjeta / Nequi / QR",
     "payWompi": "Wompi · Colombia e Internacional",
+    "payVolet": "Volet",
+    "rechargeSourceVolet": "Volet",
     "cryptocurrencies": "Criptomonedas",
     "usdtNowPayments": "USDT y más (NOWPayments)",
     "inAppPurchase": "Compra in-app",
@@ -660,6 +664,8 @@ PT_MISSING: dict[str, str] = {
     "notNow": "Agora não",
     "payCardPseNequi": "Cartão / Nequi / QR",
     "payWompi": "Wompi · Colômbia e Internacional",
+    "payVolet": "Volet",
+    "rechargeSourceVolet": "Volet",
     "cryptocurrencies": "Criptomoedas",
     "usdtNowPayments": "USDT e mais (NOWPayments)",
     "inAppPurchase": "Compra no app",
@@ -1010,17 +1016,35 @@ ADMIN_ES: dict[str, str] = {
 }
 
 
+def validate_unique_keys(keys: dict[str, str]) -> None:
+    seen: dict[str, str] = {}
+    collisions: list[str] = []
+    for name, value in keys.items():
+        previous = seen.get(value)
+        if previous is not None:
+            collisions.append(
+                f"Duplicate localization key value {value!r}: {previous} and {name}"
+            )
+        else:
+            seen[value] = name
+    if collisions:
+        raise ValueError("\n".join(collisions))
+
+
 def write_map(
     fp, map_name: str, items: list[tuple[str, str]], lkeys: dict[str, str]
 ) -> None:
     """LKey constants that share the same English string collide in a const map."""
-    seen: set[str] = set()
+    seen: dict[str, str] = {}
     fp.write(f"const {map_name} = <String, String>{{\n")
     for name, val in items:
         key = lkeys[name]
-        if key in seen:
-            continue
-        seen.add(key)
+        previous = seen.get(key)
+        if previous is not None:
+            raise ValueError(
+                f"Duplicate localization key value {key!r}: {previous} and {name}"
+            )
+        seen[key] = name
         fp.write(f"  LKey.{name}: '{dart_escape(val)}',\n")
     fp.write("};\n\n")
 
@@ -1088,6 +1112,7 @@ def main() -> None:
     src = KEYS_FILE.read_text(encoding="utf-8")
     lkeys = parse_lkeys(src)
     print(f"Parsed LKeys: {len(lkeys)}")
+    validate_unique_keys(lkeys)
 
     es_csv = load_csv(CSV_DIR / "es.csv")
     pt_csv = load_csv(CSV_DIR / "pt.csv")
