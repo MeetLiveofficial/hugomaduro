@@ -32,6 +32,7 @@ class CoinWalletList extends StatelessWidget {
               final plan = controller.coinPlans[index];
               return CoinPackageTile(
                 plan: plan,
+                index: index,
                 onPurchase: () => controller.onPurchase(plan),
               );
             },

@@ -3,7 +3,7 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 
-/// Fondo dusk: streamer coral/magenta; cliente `--client-950` + cian.
+/// Fondo dusk: streamer coral/magenta; cliente navy + orbes cian/magenta.
 class BrandWashBg extends StatelessWidget {
   const BrandWashBg({super.key, this.vivid = true});
 
@@ -14,12 +14,12 @@ class BrandWashBg extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
     final base = client ? ClientColors.bg : ColorRes.obsidianDeep;
-    final mid = client ? ClientColors.bg : ColorRes.obsidian;
+    final mid = client ? ClientColors.bgMid : ColorRes.obsidian;
     final top = client
-        ? ClientColors.bg
+        ? ClientColors.bgMid
         : (vivid ? const Color(0xFF2A1224) : const Color(0xFF1C121C));
-    final orbA = client ? ClientColors.bg : ColorRes.crimsonAlt;
-    final orbB = client ? ClientColors.bg : ColorRes.mlPurple;
+    final orbA = client ? ClientColors.primary : ColorRes.crimsonAlt;
+    final orbB = client ? ClientColors.magenta : ColorRes.mlPurple;
 
     return Stack(
       fit: StackFit.expand,

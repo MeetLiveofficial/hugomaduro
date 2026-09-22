@@ -17,7 +17,10 @@ class GradientText extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: style,
+        style: (style ?? const TextStyle()).copyWith(
+          fontStyle: FontStyle.normal,
+          fontFamily: style?.fontFamily,
+        ),
       ),
     );
   }

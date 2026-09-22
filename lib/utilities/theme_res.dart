@@ -48,16 +48,13 @@ class ThemeRes {
     return ThemeData();
   }
 
-  /// Dashboard y chrome del **usuario cliente** (cian + texto oscuro legible).
-  ///
-  /// Importante: `textDarkGrey` / `textLightGrey` / `whitePure` se usan en
-  /// pantallas con fondo blanco (chat, sheets). No mapear texto a client-50/100.
+  /// Dashboard y chrome del **usuario cliente** (navy + glow cian/magenta).
   static ThemeData clientTheme(BuildContext context) {
     return ThemeData(
-      brightness: Brightness.light,
+      brightness: Brightness.dark,
       scaffoldBackgroundColor: ClientColors.bg,
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: ClientColors.surface),
+          backgroundColor: ClientColors.surfaceDark),
       appBarTheme: const AppBarTheme(backgroundColor: ClientColors.bg),
       fontFamily: FontRes.outFitRegular400,
       bottomSheetTheme:
@@ -68,30 +65,22 @@ class ThemeRes {
           overlayShape: RoundSliderOverlayShape(overlayRadius: 0),
           overlayColor: Colors.transparent),
       textTheme: const TextTheme(
-        // whitePure(): blanco real (overlays / texto sobre oscuro)
         titleLarge: TextStyle(color: ColorRes.whitePure),
-        // textDarkGrey(): texto principal sobre fondos claros
         titleMedium: TextStyle(color: ClientColors.text),
-        // textLightGrey(): secundario legible (no cyan pálido)
         titleSmall: TextStyle(color: ClientColors.textMuted),
-        // themeAccentSolid(): azul de contraste en textos
-        labelSmall: TextStyle(color: ClientColors.accentBlue),
-        labelLarge: TextStyle(color: ClientColors.client600),
+        labelSmall: TextStyle(color: ClientColors.primary),
+        labelLarge: TextStyle(color: ClientColors.client300),
       ),
       textSelectionTheme: const TextSelectionThemeData(
-          selectionColor: ClientColors.client200,
-          cursorColor: ClientColors.primaryActive),
+          selectionColor: ClientColors.client700,
+          cursorColor: ClientColors.primary),
       cardTheme: const CardThemeData(color: ClientColors.primaryActive),
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       primaryColor: ClientColors.primary,
-      // bgGrey()
-      dividerColor: ClientColors.client100,
-      // bgMediumGrey()
-      cardColor: ClientColors.client50,
-      // blackPure()
+      dividerColor: ClientColors.border,
+      cardColor: ClientColors.surfaceAlt,
       primaryColorDark: ClientColors.text,
-      // themeColor()
       canvasColor: ClientColors.surfaceDark,
       iconTheme: const IconThemeData(color: ClientColors.text),
       listTileTheme: const ListTileThemeData(
@@ -99,7 +88,7 @@ class ThemeRes {
         textColor: ClientColors.text,
       ),
       dialogTheme: const DialogThemeData(
-        backgroundColor: ClientColors.surfaceDark,
+        backgroundColor: ClientColors.surface,
         titleTextStyle: TextStyle(
           color: ClientColors.textOnDark,
           fontSize: 18,

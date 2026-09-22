@@ -20,6 +20,7 @@ class CustomTabSwitcher extends StatelessWidget {
   final Color? selectedFontColor;
   final Color? unselectedFontColor;
   final Color? backgroundColor;
+  final List<IconData>? icons;
 
   const CustomTabSwitcher(
       {super.key,
@@ -32,23 +33,25 @@ class CustomTabSwitcher extends StatelessWidget {
       this.margin,
       this.selectedFontColor,
       this.unselectedFontColor,
-      this.backgroundColor});
+      this.backgroundColor,
+      this.icons});
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
     return Obx(
       () => Container(
-        height: 48,
+        height: client ? 52 : 48,
         width: double.infinity,
         margin: margin ?? const EdgeInsets.symmetric(vertical: 10),
         decoration: ShapeDecoration(
           color: backgroundColor ?? bgMediumGrey(context),
           shape: SmoothRectangleBorder(
-            borderRadius:
-                SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
+            borderRadius: SmoothBorderRadius(
+                cornerRadius: client ? 26 : 10, cornerSmoothing: 1),
             side: BorderSide(
-              color: AppRole.isClient()
-                  ? ClientColors.border
+              color: client
+                  ? ClientColors.accentBlue.withValues(alpha: 0.45)
                   : ColorRes.menuBorder,
             ),
           ),
@@ -72,9 +75,20 @@ class CustomTabSwitcher extends StatelessWidget {
                     decoration: ShapeDecoration(
                       shape: SmoothRectangleBorder(
                         borderRadius: SmoothBorderRadius(
-                            cornerRadius: 10 - 2, cornerSmoothing: 1),
+                            cornerRadius: client ? 22 : 8, cornerSmoothing: 1),
                       ),
-                      gradient: StyleRes.themeGradient,
+                      gradient: client
+                          ? const LinearGradient(
+                              colors: [Color(0xFF3EC6FF), Color(0xFF5B78FF)],
+                            )
+                          : StyleRes.themeGradient,
+                      shadows: client
+                          ? ClientColors.neonGlow(
+                              color: const Color(0xFF3EC6FF),
+                              alpha: 0.55,
+                              blur: 14,
+                            )
+                          : const [],
                     ),
                   ),
                 );
@@ -85,6 +99,9 @@ class CustomTabSwitcher extends StatelessWidget {
                 items.length,
                 (index) {
                   bool isSelected = selectedIndex.value == index;
+                  final icon = (icons != null && index < icons!.length)
+                      ? icons![index]
+                      : null;
                   final badge = badges?[index] ??
                       (widget != null && widgetTabIndex == index
                           ? widget
@@ -95,6 +112,17 @@ class CustomTabSwitcher extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          if (icon != null) ...[
+                            Icon(
+                              icon,
+                              size: 16,
+                              color: isSelected
+                                  ? ColorRes.whitePure
+                                  : (unselectedFontColor ??
+                                      textLightGrey(context)),
+                            ),
+                            const SizedBox(width: 5),
+                          ],
                           Flexible(
                             child: Text(
                               items[index].tr,

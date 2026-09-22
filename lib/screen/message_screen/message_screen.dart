@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/widget/custom_tab_switcher.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/common/manager/app_role.dart';
@@ -36,14 +37,17 @@ class MessageScreen extends StatelessWidget {
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              gradient: StyleRes.themeGradient,
-              boxShadow: [
-                BoxShadow(
-                  color: StyleRes.brandAccent.withValues(alpha: 0.28),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              color: client ? Colors.transparent : null,
+              gradient: client ? null : StyleRes.themeGradient,
+              boxShadow: client
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: StyleRes.brandAccent.withValues(alpha: 0.28),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
             ),
             child: SafeArea(
               bottom: false,
@@ -56,22 +60,44 @@ class MessageScreen extends StatelessWidget {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          Text(
-                            LKey.messages.tr,
-                            textAlign: TextAlign.center,
-                            style: TextStyleCustom.unboundedMedium500(
-                              fontSize: 18,
-                              color: ColorRes.whitePure,
-                            ),
-                          ),
+                          client
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    GradientText(
+                                      LKey.messages.tr,
+                                      gradient: ClientColors.titleGradient,
+                                      style: TextStyleCustom.unboundedBold700(
+                                        fontSize: 22,
+                                        color: ColorRes.whitePure,
+                                      ).copyWith(fontStyle: FontStyle.normal),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      Icons.favorite_rounded,
+                                      color: ClientColors.magentaHot,
+                                      size: 22,
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  LKey.messages.tr,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyleCustom.unboundedMedium500(
+                                    fontSize: 18,
+                                    color: ColorRes.whitePure,
+                                  ),
+                                ),
                           Row(
                             children: [
                               IconButton(
                                 tooltip: LKey.searchHere.tr,
                                 onPressed: openMessageSearchSheet,
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.search_rounded,
-                                  color: ColorRes.whitePure,
+                                  color: client
+                                      ? ClientColors.primary
+                                      : ColorRes.whitePure,
                                   size: 24,
                                 ),
                               ),
@@ -79,9 +105,11 @@ class MessageScreen extends StatelessWidget {
                               IconButton(
                                 tooltip: LKey.newChat.tr,
                                 onPressed: openNewDirectChatSheet,
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.edit_square,
-                                  color: ColorRes.whitePure,
+                                  color: client
+                                      ? ClientColors.magentaHot
+                                      : ColorRes.whitePure,
                                   size: 22,
                                 ),
                               ),
@@ -111,8 +139,15 @@ class MessageScreen extends StatelessWidget {
                                 .dashboardController.callsUnReadCount),
                       },
                       margin: const EdgeInsets.only(top: 10),
+                      icons: client
+                          ? const [
+                              Icons.chat_bubble_outline_rounded,
+                              Icons.people_alt_rounded,
+                              Icons.phone_rounded,
+                            ]
+                          : null,
                       backgroundColor: client
-                          ? ClientColors.surface
+                          ? ClientColors.surfaceDarkAlt
                           : ColorRes.whitePure,
                       unselectedFontColor: client
                           ? ClientColors.textMuted
@@ -191,13 +226,13 @@ class ChatsListView extends StatelessWidget {
         child: ListView.separated(
           itemCount: itemCount,
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
-          separatorBuilder: (_, __) => Divider(
-            height: 1,
-            indent: 76,
-            color: AppRole.isClient()
-                ? ClientColors.border.withValues(alpha: 0.45)
-                : const Color(0x22E24AB7),
-          ),
+            separatorBuilder: (_, __) => AppRole.isClient()
+                ? const SizedBox(height: 2)
+                : Divider(
+                    height: 1,
+                    indent: 76,
+                    color: const Color(0x22E24AB7),
+                  ),
           itemBuilder: (context, index) {
             if (index == 0) {
               return const SupportChatCard();
@@ -229,13 +264,13 @@ class RequestsListView extends StatelessWidget {
           child: ListView.separated(
             itemCount: list.length,
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
-            separatorBuilder: (_, __) => Divider(
-              height: 1,
-              indent: 76,
-              color: AppRole.isClient()
-                  ? ClientColors.border.withValues(alpha: 0.45)
-                  : const Color(0x22E24AB7),
-            ),
+            separatorBuilder: (_, __) => AppRole.isClient()
+                ? const SizedBox(height: 2)
+                : Divider(
+                    height: 1,
+                    indent: 76,
+                    color: const Color(0x22E24AB7),
+                  ),
             itemBuilder: (context, index) {
               ChatThread chatConversation = list[index];
               chatConversation.bindChatUser();
@@ -266,7 +301,7 @@ class _MessageTabBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 5),
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          color: ColorRes.likeRed,
+          color: ClientColors.magentaHot,
         ),
         alignment: Alignment.center,
         child: Text(

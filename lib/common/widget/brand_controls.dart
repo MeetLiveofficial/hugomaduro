@@ -11,25 +11,21 @@ class BrandControls {
 
   static BoxDecoration glass({bool selected = false}) {
     final client = AppRole.isClient();
+    if (client) {
+      return ClientColors.glass(highlighted: selected);
+    }
     return BoxDecoration(
-      color: selected
-          ? null
-          : (client
-              ? ClientColors.surfaceAlt.withValues(alpha: 0.92)
-              : ColorRes.whitePure.withValues(alpha: 0.92)),
+      color: selected ? null : ColorRes.whitePure.withValues(alpha: 0.92),
       gradient: selected ? StyleRes.themeGradient : null,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
         color: selected
             ? Colors.white.withValues(alpha: 0.35)
-            : (client
-                ? ClientColors.secondarySoft.withValues(alpha: 0.45)
-                : ColorRes.roseBorder.withValues(alpha: 0.35)),
+            : ColorRes.roseBorder.withValues(alpha: 0.35),
       ),
       boxShadow: [
         BoxShadow(
-          color: (client ? ClientColors.primary : ColorRes.crimson)
-              .withValues(alpha: selected ? 0.55 : 0.16),
+          color: ColorRes.crimson.withValues(alpha: selected ? 0.55 : 0.16),
           blurRadius: selected ? 14 : 8,
           spreadRadius: selected ? 0.5 : 0,
           offset: const Offset(0, 3),
@@ -52,7 +48,7 @@ class BrandControls {
       suffixIcon: suffix,
       filled: true,
       fillColor: client
-          ? ClientColors.surfaceAlt.withValues(alpha: 0.94)
+          ? ClientColors.surfaceAlt
           : ColorRes.whitePure.withValues(alpha: 0.94),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
@@ -270,43 +266,28 @@ class BrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
-    final panel = Container(
+    if (client) {
+      return Padding(
+        padding: margin ?? const EdgeInsets.fromLTRB(4, 4, 4, 4),
+        child: child,
+      );
+    }
+    return Container(
       margin: margin ?? const EdgeInsets.fromLTRB(12, 8, 12, 4),
       padding: padding ?? EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: client
-            ? ClientColors.surface.withValues(alpha: 0.92)
-            : ColorRes.whitePure.withValues(alpha: 0.82),
+        color: ColorRes.whitePure.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: client ? ClientColors.border : ColorRes.menuBorder,
-        ),
+        border: Border.all(color: ColorRes.menuBorder),
         boxShadow: [
           BoxShadow(
-            color: (client ? ClientColors.primary : ColorRes.crimson)
-                .withValues(alpha: 0.08),
+            color: ColorRes.crimson.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
         ],
       ),
       child: child,
-    );
-    if (!client) return panel;
-    return Theme(
-      data: Theme.of(context).copyWith(
-        textTheme: Theme.of(context).textTheme.copyWith(
-              titleMedium:
-                  const TextStyle(color: ClientColors.textOnSurface),
-              titleSmall: const TextStyle(color: ClientColors.client700),
-            ),
-        iconTheme: const IconThemeData(color: ClientColors.textOnSurface),
-        listTileTheme: const ListTileThemeData(
-          textColor: ClientColors.textOnSurface,
-          iconColor: ClientColors.textOnSurface,
-        ),
-      ),
-      child: panel,
     );
   }
 }

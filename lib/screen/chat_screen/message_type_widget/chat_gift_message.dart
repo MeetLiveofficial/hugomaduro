@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/host_share.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/chat/message_data.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_media_helpers.dart';
-import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
 
 class ChatGiftMessage extends StatelessWidget {
   final MessageData message;
@@ -25,11 +22,8 @@ class ChatGiftMessage extends StatelessWidget {
     final coins = HostShare.displayCoins(
       int.tryParse(message.textMessage ?? '') ?? 0,
     );
-    final client = AppRole.isClient();
-    final titleColor =
-        client ? ClientColors.textOnSurface : textDarkGrey(context);
-    final coinsColor =
-        client ? ClientColors.accentBlue : textLightGrey(context);
+    final titleColor = chatInk(context, isMe: isMe);
+    final coinsColor = chatInkMuted(context, isMe: isMe);
     return ChatBubble(
       isMe: isMe,
       child: Row(
@@ -45,7 +39,7 @@ class ChatGiftMessage extends StatelessWidget {
             placeholder: Icon(
               Icons.card_giftcard,
               size: 36,
-              color: textLightGrey(context),
+              color: chatInkMuted(context, isMe: isMe),
             ),
           ),
           const SizedBox(width: 10),

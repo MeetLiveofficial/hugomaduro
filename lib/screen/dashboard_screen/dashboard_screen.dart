@@ -215,15 +215,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   height: 58,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: navBarBg,
+                    color: client
+                        ? ClientColors.surfaceDark.withValues(alpha: 0.92)
+                        : navBarBg,
                     borderRadius: BorderRadius.circular(32),
+                    border: client
+                        ? Border.all(
+                            color: ClientColors.primary.withValues(alpha: 0.45))
+                        : null,
                     boxShadow: [
                       BoxShadow(
                         color: (client
                                 ? ClientColors.primary
                                 : ColorRes.crimson)
-                            .withValues(alpha: 0.22),
-                        blurRadius: 16,
+                            .withValues(alpha: client ? 0.4 : 0.22),
+                        blurRadius: client ? 20 : 16,
                         offset: const Offset(0, 6),
                       ),
                     ],
@@ -339,7 +345,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final locked = false;
       return _navHitTarget(
         selected: selected,
-        accent: ClientColors.accentBlue,
+        accent: ClientColors.primary,
         locked: locked,
         onTap: () => controller.onChanged(DashboardScreenController.tabLive),
         child: busy
@@ -350,7 +356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   strokeWidth: 2.2,
                   color: locked
                       ? ColorRes.disabledGrey
-                      : ClientColors.accentBlue,
+                      : ClientColors.primary,
                 ),
               )
             : Icon(
@@ -358,7 +364,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 size: 24,
                 color: locked
                     ? ColorRes.disabledGrey
-                    : ClientColors.accentBlue,
+                    : ClientColors.primary,
               ),
       );
     });
@@ -371,17 +377,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
       final client = AppRole.isClient();
       final accent = client
-          ? ClientColors.accentBlue
+          ? ClientColors.primary
           : ColorRes.navIconColors[
               index.clamp(0, ColorRes.navIconColors.length - 1)];
       final locked = false;
       final iconColor = locked
           ? ColorRes.disabledGrey
           : (client
-              ? ClientColors.accentBlue
+              ? (isSelected ? ColorRes.whitePure : ClientColors.primary)
               : (isSelected ? ColorRes.whitePure : accent));
       final navBarBg =
-          client ? ClientColors.surface : _navBarBgStreamer;
+          client ? ClientColors.surfaceDark : _navBarBgStreamer;
 
       return _navHitTarget(
         selected: isSelected,

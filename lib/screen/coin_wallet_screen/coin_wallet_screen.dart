@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
 import 'package:krimson/screen/coin_wallet_screen/widget/coin_wallet_list.dart';
@@ -23,20 +25,31 @@ class CoinWalletScreen extends StatelessWidget {
       context,
       Scaffold(
       backgroundColor: AppRole.isClient() ? ClientColors.bg : null,
-      body: Column(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (AppRole.isClient()) const BrandWashBg(vivid: false),
+          Column(
         children: [
           const CoinWalletTopView(),
           if (isEarner)
             const Expanded(child: WalletHistoryScreen(embedded: true))
           else ...[
             const SizedBox(height: 10),
-            Text(LKey.coinShop.tr,
-                style: TextStyleCustom.unboundedRegular400(
-                  color: AppRole.isClient()
-                      ? ClientColors.text
-                      : textDarkGrey(context),
-                  fontSize: 15,
-                )),
+            AppRole.isClient()
+                ? GradientText(
+                    LKey.coinShop.tr,
+                    gradient: ClientColors.titleGradient,
+                    style: TextStyleCustom.unboundedRegular400(
+                      color: ClientColors.text,
+                      fontSize: 16,
+                    ),
+                  )
+                : Text(LKey.coinShop.tr,
+                    style: TextStyleCustom.unboundedRegular400(
+                      color: textDarkGrey(context),
+                      fontSize: 15,
+                    )),
             const SizedBox(height: 2),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -53,6 +66,8 @@ class CoinWalletScreen extends StatelessWidget {
             ),
             CoinWalletList(controller: controller),
           ],
+        ],
+      ),
         ],
       ),
     ),

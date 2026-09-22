@@ -3,14 +3,15 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/user_service.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -43,13 +44,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final bg = client ? ClientColors.bg : ColorRes.whitePure;
     final onBody = client ? ClientColors.textOnDark : ColorRes.textDarkGrey;
     final onMuted = client ? ClientColors.textOnDarkMuted : ColorRes.textLightGrey;
-    final cardBg = client ? ClientColors.surfaceDarkAlt : ColorRes.bgLightGrey;
+    final cardBg = client ? ClientColors.surface : ColorRes.bgLightGrey;
 
     return ThemeRes.applyIfClient(
       context,
       Scaffold(
         backgroundColor: bg,
-        body: Column(
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (client) const BrandWashBg(vivid: false),
+            Column(
           children: [
             CustomAppBar(title: LKey.plus.tr),
             Expanded(
@@ -78,31 +83,29 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-                      decoration: BoxDecoration(
-                        color: cardBg,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: client
-                              ? _gold.withValues(alpha: 0.28)
-                              : ColorRes.bgGrey,
-                        ),
-                      ),
+                      decoration: client
+                          ? ClientColors.glass(radius: 16)
+                          : BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: ColorRes.bgGrey),
+                            ),
                       child: Column(
                         children: [
                           _Benefit(
                             text: LKey.plusBenefitBadge.tr,
                             color: onBody,
-                            accent: _gold,
+                            accent: client ? ClientColors.toggleOn : _gold,
                           ),
                           _Benefit(
                             text: LKey.plusBenefitStatus.tr,
                             color: onBody,
-                            accent: _gold,
+                            accent: client ? ClientColors.toggleOn : _gold,
                           ),
                           _Benefit(
                             text: LKey.plusBenefitAdFree.tr,
                             color: onBody,
-                            accent: _gold,
+                            accent: client ? ClientColors.toggleOn : _gold,
                           ),
                         ],
                       ),
@@ -114,10 +117,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       return Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                        decoration: client
+                            ? ClientColors.glass(radius: 16, glowColor: ClientColors.magenta)
+                            : BoxDecoration(
+                                color: cardBg,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                         child: Row(
                           children: [
                             Image.asset(AssetRes.icStar, width: 18, height: 18),
@@ -177,6 +182,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
             ),
           ],
+            ),
+          ],
         ),
       ),
     );
@@ -226,33 +233,37 @@ class _HeroCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
       decoration: BoxDecoration(
-        gradient: StyleRes.themeGradient,
+        color: ClientColors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFFE8D48B).withValues(alpha: 0.55),
+          color: ClientColors.magenta.withValues(alpha: 0.55),
           width: 1.2,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: ClientColors.primary.withValues(alpha: 0.28),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: ClientColors.neonGlow(
+          color: ClientColors.magenta,
+          alpha: 0.35,
+        ),
       ),
       child: Column(
         children: [
-          Image.asset(AssetRes.icPro, width: 52, height: 52),
+          Image.asset(AssetRes.icCrown, width: 56, height: 56,
+              errorBuilder: (_, __, ___) => ShaderMask(
+                    blendMode: BlendMode.srcIn,
+                    shaderCallback: (b) =>
+                        ClientColors.titleGradient.createShader(b),
+                    child: const Icon(Icons.workspace_premium,
+                        color: Colors.white, size: 56),
+                  )),
           const SizedBox(height: 12),
           Text(
             alreadyPlus ? LKey.plusYouAreMember.tr : LKey.plusBecomeTitle.tr,
             textAlign: TextAlign.center,
-            style: TextStyleCustom.outFitSemiBold600(
-              color: Colors.white,
-              fontSize: 20,
+            style: TextStyleCustom.outFitMedium500(
+              color: Colors.white70,
+              fontSize: 14,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           if (alreadyPlus)
             Container(
               padding:
@@ -270,15 +281,23 @@ class _HeroCard extends StatelessWidget {
               ),
             )
           else ...[
-            Text(
-              enabled
-                  ? '$currency${priceUsd.toStringAsFixed(2)}'
-                  : LKey.plusDisabledAdmin.tr,
-              style: TextStyleCustom.unboundedSemiBold600(
-                color: Colors.white,
-                fontSize: 28,
-              ),
-            ),
+            enabled
+                ? Text(
+                    '$currency${priceUsd.toStringAsFixed(2)}',
+                    textAlign: TextAlign.center,
+                    style: TextStyleCustom.unboundedSemiBold600(
+                      color: Colors.white,
+                      fontSize: 28,
+                    ),
+                  )
+                : GradientText(
+                    LKey.plusDisabledAdmin.tr,
+                    gradient: ClientColors.titleGradient,
+                    style: TextStyleCustom.unboundedBold700(
+                      color: Colors.white,
+                      fontSize: 22,
+                    ),
+                  ),
             if (enabled) ...[
               const SizedBox(height: 6),
               Text(

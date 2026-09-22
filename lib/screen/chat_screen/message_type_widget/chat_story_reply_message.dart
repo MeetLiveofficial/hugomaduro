@@ -5,7 +5,6 @@ import 'package:krimson/model/chat/message_data.dart';
 import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_media_helpers.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
 
 class ChatStoryReplyMessage extends StatelessWidget {
   final ChatScreenController controller;
@@ -54,7 +53,7 @@ class ChatStoryReplyMessage extends StatelessWidget {
             child: Text(
               replyText.isEmpty ? 'Replied to story' : replyText,
               style: TextStyleCustom.outFitRegular400(
-                color: textDarkGrey(context),
+                color: chatInk(context, isMe: isMe),
                 fontSize: 14,
               ),
             ),

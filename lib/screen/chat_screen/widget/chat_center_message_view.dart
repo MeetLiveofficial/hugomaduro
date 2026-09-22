@@ -16,6 +16,7 @@ import 'package:krimson/screen/chat_screen/message_type_widget/chat_media_messag
 import 'package:krimson/screen/chat_screen/message_type_widget/chat_post_message.dart';
 import 'package:krimson/screen/chat_screen/message_type_widget/chat_story_reply_message.dart';
 import 'package:krimson/screen/chat_screen/message_type_widget/chat_text_message.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -122,7 +123,10 @@ class ChatDateView extends StatelessWidget {
       child: Text(
         '${message.id ?? 0}'.chatTimeFormat,
         style: TextStyleCustom.outFitLight300(
-            fontSize: 12, color: textLightGrey(context)),
+            fontSize: 12,
+            color: AppRole.isClient()
+                ? ClientColors.textMuted
+                : textLightGrey(context)),
       ),
     );
   }

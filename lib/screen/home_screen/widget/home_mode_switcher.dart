@@ -24,6 +24,89 @@ class HomeModeSwitcher extends StatelessWidget {
       final mode = dash.homeTabMode.value;
       final onHome =
           dash.selectedPageIndex.value == DashboardScreenController.tabHome;
+      if (AppRole.isClient()) {
+        Widget pill(String label, bool selected, VoidCallback onTap) {
+          return GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: selected ? const Color(0xFF27D3F5) : Colors.transparent,
+                boxShadow: selected
+                    ? ClientColors.neonGlow(
+                        color: const Color(0xFF27D3F5),
+                        alpha: 0.5,
+                        blur: 12,
+                        offset: Offset.zero,
+                      )
+                    : null,
+              ),
+              child: Text(
+                label.toUpperCase(),
+                style: selected
+                    ? TextStyleCustom.unboundedBold700(
+                        color: Colors.white,
+                        fontSize: 13,
+                      )
+                    : TextStyleCustom.outFitMedium500(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontSize: 13,
+                      ),
+              ),
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: ClientColors.surfaceDarkAlt.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: ClientColors.primary.withValues(alpha: 0.28),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              pill(firstLabel, onHome && mode == HomeTabMode.live, () {
+                dash.setHomeTabMode(HomeTabMode.live);
+                dash.onChanged(DashboardScreenController.tabHome);
+              }),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  '|',
+                  style: TextStyleCustom.outFitRegular400(
+                    color: Colors.white24,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              pill(LKey.reels.tr, onHome && mode == HomeTabMode.reels, () {
+                dash.setHomeTabMode(HomeTabMode.reels);
+                dash.onChanged(DashboardScreenController.tabHome);
+              }),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  '|',
+                  style: TextStyleCustom.outFitRegular400(
+                    color: Colors.white24,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              pill(LKey.posts.tr, onHome && mode == HomeTabMode.feed, () {
+                dash.setHomeTabMode(HomeTabMode.feed);
+                dash.onChanged(DashboardScreenController.tabHome);
+              }),
+            ],
+          ),
+        );
+      }
       return Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),

@@ -1,7 +1,9 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/haptic_manager.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -39,12 +41,17 @@ class _CustomToggleState extends State<CustomToggle> {
         () => AnimatedContainer(
           height: 25,
           width: 37,
-          decoration: ShapeDecoration(
-              shape: SmoothRectangleBorder(
-                  borderRadius: SmoothBorderRadius(cornerRadius: 30)),
-              gradient: isOn.value
-                  ? StyleRes.themeGradient
-                  : StyleRes.textLightGreyGradient()),
+              decoration: ShapeDecoration(
+                  shape: SmoothRectangleBorder(
+                      borderRadius: SmoothBorderRadius(cornerRadius: 30)),
+                  color: isOn.value && AppRole.isClient()
+                      ? ClientColors.toggleOn
+                      : null,
+                  gradient: isOn.value
+                      ? (AppRole.isClient()
+                          ? null
+                          : StyleRes.themeGradient)
+                      : StyleRes.textLightGreyGradient()),
           alignment: isOn.value
               ? AlignmentDirectional.centerEnd
               : AlignmentDirectional.centerStart,

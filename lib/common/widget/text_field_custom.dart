@@ -24,6 +24,7 @@ class TextFieldCustom extends StatefulWidget {
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
   final bool isPasswordField;
+  final bool showChevron;
 
   const TextFieldCustom(
       {super.key,
@@ -38,7 +39,8 @@ class TextFieldCustom extends StatefulWidget {
       this.enabled,
       this.keyboardType,
       this.inputFormatters,
-      this.isPasswordField = false});
+      this.isPasswordField = false,
+      this.showChevron = false});
 
   @override
   State<TextFieldCustom> createState() => _TextFieldCustomState();
@@ -72,7 +74,8 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
           child: Text(widget.title,
               style: TextStyleCustom.outFitRegular400(
-                  color: textDarkGrey(context), fontSize: 17)),
+                  color: client ? ClientColors.textMuted : textDarkGrey(context),
+                  fontSize: client ? 14 : 17)),
         ),
         Container(
           height: widget.height,
@@ -82,24 +85,25 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
               color: widget.isError
                   ? ColorRes.likeRed.withValues(alpha: .1)
                   : (client
-                      ? ClientColors.surfaceAlt.withValues(alpha: 0.94)
+                      ? ClientColors.surfaceAlt
                       : ColorRes.whitePure.withValues(alpha: 0.9)),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: widget.isError
                     ? ColorRes.likeRed
                     : (client
-                        ? ClientColors.border.withValues(alpha: 0.7)
+                        ? ClientColors.primary.withValues(alpha: 0.55)
                         : ColorRes.roseBorder.withValues(alpha: 0.35)),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: (client ? ClientColors.primary : ColorRes.crimson)
-                      .withValues(alpha: 0.07),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]),
+              boxShadow: client
+                  ? ClientColors.neonGlow(alpha: 0.22, blur: 12)
+                  : [
+                      BoxShadow(
+                        color: ColorRes.crimson.withValues(alpha: 0.07),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]),
           child: TextField(
             controller: widget.controller,
             enabled: widget.enabled,
@@ -113,12 +117,16 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
             minLines: isExpand ? null : 1,
             // Ensure minLines is null when expands is true
             style: TextStyleCustom.outFitRegular400(
-                color: textDarkGrey(context), fontSize: 16),
+                color: client ? ClientColors.text : textDarkGrey(context),
+                fontSize: 16),
             decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: widget.hintText ?? LKey.enterHere.tr,
                 hintStyle: TextStyleCustom.outFitLight300(
-                    color: textLightGrey(context), fontSize: 17),
+                    color: client
+                        ? ClientColors.textMuted
+                        : textLightGrey(context),
+                    fontSize: 17),
                 contentPadding: EdgeInsets.only(
                     left: 20,
                     right: 20,
@@ -137,12 +145,24 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
                                 !isHide ? AssetRes.icHideEye : AssetRes.icEye,
                                 height: 24,
                                 width: 35,
-                                color: textLightGrey(context),
+                                color: client
+                                    ? ClientColors.primary
+                                    : textLightGrey(context),
                                 key: UniqueKey())),
                       )
-                    : null,
+                    : (widget.showChevron && client
+                        ? const Padding(
+                            padding: EdgeInsets.only(right: 10),
+                            child: Icon(
+                              Icons.chevron_right_rounded,
+                              color: ClientColors.primary,
+                              size: 22,
+                            ),
+                          )
+                        : null),
                 prefixIconConstraints: const BoxConstraints(),
-                prefixIcon: widget.isPrefixIconShow
+                prefixIcon: widget.prefixIcon ??
+                    (widget.isPrefixIconShow
                     ? InkWell(
                         onTap: () {
                           Get.bottomSheet(const PhoneCodesScreen(),
@@ -183,11 +203,12 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
                         ),
                       )
                     : null),
+            ),
             keyboardType: widget.keyboardType,
             inputFormatters: widget.inputFormatters,
             textAlignVertical:
                 widget.isPrefixIconShow ? TextAlignVertical.center : null,
-            cursorColor: textLightGrey(context),
+            cursorColor: client ? ClientColors.primary : textLightGrey(context),
           ),
         )
       ],

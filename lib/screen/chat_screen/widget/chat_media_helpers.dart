@@ -86,6 +86,18 @@ class SafePickedImage extends StatelessWidget {
       );
 }
 
+/// Tinta legible según el fondo de la burbuja.
+/// Cliente: mensaje propio = burbuja clara → texto navy; ajeno = superficie oscura → blanco.
+Color chatInk(BuildContext context, {required bool isMe}) {
+  if (!AppRole.isClient()) return textDarkGrey(context);
+  return isMe ? const Color(0xFF071428) : ClientColors.text;
+}
+
+Color chatInkMuted(BuildContext context, {required bool isMe}) {
+  if (!AppRole.isClient()) return textLightGrey(context);
+  return isMe ? const Color(0xFF3D5270) : ClientColors.textMuted;
+}
+
 class ChatBubble extends StatelessWidget {
   final bool isMe;
   final Widget child;
@@ -129,6 +141,14 @@ class ChatBubble extends StatelessWidget {
             : null,
         shape: SmoothRectangleBorder(
           borderRadius: SmoothBorderRadius(cornerRadius: 14, cornerSmoothing: 1),
+          side: client
+              ? BorderSide(
+                  color: isMe
+                      ? const Color(0xFF8FB4F8)
+                      : ClientColors.accentBlue.withValues(alpha: 0.45),
+                  width: 1,
+                )
+              : BorderSide.none,
         ),
         shadows: messageBubbleShadow,
       ),

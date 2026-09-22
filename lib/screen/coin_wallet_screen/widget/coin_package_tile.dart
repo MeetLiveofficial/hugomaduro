@@ -8,6 +8,7 @@ import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/catalog_i18n.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
+import 'package:krimson/screen/coin_wallet_screen/widget/coin_pack_visuals.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -17,49 +18,69 @@ class CoinPackageTile extends StatelessWidget {
   final CoinPlan plan;
   final VoidCallback onPurchase;
   final Color? buttonColor;
+  final int index;
 
   const CoinPackageTile({
     super.key,
     required this.plan,
     required this.onPurchase,
     this.buttonColor,
+    this.index = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
-    final accent = buttonColor ??
-        (client ? ClientColors.primary : themeAccentSolid(context));
-    final titleCol = client ? ClientColors.textOnSurface : textDarkGrey(context);
+    final visual = CoinPackVisual.of(index);
+    final accent = client
+        ? visual.accent
+        : (buttonColor ?? themeAccentSolid(context));
+    final titleCol = client ? ClientColors.text : textDarkGrey(context);
     final mutedCol =
-        client ? ClientColors.client700 : textLightGrey(context);
+        client ? ClientColors.textMuted : textLightGrey(context);
     final hasBonus = plan.bonusCoins > 0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: client ? ClientColors.surfaceAlt : bgLightGrey(context),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: hasBonus
-              ? accent.withValues(alpha: 0.55)
-              : (client
-                  ? ClientColors.border.withValues(alpha: 0.7)
-                  : Colors.transparent),
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: client
+          ? BoxDecoration(
+              color: const Color(0xFF10182F),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: accent.withValues(alpha: 0.9), width: 1.3),
+              boxShadow: ClientColors.neonGlow(
+                color: accent,
+                alpha: index == 0 ? 0.4 : 0.22,
+                blur: index == 0 ? 16 : 10,
+              ),
+            )
+          : BoxDecoration(
+              color: bgLightGrey(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: hasBonus
+                    ? accent.withValues(alpha: 0.55)
+                    : Colors.transparent,
+              ),
+            ),
       child: Row(
         children: [
-          CustomImage(
-            size: const Size(42, 42),
-            strokeWidth: 0,
-            image: (plan.image ?? '').isNotEmpty
-                ? plan.image!.addBaseURL()
-                : null,
-            radius: 10,
-            fit: BoxFit.cover,
-            isShowPlaceHolder: true,
-            fullName: '${plan.coin}',
-          ),
+          if (client && (plan.image ?? '').isEmpty)
+            CoinPackLeading(
+              accent: accent,
+              stackCount: visual.stackCount,
+              hasGift: visual.hasGift,
+            )
+          else
+            CustomImage(
+              size: const Size(42, 42),
+              strokeWidth: 0,
+              image: (plan.image ?? '').isNotEmpty
+                  ? plan.image!.addBaseURL()
+                  : null,
+              radius: 10,
+              fit: BoxFit.cover,
+              isShowPlaceHolder: true,
+              fullName: '${plan.coin}',
+            ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -88,9 +109,11 @@ class CoinPackageTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  hasBonus
-                      ? '${plan.baseCoins.numberFormat} + ${plan.bonusPercent.toStringAsFixed(0)}% (${plan.bonusCoins.numberFormat}) · ${plan.usdLabel}'
-                      : plan.usdLabel,
+                  client
+                      ? plan.usdLabel
+                      : hasBonus
+                          ? '${plan.baseCoins.numberFormat} + ${plan.bonusPercent.toStringAsFixed(0)}% (${plan.bonusCoins.numberFormat}) · ${plan.usdLabel}'
+                          : plan.usdLabel,
                   style: TextStyleCustom.outFitRegular400(
                     color: mutedCol,
                     fontSize: 12,
@@ -102,14 +125,17 @@ class CoinPackageTile extends StatelessWidget {
           TextButtonCustom(
             onTap: onPurchase,
             title: LKey.purchase.tr,
-            backgroundColor: accent,
-            titleColor: client ? ClientColors.textOnDark : whitePure(context),
+            gradient: client && index < 3,
+            backgroundColor: client
+                ? (index < 3 ? null : visual.button)
+                : accent,
+            titleColor: whitePure(context),
             btnHeight: 32,
             btnWidth: 88,
             fontSize: 12,
             horizontalMargin: 0,
             margin: EdgeInsets.zero,
-            radius: 8,
+            radius: client ? 18 : 8,
           ),
         ],
       ),

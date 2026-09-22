@@ -161,6 +161,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                     ),
                   ],
                 ),
+                if (isMe && user.isAnonymousUser) ...[
+                  const SizedBox(height: 18),
+                  const _GuestLinkCard(),
+                ],
                 const SizedBox(height: 28),
                 _WalletShineCard(
                   coinsLabel: coins.fullNumberFormat,
@@ -200,6 +204,58 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+class _GuestLinkCard extends StatelessWidget {
+  const _GuestLinkCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F7FB),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF5CE1FF).withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            LKey.joinToContinue.tr,
+            style: TextStyleCustom.outFitSemiBold600(
+              fontSize: 18,
+              color: const Color(0xFF121826),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            LKey.guestAccountExpires.tr,
+            style: TextStyleCustom.outFitRegular400(
+              fontSize: 13,
+              color: const Color(0xFF2F80ED),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextButtonCustom(
+            onTap: GuestGate.openRegistration,
+            title: LKey.joinNow.tr,
+            gradient: true,
+            horizontalMargin: 0,
+            titleColor: Colors.white,
+            radius: 24,
+          ),
+        ],
       ),
     );
   }

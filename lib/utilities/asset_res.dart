@@ -20,7 +20,7 @@ class AssetRes {
 
   // Images
   static const String icBackground = '${images}ic_background.jpg';
-  static const String matchWomanBg = '${images}match_woman_bg.jpg';
+  static const String matchWomanBg = '${images}match_woman_live.jpg';
   /// Loading Match: corazones mientras se establece la conexión.
   static const String matchConnectingGif = '${images}match_connecting.gif';
   static const String icNoImage = '${images}ic_no_image.png';

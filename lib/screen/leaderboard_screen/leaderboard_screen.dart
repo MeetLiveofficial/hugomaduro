@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/service/api/privilege_service.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/framed_avatar.dart';
@@ -15,6 +16,7 @@ import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/leaderboard_screen/leaderboard_screen_controller.dart';
 import 'package:krimson/screen/home_screen/widget/home_mode_switcher.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Ranking Giver / Receiver — podio épico estilo arena real.
@@ -110,12 +112,15 @@ class LeaderboardScreen extends StatelessWidget {
 }
 
 abstract final class _Epic {
-  static const voidBg = Color(0xFF0A0714);
-  static const gold = Color(0xFFFFD56B);
+  static bool get _c => AppRole.isClient();
+  static Color get voidBg => _c ? ClientColors.bg : const Color(0xFF0A0714);
+  static Color get gold => _c ? ClientColors.primary : const Color(0xFFFFD56B);
   static const crimson = Color(0xFFE53935);
   static const crimsonDeep = Color(0xFF8B0000);
-  static const tabText = Color(0xFFB71C1C);
-  static const periodOff = Color(0xFF1C1428);
+  static Color get tabText =>
+      _c ? ClientColors.bg : const Color(0xFFB71C1C);
+  static Color get periodOff =>
+      _c ? ClientColors.surfaceAlt : const Color(0xFF1C1428);
 
   static const place1 = [Color(0xFFFF3B3B), Color(0xFF8B0000)];
   static const place2 = [Color(0xFF4FA3FF), Color(0xFF153A8C)];
@@ -153,13 +158,16 @@ class _Header extends StatelessWidget {
             ),
             Expanded(
               child: ShaderMask(
-                shaderCallback: (b) => const LinearGradient(
-                  colors: [
-                    Color(0xFFFFF1C1),
-                    Color(0xFFFFD56B),
-                    Color(0xFFFFB020)
-                  ],
-                ).createShader(b),
+                shaderCallback: (b) => (AppRole.isClient()
+                        ? ClientColors.titleGradient
+                        : const LinearGradient(
+                            colors: [
+                              Color(0xFFFFF1C1),
+                              Color(0xFFFFD56B),
+                              Color(0xFFFFB020)
+                            ],
+                          ))
+                    .createShader(b),
                 child: Text(
                   LKey.leaderboard.tr,
                   textAlign: TextAlign.center,
@@ -204,7 +212,7 @@ class _Header extends StatelessWidget {
                 ),
               );
             },
-            icon: const Icon(Icons.help_outline, color: _Epic.gold, size: 22),
+            icon: Icon(Icons.help_outline, color: _Epic.gold, size: 22),
           ),
         ],
       ),
@@ -275,9 +283,11 @@ class _TypeChip extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           gradient: selected
-              ? const LinearGradient(
-                  colors: [Color(0xFFFFF9FF), Color(0xFFE9D4F8)],
-                )
+              ? (AppRole.isClient()
+                  ? ClientColors.ctaGradient
+                  : const LinearGradient(
+                      colors: [Color(0xFFFFF9FF), Color(0xFFE9D4F8)],
+                    ))
               : null,
           color: selected ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
@@ -289,7 +299,10 @@ class _TypeChip extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: selected
               ? TextStyleCustom.outFitBold700(
-                  color: _Epic.tabText, fontSize: 10)
+                  color: AppRole.isClient()
+                      ? Colors.white
+                      : _Epic.tabText,
+                  fontSize: 10)
               : TextStyleCustom.outFitMedium500(
                   color: Colors.white70, fontSize: 10),
         ),
@@ -366,9 +379,11 @@ class _PeriodChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           gradient: selected
-              ? const LinearGradient(
-                  colors: [_Epic.crimson, _Epic.crimsonDeep],
-                )
+              ? (AppRole.isClient()
+                  ? ClientColors.ctaGradient
+                  : const LinearGradient(
+                      colors: [_Epic.crimson, _Epic.crimsonDeep],
+                    ))
               : null,
           color: selected ? null : _Epic.periodOff,
           borderRadius: BorderRadius.circular(14),

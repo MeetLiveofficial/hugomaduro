@@ -1,17 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// Paleta corporativa del **Usuario Cliente** (`client-50` … `client-950`).
+/// Paleta del **Usuario Cliente** — navy neón (mockups Meet&Live).
 ///
-/// Equivale a `--color-*` / `--client-*` (Tailwind-scale). No usar en streamers.
-///
-/// | Token | Hex | Uso |
-/// |---|---|---|
-/// | 400 | `#27D3F5` | Primario (CTA, marca) |
-/// | 500 / 600 | `#0BCDF4` / `#09A8C8` | Hover / active |
-/// | 300 / 200 | `#63DFF8` / `#8FE8FA` | Acentos, badges, bordes |
-/// | 950 / 900 / 800 | `#011418` / `#033944` / `#055E70` | Texto fuerte, modales oscuros, cards |
-/// | 700 | `#07839C` | Texto secundario legible sobre claro |
-/// | 50 / 100 | `#E7FAFE` / `#BBF1FC` | Fondos claros / chips (NO texto sobre blanco) |
+/// No usar en streamers. Escala `client-50` … `client-950` se mantiene
+/// para acentos cian; fondos y superficies son navy oscuro.
 class ClientColors {
   ClientColors._();
 
@@ -27,8 +19,19 @@ class ClientColors {
   static const Color client900 = Color(0xFF033944);
   static const Color client950 = Color(0xFF011418);
 
-  /// Azul de contraste para textos e iconos de nav (`#3a83f3`).
+  /// Azul de contraste (`#3a83f3`).
   static const Color accentBlue = Color(0xFF3A83F3);
+
+  /// Magenta de títulos / Goddess / PLUS.
+  static const Color magenta = Color(0xFFC084FC);
+  static const Color magentaHot = Color(0xFFE879F9);
+  static const Color violet = Color(0xFF7C3AED);
+
+  /// Oro de monedas / podio.
+  static const Color gold = Color(0xFFFBBF24);
+
+  /// Toggle ON (notificaciones).
+  static const Color toggleOn = Color(0xFF2DD4BF);
 
   /// Acción principal / marca (`--color-400`).
   static const Color primary = client400;
@@ -45,38 +48,41 @@ class ClientColors {
   /// Bordes suaves (`--color-200`).
   static const Color secondarySoft = client200;
 
-  /// Fondo de pantalla (antes blanco/cian claro).
-  static const Color bg = Color(0xFF2A2A32);
+  /// Fondo de pantalla navy (mockups).
+  static const Color bg = Color(0xFF07101C);
 
-  /// Cards / modales claros.
-  static const Color surface = Color(0xFFFFFFFF);
+  /// Fondo intermedio / wash.
+  static const Color bgMid = Color(0xFF0A1630);
 
-  /// Superficie elevada / chips claros.
-  static const Color surfaceAlt = client100;
+  /// Cards / sheets oscuros.
+  static const Color surface = Color(0xFF0C1A32);
 
-  /// Bordes y divisores.
-  static const Color border = client200;
+  /// Superficie elevada / chips.
+  static const Color surfaceAlt = Color(0xFF0E2240);
 
-  /// Texto principal sobre el fondo de pantalla `#2a2a32`.
+  /// Bordes glow.
+  static const Color border = Color(0x6627D3F5);
+
+  /// Texto principal sobre navy.
   static const Color text = Color(0xFFFFFFFF);
 
-  /// Texto sobre cards / sheets blancos.
-  static const Color textOnSurface = client950;
+  /// Texto sobre cards (mismo navy oscuro).
+  static const Color textOnSurface = Color(0xFFFFFFFF);
 
-  /// Subtítulos / timestamps (azul de contraste).
-  static const Color textMuted = accentBlue;
+  /// Subtítulos / timestamps.
+  static const Color textMuted = Color(0xB3FFFFFF);
 
-  /// Texto sobre fondos oscuros (LIVE, chips teal, media).
-  static const Color textOnDark = client50;
+  /// Texto sobre fondos oscuros (LIVE, chips, media).
+  static const Color textOnDark = Color(0xFFF5FDFF);
 
   /// Subtítulo sobre fondos oscuros.
-  static const Color textOnDarkMuted = client100;
+  static const Color textOnDarkMuted = Color(0xB3BBF1FC);
 
   /// Superficie oscura (header Match, badges).
-  static const Color surfaceDark = client900;
+  static const Color surfaceDark = Color(0xFF050B18);
 
   /// Chip / pill oscuro.
-  static const Color surfaceDarkAlt = client800;
+  static const Color surfaceDarkAlt = Color(0xFF102038);
 
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [client400, client500, client600],
@@ -85,9 +91,66 @@ class ClientColors {
     end: Alignment.bottomRight,
   );
 
+  /// Títulos de AppBar: cian → magenta.
+  static const LinearGradient titleGradient = LinearGradient(
+    colors: [Color(0xFF5CE1FF), Color(0xFFC084FC)],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
+  /// CTA Save / Link Now: cian → violeta.
+  static const LinearGradient ctaGradient = LinearGradient(
+    colors: [Color(0xFF27D3F5), Color(0xFF7C3AED)],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
   static const LinearGradient surfaceGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF2A2A32), Color(0xFF2A2A32), Color(0xFF2A2A32)],
+    colors: [Color(0xFF0A1630), Color(0xFF07101C), Color(0xFF050B18)],
   );
+
+  static List<BoxShadow> neonGlow({
+    Color? color,
+    double alpha = 0.38,
+    double blur = 16,
+    Offset offset = const Offset(0, 4),
+  }) {
+    return [
+      BoxShadow(
+        color: (color ?? primary).withValues(alpha: alpha),
+        blurRadius: blur,
+        offset: offset,
+      ),
+    ];
+  }
+
+  static BoxDecoration glass({
+    bool highlighted = false,
+    Color? glowColor,
+    double radius = 16,
+  }) {
+    final glow = glowColor ?? (highlighted ? magenta : primary);
+    return BoxDecoration(
+      color: highlighted ? null : surface.withValues(alpha: 0.92),
+      gradient: highlighted
+          ? const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Color(0xFF143A68), Color(0xFF4C2A7A)],
+            )
+          : null,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(
+        color: glow.withValues(alpha: highlighted ? 0.95 : 0.55),
+        width: highlighted ? 1.5 : 1.15,
+      ),
+      boxShadow: neonGlow(
+        color: glow,
+        alpha: highlighted ? 0.5 : 0.28,
+        blur: highlighted ? 20 : 14,
+      ),
+    );
+  }
 }

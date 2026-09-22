@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
+import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/custom_back_button.dart';
 import 'package:krimson/common/widget/restart_widget.dart';
 import 'package:krimson/common/widget/theme_blur_bg.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/auth_screen/login_screen.dart';
 import 'package:krimson/screen/on_boarding_screen/on_boarding_screen.dart';
+import 'package:krimson/utilities/client_colors.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 enum LanguageNavigationType { fromStart, fromSetting }
@@ -45,14 +50,56 @@ class SelectLanguageScreen extends StatelessWidget {
             (label: '中文', code: 'zh'),
           ];
 
-    final showBack = languageNavigationType == LanguageNavigationType.fromSetting ||
+    final fromSetting =
+        languageNavigationType == LanguageNavigationType.fromSetting;
+    final showBack = fromSetting ||
         (ModalRoute.of(context)?.canPop ?? false);
 
     return Scaffold(
+      backgroundColor: fromSetting && AppRole.isClient() ? ClientColors.bg : null,
       body: Stack(
         children: [
-          const ThemeBlurBg(),
-          SafeArea(
+          if (fromSetting && AppRole.isClient())
+            const BrandWashBg(vivid: false)
+          else
+            const ThemeBlurBg(),
+          if (fromSetting && AppRole.isClient())
+            Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CustomAppBar(
+                    title: LKey.language.tr,
+                    showBack: showBack,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                    child: Text(
+                      LKey.languages.tr.toUpperCase(),
+                      style: TextStyleCustom.outFitMedium500(
+                        color: ClientColors.primary,
+                        fontSize: 12,
+                      ).copyWith(letterSpacing: 1.6),
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 24),
+                      itemCount: tiles.length,
+                      itemBuilder: (_, i) {
+                        final tile = tiles[i];
+                        return _LangTile(
+                          label: tile.label,
+                          code: tile.code,
+                          selected: tile.code == current,
+                          onTap: () => _select(context, tile.code),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              )
+          else
+            SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 20, 20),
               child: Column(
@@ -156,6 +203,65 @@ class _LangTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final flag = _langFlag(code);
+    if (client) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+        decoration: selected
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Color(0xFF1A4A78), Color(0xFF5B2A8A)],
+                ),
+                border: Border.all(color: const Color(0xFF5CE1FF), width: 1.5),
+                boxShadow: ClientColors.neonGlow(
+                  color: const Color(0xFF5CE1FF),
+                  alpha: 0.45,
+                  blur: 18,
+                ),
+              )
+            : ClientColors.glass(),
+        child: ListTile(
+          leading: Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: ClientColors.surfaceAlt,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: ClientColors.primary.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Text(flag, style: const TextStyle(fontSize: 22)),
+          ),
+          title: Text(
+            label,
+            style: TextStyleCustom.outFitMedium500(
+              color: ClientColors.text,
+              fontSize: 16,
+            ),
+          ),
+          subtitle: Text(
+            code.toUpperCase(),
+            style: TextStyleCustom.outFitRegular400(
+              color: ClientColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+          trailing: Icon(
+            selected ? Icons.check_circle_rounded : Icons.chevron_right,
+            color: selected
+                ? const Color(0xFF5CE1FF)
+                : ClientColors.primary.withValues(alpha: 0.7),
+          ),
+          onTap: onTap,
+        ),
+      );
+    }
     return Card(
       color: Colors.white.withValues(alpha: selected ? 0.22 : 0.12),
       child: ListTile(
@@ -171,5 +277,26 @@ class _LangTile extends StatelessWidget {
         onTap: onTap,
       ),
     );
+  }
+}
+
+String _langFlag(String code) {
+  switch (code.toLowerCase()) {
+    case 'ar':
+      return '🇦🇪';
+    case 'zh':
+      return '🇨🇳';
+    case 'en':
+      return '🇬🇧';
+    case 'pt':
+      return '🇵🇹';
+    case 'ru':
+      return '🇷🇺';
+    case 'es':
+      return '🇪🇸';
+    case 'uk':
+      return '🇺🇦';
+    default:
+      return '🌐';
   }
 }

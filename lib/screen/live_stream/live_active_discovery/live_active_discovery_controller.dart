@@ -16,6 +16,8 @@ import 'package:krimson/utilities/const_res.dart';
 import 'package:krimson/utilities/poll_intervals.dart';
 import 'package:krimson/utilities/firebase_const.dart';
 
+enum LiveBrowseFilter { all, latinas, newest, hot, following }
+
 /// Descubrimiento: solo lives en transmisión + búsqueda.
 class LiveActiveDiscoveryController extends BaseController {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
@@ -25,6 +27,7 @@ class LiveActiveDiscoveryController extends BaseController {
   final RxBool showSearch = false.obs;
   final TextEditingController searchController = TextEditingController();
   final RxString searchQuery = ''.obs;
+  final Rx<LiveBrowseFilter> browseFilter = LiveBrowseFilter.all.obs;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
   Timer? _laravelPoll;
@@ -48,34 +51,91 @@ class LiveActiveDiscoveryController extends BaseController {
     }
   }
 
+  void setBrowseFilter(LiveBrowseFilter filter) {
+    browseFilter.value = filter;
+    _applyFilter();
+  }
+
+  static const _latinaHints = [
+    'latina',
+    'latino',
+    'colombia',
+    'mexico',
+    'méxico',
+    'argentina',
+    'chile',
+    'peru',
+    'perú',
+    'venezuela',
+    'españa',
+    'spain',
+    'brasil',
+    'brazil',
+    'ecuador',
+    'uruguay',
+    'paraguay',
+    'bolivia',
+    'dominicana',
+    'cuba',
+    'puerto',
+  ];
+
+  bool _looksLatina(Livestream s) {
+    final blob =
+        '${s.description ?? ''} ${s.hostUser?.fullname ?? ''} ${s.hostUser?.username ?? ''} ${s.hostUser?.identity ?? ''}'
+            .toLowerCase();
+    return _latinaHints.any(blob.contains);
+  }
+
   void _applyFilter() {
     final q = searchQuery.value.trim().toLowerCase();
-    if (q.isEmpty) {
-      livestreams.assignAll(_allLives);
-      return;
+    var list = _allLives.toList();
+    if (q.isNotEmpty) {
+      list = list.where((s) {
+        final title = (s.description ?? '').toLowerCase();
+        final host = s.hostUser;
+        final name = (host?.fullname ?? '').toLowerCase();
+        final username = (host?.username ?? '').toLowerCase();
+        String fsName = '';
+        String fsUser = '';
+        if (Get.isRegistered<FirebaseFirestoreController>() &&
+            s.hostId != null) {
+          final u = Get.find<FirebaseFirestoreController>()
+              .users
+              .firstWhereOrNull((e) => e.userId == s.hostId);
+          fsName = (u?.fullname ?? '').toLowerCase();
+          fsUser = (u?.username ?? '').toLowerCase();
+        }
+        return title.contains(q) ||
+            name.contains(q) ||
+            username.contains(q) ||
+            fsName.contains(q) ||
+            fsUser.contains(q);
+      }).toList();
     }
 
-    livestreams.assignAll(_allLives.where((s) {
-      final title = (s.description ?? '').toLowerCase();
-      final host = s.hostUser;
-      final name = (host?.fullname ?? '').toLowerCase();
-      final username = (host?.username ?? '').toLowerCase();
-      String fsName = '';
-      String fsUser = '';
-      if (Get.isRegistered<FirebaseFirestoreController>() &&
-          s.hostId != null) {
-        final u = Get.find<FirebaseFirestoreController>()
-            .users
-            .firstWhereOrNull((e) => e.userId == s.hostId);
-        fsName = (u?.fullname ?? '').toLowerCase();
-        fsUser = (u?.username ?? '').toLowerCase();
-      }
-      return title.contains(q) ||
-          name.contains(q) ||
-          username.contains(q) ||
-          fsName.contains(q) ||
-          fsUser.contains(q);
-    }));
+    switch (browseFilter.value) {
+      case LiveBrowseFilter.all:
+        list.sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
+        break;
+      case LiveBrowseFilter.latinas:
+        list = list.where(_looksLatina).toList();
+        break;
+      case LiveBrowseFilter.newest:
+        list.sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
+        break;
+      case LiveBrowseFilter.hot:
+        list.sort(
+            (a, b) => (b.watchingCount ?? 0).compareTo(a.watchingCount ?? 0));
+        break;
+      case LiveBrowseFilter.following:
+        final ids = SessionManager.instance.getUser()?.followingIds ?? const [];
+        final set = ids.toSet();
+        list = list.where((s) => s.hostId != null && set.contains(s.hostId)).toList();
+        break;
+    }
+
+    livestreams.assignAll(list);
   }
 
   void _setLives(List<Livestream> list) {

@@ -60,6 +60,10 @@ class CoinGate {
   }
 
   static void openCoinShopSheet({String? headline}) {
+    if (AppRole.isClient()) {
+      unawaited(RechargePromo.show());
+      return;
+    }
     if (!Get.isRegistered<CoinWalletScreenController>()) {
       Get.put(CoinWalletScreenController());
     } else {
@@ -173,6 +177,7 @@ class _CoinShopSheet extends StatelessWidget {
                       final plan = controller.coinPlans[index];
                       return CoinPackageTile(
                         plan: plan,
+                        index: index,
                         onPurchase: () => controller.onPurchase(plan),
                         buttonColor:
                             client ? ClientColors.primary : ColorRes.themeAccentSolid,

@@ -38,10 +38,16 @@ class ChatConversationUserCard extends StatelessWidget {
     final controller = Get.find<MessageScreenController>();
     final unread = chatConversation.msgCount ?? 0;
 
+    final client = AppRole.isClient();
     return InkWell(
       onTap: _openChat,
       onLongPress: () => controller.onLongPress(chatConversation),
-      child: Padding(
+      child: Container(
+        margin: client
+            ? const EdgeInsets.symmetric(horizontal: 10, vertical: 5)
+            : null,
+        decoration: client ? ClientColors.glass(radius: 16) : null,
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
@@ -134,9 +140,18 @@ class ChatConversationUserCard extends StatelessWidget {
                 margin: const EdgeInsets.only(left: 8),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: const BoxDecoration(
-                  color: ColorRes.likeRed,
+                decoration: BoxDecoration(
+                  color: AppRole.isClient()
+                      ? ClientColors.magentaHot
+                      : ColorRes.likeRed,
                   shape: BoxShape.circle,
+                  boxShadow: AppRole.isClient()
+                      ? ClientColors.neonGlow(
+                          color: ClientColors.magentaHot,
+                          alpha: 0.45,
+                          blur: 8,
+                        )
+                      : null,
                 ),
                 child: Text(
                   unread > 99 ? '99+' : '$unread',
@@ -148,6 +163,7 @@ class ChatConversationUserCard extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/widget/brand_controls.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/custom_toggle.dart';
 import 'package:krimson/languages/languages_keys.dart';
@@ -10,7 +11,9 @@ import 'package:krimson/screen/settings_screen/settings_screen.dart';
 import 'package:krimson/screen/settings_screen/settings_screen_controller.dart';
 import 'package:krimson/screen/settings_screen/widget/setting_icon_text_with_arrow.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
+import 'package:krimson/utilities/theme_res.dart';
 
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
@@ -21,8 +24,15 @@ class NotificationsPage extends StatelessWidget {
         ? Get.find<SettingsScreenController>()
         : Get.put(SettingsScreenController());
     final isAgency = AppRole.isAgency();
-    return Scaffold(
-      body: Column(
+    return ThemeRes.applyIfClient(
+      context,
+      Scaffold(
+      backgroundColor: AppRole.isClient() ? ClientColors.bg : null,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (AppRole.isClient()) const BrandWashBg(vivid: false),
+          Column(
         children: [
           CustomAppBar(title: LKey.notifications.tr),
           Expanded(
@@ -35,7 +45,7 @@ class NotificationsPage extends StatelessWidget {
                   BrandPanel(
                     child: SettingIconTextWithArrow(
                       icon: AssetRes.icNotification_1,
-                      iconColor: settingRowIcon(ColorRes.crimson),
+                      iconColor: settingRowIcon(ColorRes.mlPurple),
                       title: LKey.notifications,
                       onTap: () {
                         Get.to(() => const NotificationScreen());
@@ -88,11 +98,11 @@ class NotificationsPage extends StatelessWidget {
                           isOn: (user?.notifyGiftReceived ?? 1) == 1,
                           type: SettingToggle.notifyGiftReceived,
                         ),
-                        _toggle(
-                          controller,
-                          icon: AssetRes.icChat,
-                          color: settingRowIcon(ColorRes.crimson),
-                          title: LKey.chatMessage,
+                          _toggle(
+                            controller,
+                            icon: AssetRes.icChat,
+                            color: settingRowIcon(ColorRes.mlPurple),
+                            title: LKey.chatMessage,
                           isOn: (user?.notifyChat ?? 1) == 1,
                           type: SettingToggle.notifyChat,
                         ),
@@ -104,7 +114,10 @@ class NotificationsPage extends StatelessWidget {
             }),
           ),
         ],
+          ),
+        ],
       ),
+    ),
     );
   }
 

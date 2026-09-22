@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
@@ -12,6 +14,7 @@ import 'package:krimson/common/widget/text_field_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/edit_profile_screen/edit_profile_screen_controller.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -25,9 +28,13 @@ class EditProfileScreen extends StatelessWidget {
     final controller =
         Get.put(EditProfileScreenController(onUpdateUser: onUpdateUser));
 
-    return Scaffold(
+    return ThemeRes.applyIfClient(
+      context,
+      Scaffold(
+      backgroundColor: AppRole.isClient() ? ClientColors.bg : null,
       body: Stack(
         children: [
+          if (AppRole.isClient()) const BrandWashBg(vivid: false),
           Column(
             children: [
               CustomAppBar(title: LKey.editProfile.tr),
@@ -58,16 +65,31 @@ class EditProfileScreen extends StatelessWidget {
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  if (picked != null)
-                                    _PickedAvatar(file: picked)
-                                  else
-                                    CustomImage(
-                                      size: const Size(110, 110),
-                                      image: networkUrl,
-                                      fullName:
-                                          controller.user.value?.fullname ??
-                                              controller.fullNameController.text,
+                                  Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: ClientColors.primary,
+                                        width: 2,
+                                      ),
+                                      boxShadow: ClientColors.neonGlow(
+                                        alpha: 0.45,
+                                        blur: 16,
+                                        offset: Offset.zero,
+                                      ),
                                     ),
+                                    child: picked != null
+                                        ? _PickedAvatar(file: picked)
+                                        : CustomImage(
+                                            size: const Size(110, 110),
+                                            image: networkUrl,
+                                            fullName: controller
+                                                    .user.value?.fullname ??
+                                                controller
+                                                    .fullNameController.text,
+                                          ),
+                                  ),
                                   if (progress > 0 && progress < 1)
                                     Container(
                                       width: 110,
@@ -91,8 +113,13 @@ class EditProfileScreen extends StatelessWidget {
                                     child: Container(
                                       padding: const EdgeInsets.all(6),
                                       decoration: BoxDecoration(
-                                        color: themeAccentSolid(context),
+                                        color: ClientColors.primary,
                                         shape: BoxShape.circle,
+                                        boxShadow: ClientColors.neonGlow(
+                                          alpha: 0.5,
+                                          blur: 10,
+                                          offset: Offset.zero,
+                                        ),
                                       ),
                                       child: Icon(
                                         Icons.camera_alt,
@@ -109,7 +136,9 @@ class EditProfileScreen extends StatelessWidget {
                               child: Text(
                                 LKey.editProfile.tr,
                                 style: TextStyleCustom.outFitMedium500(
-                                  color: themeAccentSolid(context),
+                                  color: AppRole.isClient()
+                                      ? ClientColors.primary
+                                      : themeAccentSolid(context),
                                   fontSize: 14,
                                 ),
                               ),
@@ -121,20 +150,42 @@ class EditProfileScreen extends StatelessWidget {
                       TextFieldCustom(
                         title: LKey.fullName.tr,
                         controller: controller.fullNameController,
+                        showChevron: true,
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(left: 12, right: 4),
+                          child: Icon(Icons.person_outline_rounded,
+                              color: ClientColors.primary, size: 22),
+                        ),
                       ),
                       TextFieldCustom(
                         title: LKey.username.tr,
                         controller: controller.usernameController,
+                        showChevron: true,
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(left: 12, right: 4),
+                          child: Icon(Icons.alternate_email_rounded,
+                              color: ClientColors.primary, size: 22),
+                        ),
                       ),
                       TextFieldCustom(
                         title: LKey.bio.tr,
                         controller: controller.bioController,
                         height: 110,
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(left: 12, right: 4, top: 12),
+                          child: Icon(Icons.edit_outlined,
+                              color: ClientColors.primary, size: 22),
+                        ),
                       ),
                       TextFieldCustom(
                         title: LKey.email.tr,
                         controller: controller.emailController,
                         keyboardType: TextInputType.emailAddress,
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(left: 12, right: 4),
+                          child: Icon(Icons.mail_outline_rounded,
+                              color: ClientColors.primary, size: 22),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Obx(
@@ -143,8 +194,9 @@ class EditProfileScreen extends StatelessWidget {
                               ? () {}
                               : controller.onSave,
                           title: LKey.save.tr,
-                          backgroundColor: themeAccentSolid(context),
+                          gradient: true,
                           titleColor: whitePure(context),
+                          radius: 24,
                         ),
                       ),
                     ],
@@ -166,6 +218,7 @@ class EditProfileScreen extends StatelessWidget {
           }),
         ],
       ),
+    ),
     );
   }
 }
