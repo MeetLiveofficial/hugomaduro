@@ -181,6 +181,7 @@ flutter:
   assets:
     - assets/images/
     - assets/images/guest_avatars/
+    - assets/images/levels/
     - assets/icons/
     - assets/csv/
     - assets/audios/

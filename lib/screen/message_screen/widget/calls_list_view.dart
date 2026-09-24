@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/call_service.dart';
 import 'package:krimson/common/service/navigation/navigate_with_controller.dart';
@@ -12,6 +13,7 @@ import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/poll_intervals.dart';
 import 'package:krimson/model/call/call_request_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
@@ -155,10 +157,12 @@ class CallsListView extends StatelessWidget {
               final peer = incoming ? item.caller : item.callee;
               return Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: bgLightGrey(context),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: AppRole.isClient()
+                    ? ClientColors.glass(radius: 16)
+                    : BoxDecoration(
+                        color: bgLightGrey(context),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                 child: Row(
                   children: [
                     Expanded(
@@ -182,7 +186,9 @@ class CallsListView extends StatelessWidget {
                                   Text(
                                     peer?.fullname ?? peer?.username ?? '-',
                                     style: TextStyleCustom.outFitMedium500(
-                                        color: textDarkGrey(context),
+                                        color: AppRole.isClient()
+                                            ? ClientColors.text
+                                            : textDarkGrey(context),
                                         fontSize: 14),
                                   ),
                                   Text(
@@ -190,7 +196,15 @@ class CallsListView extends StatelessWidget {
                                         ? 'Match · ${item.status} · ${item.coinsCost} ${LKey.coins.tr}'
                                         : '${incoming ? LKey.incomingCall.tr : LKey.outgoingCall.tr} · ${item.status} · ${item.coinsCost} ${LKey.coins.tr}',
                                     style: TextStyleCustom.outFitRegular400(
-                                        color: textLightGrey(context),
+                                        color: AppRole.isClient()
+                                            ? ((item.status ?? '')
+                                                    .toLowerCase()
+                                                    .contains('miss')
+                                                ? ClientColors.magentaHot
+                                                : incoming
+                                                    ? ClientColors.toggleOn
+                                                    : ClientColors.primary)
+                                            : textLightGrey(context),
                                         fontSize: 12),
                                   ),
                                 ],
@@ -264,9 +278,18 @@ class _CallActionButton extends StatelessWidget {
     return TextButtonCustom(
       onTap: onTap,
       title: title,
-      backgroundColor:
-          filled ? themeAccentSolid(context) : bgGrey(context),
-      titleColor: filled ? whitePure(context) : textDarkGrey(context),
+      gradient: filled && AppRole.isClient(),
+      backgroundColor: filled
+          ? (AppRole.isClient() ? null : themeAccentSolid(context))
+          : (AppRole.isClient() ? Colors.transparent : bgGrey(context)),
+      titleColor: filled
+          ? whitePure(context)
+          : (AppRole.isClient()
+              ? ClientColors.magentaHot
+              : textDarkGrey(context)),
+      borderSide: !filled && AppRole.isClient()
+          ? const BorderSide(color: ClientColors.magentaHot)
+          : null,
       btnHeight: 32,
       fontSize: 12,
       radius: 16,

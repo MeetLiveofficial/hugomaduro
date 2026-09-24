@@ -3,7 +3,6 @@ import 'package:krimson/model/chat/message_data.dart';
 import 'package:krimson/screen/chat_screen/chat_screen_controller.dart';
 import 'package:krimson/screen/chat_screen/widget/chat_media_helpers.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
 
 class ChatPostMessage extends StatelessWidget {
   final MessageData message;
@@ -19,8 +18,9 @@ class ChatPostMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     final thumb = decodePostThumb(message.postMessage);
     final title = decodePostTitle(message.postMessage);
+    final isMe = message.userId == controller.myUser?.id;
     return ChatBubble(
-      isMe: message.userId == controller.myUser?.id,
+      isMe: isMe,
       padding: const EdgeInsets.all(6),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -41,7 +41,7 @@ class ChatPostMessage extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: TextStyleCustom.outFitRegular400(
-                color: textDarkGrey(context),
+                color: chatInk(context, isMe: isMe),
                 fontSize: 13,
               ),
             ),

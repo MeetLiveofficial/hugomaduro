@@ -38,9 +38,17 @@ class StyleRes {
   static Color get brandAccent =>
       AppRole.isClient() ? ClientColors.primary : ColorRes.crimson;
 
-  /// Streamer: coral → magenta. Cliente (logueado): `client-400` → `client-600`.
+  /// Títulos cliente: cian → magenta. Streamer: coral → magenta.
+  static Gradient get titleGradient =>
+      AppRole.isClient() ? ClientColors.titleGradient : _streamerGradient;
+
+  /// CTA cliente: cian → violeta.
+  static Gradient get ctaGradient =>
+      AppRole.isClient() ? ClientColors.ctaGradient : _streamerGradient;
+
+  /// Streamer: coral → magenta. Cliente (logueado): cian → violeta (CTA).
   static Gradient get themeGradient =>
-      AppRole.isClient() ? ClientColors.primaryGradient : _streamerGradient;
+      AppRole.isClient() ? ClientColors.ctaGradient : _streamerGradient;
 
   static Gradient get themeGradientVertical => AppRole.isClient()
       ? ClientColors.primaryGradient

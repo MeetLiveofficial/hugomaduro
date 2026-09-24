@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
-import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/utilities/client_colors.dart';
-import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// LIVE | REELS | POSTS dentro del tab Home.
@@ -24,25 +21,101 @@ class HomeModeSwitcher extends StatelessWidget {
       final mode = dash.homeTabMode.value;
       final onHome =
           dash.selectedPageIndex.value == DashboardScreenController.tabHome;
+      if (AppRole.isClient()) {
+        Widget pill(String label, bool selected, VoidCallback onTap) {
+          return GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: selected ? const Color(0xFF27D3F5) : Colors.transparent,
+                boxShadow: selected
+                    ? ClientColors.neonGlow(
+                        color: const Color(0xFF27D3F5),
+                        alpha: 0.5,
+                        blur: 12,
+                        offset: Offset.zero,
+                      )
+                    : null,
+              ),
+              child: Text(
+                label.toUpperCase(),
+                style: selected
+                    ? TextStyleCustom.unboundedBold700(
+                        color: Colors.white,
+                        fontSize: 13,
+                      )
+                    : TextStyleCustom.outFitMedium500(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontSize: 13,
+                      ),
+              ),
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: ClientColors.surfaceDarkAlt.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: ClientColors.primary.withValues(alpha: 0.28),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              pill(firstLabel, onHome && mode == HomeTabMode.live, () {
+                dash.setHomeTabMode(HomeTabMode.live);
+                dash.onChanged(DashboardScreenController.tabHome);
+              }),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  '|',
+                  style: TextStyleCustom.outFitRegular400(
+                    color: Colors.white24,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              pill(LKey.reels.tr, onHome && mode == HomeTabMode.reels, () {
+                dash.setHomeTabMode(HomeTabMode.reels);
+                dash.onChanged(DashboardScreenController.tabHome);
+              }),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  '|',
+                  style: TextStyleCustom.outFitRegular400(
+                    color: Colors.white24,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              pill(LKey.posts.tr, onHome && mode == HomeTabMode.feed, () {
+                dash.setHomeTabMode(HomeTabMode.feed);
+                dash.onChanged(DashboardScreenController.tabHome);
+              }),
+            ],
+          ),
+        );
+      }
+      const magenta = Color(0xFFE879F9);
       return Container(
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
+          color: const Color(0xCC140818),
           borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: magenta.withValues(alpha: 0.55)),
           boxShadow: [
             BoxShadow(
-              color: (AppRole.isClient()
-                      ? StyleRes.brandAccent
-                      : ColorRes.crimson)
-                  .withValues(alpha: 0.42),
+              color: magenta.withValues(alpha: 0.35),
               blurRadius: 16,
               offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: (AppRole.isClient()
-                      ? ClientColors.primaryActive
-                      : ColorRes.mlPurple)
-                  .withValues(alpha: 0.28),
-              blurRadius: 20,
-              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -51,9 +124,8 @@ class HomeModeSwitcher extends StatelessWidget {
         child: Stack(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                gradient: StyleRes.themeGradient,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: Row(
@@ -113,7 +185,7 @@ class HomeModeSwitcher extends StatelessWidget {
               ),
             ),
             const Positioned.fill(
-              child: IgnorePointer(child: ShineSweep()),
+              child: IgnorePointer(child: SizedBox.shrink()),
             ),
           ],
         ),
@@ -142,17 +214,36 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Text(
-        label.toUpperCase(),
-        style: selected
-            ? TextStyleCustom.unboundedBold700(
-                color: selectedColor,
-                fontSize: 14,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: selected
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFE879F9).withValues(alpha: 0.45),
+                    blurRadius: 10,
+                  ),
+                ],
               )
-            : TextStyleCustom.outFitMedium500(
-                color: unselectedColor,
-                fontSize: 13,
-              ),
+            : null,
+        child: Text(
+          label.toUpperCase(),
+          style: selected
+              ? TextStyleCustom.unboundedBold700(
+                  color: selectedColor,
+                  fontSize: 13,
+                )
+              : TextStyleCustom.outFitMedium500(
+                  color: unselectedColor,
+                  fontSize: 13,
+                ),
+        ),
       ),
     );
   }

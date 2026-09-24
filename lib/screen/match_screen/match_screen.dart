@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart';
@@ -17,7 +18,6 @@ import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/role_colors.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:livekit_client/livekit_client.dart';
 
@@ -139,9 +139,9 @@ class _MatchScreenState extends State<MatchScreen> {
                                     textAlign: TextAlign.center,
                                     style: TextStyleCustom.outFitMedium500(
                                       color: AppRole.isClient()
-                                          ? ClientColors.textOnDark
+                                          ? Colors.white
                                           : Colors.white,
-                                      fontSize: 15,
+                                      fontSize: 18,
                                     ),
                                   ),
                                 );
@@ -171,9 +171,6 @@ class _MatchBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
     final base = client ? ClientColors.surfaceDark : ColorRes.obsidianDeep;
-    final mid = client
-        ? ClientColors.primary.withValues(alpha: 0.28)
-        : ColorRes.mlPurple.withValues(alpha: 0.28);
     final bottom = client
         ? ClientColors.surfaceDark.withValues(alpha: 0.82)
         : ColorRes.obsidianDeep.withValues(alpha: 0.78);
@@ -190,15 +187,12 @@ class _MatchBackdrop extends StatelessWidget {
       children: [
         ColoredBox(color: base),
         ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Transform.scale(
-            scale: 1.12,
-            child: Image.asset(
-              AssetRes.matchWomanBg,
-              fit: BoxFit.cover,
-              alignment: const Alignment(0, -0.08),
-              errorBuilder: (_, __, ___) => const BrandWashBg(),
-            ),
+          imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+          child: Image.asset(
+            AssetRes.matchWomanBg,
+            fit: BoxFit.cover,
+            alignment: const Alignment(0.15, -0.15),
+            errorBuilder: (_, __, ___) => const BrandWashBg(),
           ),
         ),
         DecoratedBox(
@@ -207,10 +201,11 @@ class _MatchBackdrop extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                base.withValues(alpha: 0.38),
-                mid,
-                bottom,
+                base.withValues(alpha: 0.12),
+                Colors.transparent,
+                bottom.withValues(alpha: 0.55),
               ],
+              stops: const [0.0, 0.42, 1.0],
             ),
           ),
         ),
@@ -414,10 +409,13 @@ class _TopBar extends StatelessWidget {
           ],
           _ChipButton(
             onTap: controller.openWallet,
+            borderColor: ClientColors.primary,
+            glow: true,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Image.asset(AssetRes.icStar, width: 16, height: 16),
+                const Icon(Icons.auto_awesome,
+                    color: ClientColors.gold, size: 15),
                 const SizedBox(width: 6),
                 Obx(() {
                   SessionManager.instance.coinWalletRx.value;
@@ -437,14 +435,27 @@ class _TopBar extends StatelessWidget {
           Obx(() {
             final used = controller.freeMatchesUsed.value;
             final quota = controller.freeMatchesQuota.value;
-            return Text(
-              LKey.freeMatchesCount.trParams({
-                'used': '$used',
-                'quota': '$quota',
-              }),
-              style: TextStyleCustom.outFitMedium500(
-                color: ClientColors.textOnDark,
-                fontSize: 12,
+            return _ChipButton(
+              onTap: () {},
+              borderColor: const Color(0xFF5CE1FF),
+              glow: true,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.autorenew_rounded,
+                      color: Color(0xFF5CE1FF), size: 15),
+                  const SizedBox(width: 5),
+                  Text(
+                    LKey.freeMatchesCount.trParams({
+                      'used': '$used',
+                      'quota': '$quota',
+                    }),
+                    style: TextStyleCustom.outFitMedium500(
+                      color: ClientColors.textOnDark,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             );
           }),
@@ -458,17 +469,20 @@ class _ChipButton extends StatelessWidget {
   final Widget child;
   final VoidCallback onTap;
   final Color? borderColor;
+  final bool glow;
 
   const _ChipButton({
     required this.child,
     required this.onTap,
     this.borderColor,
+    this.glow = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final edge = borderColor ?? ClientColors.secondarySoft;
     return Material(
-      color: ClientColors.surfaceDarkAlt.withValues(alpha: 0.72),
+      color: ClientColors.surfaceDark.withValues(alpha: 0.78),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -477,10 +491,15 @@ class _ChipButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: borderColor ?? ClientColors.secondarySoft,
-              width: 1,
-            ),
+            border: Border.all(color: edge, width: 1.3),
+            boxShadow: glow
+                ? ClientColors.neonGlow(
+                    color: edge,
+                    alpha: 0.4,
+                    blur: 12,
+                    offset: Offset.zero,
+                  )
+                : null,
           ),
           child: child,
         ),
@@ -519,11 +538,28 @@ class _RadarButton extends StatelessWidget {
                   height: core,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: StyleRes.clientGradient,
-                    border: Border.all(
-                      color: ClientColors.secondarySoft,
-                      width: 2,
+                    gradient: const RadialGradient(
+                      colors: [Color(0xFF7DD3FC), Color(0xFF2563EB)],
+                      center: Alignment(-0.2, -0.25),
+                      radius: 0.95,
                     ),
+                    border: Border.all(
+                      color: const Color(0xFFA5F3FC),
+                      width: 2.2,
+                    ),
+                    boxShadow: [
+                      ...ClientColors.neonGlow(
+                        color: const Color(0xFF5CE1FF),
+                        alpha: 0.65,
+                        blur: 26,
+                        offset: Offset.zero,
+                      ),
+                      BoxShadow(
+                        color: ClientColors.magentaHot.withValues(alpha: 0.28),
+                        blurRadius: 28,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
                   child: busy
                       ? Padding(
@@ -535,7 +571,7 @@ class _RadarButton extends StatelessWidget {
                         )
                       : Icon(
                           Icons.touch_app_rounded,
-                          color: ClientColors.textOnDark,
+                          color: Colors.white,
                           size: iconSize,
                         ),
                 );
@@ -568,23 +604,35 @@ class _RadarPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final maxR = size.shortestSide / 2;
 
+    for (var r = 0; r < 3; r++) {
+      final radius = maxR * (0.42 + r * 0.2);
+      final ring = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r == 1 ? 2.2 : 1.5
+        ..shader = SweepGradient(
+          startAngle: 0,
+          endAngle: math.pi * 2,
+          colors: [
+            ClientColors.primary.withValues(alpha: 0.05),
+            ClientColors.primary.withValues(alpha: 0.85),
+            ClientColors.magentaHot.withValues(alpha: 0.9),
+            ClientColors.primary.withValues(alpha: 0.08),
+          ],
+          transform: GradientRotation(progress * math.pi * 2 + r * 0.6),
+        ).createShader(Rect.fromCircle(center: center, radius: radius));
+      canvas.drawCircle(center, radius, ring);
+    }
+
     for (var i = 0; i < 2; i++) {
       final phase = (progress + i / 2) % 1.0;
-      final radius = maxR * (0.30 + phase * 0.68);
+      final radius = maxR * (0.34 + phase * 0.64);
       final opacity = (1.0 - phase).clamp(0.0, 1.0);
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..color = accent.withValues(alpha: 0.12 + opacity * 0.42);
+        ..strokeWidth = 2
+        ..color = ClientColors.primary.withValues(alpha: 0.08 + opacity * 0.45);
       canvas.drawCircle(center, radius, paint);
     }
-
-    // Anillo fijo interno.
-    final ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..color = accent.withValues(alpha: 0.35);
-    canvas.drawCircle(center, maxR * 0.32, ring);
   }
 
   @override
@@ -658,49 +706,63 @@ class _ModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
+    final accent = premium ? ClientColors.magentaHot : ClientColors.primary;
     final fill = selected
         ? (client
-            ? ClientColors.primary.withValues(alpha: 0.42)
+            ? accent.withValues(alpha: 0.16)
             : ColorRes.crimson.withValues(alpha: 0.42))
         : (client
-            ? ClientColors.surfaceDarkAlt.withValues(alpha: 0.72)
+            ? const Color(0xCC0B162C)
             : Colors.white.withValues(alpha: 0.16));
     final edge = selected
-        ? (client ? ClientColors.secondary : ColorRes.themeAccentSolid.withValues(alpha: 0.85))
-        : (client ? ClientColors.border : Colors.white24);
-    final radio = selected
-        ? (client ? ClientColors.secondary : ColorRes.themeAccentSolid)
-        : Colors.white54;
-    final titleColor = client ? ClientColors.textOnDark : Colors.white;
+        ? accent
+        : (premium && client
+            ? ClientColors.magenta.withValues(alpha: 0.7)
+            : (client
+                ? ClientColors.primary.withValues(alpha: 0.55)
+                : Colors.white24));
+    final radio = selected ? accent : Colors.white54;
+    final titleColor = client ? Colors.white : Colors.white;
     final subtitleColor =
         client ? ClientColors.textOnDarkMuted : const Color(0xFFE8D48B);
 
     return Material(
       color: fill,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: edge,
-              width: selected ? 1.4 : 1,
+              width: selected ? 1.7 : 1.25,
             ),
+            boxShadow: client
+                ? ClientColors.neonGlow(
+                    color: accent,
+                    alpha: selected ? 0.5 : 0.22,
+                    blur: selected ? 18 : 12,
+                  )
+                : null,
           ),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    selected
-                        ? Icons.radio_button_checked_rounded
-                        : Icons.radio_button_off_rounded,
-                    color: radio,
-                    size: 20,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      selected
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_off_rounded,
+                      color: radio,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -711,32 +773,32 @@ class _ModeCard extends StatelessWidget {
                           title,
                           style: TextStyleCustom.outFitSemiBold600(
                             color: titleColor,
-                            fontSize: 14,
+                            fontSize: 16,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           subtitle,
                           style: TextStyleCustom.outFitRegular400(
                             color: subtitleColor,
-                            fontSize: 11,
+                            fontSize: 12,
                           ),
                         ),
                         if (coins != null && coins! > 0) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Image.asset(
                                 AssetRes.icCoin,
-                                width: 12,
-                                height: 12,
+                                width: 14,
+                                height: 14,
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 5),
                               Text(
                                 LKey.coinsCount.trParams({'count': '$coins'}),
                                 style: TextStyleCustom.outFitSemiBold600(
-                                  color: titleColor,
-                                  fontSize: 11,
+                                  color: ClientColors.gold,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
@@ -748,15 +810,13 @@ class _ModeCard extends StatelessWidget {
                 ],
               ),
               if (premium)
-                Positioned(
+                const Positioned(
                   right: -2,
                   top: -6,
                   child: Icon(
                     Icons.auto_awesome,
-                    size: 14,
-                    color: client
-                        ? ClientColors.secondarySoft
-                        : ColorRes.accentPeach.withValues(alpha: 0.9),
+                    size: 16,
+                    color: Color(0xFFE879F9),
                   ),
                 ),
             ],

@@ -215,15 +215,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   height: 58,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: navBarBg,
+                    color: client
+                        ? ClientColors.surfaceDark.withValues(alpha: 0.92)
+                        : const Color(0xE6140818),
                     borderRadius: BorderRadius.circular(32),
+                    border: Border.all(
+                      color: (client ? ClientColors.primary : const Color(0xFFE879F9))
+                          .withValues(alpha: client ? 0.45 : 0.55),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: (client
                                 ? ClientColors.primary
-                                : ColorRes.crimson)
-                            .withValues(alpha: 0.22),
-                        blurRadius: 16,
+                                : const Color(0xFFE879F9))
+                            .withValues(alpha: client ? 0.4 : 0.38),
+                        blurRadius: 20,
                         offset: const Offset(0, 6),
                       ),
                     ],
@@ -264,7 +270,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: showSelected ? StyleRes.themeGradient : null,
+              gradient: showSelected
+                  ? (AppRole.isClient()
+                      ? StyleRes.themeGradient
+                      : const LinearGradient(
+                          colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                        ))
+                  : null,
               color: Colors.transparent,
               boxShadow: showSelected
                   ? [
@@ -318,7 +330,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Icon(
             Icons.favorite_rounded,
             size: 26,
-            color: ColorRes.crimson,
+            color: Color(0xFFE879F9),
           ),
         ),
       ),
@@ -339,7 +351,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final locked = false;
       return _navHitTarget(
         selected: selected,
-        accent: ClientColors.accentBlue,
+        accent: ClientColors.primary,
         locked: locked,
         onTap: () => controller.onChanged(DashboardScreenController.tabLive),
         child: busy
@@ -350,7 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   strokeWidth: 2.2,
                   color: locked
                       ? ColorRes.disabledGrey
-                      : ClientColors.accentBlue,
+                      : ClientColors.primary,
                 ),
               )
             : Icon(
@@ -358,7 +370,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 size: 24,
                 color: locked
                     ? ColorRes.disabledGrey
-                    : ClientColors.accentBlue,
+                    : ClientColors.primary,
               ),
       );
     });
@@ -371,17 +383,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final scaleValue = isSelected ? controller.scaleValue.value : 1.0;
       final client = AppRole.isClient();
       final accent = client
-          ? ClientColors.accentBlue
-          : ColorRes.navIconColors[
-              index.clamp(0, ColorRes.navIconColors.length - 1)];
+          ? ClientColors.primary
+          : const Color(0xFFE879F9);
       final locked = false;
       final iconColor = locked
           ? ColorRes.disabledGrey
           : (client
-              ? ClientColors.accentBlue
+              ? (isSelected ? ColorRes.whitePure : ClientColors.primary)
               : (isSelected ? ColorRes.whitePure : accent));
       final navBarBg =
-          client ? ClientColors.surface : _navBarBgStreamer;
+          client ? ClientColors.surfaceDark : _navBarBgStreamer;
 
       return _navHitTarget(
         selected: isSelected,

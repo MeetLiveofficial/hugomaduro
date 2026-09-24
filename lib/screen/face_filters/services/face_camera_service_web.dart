@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js_util' as js_util;
+import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 
 import 'package:camera/camera.dart';
@@ -136,7 +137,42 @@ class FaceCameraService {
   Future<void> stopImageStream() async {}
   Future<void> switchCamera() async {}
   Future<void> setFlash(bool on) async {}
-  Future<XFile?> takePicture() async => null;
+  Future<XFile?> takePicture() async {
+    final video = _video;
+    if (video == null || !_ready) return null;
+    final w = video.videoWidth;
+    final h = video.videoHeight;
+    if (w == 0 || h == 0) return null;
+    try {
+      final canvas = html.CanvasElement(width: w, height: h);
+      final ctx = canvas.context2D;
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0);
+      final blob = await canvas.toBlob('image/jpeg', 0.92);
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(blob);
+      await reader.onLoad.first;
+      final buffer = reader.result;
+      final Uint8List bytes;
+      if (buffer is ByteBuffer) {
+        bytes = buffer.asUint8List();
+      } else if (buffer is Uint8List) {
+        bytes = buffer;
+      } else {
+        return null;
+      }
+      if (bytes.isEmpty) return null;
+      return XFile.fromData(
+        bytes,
+        mimeType: 'image/jpeg',
+        name: 'story_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+    } catch (e, st) {
+      Loggers.error('FaceCameraService web takePicture: $e\n$st');
+      return null;
+    }
+  }
   Future<void> startVideoRecording() async {}
   Future<XFile?> stopVideoRecording() async => null;
   Future<void> pauseVideoRecording() async {}

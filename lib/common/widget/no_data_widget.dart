@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -23,6 +24,9 @@ class NoDataView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onDark = AppRole.isClient() || AppRole.isStreamer();
+    final ink = onDark ? Colors.white : textLightGrey(context);
+    final muted = onDark ? Colors.white70 : textLightGrey(context);
     return Stack(
       children: [
         if (showShow)
@@ -38,13 +42,13 @@ class NoDataView extends StatelessWidget {
                       child: Text(
                         (title ?? LKey.noData).tr,
                         style: TextStyleCustom.unboundedSemiBold600(
-                            color: textLightGrey(context), fontSize: 17),
+                            color: ink, fontSize: 17),
                         textAlign: TextAlign.center,
                       ),
                     ),
                     Text((description ?? LKey.noContentMessage).tr,
                         style: TextStyleCustom.outFitLight300(
-                          color: textLightGrey(context),
+                          color: muted,
                         ),
                         textAlign: TextAlign.center),
                   ],

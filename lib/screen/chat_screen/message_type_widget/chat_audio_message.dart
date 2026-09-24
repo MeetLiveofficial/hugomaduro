@@ -81,7 +81,7 @@ class ChatAudioMessage extends StatelessWidget {
                     child: CustomPaint(
                       painter: _StaticWavePainter(
                         waves,
-                        isThis ? accent : textLightGrey(context),
+                        isThis ? accent : chatInkMuted(context, isMe: isMe),
                       ),
                     ),
                   )
@@ -91,7 +91,7 @@ class ChatAudioMessage extends StatelessWidget {
                     child: Text(
                       'Voice message',
                       style: TextStyleCustom.outFitRegular400(
-                        color: textDarkGrey(context),
+                        color: chatInk(context, isMe: isMe),
                         fontSize: 14,
                       ),
                     ),

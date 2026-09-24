@@ -1,12 +1,15 @@
-import 'package:figma_squircle_updated/figma_squircle.dart';
+﻿import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -18,63 +21,125 @@ class LevelScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final levels = [...(SessionManager.instance.getSettings()?.userLevels ?? [])]
+    final List<UserLevel> levels = [
+      ...(SessionManager.instance.getSettings()?.userLevels ?? <UserLevel>[])
+    ]
       ..sort((a, b) => a.coinsCollection.compareTo(b.coinsCollection));
     final current = userLevels ?? SessionManager.instance.getUser()?.getLevel;
-    final accent = themeAccentSolid(context);
-    final bg = scaffoldBackgroundColor(context);
+    final client = AppRole.isClient();
+    const streamerAccent = Color(0xFFE879F9);
+    final accent = client ? ClientColors.primary : streamerAccent;
     // Clientes solo ven progreso (nivel + monedas); sin textos de beneficios.
     final showBenefits = AppRole.isStreamer();
 
+    if (client) {
+      return ThemeRes.applyIfClient(
+        context,
+        Scaffold(
+          backgroundColor: ClientColors.bg,
+          body: Stack(
+            children: [
+              const BrandWashBg(vivid: true),
+              _ClientLevelBody(levels: levels, current: current),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: bg,
-      body: Column(
+      backgroundColor: const Color(0xFF07010E),
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          _Header(
-            current: current,
-            accent: accent,
-            showBenefits: showBenefits,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-            child: Row(
-              children: [
-                Text(
-                  LKey.level.tr,
-                  style: TextStyleCustom.outFitSemiBold600(
-                    color: textDarkGrey(context),
-                    fontSize: 14,
-                  ),
+          const BrandWashBg(vivid: true),
+          Column(
+            children: [
+              _Header(
+                current: current,
+                accent: accent,
+                showBenefits: showBenefits,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                child: Row(
+                  children: [
+                    Text(
+                      LKey.level.tr,
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      LKey.collection.tr,
+                      style: TextStyleCustom.outFitMedium500(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                Text(
-                  LKey.collection.tr,
-                  style: TextStyleCustom.outFitMedium500(
-                    color: textLightGrey(context),
-                    fontSize: 13,
-                  ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: levels.length,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                  itemBuilder: (context, index) {
+                    final level = levels[index];
+                    final isCurrent = level.level == current?.level;
+                    return _LevelCard(
+                      level: level,
+                      isCurrent: isCurrent,
+                      accent: accent,
+                      showBenefits: showBenefits,
+                      badge: _kLevelBadges[index % _kLevelBadges.length],
+                    );
+                  },
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: levels.length,
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-              itemBuilder: (context, index) {
-                final level = levels[index];
-                final isCurrent = level.level == current?.level;
-                return _LevelCard(
-                  level: level,
-                  isCurrent: isCurrent,
-                  accent: accent,
-                  showBenefits: showBenefits,
-                );
-              },
-            ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StreamerLevelTitle extends StatelessWidget {
+  final String raw;
+
+  const _StreamerLevelTitle({required this.raw});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = raw.trim();
+    final split = text.indexOf(' ');
+    final head = split == -1 ? text : text.substring(0, split);
+    final tail = split == -1 ? '' : text.substring(split + 1);
+    final style = TextStyleCustom.unboundedBold700(
+      fontSize: 32,
+      color: Colors.white,
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(head, style: style),
+        if (tail.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          Flexible(
+            child: GradientText(
+              tail,
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF4D9A), Color(0xFFC084FC)],
+              ),
+              style: style,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -97,9 +162,7 @@ class _Header extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFF141418),
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -115,12 +178,15 @@ class _Header extends StatelessWidget {
                     color: Colors.white, size: 20),
               ),
               const SizedBox(height: 4),
-              Text(
-                LKey.myLevel.tr,
-                style: TextStyleCustom.unboundedBold700(
-                  fontSize: 26,
-                  color: Colors.white,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: _StreamerLevelTitle(raw: LKey.myLevel.tr)),
+                  const _BadgeArt(
+                    asset: 'assets/images/levels/level_badge_hero.png',
+                    size: 88,
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               Row(
@@ -130,8 +196,16 @@ class _Header extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: accent,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                      ),
                       borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accent.withValues(alpha: 0.45),
+                          blurRadius: 12,
+                        ),
+                      ],
                     ),
                     child: Text(
                       '${LKey.level.tr} ${current?.level ?? 1}',
@@ -293,22 +367,22 @@ class _LevelCard extends StatelessWidget {
   final bool isCurrent;
   final Color accent;
   final bool showBenefits;
+  final String badge;
 
   const _LevelCard({
     required this.level,
     required this.isCurrent,
     required this.accent,
     required this.showBenefits,
+    required this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
     final borderColor = isCurrent
         ? accent
-        : textLightGrey(context).withValues(alpha: 0.25);
-    final fill = isCurrent
-        ? accent.withValues(alpha: 0.06)
-        : bgLightGrey(context);
+        : const Color(0x73E879F9);
+    final fill = const Color(0xCC160820);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -325,11 +399,13 @@ class _LevelCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              _BadgeArt(asset: badge, size: 52),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${LKey.level.tr} ${level.level}',
                   style: TextStyleCustom.outFitSemiBold600(
-                    color: isCurrent ? accent : textDarkGrey(context),
+                    color: isCurrent ? accent : Colors.white,
                     fontSize: 15,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -358,7 +434,7 @@ class _LevelCard extends StatelessWidget {
                 level.coinsCollection.numberFormat,
                 style: TextStyleCustom.outFitMedium500(
                   fontSize: 14,
-                  color: textDarkGrey(context),
+                  color: const Color(0xFFF5C16C),
                 ),
               ),
             ],
@@ -395,7 +471,7 @@ class _LevelCard extends StatelessWidget {
                         '• $b',
                         style: TextStyleCustom.outFitRegular400(
                           fontSize: 12,
-                          color: textDarkGrey(context).withValues(alpha: 0.75),
+                          color: Colors.white70,
                         ),
                       ),
                     ),
@@ -420,19 +496,297 @@ class _MetaChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: emphasized
-            ? themeAccentSolid(context).withValues(alpha: 0.1)
-            : bgMediumGrey(context),
+            ? const Color(0x33E879F9)
+            : const Color(0x66140A22),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: emphasized
+              ? const Color(0xFFE879F9)
+              : const Color(0x55E879F9),
+        ),
       ),
       child: Text(
         label,
         style: TextStyleCustom.outFitMedium500(
           fontSize: 11,
-          color: emphasized
-              ? themeAccentSolid(context)
-              : textDarkGrey(context).withValues(alpha: 0.8),
+          color: emphasized ? const Color(0xFFE879F9) : Colors.white70,
         ),
       ),
     );
   }
 }
+
+const _kLevelBadges = <String>[
+  'assets/images/levels/level_badge_gold.png',
+  'assets/images/levels/level_badge_silver.png',
+  'assets/images/levels/level_badge_bronze.png',
+  'assets/images/levels/level_badge_violet.png',
+  'assets/images/levels/level_badge_magenta.png',
+];
+
+/// El PNG trae fondo negro; la luminancia pasa a alfa para que se vea el navy.
+const ColorFilter _kBadgeKnockout = ColorFilter.matrix(<double>[
+  1, 0, 0, 0, 0,
+  0, 1, 0, 0, 0,
+  0, 0, 1, 0, 0,
+  0.35, 0.5, 0.15, 0, 0,
+]);
+
+class _BadgeArt extends StatelessWidget {
+  final String asset;
+  final double size;
+
+  const _BadgeArt({required this.asset, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return ColorFiltered(
+      colorFilter: _kBadgeKnockout,
+      child: Image.asset(
+        asset,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.medium,
+      ),
+    );
+  }
+}
+
+class _ClientLevelBody extends StatelessWidget {
+  final List<UserLevel> levels;
+  final UserLevel? current;
+
+  const _ClientLevelBody({required this.levels, required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _ClientLevelHeader(),
+        Expanded(
+          child: ListView.builder(
+            itemCount: levels.length,
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+            itemBuilder: (context, index) {
+              final level = levels[index];
+              return _ClientLevelRow(
+                level: level,
+                isCurrent: level.level == current?.level,
+                badge: _kLevelBadges[index % _kLevelBadges.length],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ClientLevelHeader extends StatelessWidget {
+  const _ClientLevelHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final raw = LKey.myLevel.tr.trim();
+    final split = raw.indexOf(' ');
+    final head = split == -1 ? raw : raw.substring(0, split);
+    final tail = split == -1 ? '' : raw.substring(split + 1);
+
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            IconButton(
+              onPressed: Get.back,
+              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white, size: 20),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('👑', style: TextStyle(fontSize: 22)),
+                        const SizedBox(height: 2),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              head,
+                              style: TextStyleCustom.unboundedBold700(
+                                fontSize: 32,
+                                color: Colors.white,
+                              ),
+                            ),
+                            if (tail.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: GradientText(
+                                  tail,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF5CE1FF),
+                                      Color(0xFF3A83F3),
+                                    ],
+                                  ),
+                                  style: TextStyleCustom.unboundedBold700(
+                                    fontSize: 32,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          LKey.gatherMoreCoins.tr,
+                          style: TextStyleCustom.outFitRegular400(
+                            fontSize: 13,
+                            color: ClientColors.textMuted,
+                          ),
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const _BadgeArt(
+                    asset: 'assets/images/levels/level_badge_hero.png',
+                    size: 118,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: ClientColors.surfaceAlt,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: ClientColors.primary.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    child: const Text('👑', style: TextStyle(fontSize: 14)),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    LKey.level.tr,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    LKey.collection.tr,
+                    style: TextStyleCustom.outFitMedium500(
+                      color: ClientColors.primary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: ClientColors.primary, size: 20),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClientLevelRow extends StatelessWidget {
+  final UserLevel level;
+  final bool isCurrent;
+  final String badge;
+
+  const _ClientLevelRow({
+    required this.level,
+    required this.isCurrent,
+    required this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final edge = isCurrent
+        ? const Color(0xFF5CE1FF)
+        : ClientColors.accentBlue.withValues(alpha: 0.38);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(8, 6, 14, 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isCurrent
+              ? const [Color(0xFF123A62), Color(0xFF16325A)]
+              : const [Color(0xFF101C34), Color(0xFF0C1830)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: edge, width: isCurrent ? 1.6 : 1),
+        boxShadow: isCurrent
+            ? ClientColors.neonGlow(
+                color: const Color(0xFF3EC6FF),
+                alpha: 0.4,
+                blur: 16,
+              )
+            : null,
+      ),
+      child: Row(
+        children: [
+          _BadgeArt(asset: badge, size: 58),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${LKey.level.tr} ${level.level}',
+              style: TextStyleCustom.outFitSemiBold600(
+                color: Colors.white,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          if (isCurrent)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2EC8FF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                LKey.you.tr,
+                style: TextStyleCustom.outFitSemiBold600(
+                  color: Colors.white,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          Image.asset(AssetRes.icCoin, width: 18, height: 18),
+          const SizedBox(width: 4),
+          Text(
+            level.coinsCollection.numberFormat,
+            style: TextStyleCustom.outFitSemiBold600(
+              fontSize: 15,
+              color: ClientColors.gold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

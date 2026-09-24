@@ -2,14 +2,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/call_price_screen/call_price_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
-import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
 
 class CallPriceScreen extends StatelessWidget {
   const CallPriceScreen({super.key});
@@ -18,10 +16,22 @@ class CallPriceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.put(CallPriceScreenController());
     return Scaffold(
-      backgroundColor: bgLightGrey(context),
-      body: Column(
+      backgroundColor: const Color(0xFF07010E),
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          CustomAppBar(title: LKey.callPriceScreenTitle.tr),
+          const BrandWashBg(vivid: true),
+          Column(
+        children: [
+          CustomAppBar(
+            title: LKey.callPriceScreenTitle.tr,
+            bgColor: Colors.transparent,
+            iconColor: Colors.white,
+            titleStyle: TextStyleCustom.unboundedMedium500(
+              color: Colors.white,
+              fontSize: 18,
+            ),
+          ),
           Expanded(
             child: Obx(() {
               if (c.pageLoading.value && c.stats.value == null) {
@@ -39,6 +49,8 @@ class CallPriceScreen extends StatelessWidget {
                 ),
               );
             }),
+          ),
+        ],
           ),
         ],
       ),
@@ -61,11 +73,13 @@ class _PriceCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
         decoration: BoxDecoration(
-          gradient: StyleRes.duskGradient,
-          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+          ),
+          borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: ColorRes.mlPurple.withValues(alpha: 0.28),
+              color: const Color(0xFFE879F9).withValues(alpha: 0.35),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),
@@ -163,54 +177,109 @@ class _Tips extends StatelessWidget {
       LKey.callPriceTip4.tr,
       LKey.callPriceTip5.tr,
     ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          LKey.callPriceTipsTitle.tr,
-          style: TextStyleCustom.outFitSemiBold600(
-            color: textDarkGrey(context),
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(height: 12),
-        for (var i = 0; i < tips.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${i + 1}.  ',
-                  style: TextStyleCustom.outFitMedium500(
-                    color: textDarkGrey(context),
-                    fontSize: 13,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xCC160820),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0x73E879F9)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0x33E879F9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.phone_in_talk_rounded,
+                    color: Color(0xFFE879F9), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  LKey.callPriceTipsTitle.tr,
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: Colors.white,
+                    fontSize: 16,
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    tips[i],
-                    style: TextStyleCustom.outFitRegular400(
-                      color: i == 3 ? ColorRes.crimsonAlt : textLightGrey(context),
-                      fontSize: 13,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (var i = 0; i < tips.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE879F9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: Colors.white,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        if (canEdit)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              LKey.callPriceTipRangeHint.tr,
-              style: TextStyleCustom.outFitRegular400(
-                color: textLightGrey(context),
-                fontSize: 12,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      tips[i],
+                      style: TextStyleCustom.outFitRegular400(
+                        color: i == 3
+                            ? const Color(0xFFFF4D9A)
+                            : Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-      ],
+          if (canEdit)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0x66140A22),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0x55E879F9)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.workspace_premium_rounded,
+                      color: Color(0xFFE879F9), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      LKey.callPriceTipRangeHint.tr,
+                      style: TextStyleCustom.outFitMedium500(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -315,7 +384,7 @@ class _PricePickerSheetState extends State<_PricePickerSheet> {
     return Container(
       height: 268,
       decoration: const BoxDecoration(
-        color: Color(0xFFF3F3F3),
+        color: Color(0xFF140818),
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       child: SafeArea(
@@ -331,7 +400,7 @@ class _PricePickerSheetState extends State<_PricePickerSheet> {
                     child: Text(
                       LKey.cancel.tr,
                       style: TextStyleCustom.outFitMedium500(
-                        color: textLightGrey(context),
+                        color: Colors.white70,
                         fontSize: 15,
                       ),
                     ),
@@ -345,7 +414,7 @@ class _PricePickerSheetState extends State<_PricePickerSheet> {
                     child: Text(
                       LKey.confirm.tr,
                       style: TextStyleCustom.outFitSemiBold600(
-                        color: ColorRes.mlPurple,
+                        color: const Color(0xFFE879F9),
                         fontSize: 15,
                       ),
                     ),
@@ -357,7 +426,7 @@ class _PricePickerSheetState extends State<_PricePickerSheet> {
             Text(
               LKey.callCostPerMin.trParams({'coins': '$_value'}),
               style: TextStyleCustom.outFitExtraBold800(
-                color: const Color(0xFF222222),
+                color: Colors.white,
                 fontSize: 34,
               ),
             ),
@@ -410,8 +479,8 @@ class _PricePickerSheetState extends State<_PricePickerSheet> {
                                         height: h,
                                         decoration: BoxDecoration(
                                           color: selected
-                                              ? ColorRes.mlPurple
-                                              : const Color(0xFF2A2A2A),
+                                              ? const Color(0xFFE879F9)
+                                              : Colors.white38,
                                           borderRadius:
                                               BorderRadius.circular(1),
                                         ),
@@ -431,8 +500,8 @@ class _PricePickerSheetState extends State<_PricePickerSheet> {
                                               style: TextStyleCustom
                                                   .outFitRegular400(
                                                 color: selected
-                                                    ? ColorRes.mlPurple
-                                                    : const Color(0xFF666666),
+                                                    ? const Color(0xFFE879F9)
+                                                    : Colors.white54,
                                                 fontSize: 10,
                                               ),
                                             ),
@@ -455,7 +524,7 @@ class _PricePickerSheetState extends State<_PricePickerSheet> {
                             child: CustomPaint(
                               size: Size(14, 9),
                               painter: _RulerCaretPainter(
-                                color: ColorRes.mlPurple,
+                                color: const Color(0xFFE879F9),
                               ),
                             ),
                           ),

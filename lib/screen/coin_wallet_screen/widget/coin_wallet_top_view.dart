@@ -24,18 +24,38 @@ class CoinWalletTopView extends StatelessWidget {
     final coinValue = settings?.coinValue ?? 0;
     final withdrawalOn = settings?.isWithdrawalOn == 1;
     final canWithdraw = withdrawalOn && AppRole.canWithdraw();
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
 
     return Column(
       children: [
-        CustomAppBar(title: LKey.coinWallet.tr),
+        CustomAppBar(
+          title: LKey.coinWallet.tr,
+          bgColor: streamer ? Colors.transparent : null,
+          iconColor: streamer ? Colors.white : null,
+          titleStyle: streamer
+              ? TextStyleCustom.unboundedMedium500(
+                  color: Colors.white,
+                  fontSize: 18,
+                )
+              : null,
+        ),
         Container(
           width: double.infinity,
           margin: const EdgeInsets.fromLTRB(15, 6, 15, 0),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            gradient: StyleRes.themeGradient,
-            borderRadius: BorderRadius.circular(12),
-          ),
+        decoration: client
+            ? ClientColors.glass(radius: 16)
+            : streamer
+                ? BoxDecoration(
+                    color: const Color(0xCC160820),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0x73E879F9)),
+                  )
+                : BoxDecoration(
+                    gradient: StyleRes.themeGradient,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
           child: Obx(() {
             // Fuente de verdad en vivo (regalos/llamadas/match).
             final balance = SessionManager.instance.coinWalletRx.value;
@@ -44,13 +64,17 @@ class CoinWalletTopView extends StatelessWidget {
             final estimated = showUsdValue ? balance * coinValue.toDouble() : 0.0;
             return Column(
               children: [
-                Text(
-                  LKey.balance.tr,
-                  style: TextStyleCustom.outFitRegular400(
-                    color: whitePure(context).withValues(alpha: 0.85),
-                    fontSize: 12,
-                  ),
-                ),
+            Text(
+              LKey.balance.tr,
+              style: TextStyleCustom.outFitRegular400(
+                color: client
+                    ? ClientColors.textMuted
+                    : (streamer
+                        ? Colors.white70
+                        : whitePure(context).withValues(alpha: 0.85)),
+                fontSize: 12,
+              ),
+            ),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -65,7 +89,11 @@ class CoinWalletTopView extends StatelessWidget {
                           key: ValueKey('wallet_balance_$balanceLabel'),
                           maxLines: 1,
                           style: TextStyleCustom.unboundedSemiBold600(
-                            color: whitePure(context),
+                            color: client
+                                ? ClientColors.text
+                                : (streamer
+                                    ? const Color(0xFFFF4D9A)
+                                    : whitePure(context)),
                             fontSize: 22,
                           ).copyWith(
                             height: 1.4,
@@ -84,7 +112,9 @@ class CoinWalletTopView extends StatelessWidget {
                       estimated.fullCurrencyFormat,
                       maxLines: 1,
                       style: TextStyleCustom.outFitLight300(
-                        color: whitePure(context).withValues(alpha: 0.85),
+                        color: streamer
+                            ? Colors.white70
+                            : whitePure(context).withValues(alpha: 0.85),
                         fontSize: 13,
                       ),
                     ),
@@ -126,12 +156,12 @@ class CoinWalletTopView extends StatelessWidget {
             child: TextButtonCustom(
               onTap: () => Get.to(() => const WithdrawalsScreen()),
               title: LKey.withdrawals.tr,
-              backgroundColor: AppRole.isClient()
+              backgroundColor: client
                   ? ClientColors.surfaceDarkAlt
-                  : bgGrey(context),
-              titleColor: AppRole.isClient()
+                  : (streamer ? const Color(0xCC160820) : bgGrey(context)),
+              titleColor: client
                   ? ClientColors.text
-                  : textDarkGrey(context),
+                  : (streamer ? Colors.white : textDarkGrey(context)),
               btnHeight: 34,
               horizontalMargin: 0,
               margin: EdgeInsets.zero,
@@ -154,15 +184,18 @@ class _StatChip extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-        decoration: BoxDecoration(
-          color: AppRole.isClient()
-              ? ClientColors.surfaceDarkAlt
-              : bgLightGrey(context),
-          borderRadius: BorderRadius.circular(10),
-          border: AppRole.isClient()
-              ? Border.all(color: ClientColors.client700.withValues(alpha: 0.35))
-              : null,
-        ),
+        decoration: AppRole.isClient()
+            ? ClientColors.glass(radius: 12)
+            : AppRole.isStreamer()
+                ? BoxDecoration(
+                    color: const Color(0xCC160820),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0x73E879F9)),
+                  )
+                : BoxDecoration(
+                    color: bgLightGrey(context),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
         child: Column(
           children: [
             FittedBox(
@@ -173,7 +206,9 @@ class _StatChip extends StatelessWidget {
                 style: TextStyleCustom.unboundedMedium500(
                   color: AppRole.isClient()
                       ? ClientColors.text
-                      : textDarkGrey(context),
+                      : (AppRole.isStreamer()
+                          ? Colors.white
+                          : textDarkGrey(context)),
                   fontSize: 12,
                 ).copyWith(
                   height: 1.4,
@@ -187,7 +222,9 @@ class _StatChip extends StatelessWidget {
               style: TextStyleCustom.outFitRegular400(
                 color: AppRole.isClient()
                     ? ClientColors.textOnDarkMuted
-                    : textLightGrey(context),
+                    : (AppRole.isStreamer()
+                        ? Colors.white70
+                        : textLightGrey(context)),
                 fontSize: 10,
               ),
               textAlign: TextAlign.center,

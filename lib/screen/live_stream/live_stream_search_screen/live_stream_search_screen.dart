@@ -87,7 +87,6 @@ class LiveStreamSearchScreen extends StatelessWidget {
               children: [
                 _TopBar(controller: controller),
                 const Spacer(),
-                _RightControls(controller: controller),
                 const SizedBox(height: 8),
                 if (!kIsWeb &&
                     LiveStreamSearchScreenController
@@ -136,11 +135,6 @@ class _StudioBackdrop extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             GpuPixelPreview(controller: controller.gpuPixel),
-            Positioned(
-              left: 16,
-              bottom: 200,
-              child: _CoverBadge(controller: controller),
-            ),
           ],
         );
       }
@@ -171,11 +165,6 @@ class _StudioBackdrop extends StatelessWidget {
                   ),
                 ),
               ),
-            Positioned(
-              left: 16,
-              bottom: 200,
-              child: _CoverBadge(controller: controller),
-            ),
           ],
         );
       }
@@ -198,11 +187,6 @@ class _StudioBackdrop extends StatelessWidget {
               frameListenable: controller.beautyPipeline.frameListenable,
               effectId: controller.selectedFilterId.value,
               beauty: controller.beautyPipeline.beauty,
-            ),
-            Positioned(
-              left: 16,
-              bottom: 200,
-              child: _CoverBadge(controller: controller),
             ),
           ],
         );
@@ -234,7 +218,7 @@ class _StudioBackdrop extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           bg,
-          ColoredBox(color: ColorRes.crimson.withValues(alpha: 0.28)),
+          const ColoredBox(color: Color(0x6607010E)),
           Center(
             child: loading
                 ? Column(
@@ -316,50 +300,65 @@ class _CoverBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final bytes = controller.coverImageBytes.value;
-      return Material(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: bytes != null && bytes.isNotEmpty
-                      ? Image.memory(bytes, fit: BoxFit.cover)
-                      : const ColoredBox(
-                          color: Color(0xFF333333),
-                          child: Icon(Icons.image_outlined,
-                              color: Colors.white54, size: 22),
-                        ),
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Material(
+          color: const Color(0x66140A22),
+          borderRadius: BorderRadius.circular(22),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: controller.pickLiveCover,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(8, 6, 10, 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: const Color(0xFFE879F9).withValues(alpha: 0.55),
                 ),
               ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Portada',
-                    style: TextStyleCustom.outFitSemiBold600(
-                      color: Colors.white,
-                      fontSize: 12,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: bytes != null && bytes.isNotEmpty
+                          ? Image.memory(bytes, fit: BoxFit.cover)
+                          : const ColoredBox(
+                              color: Color(0xFF2A1038),
+                              child: Icon(Icons.image_outlined,
+                                  color: Color(0xFFE879F9), size: 16),
+                            ),
                     ),
                   ),
-                  Text(
-                    bytes != null ? 'Lista' : 'Sin imagen',
-                    style: TextStyleCustom.outFitRegular400(
-                      color: Colors.white70,
-                      fontSize: 10,
-                    ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Portada',
+                        style: TextStyleCustom.outFitSemiBold600(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        bytes != null ? 'Lista' : 'Sin imagen',
+                        style: TextStyleCustom.outFitRegular400(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: Colors.white70, size: 18),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       );
@@ -377,9 +376,60 @@ class _TopBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomBorderRoundIcon(
-            image: AssetRes.icClose,
+          Column(
+            children: [
+              _RoundTool(
+                icon: Icons.image_outlined,
+                onTap: controller.pickLiveCover,
+              ),
+              const SizedBox(height: 10),
+              _RoundTool(
+                icon: Icons.person_add_alt_1_rounded,
+                onTap: controller.openPreLiveInvite,
+              ),
+            ],
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFE879F9).withValues(alpha: 0.45),
+                        blurRadius: 14,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.videocam, color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'LIVE',
+                        style: TextStyleCustom.outFitBold700(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _RoundTool(
+            icon: Icons.close_rounded,
             onTap: () {
               if (Get.isRegistered<DashboardScreenController>()) {
                 Get.find<DashboardScreenController>()
@@ -387,31 +437,37 @@ class _TopBar extends StatelessWidget {
               }
             },
           ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: ColorRes.themeAccentSolid,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.videocam, color: Colors.white, size: 14),
-                const SizedBox(width: 4),
-                Text(
-                  'LIVE',
-                  style: TextStyleCustom.outFitBold700(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundTool extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _RoundTool({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0x66140A22),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: const Color(0xFFE879F9).withValues(alpha: 0.7),
             ),
           ),
-          const Spacer(),
-          const SizedBox(width: 37),
-        ],
+          child: Icon(icon, color: const Color(0xFFE879F9), size: 20),
+        ),
       ),
     );
   }
@@ -495,12 +551,23 @@ class _BottomBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-            Text(
-              displayName,
-              style: TextStyleCustom.outFitSemiBold600(
-                color: Colors.white,
-                fontSize: 15,
-              ),
+            _CoverBadge(controller: controller),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.wifi_tethering_rounded,
+                    color: Color(0xFFE879F9), size: 16),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    displayName,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             TextField(
@@ -522,16 +589,20 @@ class _BottomBar extends StatelessWidget {
                 counterText: '',
                 isDense: true,
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.12),
+                fillColor: const Color(0x66140A22),
+                prefixIcon: const Icon(Icons.edit_outlined,
+                    color: Color(0xFFE879F9), size: 18),
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white24),
+                  borderRadius: BorderRadius.circular(28),
+                  borderSide: BorderSide(
+                    color: const Color(0xFFE879F9).withValues(alpha: 0.55),
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white54),
+                  borderRadius: BorderRadius.circular(28),
+                  borderSide: const BorderSide(color: Color(0xFFE879F9)),
                 ),
               ),
             ),
@@ -566,21 +637,19 @@ class _BottomBar extends StatelessWidget {
                   onTap: ready ? controller.onTapGoLive : null,
                   child: Ink(
                     decoration: BoxDecoration(
-                      gradient: ready ? StyleRes.themeGradient : null,
-                      color: ready
-                          ? null
-                          : Colors.white.withValues(alpha: 0.22),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF4D9A), Color(0xFFC026D3)],
+                      ),
                       borderRadius: BorderRadius.circular(28),
-                      boxShadow: ready
-                          ? [
-                              BoxShadow(
-                                color:
-                                    ColorRes.crimson.withValues(alpha: 0.45),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : null,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFE879F9).withValues(
+                            alpha: ready ? 0.5 : 0.2,
+                          ),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 14),

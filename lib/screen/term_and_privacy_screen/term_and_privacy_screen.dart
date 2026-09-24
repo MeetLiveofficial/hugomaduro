@@ -99,9 +99,28 @@ class _TermAndPrivacyScreenState extends State<TermAndPrivacyScreen> {
   }
 
   String _wrapHtml(String body, {required bool client}) {
-    final bg = client ? '#2A2A32' : '#FFD6EC';
+    final bg = client ? '#07101C' : '#FFD6EC';
     final fg = client ? '#FFFFFF' : '#1A1A1F';
     final link = client ? '#27D3F5' : '#E24AB7';
+    final headingCss = client
+        ? '''
+    h1 { font-size: 22px; margin: 0 0 12px;
+      background: linear-gradient(90deg, #5CE1FF, #C084FC);
+      -webkit-background-clip: text; color: transparent; }
+    h2 { font-size: 17px; margin: 18px 0 0; padding: 14px 16px 8px;
+      background: #0C1A32; border: 1px solid rgba(39,211,245,0.4);
+      border-radius: 16px 16px 0 0; color: #fff; }
+    h2 + p, h2 + ul, h2 + ol {
+      background: #0C1A32; border: 1px solid rgba(39,211,245,0.4);
+      border-top: none; border-radius: 0 0 16px 16px;
+      padding: 0 16px 14px; margin: 0 0 14px; }
+    h3 { font-size: 16px; margin: 16px 0 8px; color: #5CE1FF; }
+'''
+        : '''
+    h1 { font-size: 22px; margin: 0 0 12px; }
+    h2 { font-size: 18px; margin: 20px 0 8px; }
+    h3 { font-size: 16px; margin: 16px 0 8px; }
+''';
     return '''
 <!DOCTYPE html>
 <html>
@@ -114,9 +133,7 @@ class _TermAndPrivacyScreenState extends State<TermAndPrivacyScreen> {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 16px; line-height: 1.55; padding: 16px 18px 40px;
     }
-    h1 { font-size: 22px; margin: 0 0 12px; }
-    h2 { font-size: 18px; margin: 20px 0 8px; }
-    h3 { font-size: 16px; margin: 16px 0 8px; }
+    $headingCss
     p { margin: 0 0 12px; }
     a { color: $link; }
     img { max-width: 100%; height: auto; }
@@ -134,7 +151,9 @@ class _TermAndPrivacyScreenState extends State<TermAndPrivacyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ThemeRes.applyIfClient(
+      context,
+      Scaffold(
       backgroundColor: AppRole.isClient() ? ClientColors.bg : null,
       body: Column(
         children: [
@@ -143,13 +162,17 @@ class _TermAndPrivacyScreenState extends State<TermAndPrivacyScreen> {
             rowWidget: IconButton(
               onPressed: _openPublicUrl,
               tooltip: _title,
-              icon: const Icon(Icons.open_in_new,
-                  color: ColorRes.whitePure, size: 20),
+              icon: Icon(Icons.open_in_new,
+                  color: AppRole.isClient()
+                      ? ClientColors.primary
+                      : ColorRes.whitePure,
+                  size: 20),
             ),
           ),
           Expanded(child: _buildBody(context)),
         ],
       ),
+    ),
     );
   }
 
@@ -172,7 +195,7 @@ class _TermAndPrivacyScreenState extends State<TermAndPrivacyScreen> {
           Text(
             _title,
             style: TextStyleCustom.unboundedSemiBold600(
-                color: textDarkGrey(context), fontSize: 16),
+                color: AppRole.isClient() ? ClientColors.text : textDarkGrey(context), fontSize: 16),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -215,7 +238,7 @@ class _LegalHtmlView extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(text,
               style: TextStyleCustom.outFitRegular400(
-                  color: textDarkGrey(context), fontSize: 15)),
+                  color: AppRole.isClient() ? ClientColors.text : textDarkGrey(context), fontSize: 15)),
         ),
       ];
     }
@@ -234,7 +257,7 @@ class _LegalHtmlView extends StatelessWidget {
             child: Text(
               node.text.trim(),
               style: TextStyleCustom.outFitSemiBold600(
-                  color: textDarkGrey(context), fontSize: size),
+                  color: AppRole.isClient() ? ClientColors.text : textDarkGrey(context), fontSize: size),
             ),
           ),
         ];
@@ -286,7 +309,7 @@ class _LegalHtmlView extends StatelessWidget {
                           Text(
                             tag == 'ol' ? '${i + 1}. ' : '• ',
                             style: TextStyleCustom.outFitRegular400(
-                                color: textDarkGrey(context), fontSize: 15),
+                                color: AppRole.isClient() ? ClientColors.text : textDarkGrey(context), fontSize: 15),
                           ),
                           Expanded(
                             child: Text.rich(TextSpan(
@@ -328,7 +351,7 @@ class _LegalHtmlView extends StatelessWidget {
 
   List<InlineSpan> _inlineSpans(
       BuildContext context, html_dom.Node node) {
-    final color = textDarkGrey(context);
+    final color = AppRole.isClient() ? ClientColors.text : textDarkGrey(context);
     final accent = themeAccentSolid(context);
     return _collectSpans(node, context,
         base: TextStyleCustom.outFitRegular400(color: color, fontSize: 15),

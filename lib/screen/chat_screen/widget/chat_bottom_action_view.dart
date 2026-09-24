@@ -100,12 +100,13 @@ class ChatTextField extends StatelessWidget {
     final accent = themeAccentSolid(context);
     return Container(
       decoration: ShapeDecoration(
+        color: client ? ClientColors.surfaceAlt : null,
         shape: SmoothRectangleBorder(
             borderRadius: SmoothBorderRadius(cornerRadius: 30),
             side: BorderSide(
                 color: borderColor ??
                     (client
-                        ? ClientColors.accentBlue.withValues(alpha: 0.55)
+                        ? ClientColors.accentBlue.withValues(alpha: 0.7)
                         : bgGrey(context)))),
       ),
       margin: const EdgeInsets.symmetric(horizontal: 15),
@@ -155,10 +156,14 @@ class ChatTextField extends StatelessWidget {
                 border: InputBorder.none,
                 hintText: '${LKey.writeHere.tr}..',
                 hintStyle: TextStyleCustom.outFitLight300(
-                    color: textLightGrey(context)),
+                    color: client
+                        ? ClientColors.textMuted
+                        : textLightGrey(context)),
               ),
               style: TextStyleCustom.outFitRegular400(
-                  color: textDarkGrey(context), fontSize: 16),
+                  color: client ? ClientColors.text : textDarkGrey(context),
+                  fontSize: 16),
+              cursorColor: client ? ClientColors.primary : null,
             ),
           ),
           Obx(() {

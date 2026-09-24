@@ -1,6 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/widget/custom_back_button.dart';
+import 'package:krimson/common/widget/gradient_text.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -31,16 +34,46 @@ class CustomAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
     final branded = bgColor == null;
-    final onBrand = branded ? ColorRes.whitePure : textDarkGrey(context);
-    final onBrandMuted =
-        branded ? ColorRes.whitePure.withValues(alpha: 0.82) : textLightGrey(context);
+    final onBrand = branded || client
+        ? ColorRes.whitePure
+        : textDarkGrey(context);
+    final onBrandMuted = branded || client
+        ? ColorRes.whitePure.withValues(alpha: 0.82)
+        : textLightGrey(context);
+
+    Widget titleWidget;
+    if (titleStyle != null) {
+      titleWidget = Text(
+        title,
+        style: titleStyle,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+      );
+    } else if (client) {
+      titleWidget = GradientText(
+        title,
+        gradient: ClientColors.titleGradient,
+        style: TextStyleCustom.unboundedMedium500(
+          color: ColorRes.whitePure,
+          fontSize: 18,
+        ),
+      );
+    } else {
+      titleWidget = Text(
+        title,
+        style: TextStyleCustom.unboundedMedium500(color: onBrand),
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+      );
+    }
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: bgColor,
-        gradient: branded ? StyleRes.themeGradient : null,
+        color: client && branded ? Colors.transparent : bgColor,
+        gradient: (!client && branded) ? StyleRes.themeGradient : null,
       ),
       child: SafeArea(
         bottom: false,
@@ -63,12 +96,7 @@ class CustomAppBar extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
-                      Text(
-                        title,
-                        style: titleStyle ??
-                            TextStyleCustom.unboundedMedium500(color: onBrand),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      titleWidget,
                       if (isLoading)
                         CupertinoActivityIndicator(
                           color: onBrandMuted,

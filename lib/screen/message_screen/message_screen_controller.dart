@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/base_controller.dart';
+import 'package:krimson/common/enum/chat_enum.dart';
 import 'package:krimson/common/manager/logger.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/chat_service.dart';
@@ -177,6 +178,34 @@ class MessageScreenController extends BaseController {
   }
 
   Future<void> onRefresh() => _refreshThreads();
+
+  Future<void> respondToRequest(ChatThread thread,
+      {required bool accept}) async {
+    final peerId = thread.peerUserId;
+    if (peerId == -1) return;
+    showLoader();
+    try {
+      if (accept) {
+        await ChatService.instance.updateThread(
+          peerUserId: peerId,
+          chatType: ChatType.approved.value,
+          requestType: UserRequestAction.accept.title,
+        );
+      } else {
+        await ChatService.instance.updateThread(
+          peerUserId: peerId,
+          requestType: UserRequestAction.reject.title,
+          isDeleted: true,
+        );
+      }
+      await _refreshThreads(silent: true);
+    } catch (e) {
+      Loggers.error('request action: $e');
+      showSnackBar(e.toString());
+    } finally {
+      stopLoader();
+    }
+  }
 
   void onLongPress(ChatThread chatConversation) {
     Get.bottomSheet(ConfirmationSheet(

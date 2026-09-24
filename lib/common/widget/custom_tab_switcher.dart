@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -20,6 +19,7 @@ class CustomTabSwitcher extends StatelessWidget {
   final Color? selectedFontColor;
   final Color? unselectedFontColor;
   final Color? backgroundColor;
+  final List<IconData>? icons;
 
   const CustomTabSwitcher(
       {super.key,
@@ -32,24 +32,24 @@ class CustomTabSwitcher extends StatelessWidget {
       this.margin,
       this.selectedFontColor,
       this.unselectedFontColor,
-      this.backgroundColor});
+      this.backgroundColor,
+      this.icons});
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
     return Obx(
       () => Container(
-        height: 48,
+        height: 52,
         width: double.infinity,
         margin: margin ?? const EdgeInsets.symmetric(vertical: 10),
         decoration: ShapeDecoration(
           color: backgroundColor ?? bgMediumGrey(context),
           shape: SmoothRectangleBorder(
-            borderRadius:
-                SmoothBorderRadius(cornerRadius: 10, cornerSmoothing: 1),
+            borderRadius: SmoothBorderRadius(cornerRadius: 26, cornerSmoothing: 1),
             side: BorderSide(
-              color: AppRole.isClient()
-                  ? ClientColors.border
-                  : ColorRes.menuBorder,
+              color: (client ? ClientColors.accentBlue : const Color(0xFFE879F9))
+                  .withValues(alpha: 0.45),
             ),
           ),
         ),
@@ -72,9 +72,22 @@ class CustomTabSwitcher extends StatelessWidget {
                     decoration: ShapeDecoration(
                       shape: SmoothRectangleBorder(
                         borderRadius: SmoothBorderRadius(
-                            cornerRadius: 10 - 2, cornerSmoothing: 1),
+                            cornerRadius: 22, cornerSmoothing: 1),
                       ),
-                      gradient: StyleRes.themeGradient,
+                      gradient: client
+                          ? const LinearGradient(
+                              colors: [Color(0xFF3EC6FF), Color(0xFF5B78FF)],
+                            )
+                          : const LinearGradient(
+                              colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                            ),
+                      shadows: ClientColors.neonGlow(
+                        color: client
+                            ? const Color(0xFF3EC6FF)
+                            : const Color(0xFFE879F9),
+                        alpha: 0.55,
+                        blur: 14,
+                      ),
                     ),
                   ),
                 );
@@ -85,6 +98,9 @@ class CustomTabSwitcher extends StatelessWidget {
                 items.length,
                 (index) {
                   bool isSelected = selectedIndex.value == index;
+                  final icon = (icons != null && index < icons!.length)
+                      ? icons![index]
+                      : null;
                   final badge = badges?[index] ??
                       (widget != null && widgetTabIndex == index
                           ? widget
@@ -95,6 +111,17 @@ class CustomTabSwitcher extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          if (icon != null) ...[
+                            Icon(
+                              icon,
+                              size: 16,
+                              color: isSelected
+                                  ? ColorRes.whitePure
+                                  : (unselectedFontColor ??
+                                      textLightGrey(context)),
+                            ),
+                            const SizedBox(width: 5),
+                          ],
                           Flexible(
                             child: Text(
                               items[index].tr,

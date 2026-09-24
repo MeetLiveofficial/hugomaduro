@@ -6,6 +6,7 @@ import 'package:krimson/common/manager/content_protection.dart';
 import 'package:krimson/common/manager/guest_gate.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/widget/brand_controls.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/custom_toggle.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
@@ -37,10 +38,11 @@ import 'package:krimson/utilities/theme_res.dart';
 /// Iconos de filas: magenta/rosa en streamer; cyan/teal en cliente.
 Color settingRowIcon(Color streamerColor) {
   if (!AppRole.isClient()) return streamerColor;
-  if (streamerColor == ColorRes.crimsonAlt) return ClientColors.primaryActive;
-  if (streamerColor == ColorRes.roseBorder) return ClientColors.client300;
-  if (streamerColor == ColorRes.mlPurple) return ClientColors.secondary;
-  if (streamerColor == ColorRes.darkPurple) return ClientColors.client600;
+  if (streamerColor == ColorRes.crimson) return ClientColors.magentaHot;
+  if (streamerColor == ColorRes.crimsonAlt) return ClientColors.magentaHot;
+  if (streamerColor == ColorRes.roseBorder) return ClientColors.primary;
+  if (streamerColor == ColorRes.mlPurple) return const Color(0xFF5CE1FF);
+  if (streamerColor == ColorRes.darkPurple) return ClientColors.magenta;
   return ClientColors.primary;
 }
 
@@ -61,14 +63,36 @@ class SettingsScreen extends StatelessWidget {
     }
     final controller = Get.put(SettingsScreenController());
     final isAgency = AppRole.isAgency();
-    final logoutColor =
-        AppRole.isClient() ? ClientColors.primary : ColorRes.crimsonAlt;
-    final page = Scaffold(
-        backgroundColor:
-            AppRole.isClient() ? ClientColors.bg : null,
-        body: Column(
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
+    final logoutColor = client ? ClientColors.primary : ColorRes.crimsonAlt;
+    final page = ThemeRes.applyIfClient(
+      context,
+      Scaffold(
+        backgroundColor: client
+            ? ClientColors.bg
+            : (streamer ? const Color(0xFF07010E) : null),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (client)
+              const BrandWashBg(vivid: false)
+            else if (streamer)
+              const BrandWashBg(vivid: true),
+            Column(
       children: [
-        CustomAppBar(title: LKey.settings.tr, showBack: showBack),
+        CustomAppBar(
+          title: LKey.settings.tr,
+          showBack: showBack,
+          bgColor: streamer ? Colors.transparent : null,
+          iconColor: streamer ? Colors.white : null,
+          titleStyle: streamer
+              ? TextStyleCustom.unboundedMedium500(
+                  color: Colors.white,
+                  fontSize: 18,
+                )
+              : null,
+        ),
         Expanded(
             child: SingleChildScrollView(
           padding: const EdgeInsets.only(bottom: 40),
@@ -138,7 +162,7 @@ class SettingsScreen extends StatelessWidget {
                   await Get.to(() => const CoinWalletScreen());
                 },
               ),
-              if (AppRole.canWithdraw())
+              if (AppRole.canWithdraw() && !AppRole.isStreamer())
                 SettingIconTextWithArrow(
                   icon: AssetRes.icWallet,
                   iconColor: settingRowIcon(ColorRes.crimson),
@@ -270,12 +294,16 @@ class SettingsScreen extends StatelessWidget {
                 child: TextButtonCustom(
                   title: LKey.logOut.tr,
                   onTap: controller.onLogout,
-                  backgroundColor: logoutColor.withValues(alpha: 0.12),
+                  backgroundColor: AppRole.isClient()
+                      ? Colors.transparent
+                      : logoutColor.withValues(alpha: 0.12),
                   titleColor: logoutColor,
                   borderSide: BorderSide(
-                    color: logoutColor.withValues(alpha: 0.45),
+                    color: logoutColor.withValues(alpha: 0.55),
+                    width: 1.2,
                   ),
                   btnHeight: 48,
+                  radius: 24,
                   horizontalMargin: 0,
                 ),
               ),
@@ -283,7 +311,11 @@ class SettingsScreen extends StatelessWidget {
           ),
         ))
       ],
-    ));
+    ),
+          ],
+        ),
+      ),
+    );
     return page;
   }
 }
@@ -317,14 +349,23 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
           }
         },
         child: Container(
-          height: 47,
+          height: AppRole.isClient() ? 56 : 47,
           padding: const EdgeInsets.symmetric(horizontal: 15),
-          margin: const EdgeInsets.all(5),
-          decoration: ShapeDecoration(
-              shape: SmoothRectangleBorder(
-                  borderRadius:
-                      SmoothBorderRadius(cornerRadius: 7, cornerSmoothing: 1)),
-              gradient: StyleRes.themeGradient),
+          margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+          decoration: AppRole.isClient()
+              ? BoxDecoration(
+                  gradient: ClientColors.ctaGradient,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: ClientColors.neonGlow(
+                    color: ClientColors.magenta,
+                    alpha: 0.4,
+                  ),
+                )
+              : ShapeDecoration(
+                  shape: SmoothRectangleBorder(
+                      borderRadius: SmoothBorderRadius(
+                          cornerRadius: 7, cornerSmoothing: 1)),
+                  gradient: StyleRes.themeGradient),
           child: Row(
             spacing: 11,
             children: [
@@ -370,7 +411,12 @@ class SettingLabel extends StatelessWidget {
       child: Text(
         title.tr.toUpperCase(),
         style: TextStyleCustom.outFitMedium500(
-                fontSize: 12, color: themeAccentSolid(context))
+                fontSize: 12,
+                color: AppRole.isClient()
+                    ? ClientColors.primary
+                    : (AppRole.isStreamer()
+                        ? const Color(0xFFE879F9)
+                        : themeAccentSolid(context)))
             .copyWith(letterSpacing: 1.6),
       ),
     );

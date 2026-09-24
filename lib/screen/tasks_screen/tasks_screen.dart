@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/widget/no_data_widget.dart';
@@ -20,9 +21,23 @@ class TasksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!AppRole.canAccessTasks()) {
       return Scaffold(
-        body: Column(
+        backgroundColor: const Color(0xFF07010E),
+        body: Stack(
+          fit: StackFit.expand,
           children: [
-            CustomAppBar(title: LKey.tasks.tr, showBack: !isDashBoard),
+            const BrandWashBg(vivid: true),
+            Column(
+          children: [
+            CustomAppBar(
+              title: LKey.tasks.tr,
+              showBack: !isDashBoard,
+              bgColor: Colors.transparent,
+              iconColor: Colors.white,
+              titleStyle: TextStyleCustom.unboundedMedium500(
+                color: Colors.white,
+                fontSize: 18,
+              ),
+            ),
             Expanded(
               child: Center(
                 child: Padding(
@@ -31,12 +46,14 @@ class TasksScreen extends StatelessWidget {
                     LKey.tasksOnlyForStreamers.tr,
                     textAlign: TextAlign.center,
                     style: TextStyleCustom.outFitMedium500(
-                      color: textDarkGrey(context),
+                      color: Colors.white,
                       fontSize: 15,
                     ),
                   ),
                 ),
               ),
+            ),
+          ],
             ),
           ],
         ),
@@ -47,7 +64,12 @@ class TasksScreen extends StatelessWidget {
     controller.isDashBoard = isDashBoard;
 
     return Scaffold(
-      body: Column(
+      backgroundColor: const Color(0xFF07010E),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const BrandWashBg(vivid: true),
+          Column(
         children: [
           Obx(() {
             final showTabs = !controller.pageLoading.value &&
@@ -55,6 +77,12 @@ class TasksScreen extends StatelessWidget {
             return CustomAppBar(
               title: LKey.tasks.tr,
               showBack: !isDashBoard,
+              bgColor: Colors.transparent,
+              iconColor: Colors.white,
+              titleStyle: TextStyleCustom.unboundedMedium500(
+                color: Colors.white,
+                fontSize: 18,
+              ),
               widget: showTabs ? _Tabs(controller: controller) : null,
             );
           }),
@@ -92,6 +120,8 @@ class TasksScreen extends StatelessWidget {
             }),
           ),
         ],
+          ),
+        ],
       ),
     );
   }
@@ -112,7 +142,7 @@ class _Tabs extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: bgGrey(context),
+          color: const Color(0xCC160820),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
@@ -146,7 +176,7 @@ class _Tabs extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: active ? themeAccentSolid(context) : Colors.transparent,
+            color: active ? const Color(0xFFE879F9) : Colors.transparent,
             borderRadius: BorderRadius.circular(30),
           ),
           alignment: Alignment.center,
@@ -158,7 +188,7 @@ class _Tabs extends StatelessWidget {
                 label,
                 maxLines: 1,
                 style: TextStyleCustom.outFitMedium500(
-                  color: active ? Colors.white : textLightGrey(context),
+                  color: active ? Colors.white : Colors.white70,
                   fontSize: 12,
                 ),
               ),
@@ -183,7 +213,7 @@ class _CountdownBanner extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [ColorRes.mlPurple, ColorRes.crimson],
+            colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -237,7 +267,7 @@ class _PointsHeader extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: bgGrey(context),
+          color: const Color(0xCC160820),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -249,7 +279,7 @@ class _PointsHeader extends StatelessWidget {
                 'target': '${b.targetTotal}',
               }),
               style: TextStyleCustom.outFitBold700(
-                color: textDarkGrey(context),
+                color: Colors.white,
                 fontSize: 16,
               ),
             ),
@@ -262,7 +292,7 @@ class _PointsHeader extends StatelessWidget {
                 'otherMax': '${b.otherMax}',
               }),
               style: TextStyleCustom.outFitMedium500(
-                color: textLightGrey(context),
+                color: Colors.white70,
                 fontSize: 13,
               ),
             ),
@@ -270,7 +300,7 @@ class _PointsHeader extends StatelessWidget {
             Text(
               '${LKey.withdrawalPoints.tr}: ${controller.withdrawalPoints.value}  ·  $done / $total',
               style: TextStyleCustom.outFitRegular400(
-                color: textLightGrey(context),
+                color: Colors.white70,
                 fontSize: 12,
               ),
             ),
@@ -318,7 +348,7 @@ class _EligibilityBanner extends StatelessWidget {
             Text(
               msg,
               style: TextStyleCustom.outFitMedium500(
-                color: textDarkGrey(context),
+                color: Colors.white,
                 fontSize: 13,
               ),
             ),
@@ -331,7 +361,7 @@ class _EligibilityBanner extends StatelessWidget {
                   'target': '$target',
                 }),
                 style: TextStyleCustom.outFitRegular400(
-                  color: textLightGrey(context),
+                  color: Colors.white70,
                   fontSize: 12,
                 ),
               ),
@@ -341,7 +371,7 @@ class _EligibilityBanner extends StatelessWidget {
               Text(
                 '${LKey.maxWithdrawableToday.tr}: \$$maxUsd',
                 style: TextStyleCustom.outFitRegular400(
-                  color: textLightGrey(context),
+                  color: Colors.white70,
                   fontSize: 12,
                 ),
               ),
@@ -400,11 +430,11 @@ class _TaskCard extends StatelessWidget {
       case 'claimed':
         return Colors.green.shade700;
       case 'completed':
-        return themeAccentSolid(context);
+        return const Color(0xFFE879F9);
       case 'expired':
         return Colors.red.shade400;
       default:
-        return textLightGrey(context);
+        return Colors.white70;
     }
   }
 
@@ -424,11 +454,13 @@ class _TaskCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: bgGrey(context),
+        color: const Color(0xCC160820),
         borderRadius: BorderRadius.circular(14),
-        border: highlightNext
-            ? Border.all(color: themeAccentSolid(context).withValues(alpha: 0.45))
-            : null,
+        border: Border.all(
+          color: highlightNext
+              ? const Color(0xFFE879F9)
+              : const Color(0x73E879F9),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,7 +471,7 @@ class _TaskCard extends StatelessWidget {
                 child: Text(
                   title,
                   style: TextStyleCustom.outFitSemiBold600(
-                    color: textDarkGrey(context),
+                    color: Colors.white,
                     fontSize: 15,
                   ),
                 ),
@@ -447,7 +479,7 @@ class _TaskCard extends StatelessWidget {
               Text(
                 '+${task.withdrawalPointsReward} ${LKey.pts.tr}',
                 style: TextStyleCustom.outFitMedium500(
-                  color: themeAccentSolid(context),
+                  color: const Color(0xFFE879F9),
                   fontSize: 12,
                 ),
               ),
@@ -457,7 +489,7 @@ class _TaskCard extends StatelessWidget {
           Text(
             desc,
             style: TextStyleCustom.outFitRegular400(
-              color: textLightGrey(context),
+              color: Colors.white70,
               fontSize: 12,
             ),
           ),
@@ -466,7 +498,7 @@ class _TaskCard extends StatelessWidget {
             Text(
               LKey.nextTaskUnlocked.tr,
               style: TextStyleCustom.outFitMedium500(
-                color: themeAccentSolid(context),
+                color: const Color(0xFFE879F9),
                 fontSize: 11,
               ),
             ),
@@ -491,7 +523,7 @@ class _TaskCard extends StatelessWidget {
               child: Text(
                 LKey.completeFirstTaskToContinue.tr,
                 style: TextStyleCustom.outFitRegular400(
-                  color: textLightGrey(context),
+                  color: Colors.white70,
                   fontSize: 11,
                 ),
               ),
@@ -529,7 +561,7 @@ class _DualMetrics extends StatelessWidget {
           label: LKey.liveMinutesLabel.tr,
           value: '${task.progressMinutes}/${r.minutes} ${LKey.minutesUnit.tr}',
           ratio: minRatio,
-          color: themeAccentSolid(context),
+          color: const Color(0xFFE879F9),
         ),
         const SizedBox(height: 10),
         _LabeledBar(
@@ -576,7 +608,7 @@ class _SingleMetric extends StatelessWidget {
       label: _label,
       value: '${task.progressValue}/${task.targetValue}',
       ratio: task.progressRatio,
-      color: themeAccentSolid(context),
+      color: const Color(0xFFE879F9),
     );
   }
 }
@@ -609,7 +641,7 @@ class _LabeledBar extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyleCustom.outFitMedium500(
-                  color: textDarkGrey(context),
+                  color: Colors.white,
                   fontSize: 12,
                 ),
               ),
@@ -617,7 +649,7 @@ class _LabeledBar extends StatelessWidget {
             Text(
               value,
               style: TextStyleCustom.outFitSemiBold600(
-                color: textDarkGrey(context),
+                color: Colors.white,
                 fontSize: 12,
               ),
             ),
@@ -629,7 +661,7 @@ class _LabeledBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: ratio,
             minHeight: 8,
-            backgroundColor: Colors.black12,
+            backgroundColor: Colors.white24,
             color: color,
           ),
         ),
@@ -725,12 +757,12 @@ class _PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = themeAccentSolid(context);
+    final accent = const Color(0xFFE879F9);
     final bg = !enabled
         ? Colors.black12
         : (filled ? accent : Colors.transparent);
     final fg = !enabled
-        ? textLightGrey(context)
+        ? Colors.white70
         : (filled ? Colors.white : accent);
     return Material(
       color: bg,

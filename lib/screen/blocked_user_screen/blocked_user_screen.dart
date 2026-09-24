@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/full_name_with_blue_tick.dart';
@@ -10,6 +12,7 @@ import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/user_model/user_model.dart';
 import 'package:krimson/screen/blocked_user_screen/block_user_controller.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -19,10 +22,34 @@ class BlockedUserScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(BlockedUsersListController());
-    return Scaffold(
-      body: Column(
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
+    return ThemeRes.applyIfClient(
+      context,
+      Scaffold(
+      backgroundColor: client
+          ? ClientColors.bg
+          : (streamer ? const Color(0xFF07010E) : null),
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          CustomAppBar(title: LKey.blockedUsers.tr),
+          if (client)
+            const BrandWashBg(vivid: false)
+          else if (streamer)
+            const BrandWashBg(vivid: true),
+          Column(
+        children: [
+          CustomAppBar(
+            title: LKey.blockedUsers.tr,
+            bgColor: streamer ? Colors.transparent : null,
+            iconColor: streamer ? Colors.white : null,
+            titleStyle: streamer
+                ? TextStyleCustom.unboundedMedium500(
+                    color: Colors.white,
+                    fontSize: 18,
+                  )
+                : null,
+          ),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value && controller.users.isEmpty) {
@@ -53,6 +80,9 @@ class BlockedUserScreen extends StatelessWidget {
           ),
         ],
       ),
+        ],
+      ),
+    ),
     );
   }
 }
@@ -68,8 +98,14 @@ class _BlockedUserTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    final client = AppRole.isClient();
+    return Container(
+      margin: client ? const EdgeInsets.only(bottom: 8) : null,
+      padding: EdgeInsets.symmetric(
+        vertical: client ? 10 : 8,
+        horizontal: client ? 12 : 0,
+      ),
+      decoration: client ? ClientColors.glass(radius: 16) : null,
       child: Row(
         children: [
           CustomImage(
@@ -91,7 +127,9 @@ class _BlockedUserTile extends StatelessWidget {
                 Text(
                   user?.fullname ?? '',
                   style: TextStyleCustom.outFitLight300(
-                    color: textLightGrey(context),
+                    color: client
+                        ? ClientColors.textMuted
+                        : textLightGrey(context),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -106,7 +144,16 @@ class _BlockedUserTile extends StatelessWidget {
             fontSize: 12,
             horizontalMargin: 0,
             margin: EdgeInsets.zero,
-            radius: 8,
+            radius: AppRole.isClient() ? 20 : 8,
+            backgroundColor: AppRole.isClient()
+                ? Colors.transparent
+                : null,
+            titleColor: AppRole.isClient()
+                ? ClientColors.primary
+                : null,
+            borderSide: AppRole.isClient()
+                ? const BorderSide(color: ClientColors.primary)
+                : null,
           ),
         ],
       ),

@@ -1,6 +1,8 @@
 import 'package:figma_squircle_updated/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
@@ -44,12 +46,14 @@ class TextButtonCustom extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final clientCta =
+        !forceStreamerPalette && AppRole.isClient() && gradient;
     final brandGradient = forceStreamerPalette
         ? StyleRes.streamerGradient
-        : StyleRes.themeGradient;
+        : (clientCta ? ClientColors.ctaGradient : StyleRes.themeGradient);
     final brandShadow = forceStreamerPalette
         ? ColorRes.crimson
-        : StyleRes.brandAccent;
+        : (clientCta ? ClientColors.primary : StyleRes.brandAccent);
     return Container(
       margin:
           margin ?? EdgeInsets.symmetric(horizontal: horizontalMargin ?? 15),
@@ -66,17 +70,25 @@ class TextButtonCustom extends StatelessWidget {
             decoration: ShapeDecoration(
                 shape: SmoothRectangleBorder(
                     borderRadius: SmoothBorderRadius(
-                        cornerRadius: radius ?? 14, cornerSmoothing: 1),
+                        cornerRadius: radius ?? (clientCta ? 24 : 14),
+                        cornerSmoothing: 1),
                     side: borderSide ?? BorderSide.none),
                 gradient: gradient ? brandGradient : null,
                 color: gradient ? null : (backgroundColor ?? whitePure(context)),
-                shadows: [
-                  BoxShadow(
-                    color: brandShadow.withValues(alpha: gradient ? 0.32 : 0.1),
-                    blurRadius: gradient ? 12 : 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]),
+                shadows: clientCta
+                    ? ClientColors.neonGlow(
+                        color: ClientColors.primary,
+                        alpha: 0.45,
+                        blur: 16,
+                      )
+                    : [
+                        BoxShadow(
+                          color: brandShadow.withValues(
+                              alpha: gradient ? 0.32 : 0.1),
+                          blurRadius: gradient ? 12 : 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]),
             child: Center(
               widthFactor: btnWidth == null ? 1 : null,
               child: child ??
@@ -87,7 +99,10 @@ class TextButtonCustom extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyleCustom.outFitRegular400(
-                        color: titleColor ?? textDarkGrey(context),
+                        color: titleColor ??
+                            (gradient
+                                ? ColorRes.whitePure
+                                : textDarkGrey(context)),
                         fontSize: fontSize ?? 17),
                   ),
             ),

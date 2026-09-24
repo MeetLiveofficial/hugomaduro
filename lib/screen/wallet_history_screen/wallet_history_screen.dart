@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/gift_media.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
@@ -94,19 +95,38 @@ class WalletHistoryScreen extends StatelessWidget {
       );
     });
 
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
     if (embedded) {
       return ColoredBox(
-        color: bgLightGrey(context),
+        color: (client || streamer) ? Colors.transparent : bgLightGrey(context),
         child: body,
       );
     }
 
     return Scaffold(
-      backgroundColor: bgLightGrey(context),
-      body: Column(
+      backgroundColor: client
+          ? ClientColors.bg
+          : (streamer ? const Color(0xFF07010E) : bgLightGrey(context)),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (client)
+            const BrandWashBg(vivid: false)
+          else if (streamer)
+            const BrandWashBg(vivid: true),
+          Column(
         children: [
           CustomAppBar(
             title: LKey.walletHistory.tr,
+            bgColor: streamer ? Colors.transparent : null,
+            iconColor: streamer ? Colors.white : null,
+            titleStyle: streamer
+                ? TextStyleCustom.unboundedMedium500(
+                    color: Colors.white,
+                    fontSize: 18,
+                  )
+                : null,
             rowWidget: AppRole.canRecharge()
                 ? IconButton(
                     onPressed: () =>
@@ -118,6 +138,8 @@ class WalletHistoryScreen extends StatelessWidget {
                 : const SizedBox(width: 48),
           ),
           Expanded(child: body),
+        ],
+          ),
         ],
       ),
     );
@@ -139,6 +161,9 @@ class _RangeAndTotals extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final streamer = AppRole.isStreamer();
+    final ink = streamer ? Colors.white : textDarkGrey(context);
+    final muted = streamer ? Colors.white70 : textLightGrey(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(15, 10, 15, 0),
       child: Row(
@@ -150,18 +175,16 @@ class _RangeAndTotals extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 children: [
-                  Icon(Icons.calendar_month_outlined,
-                      size: 18, color: textDarkGrey(context)),
+                  Icon(Icons.calendar_month_outlined, size: 18, color: ink),
                   const SizedBox(width: 6),
                   Text(
                     rangeLabel,
                     style: TextStyleCustom.outFitMedium500(
-                      color: textDarkGrey(context),
+                      color: ink,
                       fontSize: 13,
                     ),
                   ),
-                  Icon(Icons.keyboard_arrow_down,
-                      size: 18, color: textLightGrey(context)),
+                  Icon(Icons.keyboard_arrow_down, size: 18, color: muted),
                 ],
               ),
             ),
@@ -195,7 +218,7 @@ class _TotalLine extends StatelessWidget {
         Text(
           '$label: ${value.fullNumberFormat}',
           style: TextStyleCustom.outFitRegular400(
-            color: textDarkGrey(context),
+            color: AppRole.isStreamer() ? Colors.white70 : textDarkGrey(context),
             fontSize: 12,
           ),
         ),
@@ -220,6 +243,7 @@ class _FilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
     return SizedBox(
       height: 44,
       child: ListView.separated(
@@ -231,14 +255,24 @@ class _FilterRow extends StatelessWidget {
           final key = WalletHistoryController.filters[index];
           final isSelected = selected == key;
           final bg = isSelected
-              ? (client ? ClientColors.primary : ColorRes.crimson)
-              : (client ? ClientColors.surfaceAlt : ColorRes.whitePure);
+              ? (client
+                  ? ClientColors.primary
+                  : (streamer ? const Color(0xFFE879F9) : ColorRes.crimson))
+              : (client
+                  ? ClientColors.surfaceAlt
+                  : (streamer ? const Color(0x66140A22) : ColorRes.whitePure));
           final fg = isSelected
               ? (client ? ClientColors.bg : ColorRes.whitePure)
-              : (client ? ClientColors.textOnSurface : ColorRes.textDarkGrey);
+              : (client
+                  ? ClientColors.textOnSurface
+                  : (streamer ? Colors.white70 : ColorRes.textDarkGrey));
           final border = isSelected
-              ? (client ? ClientColors.primary : ColorRes.crimson)
-              : (client ? ClientColors.border : ColorRes.roseBorder);
+              ? (client
+                  ? ClientColors.primary
+                  : (streamer ? const Color(0xFFE879F9) : ColorRes.crimson))
+              : (client
+                  ? ClientColors.border
+                  : (streamer ? const Color(0x73E879F9) : ColorRes.roseBorder));
           return Material(
             color: Colors.transparent,
             child: InkWell(
@@ -277,13 +311,21 @@ class _HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final income = item.isIncome;
     final client = AppRole.isClient();
-    final amountColor = income ? ColorRes.likeRed : textDarkGrey(context);
+    final streamer = AppRole.isStreamer();
+    final amountColor = income
+        ? (streamer ? const Color(0xFFFF4D9A) : ColorRes.likeRed)
+        : (streamer ? Colors.white : textDarkGrey(context));
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: client ? ClientColors.surfaceAlt : ColorRes.whitePure,
-        borderRadius: BorderRadius.circular(12),
+        color: client
+            ? ClientColors.surfaceAlt
+            : (streamer ? const Color(0xCC160820) : ColorRes.whitePure),
+        borderRadius: BorderRadius.circular(16),
+        border: streamer
+            ? Border.all(color: const Color(0x73E879F9))
+            : (client ? Border.all(color: ClientColors.border) : null),
       ),
       child: Row(
         children: [
@@ -298,7 +340,7 @@ class _HistoryCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyleCustom.outFitMedium500(
-                    color: textDarkGrey(context),
+                    color: streamer ? Colors.white : textDarkGrey(context),
                     fontSize: 14,
                   ),
                 ),
@@ -309,7 +351,7 @@ class _HistoryCard extends StatelessWidget {
                   Text(
                     _stamp(item.createdAt!),
                     style: TextStyleCustom.outFitLight300(
-                      color: textLightGrey(context),
+                      color: streamer ? Colors.white54 : textLightGrey(context),
                       fontSize: 11,
                     ),
                   ),
@@ -396,7 +438,9 @@ class _TypeIcon extends StatelessWidget {
       default:
         bg = AppRole.isClient()
             ? ClientColors.primary
-            : const Color(0xFFFF6B9D);
+            : (AppRole.isStreamer()
+                ? const Color(0xFFE879F9)
+                : const Color(0xFFFF6B9D));
         icon = Icons.card_giftcard;
     }
     return Container(
@@ -419,7 +463,7 @@ class _MetaRow extends StatelessWidget {
       return Text(
         _formatDuration(item.durationSeconds),
         style: TextStyleCustom.outFitRegular400(
-          color: textLightGrey(context),
+          color: AppRole.isStreamer() ? Colors.white70 : textLightGrey(context),
           fontSize: 12,
         ),
       );
@@ -440,7 +484,7 @@ class _MetaRow extends StatelessWidget {
           Text(
             'X ${item.quantity}',
             style: TextStyleCustom.outFitRegular400(
-              color: textLightGrey(context),
+              color: AppRole.isStreamer() ? Colors.white70 : textLightGrey(context),
               fontSize: 12,
             ),
           ),
@@ -453,7 +497,7 @@ class _MetaRow extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyleCustom.outFitRegular400(
-          color: textLightGrey(context),
+          color: AppRole.isStreamer() ? Colors.white70 : textLightGrey(context),
           fontSize: 12,
         ),
       );

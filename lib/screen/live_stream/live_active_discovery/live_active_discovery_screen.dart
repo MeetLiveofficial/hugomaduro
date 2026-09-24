@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/controller/firebase_firestore_controller.dart';
 import 'package:krimson/common/extensions/string_extension.dart';
+import 'package:krimson/common/extensions/common_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
+import 'package:krimson/common/widget/brand_controls.dart';
 import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/live_tv_icon.dart';
@@ -26,6 +28,9 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(LiveActiveDiscoveryController());
+    final streamer = !AppRole.isClient();
+    final accent =
+        streamer ? const Color(0xFFE879F9) : ClientColors.primary;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -47,9 +52,9 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                     child: InkWell(
                       onTap: () => Get.to(() => const LeaderboardScreen()),
                       borderRadius: BorderRadius.circular(8),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                        child: PodiumIcon(size: 28),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        child: PodiumIcon(size: 28, color: accent),
                       ),
                     ),
                   ),
@@ -66,7 +71,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                           controller.showSearch.value
                               ? Icons.close
                               : Icons.search,
-                          color: Colors.white,
+                          color: accent,
                           size: 24,
                         )),
                   ),
@@ -98,27 +103,100 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                     color: Colors.white,
                     fontSize: 15,
                   ),
-                  cursorColor: StyleRes.brandAccent,
-                  decoration: InputDecoration(
-                    hintText: LKey.searchHere.tr,
-                    hintStyle: TextStyleCustom.outFitRegular400(
-                      color: Colors.white38,
-                      fontSize: 15,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.18),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    prefixIcon: const Icon(Icons.search,
-                        color: Colors.white54, size: 22),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+                  cursorColor: ClientColors.primary,
+                  decoration: BrandControls.search(
+                    hint: LKey.searchHere.tr,
+                    hintColor: Colors.white54,
+                    prefix: const Icon(Icons.search,
+                        color: ClientColors.primary, size: 22),
                   ),
                 ),
               );
             }),
+            if (AppRole.isClient())
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
+                child: Obx(() {
+                  final current = controller.browseFilter.value;
+                  final es = Get.locale?.languageCode == 'es';
+                  final chips = <(LiveBrowseFilter, String, IconData?)>[
+                    (LiveBrowseFilter.all, LKey.all.tr, null),
+                    (LiveBrowseFilter.latinas, 'Latinas', null),
+                    (
+                      LiveBrowseFilter.newest,
+                      es ? 'Nuevas' : 'New',
+                      null,
+                    ),
+                    (LiveBrowseFilter.hot, 'Hot', Icons.local_fire_department_rounded),
+                    (LiveBrowseFilter.following, LKey.following.tr, null),
+                  ];
+                  return SizedBox(
+                    height: 36,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: chips.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) {
+                        final (filter, label, icon) = chips[i];
+                        final on = current == filter;
+                        return GestureDetector(
+                          onTap: () => controller.setBrowseFilter(filter),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 7),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              color: on
+                                  ? const Color(0xFF27D3F5)
+                                  : ClientColors.surfaceDarkAlt
+                                      .withValues(alpha: 0.9),
+                              border: Border.all(
+                                color: on
+                                    ? const Color(0xFF27D3F5)
+                                    : ClientColors.primary
+                                        .withValues(alpha: 0.28),
+                              ),
+                              boxShadow: on
+                                  ? ClientColors.neonGlow(
+                                      color: const Color(0xFF27D3F5),
+                                      alpha: 0.4,
+                                      blur: 10,
+                                      offset: Offset.zero,
+                                    )
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (icon != null) ...[
+                                  Icon(
+                                    icon,
+                                    size: 14,
+                                    color: on
+                                        ? Colors.white
+                                        : const Color(0xFFF97316),
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
+                                Text(
+                                  label,
+                                  style: TextStyleCustom.outFitSemiBold600(
+                                    color: on
+                                        ? Colors.white
+                                        : Colors.white.withValues(alpha: 0.78),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }),
+              ),
             Expanded(
               child: Obx(() {
                 if (controller.isLoading.value &&
@@ -140,9 +218,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                           const LiveTvIcon(size: 64, color: Colors.white38),
                           const SizedBox(height: 16),
                           Text(
-                            searching
-                                ? LKey.noData.tr
-                                : LKey.noLivestreamsTitle.tr,
+                            controller.emptyTitle(searching: searching),
                             textAlign: TextAlign.center,
                             style: TextStyleCustom.unboundedSemiBold600(
                               color: Colors.white,
@@ -151,9 +227,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            searching
-                                ? LKey.searchPageEmptyDescription.tr
-                                : LKey.noLivestreamsDescription.tr,
+                            controller.emptyDescription(searching: searching),
                             textAlign: TextAlign.center,
                             style: TextStyleCustom.outFitRegular400(
                               color: Colors.white60,
@@ -183,14 +257,14 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                       : Colors.white,
                   onRefresh: controller.refreshList,
                   child: GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 20),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                      childAspectRatio: 0.72,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 96),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 0.72,
+                  ),
                     itemCount: controller.livestreams.length,
                     itemBuilder: (context, index) {
                       final stream = controller.livestreams[index];
@@ -248,8 +322,23 @@ class _LiveGridCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: AppRole.isClient()
+              ? null
+              : Border.all(color: const Color(0xFFE879F9).withValues(alpha: 0.45)),
+          boxShadow: AppRole.isClient()
+              ? ClientColors.neonGlow(alpha: 0.2, blur: 14)
+              : [
+                  BoxShadow(
+                    color: const Color(0xFFE879F9).withValues(alpha: 0.22),
+                    blurRadius: 14,
+                  ),
+                ],
+        ),
+        child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRole.isClient() ? 18 : 12),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -292,22 +381,28 @@ class _LiveGridCard extends StatelessWidget {
             // Viewers
             Positioned(
               top: 8,
-              left: 8,
+              right: 8,
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.black54,
+                  color: AppRole.isClient()
+                      ? ClientColors.surfaceDarkAlt.withValues(alpha: 0.9)
+                      : Colors.black54,
                   borderRadius: BorderRadius.circular(10),
+                  border: AppRole.isClient()
+                      ? Border.all(
+                          color: ClientColors.primary.withValues(alpha: 0.45))
+                      : null,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.remove_red_eye,
+                    const Icon(Icons.remove_red_eye_outlined,
                         color: Colors.white, size: 12),
                     const SizedBox(width: 4),
                     Text(
-                      '${stream.watchingCount ?? 0}',
+                      (stream.watchingCount ?? 0).numberFormat,
                       style: TextStyleCustom.outFitMedium500(
                         color: Colors.white,
                         fontSize: 11,
@@ -320,7 +415,7 @@ class _LiveGridCard extends StatelessWidget {
             // LIVE / PK badge
             Positioned(
               top: 8,
-              right: 8,
+              left: 8,
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -330,24 +425,35 @@ class _LiveGridCard extends StatelessWidget {
                           ? ClientColors.primaryActive
                           : ColorRes.baseRaspberry)
                       : (AppRole.isClient()
-                          ? ClientColors.primary
+                          ? ClientColors.magentaHot
                           : ColorRes.themeAccentSolid),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: AppRole.isClient()
+                      ? ClientColors.neonGlow(
+                          color: stream.type == LivestreamType.battle
+                              ? ClientColors.primary
+                              : ClientColors.magentaHot,
+                          alpha: 0.45,
+                          blur: 10,
+                          offset: Offset.zero,
+                        )
+                      : null,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      stream.type == LivestreamType.battle
-                          ? Icons.sports_kabaddi_rounded
-                          : Icons.videocam,
-                      color: Colors.white,
-                      size: 11,
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(right: 5),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                    const SizedBox(width: 3),
                     Text(
-                      stream.type == LivestreamType.battle ? 'PK' : 'Live',
-                      style: TextStyleCustom.outFitMedium500(
+                      stream.type == LivestreamType.battle ? 'PK' : 'LIVE',
+                      style: TextStyleCustom.outFitSemiBold600(
                         color: Colors.white,
                         fontSize: 10,
                       ),
@@ -364,14 +470,44 @@ class _LiveGridCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyleCustom.outFitSemiBold600(
-                      color: Colors.white,
-                      fontSize: 13,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(1.2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: ClientColors.primary.withValues(alpha: 0.8),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: CustomImage(
+                          size: const Size(22, 22),
+                          image: profile.isEmpty ? null : profile,
+                          fullName: name,
+                          radius: 11,
+                          strokeWidth: 0,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyleCustom.outFitSemiBold600(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      if (host?.isVerify == 1)
+                        const Icon(Icons.verified_rounded,
+                            color: Color(0xFF38BDF8), size: 14)
+                      else
+                        const Icon(Icons.favorite_rounded,
+                            color: Color(0xFFF472B6), size: 13),
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -388,6 +524,7 @@ class _LiveGridCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
