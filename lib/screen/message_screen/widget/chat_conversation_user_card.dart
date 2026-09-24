@@ -43,10 +43,14 @@ class ChatConversationUserCard extends StatelessWidget {
       onTap: _openChat,
       onLongPress: () => controller.onLongPress(chatConversation),
       child: Container(
-        margin: client
-            ? const EdgeInsets.symmetric(horizontal: 10, vertical: 5)
-            : null,
-        decoration: client ? ClientColors.glass(radius: 16) : null,
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: client
+            ? ClientColors.glass(radius: 16)
+            : BoxDecoration(
+                color: const Color(0xCC140818),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0x73E879F9)),
+              ),
         child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
@@ -103,17 +107,35 @@ class ChatConversationUserCard extends StatelessWidget {
                               fontSize: 15,
                               color: AppRole.isClient()
                                   ? ClientColors.text
-                                  : ColorRes.textDarkGrey,
+                                  : Colors.white,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        BrandStatusPill(
-                          label: active ? LKey.statusActive.tr : LKey.statusInactive.tr,
-                          color: active
-                              ? const Color(0xFF22C55E)
-                              : const Color(0xFFBFA8B8),
-                          solid: active,
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4, right: 6),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              BrandStatusPill(
+                                label: active
+                                    ? LKey.statusActive.tr
+                                    : LKey.statusInactive.tr,
+                                color: active
+                                    ? const Color(0xFF2DD4BF)
+                                    : const Color(0xFFE879F9),
+                                solid: active,
+                              ),
+                              if (unread > 0)
+                                Positioned(
+                                  top: -8,
+                                  right: -10,
+                                  child: _UnreadDot(
+                                    label: unread > 99 ? '99+' : '$unread',
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -128,42 +150,47 @@ class ChatConversationUserCard extends StatelessWidget {
                         fontSize: 13,
                         color: AppRole.isClient()
                             ? ClientColors.textMuted
-                            : ColorRes.textLightGrey,
+                            : Colors.white70,
                       ),
                     ),
                   ],
                 );
               }),
             ),
-            if (unread > 0)
-              Container(
-                margin: const EdgeInsets.only(left: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppRole.isClient()
-                      ? ClientColors.magentaHot
-                      : ColorRes.likeRed,
-                  shape: BoxShape.circle,
-                  boxShadow: AppRole.isClient()
-                      ? ClientColors.neonGlow(
-                          color: ClientColors.magentaHot,
-                          alpha: 0.45,
-                          blur: 8,
-                        )
-                      : null,
-                ),
-                child: Text(
-                  unread > 99 ? '99+' : '$unread',
-                  style: TextStyleCustom.outFitMedium500(
-                    fontSize: 11,
-                    color: whitePure(context),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
+      ),
+    );
+  }
+}
+
+class _UnreadDot extends StatelessWidget {
+  const _UnreadDot({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppRole.isClient()
+        ? ClientColors.magentaHot
+        : const Color(0xFFE879F9);
+    return Container(
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFF140818), width: 1.5),
+        boxShadow: ClientColors.neonGlow(color: color, alpha: 0.45, blur: 8),
+      ),
+      child: Text(
+        label,
+        style: TextStyleCustom.outFitMedium500(
+          fontSize: 10,
+          color: whitePure(context),
+        ),
       ),
     );
   }

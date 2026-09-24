@@ -40,9 +40,24 @@ import 'package:krimson/utilities/language_display.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
-const _callOrange = Color(0xFFFF8A3D);
+const _accent = Color(0xFFE879F9);
+const _callOrange = _accent;
 const _liveGreen = Color(0xFF22C55E);
-const _sheet = Color(0xFF0B0B0F);
+const _sheet = Colors.transparent;
+
+BoxDecoration _glassCard() {
+  return BoxDecoration(
+    color: const Color(0x80140A22),
+    borderRadius: BorderRadius.circular(18),
+    border: Border.all(color: _accent.withValues(alpha: 0.55)),
+    boxShadow: [
+      BoxShadow(
+        color: _accent.withValues(alpha: 0.28),
+        blurRadius: 16,
+      ),
+    ],
+  );
+}
 const _chipDark = Color(0xCC1A1A1F);
 
 /// Perfil streamer: foto a pantalla, carrusel de lo que sube, ficha oscura.
@@ -462,7 +477,7 @@ class _InfoSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: _sheet,
+        color: Colors.transparent,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Padding(
@@ -964,7 +979,7 @@ class _AddMediaOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF2A2A30),
+      color: const Color(0xCC1A0A28),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -1201,10 +1216,7 @@ class _StreamerAvgCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
-      ),
+      decoration: _glassCard(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1280,16 +1292,7 @@ class _StreamerAvgCard extends StatelessWidget {
                       ),
                     ),
                     Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: LinearProgressIndicator(
-                          value: (row.$2 / 100).clamp(0.02, 1),
-                          minHeight: 5,
-                          backgroundColor: Colors.white12,
-                          valueColor:
-                              const AlwaysStoppedAnimation(_callOrange),
-                        ),
-                      ),
+                      child: _MagBar(value: (row.$2 / 100).clamp(0.0, 1.0)),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -1367,10 +1370,7 @@ class _ImpressionCard extends StatelessWidget {
           onTap: _canRate ? () => _openRateSheet(context) : null,
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12),
-            ),
+            decoration: _glassCard(),
             child: Column(
               children: [
                 Row(
@@ -1490,17 +1490,7 @@ class _TraitBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: fill,
-                minHeight: 8,
-                backgroundColor: const Color(0xFF2A2A30),
-                color: ColorRes.mlPurple,
-              ),
-            ),
-          ),
+          Expanded(child: _MagBar(value: fill, height: 8)),
           const SizedBox(width: 10),
           SizedBox(
             width: 28,
@@ -1514,6 +1504,45 @@ class _TraitBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MagBar extends StatelessWidget {
+  final double value;
+  final double height;
+
+  const _MagBar({required this.value, this.height = 6});
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value.clamp(0.04, 1.0);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(height),
+      child: SizedBox(
+        height: height,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(color: Color(0x33FFFFFF)),
+            FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: v,
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFFFF4D9A),
+                      Color(0xFFC084FC),
+                      Color(0xFF7C3AED),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1563,7 +1592,7 @@ class _BottomActions extends StatelessWidget {
         children: [
           if (AppRole.isStreamer(user)) ...[
             Material(
-              color: const Color(0xFF2A2A30),
+              color: const Color(0xCC1A0A28),
               borderRadius: BorderRadius.circular(16),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -1582,7 +1611,7 @@ class _BottomActions extends StatelessWidget {
             const SizedBox(width: 10),
           ],
           Material(
-            color: const Color(0xFF2A2A30),
+            color: const Color(0xCC1A0A28),
             borderRadius: BorderRadius.circular(16),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
@@ -1602,23 +1631,43 @@ class _BottomActions extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Material(
-              color: const Color(0xFF2A2A30),
-              borderRadius: BorderRadius.circular(28),
-              child: InkWell(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
-                onTap: () => Get.to(() => EditProfileScreen(
-                      onUpdateUser: controller.onUpdateUser,
-                    )),
-                child: SizedBox(
-                  height: 52,
-                  child: Center(
-                    child: Text(
-                      LKey.editProfile.tr,
-                      style: TextStyleCustom.outFitSemiBold600(
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _accent.withValues(alpha: 0.45),
+                    blurRadius: 16,
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(28),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(28),
+                  onTap: () => Get.to(() => EditProfileScreen(
+                        onUpdateUser: controller.onUpdateUser,
+                      )),
+                  child: SizedBox(
+                    height: 52,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.edit_outlined,
+                            color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          LKey.editProfile.tr,
+                          style: TextStyleCustom.outFitSemiBold600(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1648,7 +1697,7 @@ class _BottomActions extends StatelessWidget {
     return Row(
       children: [
         Material(
-          color: const Color(0xFF2A2A30),
+          color: const Color(0xCC1A0A28),
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),

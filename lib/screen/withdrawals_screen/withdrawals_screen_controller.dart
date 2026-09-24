@@ -6,7 +6,6 @@ import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/gift_wallet_service.dart';
 import 'package:krimson/common/service/api/user_service.dart';
-import 'package:krimson/common/widget/text_button_custom.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/gift_wallet/withdraw_model.dart';
@@ -15,7 +14,6 @@ import 'package:krimson/screen/kyc_screen/kyc_verification_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
-import 'package:krimson/utilities/theme_res.dart';
 
 class WithdrawalsScreenController extends BaseController {
   RxList<Withdraw> withdraws = <Withdraw>[].obs;
@@ -140,7 +138,10 @@ class WithdrawalsScreenController extends BaseController {
 }
 
 class RequestWithdrawalSheet extends StatefulWidget {
-  const RequestWithdrawalSheet({super.key});
+  const RequestWithdrawalSheet({super.key, this.embedded = false, this.onDone});
+
+  final bool embedded;
+  final Future<void> Function()? onDone;
 
   @override
   State<RequestWithdrawalSheet> createState() => _RequestWithdrawalSheetState();
@@ -248,6 +249,7 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
       setState(() => errorText = 'El monto neto a recibir debe ser mayor a 0');
       return;
     }
+    if (!await _ensureKyc()) return;
 
     setState(() => submitting = true);
     try {
@@ -263,9 +265,19 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
           user.withdrawWalletAccount = account;
           SessionManager.instance.setUser(user);
         }
-        Get.back(result: true);
+        if (Get.isRegistered<CoinWalletScreenController>()) {
+          final wallet = Get.find<CoinWalletScreenController>();
+          wallet.myUser.value = SessionManager.instance.getUser();
+          wallet.myUser.refresh();
+        }
         Get.snackbar(
             'OK', res['message']?.toString() ?? 'Solicitud de retiro enviada');
+        if (widget.embedded) {
+          coinsCtrl.clear();
+          await widget.onDone?.call();
+        } else {
+          Get.back(result: true);
+        }
       } else {
         final msg = res['message']?.toString() ?? 'Error al solicitar retiro';
         final data = res['data'];
@@ -294,6 +306,66 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
     }
   }
 
+  Future<bool> _ensureKyc() async {
+    try {
+      final fresh = await UserService.instance.fetchUserDetails(
+        userId: SessionManager.instance.getUserID(),
+      );
+      if (!AppRole.needsKycForWithdrawal(fresh)) return true;
+      final verified = await Get.to<bool>(
+        () => KycVerificationScreen(user: fresh),
+        routeName: '/kyc',
+      );
+      if (verified == true) return true;
+      if (mounted) {
+        setState(() => errorText = 'Debes verificar tu identidad para retirar');
+      }
+      return false;
+    } catch (e) {
+      if (mounted) {
+        setState(() => errorText = 'No se pudo comprobar la verificacion: $e');
+      }
+      return false;
+    }
+  }
+
+  Future<void> _pickGateway() async {
+    if (gateways.length < 2) return;
+    final picked = await showModalBottomSheet<RedeemGateway>(
+      context: context,
+      backgroundColor: const Color(0xFFFFF8FC),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final g in gateways)
+              ListTile(
+                title: Text(
+                  '${g.title ?? ''} · ${g.resolveCommission(globalCommission).toStringAsFixed(2)}%',
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: const Color(0xFF2A1238),
+                    fontSize: 15,
+                  ),
+                ),
+                subtitle: Text(
+                  (g.accountHint ?? '').trim(),
+                  style: TextStyleCustom.outFitRegular400(
+                    color: const Color(0xFF9A6B90),
+                    fontSize: 12,
+                  ),
+                ),
+                onTap: () => Navigator.pop(ctx, g),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) setState(() => selectedGateway = picked);
+  }
+
   void _setCoins(int coins) {
     final capped = coins.clamp(0, walletCoins);
     coinsCtrl.text = '$capped';
@@ -302,9 +374,270 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
     setState(() => errorText = null);
   }
 
+  InputDecoration _pinkField(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyleCustom.outFitRegular400(
+        color: const Color(0xFFC49BB8),
+        fontSize: 13,
+      ),
+      prefixIcon: Icon(icon, color: const Color(0xFFE879F9), size: 20),
+      filled: true,
+      fillColor: const Color(0xFFFBE7F5),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+
+  Widget _label(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFFE879F9)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyleCustom.outFitSemiBold600(
+              color: const Color(0xFF2A1238),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hint = selectedGateway?.accountHint?.trim();
+    final gateway = selectedGateway;
+    final title = gateway?.title?.trim() ?? '';
+    final isUsdt = title.toUpperCase().contains('USDT') ||
+        title.toUpperCase().contains('TRC');
+    final form = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFBE7F5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.account_balance_wallet_outlined,
+                  color: Color(0xFFE879F9), size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    LKey.requestWithdrawal.tr,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: const Color(0xFF2A1238),
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tasa $rateLabel · Min. $currency${minUsd.toStringAsFixed(2)} · '
+                    'Saldo: ${walletCoins.numberFormat}',
+                    style: TextStyleCustom.outFitRegular400(
+                      color: const Color(0xFF9A6B90),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _label(Icons.account_balance_wallet_outlined, LKey.withdrawMethod.tr),
+        Material(
+          color: const Color(0xFFFBE7F5),
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: gateways.length > 1 ? _pickGateway : null,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isUsdt
+                          ? const Color(0xFF1FA971)
+                          : const Color(0xFFE879F9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      isUsdt
+                          ? 'T'
+                          : (title.isEmpty ? '?' : title.substring(0, 1)),
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title.isEmpty
+                              ? LKey.redeemGatewayNotFound.tr
+                              : '$title · ${commissionPercent.toStringAsFixed(2)}%',
+                          style: TextStyleCustom.outFitSemiBold600(
+                            color: const Color(0xFF2A1238),
+                            fontSize: 14,
+                          ),
+                        ),
+                        if (hint != null && hint.isNotEmpty)
+                          Text(
+                            hint,
+                            style: TextStyleCustom.outFitRegular400(
+                              color: const Color(0xFF9A6B90),
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Color(0xFFC49BB8)),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _label(Icons.account_balance_wallet_outlined, LKey.payoutAccount.tr),
+        TextField(
+          controller: accountCtrl,
+          style: TextStyleCustom.outFitRegular400(
+            color: const Color(0xFF2A1238),
+            fontSize: 14,
+          ),
+          cursorColor: const Color(0xFFE879F9),
+          decoration: _pinkField(
+            (hint != null && hint.isNotEmpty)
+                ? hint
+                : 'Dirección USDT (TRC20 / Polygon)',
+            Icons.account_balance_wallet_outlined,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _label(Icons.layers_outlined, LKey.coins.tr),
+        TextField(
+          controller: coinsCtrl,
+          keyboardType: TextInputType.number,
+          onChanged: (_) => setState(() {}),
+          style: TextStyleCustom.outFitRegular400(
+            color: const Color(0xFF2A1238),
+            fontSize: 14,
+          ),
+          cursorColor: const Color(0xFFE879F9),
+          decoration: _pinkField(
+            'Min. ${minCoinsForUsd.fullNumberFormat} monedas ($rateLabel)',
+            Icons.account_balance_wallet_outlined,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _CoinsShortcuts(
+          walletCoins: walletCoins,
+          minCoins: minCoinsForUsd,
+          selectedCoins: coinsEntered,
+          coinValue: coinValue,
+          currency: currency,
+          onSelect: _setCoins,
+        ),
+        if (coinsEntered > 0) ...[
+          const SizedBox(height: 12),
+          _MoneyRow(
+            label: 'Monto bruto',
+            value: '$currency${usdAmount.toStringAsFixed(2)}',
+          ),
+          const SizedBox(height: 4),
+          _MoneyRow(
+            label: 'Comisión (${commissionPercent.toStringAsFixed(2)}%)',
+            value: '-$currency${feeAmount.toStringAsFixed(2)}',
+            muted: true,
+          ),
+          const SizedBox(height: 4),
+          _MoneyRow(
+            label: 'Recibirás',
+            value: '$currency${netAmount.toStringAsFixed(2)}',
+            bold: true,
+          ),
+        ],
+        if (errorText != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            errorText!,
+            style: TextStyleCustom.outFitRegular400(
+              color: ColorRes.likeRed,
+              fontSize: 12,
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: submitting ? null : _submit,
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    submitting ? '…' : LKey.requestWithdrawal.tr,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (widget.embedded) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8FC),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: form,
+      );
+    }
+
     return Container(
       padding: EdgeInsets.only(
         left: 16,
@@ -312,185 +645,13 @@ class _RequestWithdrawalSheetState extends State<RequestWithdrawalSheet> {
         top: 12,
         bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
       ),
-      decoration: BoxDecoration(
-        color: whitePure(context),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF8FC),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       child: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: bgGrey(context),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              Text(
-                LKey.requestWithdrawal.tr,
-                style: TextStyleCustom.outFitMedium500(
-                  color: textDarkGrey(context),
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Tasa $rateLabel · Mín. $currency${minUsd.toStringAsFixed(2)} · '
-                'Saldo: ${walletCoins.numberFormat}',
-                style: TextStyleCustom.outFitRegular400(
-                  color: textLightGrey(context),
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(LKey.withdrawMethod.tr,
-                  style: TextStyleCustom.outFitMedium500(
-                      color: textDarkGrey(context), fontSize: 13)),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<RedeemGateway>(
-                // ignore: deprecated_member_use
-                value: selectedGateway,
-                dropdownColor: whitePure(context),
-                style: TextStyleCustom.outFitRegular400(
-                  color: textDarkGrey(context),
-                  fontSize: 15,
-                ),
-                iconEnabledColor: textDarkGrey(context),
-                items: gateways
-                    .map((g) => DropdownMenuItem(
-                          value: g,
-                          child: Text(
-                            '${g.title ?? ''} · '
-                            '${g.resolveCommission(globalCommission).toStringAsFixed(2)}%',
-                            style: TextStyleCustom.outFitRegular400(
-                              color: textDarkGrey(context),
-                              fontSize: 15,
-                            ),
-                          ),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => selectedGateway = v),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: bgLightGrey(context),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(LKey.payoutAccount.tr,
-                  style: TextStyleCustom.outFitMedium500(
-                      color: textDarkGrey(context), fontSize: 13)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: accountCtrl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  hintText: (hint != null && hint.isNotEmpty)
-                      ? hint
-                      : 'Ej: UID Binance o wallet USDT (TRC20)',
-                  filled: true,
-                  fillColor: bgLightGrey(context),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(LKey.coins.tr,
-                  style: TextStyleCustom.outFitMedium500(
-                      color: textDarkGrey(context), fontSize: 13)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: coinsCtrl,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: 'Mín. $minCoinsForUsd monedas ($rateLabel)',
-                  filled: true,
-                  fillColor: bgLightGrey(context),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              _CoinsShortcuts(
-                walletCoins: walletCoins,
-                minCoins: minCoinsForUsd,
-                selectedCoins: coinsEntered,
-                coinValue: coinValue,
-                currency: currency,
-                onSelect: _setCoins,
-              ),
-              if (coinsEntered > 0) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: bgLightGrey(context),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    children: [
-                      _MoneyRow(
-                        label: 'Monto bruto',
-                        value: '$currency${usdAmount.toStringAsFixed(2)}',
-                        context: context,
-                      ),
-                      const SizedBox(height: 4),
-                      _MoneyRow(
-                        label:
-                            'Comisión (${commissionPercent.toStringAsFixed(2)}%)',
-                        value: '-$currency${feeAmount.toStringAsFixed(2)}',
-                        context: context,
-                        muted: true,
-                      ),
-                      const Divider(height: 16),
-                      _MoneyRow(
-                        label: 'Recibirás',
-                        value: '$currency${netAmount.toStringAsFixed(2)}',
-                        context: context,
-                        bold: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              if (errorText != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  errorText!,
-                  style: TextStyleCustom.outFitRegular400(
-                    color: ColorRes.likeRed,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-              TextButtonCustom(
-                onTap: submitting ? () {} : _submit,
-                title: submitting ? '…' : LKey.requestWithdrawal.tr,
-                backgroundColor: ColorRes.themeAccentSolid,
-                titleColor: Colors.white,
-                horizontalMargin: 0,
-                margin: EdgeInsets.zero,
-              ),
-            ],
-          ),
-        ),
+        child: SingleChildScrollView(child: form),
       ),
     );
   }
@@ -516,7 +677,6 @@ class _CoinsShortcuts extends StatelessWidget {
   String _fmtCoins(int coins) {
     if (coins >= 1000) {
       final k = coins / 1000;
-      if (k == k.roundToDouble()) return '${k.toInt()}K';
       return '${k.toStringAsFixed(1)}K';
     }
     return '$coins';
@@ -534,20 +694,17 @@ class _CoinsShortcuts extends StatelessWidget {
       out.add((label: label, coins: coins));
     }
 
-    add('Mín · ${_fmtCoins(minCoins)}', minCoins);
-    add('25%', (walletCoins * 0.25).floor());
-    add('50%', (walletCoins * 0.5).floor());
-    add('75%', (walletCoins * 0.75).floor());
-    add('Máx · ${_fmtCoins(walletCoins)}', walletCoins);
-
+    add('Min. ${_fmtCoins(minCoins)}', minCoins);
     if (coinValue > 0) {
       for (final usd in const [50.0, 100.0, 200.0]) {
         final coins = (usd / coinValue).ceil();
         add('$currency${usd.toStringAsFixed(0)}', coins);
       }
     }
-
-    out.sort((a, b) => a.coins.compareTo(b.coins));
+    add('25%', (walletCoins * 0.25).floor());
+    add('50%', (walletCoins * 0.5).floor());
+    add('75%', (walletCoins * 0.75).floor());
+    add('Máx: ${_fmtCoins(walletCoins)}', walletCoins);
     return out;
   }
 
@@ -561,35 +718,43 @@ class _CoinsShortcuts extends StatelessWidget {
       children: [
         Text(
           'Atajos',
-          style: TextStyleCustom.outFitRegular400(
-            color: textLightGrey(context),
-            fontSize: 11,
+          style: TextStyleCustom.outFitMedium500(
+            color: const Color(0xFF9A6B90),
+            fontSize: 13,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Wrap(
-          spacing: 6,
-          runSpacing: 6,
+          spacing: 8,
+          runSpacing: 8,
           children: options.map((opt) {
             final selected = selectedCoins == opt.coins;
             return Material(
-              color: selected
-                  ? ColorRes.themeAccentSolid
-                  : bgLightGrey(context),
-              borderRadius: BorderRadius.circular(16),
+              color: Colors.transparent,
               child: InkWell(
                 onTap: () => onSelect(opt.coins),
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  child: Text(
-                    opt.label,
-                    style: TextStyleCustom.outFitMedium500(
-                      color: selected
-                          ? Colors.white
-                          : textDarkGrey(context),
-                      fontSize: 12,
+                borderRadius: BorderRadius.circular(20),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    color: selected ? null : const Color(0xFFF8D7EE),
+                    gradient: selected
+                        ? const LinearGradient(
+                            colors: [Color(0xFFFF4D9A), Color(0xFFC026D3)],
+                          )
+                        : null,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    child: Text(
+                      opt.label,
+                      style: TextStyleCustom.outFitMedium500(
+                        color: selected
+                            ? Colors.white
+                            : const Color(0xFFC026D3),
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
@@ -605,14 +770,12 @@ class _CoinsShortcuts extends StatelessWidget {
 class _MoneyRow extends StatelessWidget {
   final String label;
   final String value;
-  final BuildContext context;
   final bool muted;
   final bool bold;
 
   const _MoneyRow({
     required this.label,
     required this.value,
-    required this.context,
     this.muted = false,
     this.bold = false,
   });
@@ -625,7 +788,9 @@ class _MoneyRow extends StatelessWidget {
           child: Text(
             label,
             style: TextStyleCustom.outFitRegular400(
-              color: muted ? textLightGrey(context) : textDarkGrey(context),
+              color: muted
+                  ? const Color(0xFF9A6B90)
+                  : const Color(0xFF2A1238),
               fontSize: 13,
             ),
           ),
@@ -634,11 +799,11 @@ class _MoneyRow extends StatelessWidget {
           value,
           style: bold
               ? TextStyleCustom.outFitBold700(
-                  color: ColorRes.themeAccentSolid,
+                  color: const Color(0xFFE23D9A),
                   fontSize: 15,
                 )
               : TextStyleCustom.outFitMedium500(
-                  color: textDarkGrey(context),
+                  color: const Color(0xFF2A1238),
                   fontSize: 13,
                 ),
         ),

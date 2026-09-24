@@ -5,6 +5,7 @@ import 'package:krimson/common/widget/black_gradient_shadow.dart';
 import 'package:krimson/common/widget/custom_back_button.dart';
 import 'package:krimson/common/widget/custom_border_round_icon.dart';
 import 'package:krimson/screen/camera_screen/camera_screen_controller.dart';
+import 'package:krimson/screen/camera_screen/web_story_capture.dart';
 import 'package:krimson/screen/camera_screen/widget/camera_bottom_view.dart';
 import 'package:krimson/screen/camera_screen/widget/camera_top_view.dart';
 import 'package:krimson/screen/deepar/deepar.dart';
@@ -25,6 +26,10 @@ class CameraScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb && cameraType == CameraScreenType.story) {
+      return const WebStoryCapture();
+    }
+
     if (kIsWeb) {
       return Scaffold(
         backgroundColor: blackPure(context),

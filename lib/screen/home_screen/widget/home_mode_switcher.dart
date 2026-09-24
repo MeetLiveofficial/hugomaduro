@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
-import 'package:krimson/common/widget/shine_sweep.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen_controller.dart';
 import 'package:krimson/utilities/client_colors.dart';
-import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// LIVE | REELS | POSTS dentro del tab Home.
@@ -107,25 +104,18 @@ class HomeModeSwitcher extends StatelessWidget {
           ),
         );
       }
+      const magenta = Color(0xFFE879F9);
       return Container(
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
+          color: const Color(0xCC140818),
           borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: magenta.withValues(alpha: 0.55)),
           boxShadow: [
             BoxShadow(
-              color: (AppRole.isClient()
-                      ? StyleRes.brandAccent
-                      : ColorRes.crimson)
-                  .withValues(alpha: 0.42),
+              color: magenta.withValues(alpha: 0.35),
               blurRadius: 16,
               offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: (AppRole.isClient()
-                      ? ClientColors.primaryActive
-                      : ColorRes.mlPurple)
-                  .withValues(alpha: 0.28),
-              blurRadius: 20,
-              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -134,9 +124,8 @@ class HomeModeSwitcher extends StatelessWidget {
         child: Stack(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                gradient: StyleRes.themeGradient,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: Row(
@@ -196,7 +185,7 @@ class HomeModeSwitcher extends StatelessWidget {
               ),
             ),
             const Positioned.fill(
-              child: IgnorePointer(child: ShineSweep()),
+              child: IgnorePointer(child: SizedBox.shrink()),
             ),
           ],
         ),
@@ -225,17 +214,36 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Text(
-        label.toUpperCase(),
-        style: selected
-            ? TextStyleCustom.unboundedBold700(
-                color: selectedColor,
-                fontSize: 14,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: selected
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFE879F9).withValues(alpha: 0.45),
+                    blurRadius: 10,
+                  ),
+                ],
               )
-            : TextStyleCustom.outFitMedium500(
-                color: unselectedColor,
-                fontSize: 13,
-              ),
+            : null,
+        child: Text(
+          label.toUpperCase(),
+          style: selected
+              ? TextStyleCustom.unboundedBold700(
+                  color: selectedColor,
+                  fontSize: 13,
+                )
+              : TextStyleCustom.outFitMedium500(
+                  color: unselectedColor,
+                  fontSize: 13,
+                ),
+        ),
       ),
     );
   }

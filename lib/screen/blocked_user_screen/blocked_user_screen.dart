@@ -22,17 +22,34 @@ class BlockedUserScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(BlockedUsersListController());
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
     return ThemeRes.applyIfClient(
       context,
       Scaffold(
-      backgroundColor: AppRole.isClient() ? ClientColors.bg : null,
+      backgroundColor: client
+          ? ClientColors.bg
+          : (streamer ? const Color(0xFF07010E) : null),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (AppRole.isClient()) const BrandWashBg(vivid: false),
+          if (client)
+            const BrandWashBg(vivid: false)
+          else if (streamer)
+            const BrandWashBg(vivid: true),
           Column(
         children: [
-          CustomAppBar(title: LKey.blockedUsers.tr),
+          CustomAppBar(
+            title: LKey.blockedUsers.tr,
+            bgColor: streamer ? Colors.transparent : null,
+            iconColor: streamer ? Colors.white : null,
+            titleStyle: streamer
+                ? TextStyleCustom.unboundedMedium500(
+                    color: Colors.white,
+                    fontSize: 18,
+                  )
+                : null,
+          ),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value && controller.users.isEmpty) {

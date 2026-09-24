@@ -11,6 +11,7 @@ import 'package:krimson/screen/settings_screen/settings_screen.dart';
 import 'package:krimson/screen/settings_screen/settings_screen_controller.dart';
 import 'package:krimson/screen/settings_screen/widget/setting_icon_text_with_arrow.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -24,17 +25,34 @@ class NotificationsPage extends StatelessWidget {
         ? Get.find<SettingsScreenController>()
         : Get.put(SettingsScreenController());
     final isAgency = AppRole.isAgency();
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
     return ThemeRes.applyIfClient(
       context,
       Scaffold(
-      backgroundColor: AppRole.isClient() ? ClientColors.bg : null,
+      backgroundColor: client
+          ? ClientColors.bg
+          : (streamer ? const Color(0xFF07010E) : null),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (AppRole.isClient()) const BrandWashBg(vivid: false),
+          if (client)
+            const BrandWashBg(vivid: false)
+          else if (streamer)
+            const BrandWashBg(vivid: true),
           Column(
         children: [
-          CustomAppBar(title: LKey.notifications.tr),
+          CustomAppBar(
+            title: LKey.notifications.tr,
+            bgColor: streamer ? Colors.transparent : null,
+            iconColor: streamer ? Colors.white : null,
+            titleStyle: streamer
+                ? TextStyleCustom.unboundedMedium500(
+                    color: Colors.white,
+                    fontSize: 18,
+                  )
+                : null,
+          ),
           Expanded(
             child: Obx(() {
               final user = controller.myUser.value;

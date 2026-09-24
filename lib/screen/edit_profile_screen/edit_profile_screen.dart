@@ -28,16 +28,35 @@ class EditProfileScreen extends StatelessWidget {
     final controller =
         Get.put(EditProfileScreenController(onUpdateUser: onUpdateUser));
 
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
+    final accent = client ? ClientColors.primary : const Color(0xFFE879F9);
+
     return ThemeRes.applyIfClient(
       context,
       Scaffold(
-      backgroundColor: AppRole.isClient() ? ClientColors.bg : null,
+      backgroundColor: client
+          ? ClientColors.bg
+          : (streamer ? const Color(0xFF07010E) : null),
       body: Stack(
         children: [
-          if (AppRole.isClient()) const BrandWashBg(vivid: false),
+          if (client)
+            const BrandWashBg(vivid: false)
+          else if (streamer)
+            const BrandWashBg(vivid: true),
           Column(
             children: [
-              CustomAppBar(title: LKey.editProfile.tr),
+              CustomAppBar(
+                title: LKey.editProfile.tr,
+                bgColor: streamer ? Colors.transparent : null,
+                iconColor: streamer ? Colors.white : null,
+                titleStyle: streamer
+                    ? TextStyleCustom.unboundedMedium500(
+                        color: Colors.white,
+                        fontSize: 18,
+                      )
+                    : null,
+              ),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.only(bottom: 24),
@@ -70,10 +89,11 @@ class EditProfileScreen extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: ClientColors.primary,
+                                        color: accent,
                                         width: 2,
                                       ),
                                       boxShadow: ClientColors.neonGlow(
+                                        color: accent,
                                         alpha: 0.45,
                                         blur: 16,
                                         offset: Offset.zero,
@@ -113,9 +133,10 @@ class EditProfileScreen extends StatelessWidget {
                                     child: Container(
                                       padding: const EdgeInsets.all(6),
                                       decoration: BoxDecoration(
-                                        color: ClientColors.primary,
+                                        color: accent,
                                         shape: BoxShape.circle,
                                         boxShadow: ClientColors.neonGlow(
+                                          color: accent,
                                           alpha: 0.5,
                                           blur: 10,
                                           offset: Offset.zero,
@@ -136,9 +157,7 @@ class EditProfileScreen extends StatelessWidget {
                               child: Text(
                                 LKey.editProfile.tr,
                                 style: TextStyleCustom.outFitMedium500(
-                                  color: AppRole.isClient()
-                                      ? ClientColors.primary
-                                      : themeAccentSolid(context),
+                                  color: accent,
                                   fontSize: 14,
                                 ),
                               ),
@@ -151,40 +170,40 @@ class EditProfileScreen extends StatelessWidget {
                         title: LKey.fullName.tr,
                         controller: controller.fullNameController,
                         showChevron: true,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.only(left: 12, right: 4),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 12, right: 4),
                           child: Icon(Icons.person_outline_rounded,
-                              color: ClientColors.primary, size: 22),
+                              color: accent, size: 22),
                         ),
                       ),
                       TextFieldCustom(
                         title: LKey.username.tr,
                         controller: controller.usernameController,
                         showChevron: true,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.only(left: 12, right: 4),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 12, right: 4),
                           child: Icon(Icons.alternate_email_rounded,
-                              color: ClientColors.primary, size: 22),
+                              color: accent, size: 22),
                         ),
                       ),
                       TextFieldCustom(
                         title: LKey.bio.tr,
                         controller: controller.bioController,
                         height: 110,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.only(left: 12, right: 4, top: 12),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 12, right: 4, top: 12),
                           child: Icon(Icons.edit_outlined,
-                              color: ClientColors.primary, size: 22),
+                              color: accent, size: 22),
                         ),
                       ),
                       TextFieldCustom(
                         title: LKey.email.tr,
                         controller: controller.emailController,
                         keyboardType: TextInputType.emailAddress,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.only(left: 12, right: 4),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 12, right: 4),
                           child: Icon(Icons.mail_outline_rounded,
-                              color: ClientColors.primary, size: 22),
+                              color: accent, size: 22),
                         ),
                       ),
                       const SizedBox(height: 8),

@@ -221,24 +221,28 @@ class BrandStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = solid ? color : ColorRes.whitePure;
-    final fg = solid ? ColorRes.whitePure : color;
+    final dark = AppRole.isClient() || AppRole.isStreamer();
+    final bg = solid
+        ? color
+        : (dark ? const Color(0x66140A22) : ColorRes.whitePure);
+    final fg = solid ? ColorRes.whitePure : (dark ? Colors.white70 : color);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: solid ? ColorRes.whitePure : color,
-          width: solid ? 1.6 : 1.3,
+          color: solid ? color : color.withValues(alpha: dark ? 0.7 : 1),
+          width: solid ? 0 : 1.2,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        boxShadow: solid
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                ),
+              ]
+            : null,
       ),
       child: Text(
         label,
@@ -266,9 +270,22 @@ class BrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
     if (client) {
       return Padding(
         padding: margin ?? const EdgeInsets.fromLTRB(4, 4, 4, 4),
+        child: child,
+      );
+    }
+    if (streamer) {
+      return Container(
+        margin: margin ?? const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        padding: padding ?? EdgeInsets.zero,
+        decoration: BoxDecoration(
+          color: const Color(0xCC160820),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0x73E879F9)),
+        ),
         child: child,
       );
     }

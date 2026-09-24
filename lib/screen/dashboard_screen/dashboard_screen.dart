@@ -217,19 +217,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   decoration: BoxDecoration(
                     color: client
                         ? ClientColors.surfaceDark.withValues(alpha: 0.92)
-                        : navBarBg,
+                        : const Color(0xE6140818),
                     borderRadius: BorderRadius.circular(32),
-                    border: client
-                        ? Border.all(
-                            color: ClientColors.primary.withValues(alpha: 0.45))
-                        : null,
+                    border: Border.all(
+                      color: (client ? ClientColors.primary : const Color(0xFFE879F9))
+                          .withValues(alpha: client ? 0.45 : 0.55),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: (client
                                 ? ClientColors.primary
-                                : ColorRes.crimson)
-                            .withValues(alpha: client ? 0.4 : 0.22),
-                        blurRadius: client ? 20 : 16,
+                                : const Color(0xFFE879F9))
+                            .withValues(alpha: client ? 0.4 : 0.38),
+                        blurRadius: 20,
                         offset: const Offset(0, 6),
                       ),
                     ],
@@ -270,7 +270,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: showSelected ? StyleRes.themeGradient : null,
+              gradient: showSelected
+                  ? (AppRole.isClient()
+                      ? StyleRes.themeGradient
+                      : const LinearGradient(
+                          colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                        ))
+                  : null,
               color: Colors.transparent,
               boxShadow: showSelected
                   ? [
@@ -324,7 +330,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Icon(
             Icons.favorite_rounded,
             size: 26,
-            color: ColorRes.crimson,
+            color: Color(0xFFE879F9),
           ),
         ),
       ),
@@ -378,8 +384,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final client = AppRole.isClient();
       final accent = client
           ? ClientColors.primary
-          : ColorRes.navIconColors[
-              index.clamp(0, ColorRes.navIconColors.length - 1)];
+          : const Color(0xFFE879F9);
       final locked = false;
       final iconColor = locked
           ? ColorRes.disabledGrey

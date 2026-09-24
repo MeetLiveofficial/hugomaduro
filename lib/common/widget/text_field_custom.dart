@@ -67,6 +67,26 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
+    final labelColor = client
+        ? ClientColors.textMuted
+        : (streamer ? Colors.white70 : textDarkGrey(context));
+    final fieldFill = client
+        ? ClientColors.surfaceAlt
+        : (streamer
+            ? const Color(0xCC160820)
+            : ColorRes.whitePure.withValues(alpha: 0.9));
+    final fieldBorder = client
+        ? ClientColors.primary.withValues(alpha: 0.55)
+        : (streamer
+            ? const Color(0x73E879F9)
+            : ColorRes.roseBorder.withValues(alpha: 0.35));
+    final ink = client
+        ? ClientColors.text
+        : (streamer ? Colors.white : textDarkGrey(context));
+    final hint = client
+        ? ClientColors.textMuted
+        : (streamer ? Colors.white54 : textLightGrey(context));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -74,8 +94,8 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
           child: Text(widget.title,
               style: TextStyleCustom.outFitRegular400(
-                  color: client ? ClientColors.textMuted : textDarkGrey(context),
-                  fontSize: client ? 14 : 17)),
+                  color: labelColor,
+                  fontSize: client || streamer ? 14 : 17)),
         ),
         Container(
           height: widget.height,
@@ -84,20 +104,20 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
           decoration: BoxDecoration(
               color: widget.isError
                   ? ColorRes.likeRed.withValues(alpha: .1)
-                  : (client
-                      ? ClientColors.surfaceAlt
-                      : ColorRes.whitePure.withValues(alpha: 0.9)),
+                  : fieldFill,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: widget.isError
-                    ? ColorRes.likeRed
-                    : (client
-                        ? ClientColors.primary.withValues(alpha: 0.55)
-                        : ColorRes.roseBorder.withValues(alpha: 0.35)),
+                color: widget.isError ? ColorRes.likeRed : fieldBorder,
               ),
               boxShadow: client
                   ? ClientColors.neonGlow(alpha: 0.22, blur: 12)
-                  : [
+                  : streamer
+                      ? ClientColors.neonGlow(
+                          color: const Color(0xFFE879F9),
+                          alpha: 0.18,
+                          blur: 12,
+                        )
+                      : [
                       BoxShadow(
                         color: ColorRes.crimson.withValues(alpha: 0.07),
                         blurRadius: 8,
@@ -117,15 +137,13 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
             minLines: isExpand ? null : 1,
             // Ensure minLines is null when expands is true
             style: TextStyleCustom.outFitRegular400(
-                color: client ? ClientColors.text : textDarkGrey(context),
+                color: ink,
                 fontSize: 16),
             decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: widget.hintText ?? LKey.enterHere.tr,
                 hintStyle: TextStyleCustom.outFitLight300(
-                    color: client
-                        ? ClientColors.textMuted
-                        : textLightGrey(context),
+                    color: hint,
                     fontSize: 17),
                 contentPadding: EdgeInsets.only(
                     left: 20,
@@ -208,7 +226,9 @@ class _TextFieldCustomState extends State<TextFieldCustom> {
             inputFormatters: widget.inputFormatters,
             textAlignVertical:
                 widget.isPrefixIconShow ? TextAlignVertical.center : null,
-            cursorColor: client ? ClientColors.primary : textLightGrey(context),
+            cursorColor: client
+                ? ClientColors.primary
+                : (streamer ? const Color(0xFFE879F9) : textLightGrey(context)),
           ),
         )
       ],

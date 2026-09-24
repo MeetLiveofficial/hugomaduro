@@ -21,14 +21,21 @@ class CoinWalletScreen extends StatelessWidget {
     // Get.put reutiliza el controller: refrescar saldo al entrar siempre.
     controller.fetchData();
     final isEarner = AppRole.canEarn();
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
     return ThemeRes.applyIfClient(
       context,
       Scaffold(
-      backgroundColor: AppRole.isClient() ? ClientColors.bg : null,
+      backgroundColor: client
+          ? ClientColors.bg
+          : (streamer ? const Color(0xFF07010E) : null),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (AppRole.isClient()) const BrandWashBg(vivid: false),
+          if (client)
+            const BrandWashBg(vivid: false)
+          else if (streamer)
+            const BrandWashBg(vivid: true),
           Column(
         children: [
           const CoinWalletTopView(),
@@ -47,7 +54,7 @@ class CoinWalletScreen extends StatelessWidget {
                   )
                 : Text(LKey.coinShop.tr,
                     style: TextStyleCustom.unboundedRegular400(
-                      color: textDarkGrey(context),
+                      color: streamer ? Colors.white : textDarkGrey(context),
                       fontSize: 15,
                     )),
             const SizedBox(height: 2),
@@ -56,9 +63,9 @@ class CoinWalletScreen extends StatelessWidget {
               child: Text(
                 LKey.rechargeWallet.tr,
                 style: TextStyleCustom.outFitRegular400(
-                  color: AppRole.isClient()
+                  color: client
                       ? ClientColors.text.withValues(alpha: 0.92)
-                      : textLightGrey(context),
+                      : (streamer ? Colors.white70 : textLightGrey(context)),
                   fontSize: 14,
                 ).copyWith(height: 1.35),
                 textAlign: TextAlign.center,

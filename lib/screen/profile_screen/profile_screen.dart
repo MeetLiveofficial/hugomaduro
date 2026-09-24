@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_back_button.dart';
 import 'package:krimson/common/widget/my_refresh_indicator.dart';
 import 'package:krimson/common/widget/text_button_custom.dart';
@@ -51,7 +52,7 @@ class ProfileScreen extends StatelessWidget {
             : "${DateTime.now().millisecondsSinceEpoch}");
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B0F),
+      backgroundColor: const Color(0xFF07010E),
       body: PopScope(
         onPopInvokedWithResult: (didPop, result) {
           controller.adsController
@@ -99,7 +100,14 @@ class ProfileScreen extends StatelessWidget {
           }
 
           return Stack(
+            fit: StackFit.expand,
             children: [
+              if (!isClientProfile)
+                Image.asset(
+                  BrandWashBg.streamerAsset,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                ),
               content,
               if (profileUser?.isFreez == 1)
                 Positioned.fill(

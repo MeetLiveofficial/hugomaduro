@@ -27,8 +27,8 @@ class LevelScreen extends StatelessWidget {
       ..sort((a, b) => a.coinsCollection.compareTo(b.coinsCollection));
     final current = userLevels ?? SessionManager.instance.getUser()?.getLevel;
     final client = AppRole.isClient();
-    final accent = client ? ClientColors.primary : themeAccentSolid(context);
-    final bg = client ? ClientColors.bg : scaffoldBackgroundColor(context);
+    const streamerAccent = Color(0xFFE879F9);
+    final accent = client ? ClientColors.primary : streamerAccent;
     // Clientes solo ven progreso (nivel + monedas); sin textos de beneficios.
     final showBenefits = AppRole.isStreamer();
 
@@ -47,60 +47,99 @@ class LevelScreen extends StatelessWidget {
       );
     }
 
-    return ThemeRes.applyIfClient(
-      context,
-      Scaffold(
-      backgroundColor: bg,
-      body: Column(
+    return Scaffold(
+      backgroundColor: const Color(0xFF07010E),
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          _Header(
-            current: current,
-            accent: accent,
-            showBenefits: showBenefits,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-            child: Row(
-              children: [
-                Text(
-                  LKey.level.tr,
-                  style: TextStyleCustom.outFitSemiBold600(
-                    color: AppRole.isClient()
-                        ? ClientColors.text
-                        : textDarkGrey(context),
-                    fontSize: 14,
-                  ),
+          const BrandWashBg(vivid: true),
+          Column(
+            children: [
+              _Header(
+                current: current,
+                accent: accent,
+                showBenefits: showBenefits,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                child: Row(
+                  children: [
+                    Text(
+                      LKey.level.tr,
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      LKey.collection.tr,
+                      style: TextStyleCustom.outFitMedium500(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                Text(
-                  LKey.collection.tr,
-                  style: TextStyleCustom.outFitMedium500(
-                    color: textLightGrey(context),
-                    fontSize: 13,
-                  ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: levels.length,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                  itemBuilder: (context, index) {
+                    final level = levels[index];
+                    final isCurrent = level.level == current?.level;
+                    return _LevelCard(
+                      level: level,
+                      isCurrent: isCurrent,
+                      accent: accent,
+                      showBenefits: showBenefits,
+                      badge: _kLevelBadges[index % _kLevelBadges.length],
+                    );
+                  },
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: levels.length,
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-              itemBuilder: (context, index) {
-                final level = levels[index];
-                final isCurrent = level.level == current?.level;
-                return _LevelCard(
-                  level: level,
-                  isCurrent: isCurrent,
-                  accent: accent,
-                  showBenefits: showBenefits,
-                );
-              },
-            ),
+              ),
+            ],
           ),
         ],
       ),
-    ),
+    );
+  }
+}
+
+class _StreamerLevelTitle extends StatelessWidget {
+  final String raw;
+
+  const _StreamerLevelTitle({required this.raw});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = raw.trim();
+    final split = text.indexOf(' ');
+    final head = split == -1 ? text : text.substring(0, split);
+    final tail = split == -1 ? '' : text.substring(split + 1);
+    final style = TextStyleCustom.unboundedBold700(
+      fontSize: 32,
+      color: Colors.white,
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(head, style: style),
+        if (tail.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          Flexible(
+            child: GradientText(
+              tail,
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF4D9A), Color(0xFFC084FC)],
+              ),
+              style: style,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -123,9 +162,7 @@ class _Header extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppRole.isClient() ? Colors.transparent : const Color(0xFF141418),
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -141,12 +178,15 @@ class _Header extends StatelessWidget {
                     color: Colors.white, size: 20),
               ),
               const SizedBox(height: 4),
-              Text(
-                LKey.myLevel.tr,
-                style: TextStyleCustom.unboundedBold700(
-                  fontSize: 26,
-                  color: Colors.white,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: _StreamerLevelTitle(raw: LKey.myLevel.tr)),
+                  const _BadgeArt(
+                    asset: 'assets/images/levels/level_badge_hero.png',
+                    size: 88,
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               Row(
@@ -156,8 +196,16 @@ class _Header extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: accent,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                      ),
                       borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accent.withValues(alpha: 0.45),
+                          blurRadius: 12,
+                        ),
+                      ],
                     ),
                     child: Text(
                       '${LKey.level.tr} ${current?.level ?? 1}',
@@ -319,25 +367,22 @@ class _LevelCard extends StatelessWidget {
   final bool isCurrent;
   final Color accent;
   final bool showBenefits;
+  final String badge;
 
   const _LevelCard({
     required this.level,
     required this.isCurrent,
     required this.accent,
     required this.showBenefits,
+    required this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
-    final client = AppRole.isClient();
     final borderColor = isCurrent
         ? accent
-        : (client
-            ? ClientColors.border
-            : textLightGrey(context).withValues(alpha: 0.25));
-    final fill = isCurrent
-        ? accent.withValues(alpha: client ? 0.14 : 0.06)
-        : (client ? ClientColors.surface : bgLightGrey(context));
+        : const Color(0x73E879F9);
+    final fill = const Color(0xCC160820);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -354,15 +399,13 @@ class _LevelCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              _BadgeArt(asset: badge, size: 52),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${LKey.level.tr} ${level.level}',
                   style: TextStyleCustom.outFitSemiBold600(
-                    color: isCurrent
-                        ? accent
-                        : (AppRole.isClient()
-                            ? ClientColors.text
-                            : textDarkGrey(context)),
+                    color: isCurrent ? accent : Colors.white,
                     fontSize: 15,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -391,9 +434,7 @@ class _LevelCard extends StatelessWidget {
                 level.coinsCollection.numberFormat,
                 style: TextStyleCustom.outFitMedium500(
                   fontSize: 14,
-                  color: AppRole.isClient()
-                      ? ClientColors.gold
-                      : textDarkGrey(context),
+                  color: const Color(0xFFF5C16C),
                 ),
               ),
             ],
@@ -430,7 +471,7 @@ class _LevelCard extends StatelessWidget {
                         '• $b',
                         style: TextStyleCustom.outFitRegular400(
                           fontSize: 12,
-                          color: textDarkGrey(context).withValues(alpha: 0.75),
+                          color: Colors.white70,
                         ),
                       ),
                     ),
@@ -455,17 +496,20 @@ class _MetaChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: emphasized
-            ? themeAccentSolid(context).withValues(alpha: 0.1)
-            : bgMediumGrey(context),
+            ? const Color(0x33E879F9)
+            : const Color(0x66140A22),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: emphasized
+              ? const Color(0xFFE879F9)
+              : const Color(0x55E879F9),
+        ),
       ),
       child: Text(
         label,
         style: TextStyleCustom.outFitMedium500(
           fontSize: 11,
-          color: emphasized
-              ? themeAccentSolid(context)
-              : textDarkGrey(context).withValues(alpha: 0.8),
+          color: emphasized ? const Color(0xFFE879F9) : Colors.white70,
         ),
       ),
     );

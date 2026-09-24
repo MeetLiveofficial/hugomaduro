@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
@@ -41,18 +40,16 @@ class CustomTabSwitcher extends StatelessWidget {
     final client = AppRole.isClient();
     return Obx(
       () => Container(
-        height: client ? 52 : 48,
+        height: 52,
         width: double.infinity,
         margin: margin ?? const EdgeInsets.symmetric(vertical: 10),
         decoration: ShapeDecoration(
           color: backgroundColor ?? bgMediumGrey(context),
           shape: SmoothRectangleBorder(
-            borderRadius: SmoothBorderRadius(
-                cornerRadius: client ? 26 : 10, cornerSmoothing: 1),
+            borderRadius: SmoothBorderRadius(cornerRadius: 26, cornerSmoothing: 1),
             side: BorderSide(
-              color: client
-                  ? ClientColors.accentBlue.withValues(alpha: 0.45)
-                  : ColorRes.menuBorder,
+              color: (client ? ClientColors.accentBlue : const Color(0xFFE879F9))
+                  .withValues(alpha: 0.45),
             ),
           ),
         ),
@@ -75,20 +72,22 @@ class CustomTabSwitcher extends StatelessWidget {
                     decoration: ShapeDecoration(
                       shape: SmoothRectangleBorder(
                         borderRadius: SmoothBorderRadius(
-                            cornerRadius: client ? 22 : 8, cornerSmoothing: 1),
+                            cornerRadius: 22, cornerSmoothing: 1),
                       ),
                       gradient: client
                           ? const LinearGradient(
                               colors: [Color(0xFF3EC6FF), Color(0xFF5B78FF)],
                             )
-                          : StyleRes.themeGradient,
-                      shadows: client
-                          ? ClientColors.neonGlow(
-                              color: const Color(0xFF3EC6FF),
-                              alpha: 0.55,
-                              blur: 14,
-                            )
-                          : const [],
+                          : const LinearGradient(
+                              colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                            ),
+                      shadows: ClientColors.neonGlow(
+                        color: client
+                            ? const Color(0xFF3EC6FF)
+                            : const Color(0xFFE879F9),
+                        alpha: 0.55,
+                        blur: 14,
+                      ),
                     ),
                   ),
                 );

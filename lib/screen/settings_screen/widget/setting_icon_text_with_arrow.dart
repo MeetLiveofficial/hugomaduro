@@ -25,6 +25,7 @@ class SettingIconTextWithArrow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
     final accent = iconColor ??
         (client ? ClientColors.primary : themeAccentSolid(context));
     final row = InkWell(
@@ -65,7 +66,9 @@ class SettingIconTextWithArrow extends StatelessWidget {
                 title.tr,
                 style: TextStyleCustom.outFitRegular400(
                   fontSize: 16,
-                  color: client ? ClientColors.text : textDarkGrey(context),
+                  color: client
+                      ? ClientColors.text
+                      : (streamer ? Colors.white : textDarkGrey(context)),
                 ),
               ),
             ),

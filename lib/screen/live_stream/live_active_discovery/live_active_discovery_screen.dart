@@ -28,6 +28,9 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(LiveActiveDiscoveryController());
+    final streamer = !AppRole.isClient();
+    final accent =
+        streamer ? const Color(0xFFE879F9) : ClientColors.primary;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -49,9 +52,9 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                     child: InkWell(
                       onTap: () => Get.to(() => const LeaderboardScreen()),
                       borderRadius: BorderRadius.circular(8),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                        child: PodiumIcon(size: 28, color: ClientColors.primary),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        child: PodiumIcon(size: 28, color: accent),
                       ),
                     ),
                   ),
@@ -68,7 +71,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                           controller.showSearch.value
                               ? Icons.close
                               : Icons.search,
-                          color: ClientColors.primary,
+                          color: accent,
                           size: 24,
                         )),
                   ),
@@ -215,9 +218,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                           const LiveTvIcon(size: 64, color: Colors.white38),
                           const SizedBox(height: 16),
                           Text(
-                            searching
-                                ? LKey.noData.tr
-                                : LKey.noLivestreamsTitle.tr,
+                            controller.emptyTitle(searching: searching),
                             textAlign: TextAlign.center,
                             style: TextStyleCustom.unboundedSemiBold600(
                               color: Colors.white,
@@ -226,9 +227,7 @@ class LiveActiveDiscoveryScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            searching
-                                ? LKey.searchPageEmptyDescription.tr
-                                : LKey.noLivestreamsDescription.tr,
+                            controller.emptyDescription(searching: searching),
                             textAlign: TextAlign.center,
                             style: TextStyleCustom.outFitRegular400(
                               color: Colors.white60,
@@ -324,12 +323,20 @@ class _LiveGridCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: AppRole.isClient()
-            ? BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: ClientColors.neonGlow(alpha: 0.2, blur: 14),
-              )
-            : null,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: AppRole.isClient()
+              ? null
+              : Border.all(color: const Color(0xFFE879F9).withValues(alpha: 0.45)),
+          boxShadow: AppRole.isClient()
+              ? ClientColors.neonGlow(alpha: 0.2, blur: 14)
+              : [
+                  BoxShadow(
+                    color: const Color(0xFFE879F9).withValues(alpha: 0.22),
+                    blurRadius: 14,
+                  ),
+                ],
+        ),
         child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRole.isClient() ? 18 : 12),
         child: Stack(

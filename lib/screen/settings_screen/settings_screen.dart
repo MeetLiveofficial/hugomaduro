@@ -63,20 +63,36 @@ class SettingsScreen extends StatelessWidget {
     }
     final controller = Get.put(SettingsScreenController());
     final isAgency = AppRole.isAgency();
-    final logoutColor =
-        AppRole.isClient() ? ClientColors.primary : ColorRes.crimsonAlt;
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
+    final logoutColor = client ? ClientColors.primary : ColorRes.crimsonAlt;
     final page = ThemeRes.applyIfClient(
       context,
       Scaffold(
-        backgroundColor:
-            AppRole.isClient() ? ClientColors.bg : null,
+        backgroundColor: client
+            ? ClientColors.bg
+            : (streamer ? const Color(0xFF07010E) : null),
         body: Stack(
           fit: StackFit.expand,
           children: [
-            if (AppRole.isClient()) const BrandWashBg(vivid: false),
+            if (client)
+              const BrandWashBg(vivid: false)
+            else if (streamer)
+              const BrandWashBg(vivid: true),
             Column(
       children: [
-        CustomAppBar(title: LKey.settings.tr, showBack: showBack),
+        CustomAppBar(
+          title: LKey.settings.tr,
+          showBack: showBack,
+          bgColor: streamer ? Colors.transparent : null,
+          iconColor: streamer ? Colors.white : null,
+          titleStyle: streamer
+              ? TextStyleCustom.unboundedMedium500(
+                  color: Colors.white,
+                  fontSize: 18,
+                )
+              : null,
+        ),
         Expanded(
             child: SingleChildScrollView(
           padding: const EdgeInsets.only(bottom: 40),
@@ -146,7 +162,7 @@ class SettingsScreen extends StatelessWidget {
                   await Get.to(() => const CoinWalletScreen());
                 },
               ),
-              if (AppRole.canWithdraw())
+              if (AppRole.canWithdraw() && !AppRole.isStreamer())
                 SettingIconTextWithArrow(
                   icon: AssetRes.icWallet,
                   iconColor: settingRowIcon(ColorRes.crimson),
@@ -395,7 +411,12 @@ class SettingLabel extends StatelessWidget {
       child: Text(
         title.tr.toUpperCase(),
         style: TextStyleCustom.outFitMedium500(
-                fontSize: 12, color: themeAccentSolid(context))
+                fontSize: 12,
+                color: AppRole.isClient()
+                    ? ClientColors.primary
+                    : (AppRole.isStreamer()
+                        ? const Color(0xFFE879F9)
+                        : themeAccentSolid(context)))
             .copyWith(letterSpacing: 1.6),
       ),
     );

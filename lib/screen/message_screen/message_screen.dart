@@ -15,14 +15,13 @@ import 'package:krimson/screen/message_screen/widget/new_direct_chat_sheet.dart'
 import 'package:krimson/screen/message_screen/widget/support_chat_card.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
 
 class MessageScreen extends StatelessWidget {
   const MessageScreen({super.key});
 
-  static const Color _pageBgStreamer = Color(0xFFFFF4F8);
+  static const Color _pageBgStreamer = Colors.transparent;
 
   @override
   Widget build(BuildContext context) {
@@ -37,17 +36,7 @@ class MessageScreen extends StatelessWidget {
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: client ? Colors.transparent : null,
-              gradient: client ? null : StyleRes.themeGradient,
-              boxShadow: client
-                  ? null
-                  : [
-                      BoxShadow(
-                        color: StyleRes.brandAccent.withValues(alpha: 0.28),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+              color: Colors.transparent,
             ),
             child: SafeArea(
               bottom: false,
@@ -80,13 +69,18 @@ class MessageScreen extends StatelessWidget {
                                     ),
                                   ],
                                 )
-                              : Text(
+                              : GradientText(
                                   LKey.messages.tr,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyleCustom.unboundedMedium500(
-                                    fontSize: 18,
-                                    color: ColorRes.whitePure,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFF4D9A),
+                                      Color(0xFFC084FC),
+                                    ],
                                   ),
+                                  style: TextStyleCustom.unboundedBold700(
+                                    fontSize: 22,
+                                    color: ColorRes.whitePure,
+                                  ).copyWith(fontStyle: FontStyle.normal),
                                 ),
                           Row(
                             children: [
@@ -97,7 +91,7 @@ class MessageScreen extends StatelessWidget {
                                   Icons.search_rounded,
                                   color: client
                                       ? ClientColors.primary
-                                      : ColorRes.whitePure,
+                                      : const Color(0xFFE879F9),
                                   size: 24,
                                 ),
                               ),
@@ -109,7 +103,7 @@ class MessageScreen extends StatelessWidget {
                                   Icons.edit_square,
                                   color: client
                                       ? ClientColors.magentaHot
-                                      : ColorRes.whitePure,
+                                      : const Color(0xFFE879F9),
                                   size: 22,
                                 ),
                               ),
@@ -139,19 +133,17 @@ class MessageScreen extends StatelessWidget {
                                 .dashboardController.callsUnReadCount),
                       },
                       margin: const EdgeInsets.only(top: 10),
-                      icons: client
-                          ? const [
-                              Icons.chat_bubble_outline_rounded,
-                              Icons.people_alt_rounded,
-                              Icons.phone_rounded,
-                            ]
-                          : null,
+                      icons: const [
+                        Icons.chat_bubble_outline_rounded,
+                        Icons.people_alt_rounded,
+                        Icons.phone_rounded,
+                      ],
                       backgroundColor: client
                           ? ClientColors.surfaceDarkAlt
-                          : ColorRes.whitePure,
+                          : const Color(0xCC140818),
                       unselectedFontColor: client
                           ? ClientColors.textMuted
-                          : ColorRes.textDarkGrey,
+                          : Colors.white70,
                     ),
                   ],
                 ),

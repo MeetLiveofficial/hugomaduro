@@ -11,6 +11,10 @@ class AppUser {
   int isLive;
   /// Precio/min efectivo de llamada (override del streamer o default del nivel).
   int callRequestCoins;
+  String? country;
+  String? countryCode;
+  String? region;
+  String? regionName;
 
   AppUser({
     this.userId,
@@ -22,6 +26,10 @@ class AppUser {
     this.isActive = 0,
     this.isLive = 0,
     this.callRequestCoins = 0,
+    this.country,
+    this.countryCode,
+    this.region,
+    this.regionName,
   });
 
   bool get isPresent => isActive == 1 || isLive == 1;
@@ -36,6 +44,10 @@ class AppUser {
     fullname = json['fullname'];
     profile = json['profile'];
     isVerify = json['is_verify'];
+    country = json['country']?.toString();
+    countryCode = json['countryCode']?.toString();
+    region = json['region']?.toString();
+    regionName = json['regionName']?.toString();
   }
 
   static int? _asInt(dynamic v) {
@@ -56,6 +68,10 @@ class AppUser {
     data['is_active'] = isActive;
     data['is_live'] = isLive;
     data['call_request_coins'] = callRequestCoins;
+    data['country'] = country;
+    data['countryCode'] = countryCode;
+    data['region'] = region;
+    data['regionName'] = regionName;
     return data;
   }
 }

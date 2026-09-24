@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/framed_avatar.dart';
 import 'package:krimson/common/widget/loader_widget.dart';
 import 'package:krimson/common/extensions/common_extension.dart';
@@ -13,16 +14,15 @@ import 'package:krimson/screen/withdrawals_screen/withdrawals_screen.dart';
 import 'package:krimson/screen/work_screen/work_screen_controller.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/color_res.dart';
-import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 
 /// Panel de Trabajo del streamer: métricas de llamadas, nivel semanal e ingresos.
 class WorkScreen extends StatelessWidget {
   const WorkScreen({super.key});
 
-  static const _bg = ColorRes.bgVoid;
-  static const _card = ColorRes.bgElevated;
-  static const _pink = ColorRes.mauve;
+  static const _bg = Color(0xFF07010E);
+  static const _card = Color(0xCC160820);
+  static const _pink = Color(0xFFE879F9);
   static const _gold = ColorRes.accentPeach;
   static const _cyan = ColorRes.accentRose;
   static const _green = Color(0xFF34D399);
@@ -33,8 +33,12 @@ class WorkScreen extends StatelessWidget {
     final controller = Get.put(WorkScreenController());
 
     return Scaffold(
-      backgroundColor: _bg,
-      body: SafeArea(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const BrandWashBg(vivid: true),
+          SafeArea(
         child: Obx(() {
           if (controller.pageLoading.value && controller.stats.value == null) {
             return const Center(child: LoaderWidget());
@@ -59,6 +63,8 @@ class WorkScreen extends StatelessWidget {
               children: [
                 _Header(data: data, controller: controller),
                 const SizedBox(height: 12),
+                _ScoreCard(data: data),
+                const SizedBox(height: 12),
                 const _RankingsEntry(),
                 const SizedBox(height: 16),
                 _MainGrid(data: data),
@@ -82,7 +88,9 @@ class WorkScreen extends StatelessWidget {
               ],
             ),
           );
-        }),
+        }        ),
+          ),
+        ],
       ),
     );
   }
@@ -123,22 +131,21 @@ class _Header extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  gradient: StyleRes.themeGradient,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                  ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: ColorRes.coralRed.withValues(alpha: 0.35),
-                      blurRadius: 10,
+                      color: const Color(0xFFE879F9).withValues(alpha: 0.4),
+                      blurRadius: 12,
                       offset: const Offset(0, 3),
                     ),
                   ],
                 ),
                 child: Text(
-                  [
-                    '${LKey.level.tr} $levelNum',
-                    if (data.average != null)
-                      '${LKey.streamerAverage.tr} ${data.average!.avg.toStringAsFixed(0)}/100',
-                  ].join(' · '),
+                  '${LKey.level.tr} $levelNum - ${LKey.streamerAverage.tr}\n'
+                  '${data.average?.avg.toStringAsFixed(0) ?? '0'}/100',
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -154,7 +161,7 @@ class _Header extends StatelessWidget {
               child: Text(
                 '${LKey.detail.tr} >',
                 style: TextStyleCustom.outFitMedium500(
-                  color: WorkScreen._yellow,
+                  color: Colors.white70,
                   fontSize: 13,
                 ),
               ),
@@ -171,16 +178,6 @@ class _Header extends StatelessWidget {
             fontSize: 13,
           ),
         ),
-        const SizedBox(height: 8),
-        _GradeProgress(
-          grades: data.weeklyLevel.grades,
-          current: grade,
-          progress: data.weeklyLevel.progress,
-        ),
-        if (data.average != null) ...[
-          const SizedBox(height: 12),
-          _AverageBreakdown(avg: data.average!),
-        ],
       ],
     );
   }
@@ -192,44 +189,44 @@ class _RankingsEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: WorkScreen._card,
-      borderRadius: BorderRadius.circular(14),
+      color: Colors.transparent,
       child: InkWell(
         onTap: () => Get.to(() => const LeaderboardScreen()),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              Image.asset(
-                AssetRes.icRanking,
-                width: 26,
-                height: 26,
-                color: WorkScreen._gold,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.emoji_events_outlined,
-                  color: WorkScreen._gold,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  LKey.leaderboard.tr,
-                  style: TextStyleCustom.outFitSemiBold600(
-                    color: Colors.white,
-                    fontSize: 15,
+        borderRadius: BorderRadius.circular(28),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: WorkScreen._card,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0x73E879F9)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFFF4D9A), Color(0xFFB140D8)],
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                '>',
-                style: TextStyleCustom.outFitMedium500(
-                  color: WorkScreen._yellow,
-                  fontSize: 16,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    LKey.leaderboard.tr,
+                    style: TextStyleCustom.outFitSemiBold600(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                const Icon(Icons.chevron_right_rounded,
+                    color: Colors.white70, size: 22),
+              ],
+            ),
           ),
         ),
       ),
@@ -321,7 +318,7 @@ class _AverageBreakdown extends StatelessWidget {
       decoration: BoxDecoration(
         color: WorkScreen._card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: Color(0x73E879F9)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,6 +386,145 @@ class _AverageBreakdown extends StatelessWidget {
   }
 }
 
+class _ScoreCard extends StatelessWidget {
+  const _ScoreCard({required this.data});
+
+  final StreamerWorkStats data;
+
+  @override
+  Widget build(BuildContext context) {
+    final grade = data.weeklyLevel.grade;
+    final avg = data.average;
+    final rows = avg == null
+        ? const <(String, int, IconData)>[]
+        : [
+            (LKey.avgCoins.tr, avg.coins, Icons.monetization_on_outlined),
+            (LKey.avgCalls.tr, avg.calls, Icons.call_outlined),
+            (LKey.avgLive.tr, avg.live, Icons.sensors),
+            (LKey.avgActivity.tr, avg.interaction, Icons.forum_outlined),
+            (LKey.avgQuality.tr, avg.quality, Icons.star_outline_rounded),
+          ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        color: WorkScreen._card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0x73E879F9)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (final g in data.weeklyLevel.grades)
+                Column(
+                  children: [
+                    Image.asset(
+                      AssetRes.streamerBadgeForGrade(g) ??
+                          AssetRes.streamerBadgeNew,
+                      width: g == grade ? 40 : 30,
+                      height: g == grade ? 40 : 30,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      g,
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: g == grade ? Colors.white : Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _MagTrack(value: data.weeklyLevel.progress),
+          if (rows.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            for (final row in rows) ...[
+              Row(
+                children: [
+                  Icon(row.$3, color: WorkScreen._pink, size: 16),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 84,
+                    child: Text(
+                      row.$1,
+                      style: TextStyleCustom.outFitMedium500(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: _MagTrack(value: row.$2 / 100)),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 28,
+                    child: Text(
+                      '${row.$2}',
+                      textAlign: TextAlign.right,
+                      style: TextStyleCustom.outFitSemiBold600(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MagTrack extends StatelessWidget {
+  const _MagTrack({required this.value});
+
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    final factor = value.clamp(0.04, 1.0);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            height: 8,
+            width: width,
+            child: Stack(
+              children: [
+                const Positioned.fill(
+                  child: ColoredBox(color: Color(0x33FFFFFF)),
+                ),
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: width * factor,
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFFF4D9A), Color(0xFF7C3AED)],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _MainGrid extends StatelessWidget {
   const _MainGrid({required this.data});
 
@@ -396,27 +532,31 @@ class _MainGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 1.28,
-      children: [
-        _StatCard(
-          label: LKey.todaysCalls.tr,
-          value: data.today.calls.fullNumberFormat,
-          color: WorkScreen._pink,
-          icon: Icons.videocam_outlined,
-        ),
-        _StatCard(
-          label: LKey.coins.tr,
-          value: data.user.coinWallet.fullNumberFormat,
-          color: WorkScreen._gold,
-          iconAsset: AssetRes.icCoin,
-        ),
-      ],
+    return SizedBox(
+      height: 112,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _StatCard(
+              label: LKey.todaysCalls.tr,
+              value: data.today.calls.fullNumberFormat,
+              color: WorkScreen._pink,
+              icon: Icons.videocam_outlined,
+              beside: true,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatCard(
+              label: LKey.coins.tr,
+              value: data.user.coinWallet.fullNumberFormat,
+              color: const Color(0xFFFF4D9A),
+              iconAsset: AssetRes.icCoin,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -428,6 +568,7 @@ class _StatCard extends StatelessWidget {
     required this.color,
     this.icon,
     this.iconAsset,
+    this.beside = false,
   });
 
   final String label;
@@ -435,6 +576,7 @@ class _StatCard extends StatelessWidget {
   final Color color;
   final IconData? icon;
   final String? iconAsset;
+  final bool beside;
 
   @override
   Widget build(BuildContext context) {
@@ -442,46 +584,64 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: WorkScreen._card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0x73E879F9)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              if (iconAsset != null)
-                Image.asset(iconAsset!, height: 18, width: 18)
-              else if (icon != null)
-                Icon(icon, size: 18, color: color),
-              const Spacer(),
-            ],
-          ),
-          const Spacer(),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              maxLines: 1,
-              style: TextStyleCustom.unboundedSemiBold600(
-                color: color,
-                fontSize: 22,
-              ).copyWith(
-                height: 1.4,
-                leadingDistribution: TextLeadingDistribution.even,
+          if (iconAsset != null)
+            Image.asset(iconAsset!, height: 22, width: 22)
+          else if (icon != null)
+            Icon(icon, size: 22, color: color),
+          const SizedBox(height: 10),
+          if (beside)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  value,
+                  style: TextStyleCustom.unboundedSemiBold600(
+                    color: color,
+                    fontSize: 28,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    style: TextStyleCustom.outFitRegular400(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: TextStyleCustom.unboundedSemiBold600(
+                  color: color,
+                  fontSize: 26,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyleCustom.outFitRegular400(
-              color: Colors.white70,
-              fontSize: 12,
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyleCustom.outFitRegular400(
+                color: Colors.white70,
+                fontSize: 13,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -504,7 +664,7 @@ class _PerfRow extends StatelessWidget {
                     data.today.onlineTime != '-')
                 ? data.today.onlineTime
                 : '00:00:00',
-            color: WorkScreen._cyan,
+            color: Colors.white,
           ),
         ),
         const SizedBox(width: 8),
@@ -512,7 +672,7 @@ class _PerfRow extends StatelessWidget {
           child: _MiniMetric(
             label: '${LKey.avgCallDuration.tr} (d)',
             value: data.today.avgDuration,
-            color: ColorRes.basePeach,
+            color: Colors.white,
           ),
         ),
       ],
@@ -537,23 +697,34 @@ class _MiniMetric extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
         color: WorkScreen._card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x73E879F9)),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Text(
-            value,
-            style: TextStyleCustom.outFitSemiBold600(color: color, fontSize: 13),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyleCustom.outFitRegular400(
-              color: Colors.white54,
-              fontSize: 10,
+          const Icon(Icons.schedule_rounded, color: WorkScreen._pink, size: 22),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: TextStyleCustom.outFitSemiBold600(
+                    color: color,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyleCustom.outFitRegular400(
+                    color: Colors.white54,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -574,7 +745,8 @@ class _EarningsCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: WorkScreen._card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0x73E879F9)),
       ),
       child: Column(
         children: [
@@ -614,7 +786,7 @@ class _EarningsCard extends StatelessWidget {
                 child: Text(
                   '${LKey.withdraw.tr} >',
                   style: TextStyleCustom.outFitMedium500(
-                    color: WorkScreen._yellow,
+                    color: const Color(0xFFE879F9),
                     fontSize: 13,
                   ),
                 ),
@@ -622,20 +794,34 @@ class _EarningsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+          Row(
             children: [
-              _EarnItem(LKey.earningsFromCalls.tr, '${t.earningsCalls}',
-                  Icons.phone_in_talk_outlined),
-              _EarnItem(LKey.earningsFromGifts.tr, '${t.earningsGifts}',
-                  Icons.card_giftcard_outlined),
-              _EarnItem(LKey.earningsFromTasks.tr, '${t.earningsTasks}',
-                  Icons.task_alt_outlined),
-              _EarnItem(LKey.earningsFromInvites.tr, '${t.earningsInvites}',
-                  Icons.person_add_alt_1_outlined),
-              _EarnItem(LKey.managedEarnings.tr, '${t.earningsManaged}',
-                  Icons.account_balance_wallet_outlined),
+              Expanded(
+                child: _EarnItem(LKey.earningsFromCalls.tr, '${t.earningsCalls}',
+                    Icons.phone_in_talk_outlined),
+              ),
+              Expanded(
+                child: _EarnItem(LKey.earningsFromGifts.tr, '${t.earningsGifts}',
+                    Icons.card_giftcard_outlined),
+              ),
+              Expanded(
+                child: _EarnItem(LKey.earningsFromTasks.tr, '${t.earningsTasks}',
+                    Icons.task_alt_outlined),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _EarnItem(LKey.earningsFromInvites.tr,
+                    '${t.earningsInvites}', Icons.person_add_alt_1_outlined),
+              ),
+              Expanded(
+                child: _EarnItem(LKey.managedEarnings.tr, '${t.earningsManaged}',
+                    Icons.account_balance_wallet_outlined),
+              ),
+              const Expanded(child: SizedBox()),
             ],
           ),
         ],
@@ -653,11 +839,9 @@ class _EarnItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 96,
-      child: Column(
+    return Column(
         children: [
-          Icon(icon, color: Colors.white70, size: 22),
+          Icon(icon, color: WorkScreen._pink, size: 22),
           const SizedBox(height: 4),
           Text(
             value,
@@ -677,7 +861,6 @@ class _EarnItem extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }
@@ -845,7 +1028,7 @@ class _CallPricingCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: WorkScreen._card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: Color(0x73E879F9)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

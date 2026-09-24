@@ -5,6 +5,7 @@ import 'package:krimson/common/extensions/string_extension.dart';
 import 'package:krimson/common/manager/app_role.dart';
 import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/common/service/api/privilege_service.dart';
+import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/custom_app_bar.dart';
 import 'package:krimson/common/widget/custom_image.dart';
 import 'package:krimson/common/widget/framed_avatar.dart';
@@ -17,6 +18,7 @@ import 'package:krimson/screen/leaderboard_screen/leaderboard_screen.dart';
 import 'package:krimson/screen/level_screen/level_screen.dart';
 import 'package:krimson/screen/tasks_screen/tasks_screen.dart';
 import 'package:krimson/utilities/asset_res.dart';
+import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/style_res.dart';
 import 'package:krimson/utilities/text_style_custom.dart';
 import 'package:krimson/utilities/theme_res.dart';
@@ -60,16 +62,46 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
     final svip = hub?['svip'] as Map?;
     final isSvip = user?['is_svip'] == 1 || user?['is_svip'] == true;
 
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
+    final themed = client || streamer;
+    final accent = client ? ClientColors.primary : const Color(0xFFE879F9);
+
     return Scaffold(
-      body: Column(
+      backgroundColor: client
+          ? ClientColors.bg
+          : (streamer ? const Color(0xFF07010E) : null),
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          CustomAppBar(title: LKey.privilegeHub.tr),
+          if (themed) BrandWashBg(vivid: streamer),
+          Column(
+        children: [
+          CustomAppBar(
+            title: LKey.privilegeHub.tr,
+            bgColor: streamer ? Colors.transparent : null,
+            iconColor: streamer ? Colors.white : null,
+            titleStyle: streamer
+                ? TextStyleCustom.unboundedMedium500(
+                    color: Colors.white,
+                    fontSize: 18,
+                  )
+                : null,
+          ),
           Expanded(
             child: loading
                 ? const LoaderWidget()
                 : error != null
-                    ? Center(child: Text(error!))
+                    ? Center(
+                        child: Text(
+                          error!,
+                          style: TextStyleCustom.outFitRegular400(
+                            color: themed ? Colors.white : textDarkGrey(context),
+                          ),
+                        ),
+                      )
                     : RefreshIndicator(
+                        color: accent,
                         onRefresh: _load,
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
@@ -77,8 +109,22 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                gradient: StyleRes.themeGradient,
-                                borderRadius: BorderRadius.circular(16),
+                                gradient: client
+                                    ? ClientColors.ctaGradient
+                                    : const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFF4D9A),
+                                          Color(0xFFB140D8),
+                                        ],
+                                      ),
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: accent.withValues(alpha: 0.35),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
                               ),
                               child: Row(
                                 children: [
@@ -155,7 +201,7 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                             _HubTile(
                               iconWidget: PodiumIcon(
                                 size: 28,
-                                color: textDarkGrey(context),
+                                color: themed ? accent : textDarkGrey(context),
                               ),
                               title: LKey.honorWall.tr,
                               subtitle: user?['honor_rank'] != null
@@ -168,7 +214,7 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                               iconWidget: Icon(
                                 Icons.emoji_events_outlined,
                                 size: 28,
-                                color: textDarkGrey(context),
+                                color: themed ? accent : textDarkGrey(context),
                               ),
                               title: LKey.leaderboard.tr,
                               subtitle: AppRole.isClient()
@@ -180,6 +226,8 @@ class _PrivilegeHubScreenState extends State<PrivilegeHubScreen> {
                           ],
                         ),
                       ),
+          ),
+        ],
           ),
         ],
       ),
@@ -204,16 +252,37 @@ class _HubTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
+    final themed = client || streamer;
+    final accent = client ? ClientColors.primary : const Color(0xFFE879F9);
+    final titleColor = client
+        ? ClientColors.text
+        : (streamer ? Colors.white : textDarkGrey(context));
+    final subtitleColor = client
+        ? ClientColors.textMuted
+        : (streamer ? Colors.white70 : textLightGrey(context));
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: bgLightGrey(context),
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration: themed
+            ? BoxDecoration(
+                color: client
+                    ? const Color(0x99101828)
+                    : const Color(0xCC160820),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: client ? ClientColors.border : const Color(0x73E879F9),
+                ),
+              )
+            : BoxDecoration(
+                color: bgLightGrey(context),
+                borderRadius: BorderRadius.circular(12),
+              ),
         child: Row(
           children: [
             iconWidget ??
@@ -221,7 +290,7 @@ class _HubTile extends StatelessWidget {
                   icon!,
                   width: 28,
                   height: 28,
-                  color: textDarkGrey(context),
+                  color: themed ? accent : textDarkGrey(context),
                 ),
             const SizedBox(width: 12),
             Expanded(
@@ -230,14 +299,15 @@ class _HubTile extends StatelessWidget {
                 children: [
                   Text(title,
                       style: TextStyleCustom.outFitMedium500(
-                          color: textDarkGrey(context), fontSize: 15)),
+                          color: titleColor, fontSize: 15)),
                   Text(subtitle,
                       style: TextStyleCustom.outFitRegular400(
-                          color: textLightGrey(context), fontSize: 12)),
+                          color: subtitleColor, fontSize: 12)),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: textLightGrey(context)),
+            Icon(Icons.chevron_right,
+                color: themed ? accent : textLightGrey(context)),
           ],
         ),
       ),
@@ -347,10 +417,32 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
+    final themed = client || streamer;
+    final accent = client ? ClientColors.primary : const Color(0xFFE879F9);
+
     return Scaffold(
-      body: Column(
+      backgroundColor: client
+          ? ClientColors.bg
+          : (streamer ? const Color(0xFF07010E) : null),
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          CustomAppBar(title: LKey.dressingCenter.tr),
+          if (themed) BrandWashBg(vivid: streamer),
+          Column(
+        children: [
+          CustomAppBar(
+            title: LKey.dressingCenter.tr,
+            bgColor: streamer ? Colors.transparent : null,
+            iconColor: streamer ? Colors.white : null,
+            titleStyle: streamer
+                ? TextStyleCustom.unboundedMedium500(
+                    color: Colors.white,
+                    fontSize: 18,
+                  )
+                : null,
+          ),
           Expanded(
             child: loading
                 ? const LoaderWidget()
@@ -379,13 +471,21 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                             return Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: bgLightGrey(context),
-                                borderRadius: BorderRadius.circular(14),
+                                color: themed
+                                    ? (client
+                                        ? const Color(0x99101828)
+                                        : const Color(0xCC160820))
+                                    : bgLightGrey(context),
+                                borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: item.equipped
-                                      ? themeAccentSolid(context)
-                                      : Colors.transparent,
-                                  width: 1.5,
+                                      ? accent
+                                      : (themed
+                                          ? (client
+                                              ? ClientColors.border
+                                              : const Color(0x73E879F9))
+                                          : Colors.transparent),
+                                  width: item.equipped ? 1.8 : 1,
                                 ),
                               ),
                               child: Column(
@@ -396,7 +496,11 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyleCustom.outFitMedium500(
-                                          color: textDarkGrey(context),
+                                          color: themed
+                                              ? (client
+                                                  ? ClientColors.text
+                                                  : Colors.white)
+                                              : textDarkGrey(context),
                                           fontSize: 13)),
                                   Text(
                                     item.audience == 'streamer'
@@ -406,7 +510,11 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                                             : 'Streamer')
                                         : '${LKey.level.tr} ${item.unlockLevel}',
                                     style: TextStyleCustom.outFitRegular400(
-                                        color: textLightGrey(context),
+                                        color: themed
+                                            ? (client
+                                                ? ClientColors.textMuted
+                                                : Colors.white70)
+                                            : textLightGrey(context),
                                         fontSize: 11),
                                   ),
                                   const Spacer(),
@@ -420,11 +528,15 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                                             ? LKey.equipped.tr
                                             : LKey.equip.tr,
                                     backgroundColor: item.unlocked
-                                        ? themeAccentSolid(context)
-                                        : bgGrey(context),
+                                        ? accent
+                                        : (themed
+                                            ? const Color(0x66140A22)
+                                            : bgGrey(context)),
                                     titleColor: item.unlocked
                                         ? whitePure(context)
-                                        : textLightGrey(context),
+                                        : (themed
+                                            ? Colors.white54
+                                            : textLightGrey(context)),
                                     btnHeight: 32,
                                     fontSize: 12,
                                     horizontalMargin: 0,
@@ -436,6 +548,8 @@ class _DressingCenterScreenState extends State<DressingCenterScreen> {
                           },
                         ),
                       ),
+          ),
+        ],
           ),
         ],
       ),
@@ -514,73 +628,125 @@ class _HonorWallScreenState extends State<HonorWallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final client = AppRole.isClient();
+    final streamer = AppRole.isStreamer();
+    final themed = client || streamer;
+    final accent = client ? ClientColors.primary : const Color(0xFFE879F9);
+    final nameColor = client ? ClientColors.text : Colors.white;
+    final muted = client ? ClientColors.textMuted : Colors.white70;
+
     return Scaffold(
-      body: Column(
+      backgroundColor: client
+          ? ClientColors.bg
+          : (streamer ? const Color(0xFF07010E) : null),
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          CustomAppBar(title: LKey.honorWall.tr),
-          Expanded(
-            child: loading
-                ? const LoaderWidget()
-                : NoDataView(
-                    showShow: users.isEmpty,
-                    title: LKey.honorWall.tr,
-                    description: LKey.noData.tr,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: users.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final u = users[index];
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: bgLightGrey(context),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Text('#${index + 1}',
-                                  style: TextStyleCustom.unboundedMedium500(
-                                      color: themeAccentSolid(context),
-                                      fontSize: 14)),
-                              const SizedBox(width: 10),
-                              CustomImage(
-                                size: const Size(44, 44),
-                                image: u.profilePhoto?.addBaseURL(),
-                                fullName: u.fullname ?? u.username,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(u.fullname ?? u.username ?? '-',
-                                        style: TextStyleCustom.outFitMedium500(
-                                            color: textDarkGrey(context),
-                                            fontSize: 14)),
-                                    Text(
-                                      '${LKey.level.tr} ${u.levelNumber}'
-                                      '${u.isSvip == 1 ? ' · ${LKey.svip.tr}' : ''}',
-                                      style: TextStyleCustom.outFitRegular400(
-                                          color: textLightGrey(context),
-                                          fontSize: 12),
+          if (themed) BrandWashBg(vivid: streamer),
+          Column(
+            children: [
+              CustomAppBar(
+                title: LKey.honorWall.tr,
+                bgColor: streamer ? Colors.transparent : null,
+                iconColor: streamer ? Colors.white : null,
+                titleStyle: streamer
+                    ? TextStyleCustom.unboundedMedium500(
+                        color: Colors.white,
+                        fontSize: 18,
+                      )
+                    : null,
+              ),
+              Expanded(
+                child: loading
+                    ? const LoaderWidget()
+                    : NoDataView(
+                        showShow: users.isEmpty,
+                        title: LKey.honorWall.tr,
+                        description: LKey.noData.tr,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                          itemCount: users.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final u = users[index];
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: themed
+                                  ? BoxDecoration(
+                                      color: client
+                                          ? const Color(0x99101828)
+                                          : const Color(0x66140818),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: client
+                                            ? ClientColors.border
+                                            : const Color(0x73E879F9),
+                                      ),
+                                    )
+                                  : BoxDecoration(
+                                      color: bgLightGrey(context),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                  ],
-                                ),
+                              child: Row(
+                                children: [
+                                  Text('#${index + 1}',
+                                      style:
+                                          TextStyleCustom.unboundedMedium500(
+                                              color: themed
+                                                  ? accent
+                                                  : themeAccentSolid(context),
+                                              fontSize: 14)),
+                                  const SizedBox(width: 10),
+                                  CustomImage(
+                                    size: const Size(44, 44),
+                                    image: u.profilePhoto?.addBaseURL(),
+                                    fullName: u.fullname ?? u.username,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(u.fullname ?? u.username ?? '-',
+                                            style: TextStyleCustom
+                                                .outFitMedium500(
+                                                    color: themed
+                                                        ? nameColor
+                                                        : textDarkGrey(
+                                                            context),
+                                                    fontSize: 14)),
+                                        Text(
+                                          '${LKey.level.tr} ${u.levelNumber}'
+                                          '${u.isSvip == 1 ? ' · ${LKey.svip.tr}' : ''}',
+                                          style: TextStyleCustom
+                                              .outFitRegular400(
+                                                  color: themed
+                                                      ? muted
+                                                      : textLightGrey(context),
+                                                  fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Image.asset(AssetRes.icCoin,
+                                      width: 16, height: 16),
+                                  const SizedBox(width: 4),
+                                  Text(u.coinCollectedLifetime.numberFormat,
+                                      style: TextStyleCustom.outFitRegular400(
+                                          color: themed
+                                              ? nameColor
+                                              : textDarkGrey(context),
+                                          fontSize: 13)),
+                                ],
                               ),
-                              Image.asset(AssetRes.icCoin,
-                                  width: 16, height: 16),
-                              const SizedBox(width: 4),
-                              Text(u.coinCollectedLifetime.numberFormat,
-                                  style: TextStyleCustom.outFitRegular400(
-                                      color: textDarkGrey(context),
-                                      fontSize: 13)),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                            );
+                          },
+                        ),
+                      ),
+              ),
+            ],
           ),
         ],
       ),
