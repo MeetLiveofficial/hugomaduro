@@ -206,7 +206,7 @@ class CoinWalletScreenController extends BaseController {
               ),
             ),
             const SizedBox(height: 16),
-            if (settings?.wompiEnabled != false)
+            if (settings?.voletEnabled != false)
               _PaymentOptionTile(
                 client: client,
                 highlighted: true,
@@ -842,7 +842,7 @@ class _PaymentTrustRow extends StatelessWidget {
   }
 }
 
-enum _PaymentKind { crypto, wompi }
+enum _PaymentKind { crypto, volet }
 
 class _PaymentPendingDialog extends StatefulWidget {
   final String orderId;
