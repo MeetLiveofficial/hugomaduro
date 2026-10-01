@@ -206,7 +206,7 @@ class CoinWalletScreenController extends BaseController {
               ),
             ),
             const SizedBox(height: 16),
-            if (settings?.voletEnabled != false)
+            if (settings?.wompiEnabled != false)
               _PaymentOptionTile(
                 client: client,
                 highlighted: true,
@@ -222,7 +222,7 @@ class CoinWalletScreenController extends BaseController {
                   Get.back();
                   Future<void>.delayed(
                     const Duration(milliseconds: 180),
-                    () => onPurchaseVolet(offer),
+                    () => onPurchaseWompi(offer),
                   );
                 },
               ),
@@ -250,7 +250,7 @@ class CoinWalletScreenController extends BaseController {
                   onPurchaseStore(offer);
                 },
               ),
-            if (settings?.voletEnabled == false &&
+            if (settings?.wompiEnabled == false &&
                 settings?.nowpaymentsEnabled == false &&
                 !offer.canPurchaseViaStore)
               Padding(
@@ -373,7 +373,7 @@ class CoinWalletScreenController extends BaseController {
     );
   }
 
-  Future<void> onPurchaseVolet(CoinPlan offer) async {
+  Future<void> onPurchaseWompi(CoinPlan offer) async {
     if (offer.coinPackageId < 1) {
       showSnackBar(LKey.somethingWentWrong.tr);
       return;
@@ -382,13 +382,13 @@ class CoinWalletScreenController extends BaseController {
     showLoader(barrierDismissible: false);
     Map<String, dynamic> result;
     try {
-      result = await GiftWalletService.instance.createVoletPayment(
+      result = await GiftWalletService.instance.createWompiPayment(
         coinPackageId: offer.coinPackageId,
         appLanguage: Get.locale?.languageCode,
       );
     } catch (_) {
       stopLoader();
-      showSnackBar('No se pudo iniciar el pago con Volet. Intenta de nuevo.');
+      showSnackBar('No se pudo iniciar el pago con tarjeta. Intenta de nuevo.');
       return;
     }
     stopLoader();
@@ -396,7 +396,7 @@ class CoinWalletScreenController extends BaseController {
     if (result['ok'] != true) {
       showSnackBar(
         (result['message'] ??
-                'No se pudo iniciar el pago con Volet. Intenta de nuevo.')
+                'No se pudo iniciar el pago con tarjeta. Intenta de nuevo.')
             .toString(),
       );
       return;
@@ -404,7 +404,7 @@ class CoinWalletScreenController extends BaseController {
 
     final created = result['data'] as Map<String, dynamic>?;
     if (created == null) {
-      showSnackBar('No se pudo iniciar el pago con Volet. Intenta de nuevo.');
+      showSnackBar('No se pudo iniciar el pago con tarjeta. Intenta de nuevo.');
       return;
     }
 
@@ -421,7 +421,7 @@ class CoinWalletScreenController extends BaseController {
     await invoiceUrl.lunchUrl;
     await _showPaymentPendingDialog(
       orderId,
-      _PaymentKind.volet,
+      _PaymentKind.wompi,
       checkoutUrl: invoiceUrl,
       amountUsd: created['amount_usd'] ?? offer.amountUsd,
     );
@@ -842,7 +842,7 @@ class _PaymentTrustRow extends StatelessWidget {
   }
 }
 
-enum _PaymentKind { crypto, volet }
+enum _PaymentKind { crypto, wompi }
 
 class _PaymentPendingDialog extends StatefulWidget {
   final String orderId;
@@ -886,19 +886,19 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
     if (_checking) return;
     _checking = true;
     try {
-      final data = widget.kind == _PaymentKind.volet
+      final data = widget.kind == _PaymentKind.wompi
           ? await GiftWalletService.instance
-              .checkVoletPayment(orderId: widget.orderId)
+              .checkWompiPayment(orderId: widget.orderId)
           : await GiftWalletService.instance
               .checkCryptoPayment(orderId: widget.orderId);
       if (!mounted || data == null) return;
 
       final status = (data['status'] ?? 'pending').toString();
-      final isVolet = widget.kind == _PaymentKind.volet;
+      final isWompi = widget.kind == _PaymentKind.wompi;
       setState(() {
         _status = status;
         if (status == 'confirming') {
-          _message = isVolet
+          _message = isWompi
               ? LKey.confirmingPayment.tr
               : LKey.confirmingBlockchain.tr;
         } else if (status == 'partially_paid') {
@@ -906,8 +906,8 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
         } else if (status == 'failed' || status == 'expired') {
           _message = LKey.paymentNotCompleted.tr;
         } else {
-          _message = isVolet
-              ? LKey.waitingVoletPayment.tr
+          _message = isWompi
+              ? LKey.waitingCardPayment.tr
               : LKey.waitingCryptoPayment.tr;
         }
       });
@@ -953,8 +953,8 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
       title: Text(
         failed
             ? 'Pago no completado'
-            : (widget.kind == _PaymentKind.volet
-                ? 'Pago Volet en curso'
+            : (widget.kind == _PaymentKind.wompi
+                ? 'Pago con tarjeta en curso'
                 : 'Pago crypto en curso'),
         style: TextStyleCustom.outFitMedium500(
           color: textDarkGrey(context),
@@ -984,11 +984,11 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
             ),
           ),
           if (!failed &&
-              widget.kind == _PaymentKind.volet &&
+              widget.kind == _PaymentKind.wompi &&
               widget.amountUsd != null) ...[
             const SizedBox(height: 12),
             Text(
-              LKey.voletUsdHint.trParams({
+              LKey.wompiLocalChargeHint.trParams({
                 'amount': CoinPlan.formatUsdAmount(widget.amountUsd!),
               }),
               textAlign: TextAlign.center,
@@ -1012,8 +1012,8 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
           TextButton(
             onPressed: () => widget.checkoutUrl!.lunchUrl,
             child: Text(
-              widget.kind == _PaymentKind.volet
-                  ? 'Abrir Volet'
+              widget.kind == _PaymentKind.wompi
+                  ? 'Abrir Wompi'
                   : 'Abrir pago',
               style: TextStyle(color: StyleRes.brandAccent),
             ),

@@ -108,7 +108,7 @@ class Setting {
   int matchGoddessCoins;
   int matchGraceSeconds;
   List<MatchTier> matchTiers;
-  bool voletEnabled;
+  bool wompiEnabled;
   bool nowpaymentsEnabled;
   int matchDailyFreeQuota;
   double hostSharePercentLive;
@@ -189,7 +189,7 @@ class Setting {
     this.matchGoddessCoins = 25,
     this.matchGraceSeconds = 10,
     List<MatchTier>? matchTiers,
-    this.voletEnabled = true,
+    this.wompiEnabled = true,
     this.nowpaymentsEnabled = true,
     this.matchDailyFreeQuota = 2,
     this.hostSharePercentLive = 35,
@@ -342,10 +342,7 @@ class Setting {
             _asInt(cfg["grace_seconds"]) ??
             10,
         matchTiers: MatchTier.listFrom(cfg["tiers"] ?? json["match_tiers"]),
-        voletEnabled: (_asInt(json["volet_enabled"]) ??
-                _asInt(json["wompi_enabled"]) ??
-                1) !=
-            0,
+        wompiEnabled: (_asInt(json["wompi_enabled"]) ?? 1) != 0,
         nowpaymentsEnabled: (_asInt(json["nowpayments_enabled"]) ?? 1) != 0,
         matchDailyFreeQuota: _asInt(json["match_daily_free_quota"]) ??
             _asInt(cfg["daily_free_quota"]) ??
@@ -455,7 +452,7 @@ class Setting {
         "match_grace_seconds": matchGraceSeconds,
         "match_daily_free_quota": matchDailyFreeQuota,
         "match_tiers": matchTiers.map((t) => t.toJson()).toList(),
-        "volet_enabled": voletEnabled,
+        "wompi_enabled": wompiEnabled,
         "nowpayments_enabled": nowpaymentsEnabled,
         "host_share_percent_live": hostSharePercentLive,
         "host_share_percent_standard": hostSharePercentStandard,

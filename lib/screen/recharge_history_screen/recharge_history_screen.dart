@@ -126,7 +126,7 @@ class RechargeHistoryController extends BaseController {
     isLoading.value = true;
     try {
       await GiftWalletService.instance.syncPendingCryptoPayments();
-      await GiftWalletService.instance.syncPendingVoletPayments();
+      await GiftWalletService.instance.syncPendingWompiPayments();
       final list = await GiftWalletService.instance.fetchMyRecharges();
       items.assignAll(list);
       final user = await UserService.instance.fetchUserDetails(
