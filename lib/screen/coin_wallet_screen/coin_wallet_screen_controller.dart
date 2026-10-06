@@ -16,6 +16,7 @@ import 'package:krimson/languages/catalog_i18n.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/model/user_model/user_model.dart';
+import 'package:krimson/screen/coin_wallet_screen/wompi_checkout_screen.dart';
 import 'package:krimson/utilities/app_res.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/style_res.dart';
@@ -418,13 +419,17 @@ class CoinWalletScreenController extends BaseController {
       return;
     }
 
-    await invoiceUrl.lunchUrl;
+    await _openWompiCheckout(invoiceUrl);
     await _showPaymentPendingDialog(
       orderId,
       _PaymentKind.wompi,
       checkoutUrl: invoiceUrl,
       amountUsd: created['amount_usd'] ?? offer.amountUsd,
     );
+  }
+
+  Future<void> _openWompiCheckout(String url) async {
+    await Get.to<void>(() => WompiCheckoutScreen(url: url));
   }
 
   String _withCheckoutLang(String url) {
@@ -1010,7 +1015,14 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
         ),
         if (!failed && (widget.checkoutUrl ?? '').isNotEmpty)
           TextButton(
-            onPressed: () => widget.checkoutUrl!.lunchUrl,
+            onPressed: () {
+              final url = widget.checkoutUrl!;
+              if (widget.kind == _PaymentKind.wompi) {
+                Get.to<void>(() => WompiCheckoutScreen(url: url));
+                return;
+              }
+              url.lunchUrl;
+            },
             child: Text(
               widget.kind == _PaymentKind.wompi
                   ? 'Abrir Wompi'
