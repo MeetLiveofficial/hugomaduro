@@ -280,6 +280,61 @@ class GiftWalletService {
     return Map<String, dynamic>.from(data);
   }
 
+  Future<Map<String, dynamic>> createWhopPayment({
+    required int coinPackageId,
+    String? appLanguage,
+  }) async {
+    try {
+      final json = await ApiService.instance.call(
+        url: WebService.giftWallet.createWhopPayment,
+        fromJson: (j) => j,
+        param: {
+          Params.coinPackageId: coinPackageId,
+          if (appLanguage != null && appLanguage.trim().isNotEmpty)
+            Params.appLanguage: appLanguage.trim(),
+        },
+      );
+      if (json['status'] == true && json['data'] is Map) {
+        return {
+          'ok': true,
+          'data': Map<String, dynamic>.from(json['data'] as Map),
+        };
+      }
+      return {
+        'ok': false,
+        'message': (json['message'] ?? 'No se pudo iniciar el pago con Whop')
+            .toString(),
+      };
+    } catch (e) {
+      var msg = e.toString();
+      if (msg.startsWith('Exception: ')) {
+        msg = msg.substring(11);
+      }
+      if (msg.length > 180) {
+        msg = '${msg.substring(0, 180)}…';
+      }
+      return {
+        'ok': false,
+        'message': msg.isNotEmpty
+            ? msg
+            : 'No se pudo iniciar el pago con Whop. Intenta de nuevo.',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>?> checkWhopPayment(
+      {required String orderId}) async {
+    final json = await ApiService.instance.call(
+      url: WebService.giftWallet.checkWhopPayment,
+      fromJson: (j) => j,
+      param: {Params.orderId: orderId},
+    );
+    if (json['status'] != true) return null;
+    final data = json['data'];
+    if (data is! Map) return null;
+    return Map<String, dynamic>.from(data);
+  }
+
   Future<int> syncPendingWompiPayments() async {
     final json = await ApiService.instance.call(
       url: WebService.giftWallet.syncPendingWompiPayments,

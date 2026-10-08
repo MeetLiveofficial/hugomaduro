@@ -938,6 +938,8 @@ class LKey {
   static const String notNow = "Not now";
   static const String payCardPseNequi = "Card / PSE / Nequi";
   static const String payWompi = "Wompi · Colombia and International";
+  static const String payWhop = "Whop";
+  static const String payWhopHint = "International card · USD";
   static const String payVolet = "pay_volet";
   static const String payVoletHint = "Volet.com · account, card and crypto";
   static const String voletUsdHint =

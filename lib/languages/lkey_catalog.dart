@@ -781,6 +781,8 @@ class LKeyCatalog {
     LKey.notNow,
     LKey.payCardPseNequi,
     LKey.payWompi,
+    LKey.payWhop,
+    LKey.payWhopHint,
     LKey.payVolet,
     LKey.payVoletHint,
     LKey.voletUsdHint,

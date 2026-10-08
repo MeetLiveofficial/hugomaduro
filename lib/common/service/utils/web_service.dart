@@ -138,6 +138,8 @@ class _GiftWallet {
   String syncPendingCryptoPayments = "${apiURL}misc/syncPendingCryptoPayments";
   String createWompiPayment = "${apiURL}misc/createWompiPayment";
   String checkWompiPayment = "${apiURL}misc/checkWompiPayment";
+  String createWhopPayment = "${apiURL}misc/createWhopPayment";
+  String checkWhopPayment = "${apiURL}misc/checkWhopPayment";
   String syncPendingWompiPayments = "${apiURL}misc/syncPendingWompiPayments";
 }
 

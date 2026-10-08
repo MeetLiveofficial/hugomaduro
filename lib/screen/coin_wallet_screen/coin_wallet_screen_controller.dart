@@ -227,6 +227,21 @@ class CoinWalletScreenController extends BaseController {
                   );
                 },
               ),
+            if (settings?.whopEnabled != false)
+              _PaymentOptionTile(
+                client: client,
+                kind: _PayVisual.card,
+                icon: Icons.credit_card_rounded,
+                title: LKey.payWhop.tr,
+                subtitle: LKey.payWhopHint.tr,
+                onTap: () {
+                  Get.back();
+                  Future<void>.delayed(
+                    const Duration(milliseconds: 180),
+                    () => onPurchaseWhop(offer),
+                  );
+                },
+              ),
             if (settings?.nowpaymentsEnabled != false)
               _PaymentOptionTile(
                 client: client,
@@ -252,6 +267,7 @@ class CoinWalletScreenController extends BaseController {
                 },
               ),
             if (settings?.wompiEnabled == false &&
+                settings?.whopEnabled == false &&
                 settings?.nowpaymentsEnabled == false &&
                 !offer.canPurchaseViaStore)
               Padding(
@@ -423,6 +439,59 @@ class CoinWalletScreenController extends BaseController {
     await _showPaymentPendingDialog(
       orderId,
       _PaymentKind.wompi,
+      checkoutUrl: invoiceUrl,
+      amountUsd: created['amount_usd'] ?? offer.amountUsd,
+    );
+  }
+
+  Future<void> onPurchaseWhop(CoinPlan offer) async {
+    if (offer.coinPackageId < 1) {
+      showSnackBar(LKey.somethingWentWrong.tr);
+      return;
+    }
+
+    showLoader(barrierDismissible: false);
+    Map<String, dynamic> result;
+    try {
+      result = await GiftWalletService.instance.createWhopPayment(
+        coinPackageId: offer.coinPackageId,
+        appLanguage: Get.locale?.languageCode,
+      );
+    } catch (_) {
+      stopLoader();
+      showSnackBar('No se pudo iniciar el pago con Whop. Intenta de nuevo.');
+      return;
+    }
+    stopLoader();
+
+    if (result['ok'] != true) {
+      showSnackBar(
+        (result['message'] ?? 'No se pudo iniciar el pago con Whop. Intenta de nuevo.')
+            .toString(),
+      );
+      return;
+    }
+
+    final created = result['data'] as Map<String, dynamic>?;
+    if (created == null) {
+      showSnackBar('No se pudo iniciar el pago con Whop. Intenta de nuevo.');
+      return;
+    }
+
+    final invoiceUrl = _withCheckoutLang((created['invoice_url'] ??
+            created['checkout_url'] ??
+            '')
+        .toString());
+    final orderId = (created['order_id'] ?? '').toString();
+    if (invoiceUrl.isEmpty || orderId.isEmpty) {
+      showSnackBar(LKey.somethingWentWrong.tr);
+      return;
+    }
+
+    await _openWompiCheckout(invoiceUrl);
+    await _showPaymentPendingDialog(
+      orderId,
+      _PaymentKind.whop,
       checkoutUrl: invoiceUrl,
       amountUsd: created['amount_usd'] ?? offer.amountUsd,
     );
@@ -847,7 +916,7 @@ class _PaymentTrustRow extends StatelessWidget {
   }
 }
 
-enum _PaymentKind { crypto, wompi }
+enum _PaymentKind { crypto, wompi, whop }
 
 class _PaymentPendingDialog extends StatefulWidget {
   final String orderId;
@@ -891,19 +960,23 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
     if (_checking) return;
     _checking = true;
     try {
-      final data = widget.kind == _PaymentKind.wompi
-          ? await GiftWalletService.instance
-              .checkWompiPayment(orderId: widget.orderId)
-          : await GiftWalletService.instance
-              .checkCryptoPayment(orderId: widget.orderId);
+      final data = switch (widget.kind) {
+        _PaymentKind.wompi => await GiftWalletService.instance
+            .checkWompiPayment(orderId: widget.orderId),
+        _PaymentKind.whop => await GiftWalletService.instance
+            .checkWhopPayment(orderId: widget.orderId),
+        _PaymentKind.crypto => await GiftWalletService.instance
+            .checkCryptoPayment(orderId: widget.orderId),
+      };
       if (!mounted || data == null) return;
 
       final status = (data['status'] ?? 'pending').toString();
-      final isWompi = widget.kind == _PaymentKind.wompi;
+      final isCard = widget.kind == _PaymentKind.wompi ||
+          widget.kind == _PaymentKind.whop;
       setState(() {
         _status = status;
         if (status == 'confirming') {
-          _message = isWompi
+          _message = isCard
               ? LKey.confirmingPayment.tr
               : LKey.confirmingBlockchain.tr;
         } else if (status == 'partially_paid') {
@@ -911,9 +984,11 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
         } else if (status == 'failed' || status == 'expired') {
           _message = LKey.paymentNotCompleted.tr;
         } else {
-          _message = isWompi
-              ? LKey.waitingCardPayment.tr
-              : LKey.waitingCryptoPayment.tr;
+          _message = widget.kind == _PaymentKind.whop
+              ? 'Esperando tu pago en Whop…'
+              : (isCard
+                  ? LKey.waitingCardPayment.tr
+                  : LKey.waitingCryptoPayment.tr);
         }
       });
 
@@ -958,9 +1033,11 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
       title: Text(
         failed
             ? 'Pago no completado'
-            : (widget.kind == _PaymentKind.wompi
-                ? 'Pago con tarjeta en curso'
-                : 'Pago crypto en curso'),
+            : (widget.kind == _PaymentKind.whop
+                ? 'Pago con Whop en curso'
+                : (widget.kind == _PaymentKind.wompi
+                    ? 'Pago con tarjeta en curso'
+                    : 'Pago crypto en curso')),
         style: TextStyleCustom.outFitMedium500(
           color: textDarkGrey(context),
           fontSize: 16,
@@ -1017,16 +1094,19 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
           TextButton(
             onPressed: () {
               final url = widget.checkoutUrl!;
-              if (widget.kind == _PaymentKind.wompi) {
+              if (widget.kind == _PaymentKind.wompi ||
+                  widget.kind == _PaymentKind.whop) {
                 Get.to<void>(() => WompiCheckoutScreen(url: url));
                 return;
               }
               url.lunchUrl;
             },
             child: Text(
-              widget.kind == _PaymentKind.wompi
-                  ? 'Abrir Wompi'
-                  : 'Abrir pago',
+              widget.kind == _PaymentKind.whop
+                  ? 'Abrir Whop'
+                  : (widget.kind == _PaymentKind.wompi
+                      ? 'Abrir Wompi'
+                      : 'Abrir pago'),
               style: TextStyle(color: StyleRes.brandAccent),
             ),
           ),

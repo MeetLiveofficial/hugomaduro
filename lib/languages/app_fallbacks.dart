@@ -742,6 +742,8 @@ const appFallbackEn = <String, String>{
   LKey.notNow: 'Not now',
   LKey.payCardPseNequi: 'Card / PSE / Nequi',
   LKey.payWompi: 'Wompi · Colombia and International',
+  LKey.payWhop: 'Whop',
+  LKey.payWhopHint: 'International card · USD',
   LKey.payVolet: 'Volet',
   LKey.payVoletHint: 'Volet.com · account, card and crypto',
   LKey.voletUsdHint:
@@ -1660,6 +1662,8 @@ const appFallbackEs = <String, String>{
   LKey.notNow: 'Ahora no',
   LKey.payCardPseNequi: 'Tarjeta / Nequi / QR',
   LKey.payWompi: 'Wompi · Colombia e Internacional',
+  LKey.payWhop: 'Whop',
+  LKey.payWhopHint: 'Tarjeta internacional · USD',
   LKey.payVolet: 'Volet',
   LKey.payVoletHint: 'Volet.com · cuenta, tarjeta y cripto',
   LKey.voletUsdHint:
