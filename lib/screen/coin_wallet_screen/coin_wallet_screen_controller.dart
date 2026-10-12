@@ -143,6 +143,21 @@ class CoinWalletScreenController extends BaseController {
     _showPaymentMethodSheet(offer);
   }
 
+  String _shownTitle(String? custom, String fallback) {
+    final value = (custom ?? '').trim();
+    return value.isEmpty ? fallback : value;
+  }
+
+  String _shownSubtitle(String? custom, String fallback, {String amount = ''}) {
+    final value = (custom ?? '').trim();
+    var base = value.isEmpty ? fallback : value;
+    if (!base.contains('@amount')) return base;
+    if (amount.isEmpty) {
+      return base.replaceAll('@amount', '').replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+    }
+    return base.replaceAll('@amount', amount);
+  }
+
   void _showPaymentMethodSheet(CoinPlan offer) {
     final ctx = Get.context;
     final client = AppRole.isClient();
@@ -213,12 +228,16 @@ class CoinWalletScreenController extends BaseController {
                 highlighted: true,
                 kind: _PayVisual.card,
                 icon: Icons.credit_card_rounded,
-                title: LKey.payCardPseNequi.tr,
-                subtitle: offer.usdAmountText.isEmpty
-                    ? LKey.payWompi.tr
-                    : LKey.wompiLocalChargeHint.trParams(
-                        {'amount': offer.usdAmountText},
-                      ),
+                title: _shownTitle(settings?.wompiTitle, LKey.payCardPseNequi.tr),
+                subtitle: _shownSubtitle(
+                  settings?.wompiSubtitle,
+                  offer.usdAmountText.isEmpty
+                      ? LKey.payWompi.tr
+                      : LKey.wompiLocalChargeHint.trParams(
+                          {'amount': offer.usdAmountText},
+                        ),
+                  amount: offer.usdAmountText,
+                ),
                 onTap: () {
                   Get.back();
                   Future<void>.delayed(
@@ -230,10 +249,14 @@ class CoinWalletScreenController extends BaseController {
             if (settings?.whopEnabled != false)
               _PaymentOptionTile(
                 client: client,
+                highlighted: settings?.wompiEnabled == false,
                 kind: _PayVisual.card,
                 icon: Icons.credit_card_rounded,
-                title: LKey.payWhop.tr,
-                subtitle: LKey.payWhopHint.tr,
+                title: _shownTitle(settings?.whopTitle, LKey.payWhop.tr),
+                subtitle: _shownSubtitle(
+                  settings?.whopSubtitle,
+                  LKey.payWhopHint.tr,
+                ),
                 onTap: () {
                   Get.back();
                   Future<void>.delayed(
@@ -247,8 +270,11 @@ class CoinWalletScreenController extends BaseController {
                 client: client,
                 kind: _PayVisual.crypto,
                 icon: Icons.currency_bitcoin,
-                title: LKey.cryptocurrencies.tr,
-                subtitle: LKey.usdtNowPayments.tr,
+                title: _shownTitle(settings?.cryptoTitle, LKey.cryptocurrencies.tr),
+                subtitle: _shownSubtitle(
+                  settings?.cryptoSubtitle,
+                  LKey.usdtNowPayments.tr,
+                ),
                 onTap: () {
                   Get.back();
                   onPurchaseCrypto(offer);
@@ -387,6 +413,7 @@ class CoinWalletScreenController extends BaseController {
       orderId,
       _PaymentKind.crypto,
       checkoutUrl: invoiceUrl,
+      methodLabel: _shownTitle(settings?.cryptoTitle, LKey.cryptocurrencies.tr),
     );
   }
 
@@ -441,6 +468,7 @@ class CoinWalletScreenController extends BaseController {
       _PaymentKind.wompi,
       checkoutUrl: invoiceUrl,
       amountUsd: created['amount_usd'] ?? offer.amountUsd,
+      methodLabel: _shownTitle(settings?.wompiTitle, LKey.payCardPseNequi.tr),
     );
   }
 
@@ -494,6 +522,7 @@ class CoinWalletScreenController extends BaseController {
       _PaymentKind.whop,
       checkoutUrl: invoiceUrl,
       amountUsd: created['amount_usd'] ?? offer.amountUsd,
+      methodLabel: _shownTitle(settings?.whopTitle, LKey.payWhop.tr),
     );
   }
 
@@ -517,6 +546,7 @@ class CoinWalletScreenController extends BaseController {
     _PaymentKind kind, {
     String? checkoutUrl,
     num? amountUsd,
+    String methodLabel = '',
   }) async {
     await Get.dialog(
       _PaymentPendingDialog(
@@ -524,6 +554,7 @@ class CoinWalletScreenController extends BaseController {
         kind: kind,
         checkoutUrl: checkoutUrl,
         amountUsd: amountUsd,
+        methodLabel: methodLabel,
         onFinished: (user) {
           if (user != null) {
             myUser.value = user;
@@ -923,6 +954,7 @@ class _PaymentPendingDialog extends StatefulWidget {
   final _PaymentKind kind;
   final String? checkoutUrl;
   final num? amountUsd;
+  final String methodLabel;
   final void Function(User? user) onFinished;
 
   const _PaymentPendingDialog({
@@ -931,6 +963,7 @@ class _PaymentPendingDialog extends StatefulWidget {
     required this.onFinished,
     this.checkoutUrl,
     this.amountUsd,
+    this.methodLabel = '',
   });
 
   @override
@@ -984,8 +1017,9 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
         } else if (status == 'failed' || status == 'expired') {
           _message = LKey.paymentNotCompleted.tr;
         } else {
-          _message = widget.kind == _PaymentKind.whop
-              ? 'Esperando tu pago en Whop…'
+          final label = widget.methodLabel.trim();
+          _message = label.isNotEmpty
+              ? 'Esperando tu pago en $label…'
               : (isCard
                   ? LKey.waitingCardPayment.tr
                   : LKey.waitingCryptoPayment.tr);
@@ -1033,11 +1067,9 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
       title: Text(
         failed
             ? 'Pago no completado'
-            : (widget.kind == _PaymentKind.whop
-                ? 'Pago con Whop en curso'
-                : (widget.kind == _PaymentKind.wompi
-                    ? 'Pago con tarjeta en curso'
-                    : 'Pago crypto en curso')),
+            : (widget.methodLabel.trim().isEmpty
+                ? 'Pago en curso'
+                : 'Pago con ${widget.methodLabel.trim()} en curso'),
         style: TextStyleCustom.outFitMedium500(
           color: textDarkGrey(context),
           fontSize: 16,
@@ -1102,11 +1134,9 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
               url.lunchUrl;
             },
             child: Text(
-              widget.kind == _PaymentKind.whop
-                  ? 'Abrir Whop'
-                  : (widget.kind == _PaymentKind.wompi
-                      ? 'Abrir Wompi'
-                      : 'Abrir pago'),
+              widget.methodLabel.trim().isEmpty
+                  ? 'Abrir pago'
+                  : 'Abrir ${widget.methodLabel.trim()}',
               style: TextStyle(color: StyleRes.brandAccent),
             ),
           ),

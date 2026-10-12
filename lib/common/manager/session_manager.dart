@@ -497,6 +497,9 @@ class SessionManager {
 
   void setLogin(bool isLog) {
     storage.write(SessionKeys.isLogin, isLog);
+    if (isLog) {
+      storage.write(SessionKeys.hasEverLoggedIn, true);
+    }
   }
 
   bool get shouldOpenEULASheet {
@@ -542,6 +545,8 @@ class SessionKeys {
   static const notifyCount = "notify_count";
   static const isLanguageScreenSelect = "is_language_screen_select";
   static const isOnBoardingScreenSelect = "is_on_boarding_screen_select";
+  static const welcomeBannerSeen = "welcome_banner_seen";
+  static const hasEverLoggedIn = "has_ever_logged_in";
   static const deviceUuid = "device_uuid";
   static const lastGuest = "last_guest";
 }

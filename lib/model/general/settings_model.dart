@@ -111,6 +111,15 @@ class Setting {
   bool wompiEnabled;
   bool whopEnabled;
   bool nowpaymentsEnabled;
+  String wompiTitle;
+  String wompiSubtitle;
+  String whopTitle;
+  String whopSubtitle;
+  String cryptoTitle;
+  String cryptoSubtitle;
+  bool welcomeBannerEnabled;
+  String welcomeBannerUrl;
+  String welcomeBannerVersion;
   int matchDailyFreeQuota;
   double hostSharePercentLive;
   double hostSharePercentStandard;
@@ -193,6 +202,15 @@ class Setting {
     this.wompiEnabled = true,
     this.whopEnabled = true,
     this.nowpaymentsEnabled = true,
+    this.wompiTitle = '',
+    this.wompiSubtitle = '',
+    this.whopTitle = '',
+    this.whopSubtitle = '',
+    this.cryptoTitle = '',
+    this.cryptoSubtitle = '',
+    this.welcomeBannerEnabled = false,
+    this.welcomeBannerUrl = '',
+    this.welcomeBannerVersion = '',
     this.matchDailyFreeQuota = 2,
     this.hostSharePercentLive = 35,
     this.hostSharePercentStandard = 30,
@@ -347,6 +365,15 @@ class Setting {
         wompiEnabled: (_asInt(json["wompi_enabled"]) ?? 1) != 0,
         whopEnabled: (_asInt(json["whop_enabled"]) ?? 1) != 0,
         nowpaymentsEnabled: (_asInt(json["nowpayments_enabled"]) ?? 1) != 0,
+        wompiTitle: (json["wompi_title"] ?? '').toString(),
+        wompiSubtitle: (json["wompi_subtitle"] ?? '').toString(),
+        whopTitle: (json["whop_title"] ?? '').toString(),
+        whopSubtitle: (json["whop_subtitle"] ?? '').toString(),
+        cryptoTitle: (json["nowpayments_title"] ?? '').toString(),
+        cryptoSubtitle: (json["nowpayments_subtitle"] ?? '').toString(),
+        welcomeBannerEnabled: (_asInt(json["welcome_banner_enabled"]) ?? 0) != 0,
+        welcomeBannerUrl: (json["welcome_banner_url"] ?? '').toString(),
+        welcomeBannerVersion: (json["welcome_banner_version"] ?? '').toString(),
         matchDailyFreeQuota: _asInt(json["match_daily_free_quota"]) ??
             _asInt(cfg["daily_free_quota"]) ??
             2,
@@ -458,6 +485,15 @@ class Setting {
         "wompi_enabled": wompiEnabled,
         "whop_enabled": whopEnabled,
         "nowpayments_enabled": nowpaymentsEnabled,
+        "wompi_title": wompiTitle,
+        "wompi_subtitle": wompiSubtitle,
+        "whop_title": whopTitle,
+        "whop_subtitle": whopSubtitle,
+        "nowpayments_title": cryptoTitle,
+        "nowpayments_subtitle": cryptoSubtitle,
+        "welcome_banner_enabled": welcomeBannerEnabled,
+        "welcome_banner_url": welcomeBannerUrl,
+        "welcome_banner_version": welcomeBannerVersion,
         "host_share_percent_live": hostSharePercentLive,
         "host_share_percent_standard": hostSharePercentStandard,
         "agency_share_percent": agencySharePercent,

@@ -22,6 +22,7 @@ import 'package:krimson/languages/dynamic_translations.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/screen/auth_screen/login_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen.dart';
+import 'package:krimson/screen/welcome_banner_screen/welcome_banner_screen.dart';
 import 'package:krimson/utilities/app_res.dart';
 
 class SplashScreenController extends BaseController {
@@ -66,6 +67,10 @@ class SplashScreenController extends BaseController {
 
   Future<void> fetchSettings() async {
     try {
+      if (SessionManager.instance.isLogin()) {
+        await SessionManager.instance
+            .setBool(SessionKeys.hasEverLoggedIn, true);
+      }
       await Future.delayed(const Duration(milliseconds: 800));
       bool showNavigate = false;
       try {
@@ -105,7 +110,7 @@ class SplashScreenController extends BaseController {
         if (await _tryRestoreSession()) return;
         showSnackBar(AppRes.languageAdd, second: 5);
         translations.ensureAllFallbacks();
-        Get.offAll(() => const LoginScreen(), routeName: '/login');
+        _openLogin();
         return;
       }
 
@@ -141,19 +146,41 @@ class SplashScreenController extends BaseController {
 
       if (await _tryRestoreSession()) return;
 
-      Get.offAll(() => const LoginScreen(), routeName: '/login');
-      unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
+      _openLogin();
     } catch (e, st) {
       Loggers.error('Splash fetchSettings error: $e\n$st');
       if (isSessionAuthFailure(e)) {
         SessionManager.instance.clearSomeKey();
-        Get.offAll(() => const LoginScreen(), routeName: '/login');
+        _openLogin();
         return;
       }
       if (await _tryRestoreSession()) return;
       showSnackBar('Error de inicio: $e', second: 8);
-      Get.offAll(() => const LoginScreen(), routeName: '/login');
+      _openLogin();
     }
+  }
+
+  /// Login, o el banner de bienvenida si aún no ha entrado nunca.
+  void _openLogin() {
+    if (_shouldShowWelcomeBanner()) {
+      Get.offAll(() => const WelcomeBannerScreen(), routeName: '/welcome-banner');
+      return;
+    }
+    Get.offAll(() => const LoginScreen(), routeName: '/login');
+    unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
+  }
+
+  bool _shouldShowWelcomeBanner() {
+    if (SessionManager.instance.isLogin()) return false;
+    if (SessionManager.instance.getBool(SessionKeys.hasEverLoggedIn)) {
+      return false;
+    }
+    if (SessionManager.instance.getBool(SessionKeys.welcomeBannerSeen)) {
+      return false;
+    }
+    final setting = SessionManager.instance.getSettings();
+    final url = (setting?.welcomeBannerUrl ?? '').trim();
+    return setting?.welcomeBannerEnabled == true && url.isNotEmpty;
   }
 
   /// Restaura sesión (Guest o usuario normal) desde almacenamiento local.
