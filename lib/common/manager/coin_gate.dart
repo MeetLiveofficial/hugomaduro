@@ -9,6 +9,7 @@ import 'package:krimson/common/widget/no_data_widget.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
 import 'package:krimson/screen/coin_wallet_screen/recharge_promo_dialog.dart';
+import 'package:krimson/screen/coin_wallet_screen/wallet_banners.dart';
 import 'package:krimson/screen/coin_wallet_screen/widget/coin_package_tile.dart';
 import 'package:krimson/utilities/client_colors.dart';
 import 'package:krimson/utilities/color_res.dart';
@@ -64,6 +65,15 @@ class CoinGate {
       unawaited(RechargePromo.show());
       return;
     }
+    unawaited(_openShopAfterBanners(headline));
+  }
+
+  static Future<void> _openShopAfterBanners(String? headline) async {
+    await WalletBanners.present();
+    _showShop(headline);
+  }
+
+  static void _showShop(String? headline) {
     if (!Get.isRegistered<CoinWalletScreenController>()) {
       Get.put(CoinWalletScreenController());
     } else {

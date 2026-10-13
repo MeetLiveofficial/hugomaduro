@@ -22,7 +22,6 @@ import 'package:krimson/languages/dynamic_translations.dart';
 import 'package:krimson/model/general/settings_model.dart';
 import 'package:krimson/screen/auth_screen/login_screen.dart';
 import 'package:krimson/screen/dashboard_screen/dashboard_screen.dart';
-import 'package:krimson/screen/welcome_banner_screen/welcome_banner_screen.dart';
 import 'package:krimson/utilities/app_res.dart';
 
 class SplashScreenController extends BaseController {
@@ -160,27 +159,10 @@ class SplashScreenController extends BaseController {
     }
   }
 
-  /// Login, o el banner de bienvenida si aún no ha entrado nunca.
+  /// Login. Los banners salen después, al abrir el monedero.
   void _openLogin() {
-    if (_shouldShowWelcomeBanner()) {
-      Get.offAll(() => const WelcomeBannerScreen(), routeName: '/welcome-banner');
-      return;
-    }
     Get.offAll(() => const LoginScreen(), routeName: '/login');
     unawaited(AppUpdateService.instance.maybeShowUpdateDialog());
-  }
-
-  bool _shouldShowWelcomeBanner() {
-    if (SessionManager.instance.isLogin()) return false;
-    if (SessionManager.instance.getBool(SessionKeys.hasEverLoggedIn)) {
-      return false;
-    }
-    if (SessionManager.instance.getBool(SessionKeys.welcomeBannerSeen)) {
-      return false;
-    }
-    final setting = SessionManager.instance.getSettings();
-    final url = (setting?.welcomeBannerUrl ?? '').trim();
-    return setting?.welcomeBannerEnabled == true && url.isNotEmpty;
   }
 
   /// Restaura sesión (Guest o usuario normal) desde almacenamiento local.

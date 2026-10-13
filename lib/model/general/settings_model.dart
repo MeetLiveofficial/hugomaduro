@@ -120,6 +120,7 @@ class Setting {
   bool welcomeBannerEnabled;
   String welcomeBannerUrl;
   String welcomeBannerVersion;
+  List<WelcomeBannerSlide> welcomeBanners;
   int matchDailyFreeQuota;
   double hostSharePercentLive;
   double hostSharePercentStandard;
@@ -211,13 +212,15 @@ class Setting {
     this.welcomeBannerEnabled = false,
     this.welcomeBannerUrl = '',
     this.welcomeBannerVersion = '',
+    List<WelcomeBannerSlide>? welcomeBanners,
     this.matchDailyFreeQuota = 2,
     this.hostSharePercentLive = 35,
     this.hostSharePercentStandard = 30,
     this.agencySharePercent = 10,
     this.callCameraFlipCoins = 100,
     this.callCameraOffCoins = 100,
-  }) : matchTiers = matchTiers ?? MatchTier.defaults;
+  })  : matchTiers = matchTiers ?? MatchTier.defaults,
+        welcomeBanners = welcomeBanners ?? const [];
 
   factory Setting.fromJson(Map<String, dynamic> json) {
     final cfg = json["match_config"] is Map
@@ -374,6 +377,7 @@ class Setting {
         welcomeBannerEnabled: (_asInt(json["welcome_banner_enabled"]) ?? 0) != 0,
         welcomeBannerUrl: (json["welcome_banner_url"] ?? '').toString(),
         welcomeBannerVersion: (json["welcome_banner_version"] ?? '').toString(),
+        welcomeBanners: WelcomeBannerSlide.listFrom(json["welcome_banners"]),
         matchDailyFreeQuota: _asInt(json["match_daily_free_quota"]) ??
             _asInt(cfg["daily_free_quota"]) ??
             2,
@@ -482,18 +486,19 @@ class Setting {
         "match_grace_seconds": matchGraceSeconds,
         "match_daily_free_quota": matchDailyFreeQuota,
         "match_tiers": matchTiers.map((t) => t.toJson()).toList(),
-        "wompi_enabled": wompiEnabled,
-        "whop_enabled": whopEnabled,
-        "nowpayments_enabled": nowpaymentsEnabled,
+        "wompi_enabled": wompiEnabled ? 1 : 0,
+        "whop_enabled": whopEnabled ? 1 : 0,
+        "nowpayments_enabled": nowpaymentsEnabled ? 1 : 0,
         "wompi_title": wompiTitle,
         "wompi_subtitle": wompiSubtitle,
         "whop_title": whopTitle,
         "whop_subtitle": whopSubtitle,
         "nowpayments_title": cryptoTitle,
         "nowpayments_subtitle": cryptoSubtitle,
-        "welcome_banner_enabled": welcomeBannerEnabled,
+        "welcome_banner_enabled": welcomeBannerEnabled ? 1 : 0,
         "welcome_banner_url": welcomeBannerUrl,
         "welcome_banner_version": welcomeBannerVersion,
+        "welcome_banners": welcomeBanners.map((b) => b.toJson()).toList(),
         "host_share_percent_live": hostSharePercentLive,
         "host_share_percent_standard": hostSharePercentStandard,
         "agency_share_percent": agencySharePercent,
@@ -503,9 +508,13 @@ class Setting {
 
   static int? _asInt(dynamic v) {
     if (v == null) return null;
+    if (v is bool) return v ? 1 : 0;
     if (v is int) return v;
     if (v is num) return v.toInt();
-    return int.tryParse('$v');
+    final text = '$v'.trim().toLowerCase();
+    if (text == 'true') return 1;
+    if (text == 'false') return 0;
+    return int.tryParse(text);
   }
 
   static double? _asDouble(dynamic v) {
@@ -513,6 +522,46 @@ class Setting {
     if (v is double) return v;
     if (v is num) return v.toDouble();
     return double.tryParse('$v');
+  }
+}
+
+class WelcomeBannerSlide {
+  const WelcomeBannerSlide({
+    required this.url,
+    required this.version,
+    required this.display,
+  });
+
+  final String url;
+  final String version;
+
+  /// 0 tamaño original, 1 pantalla completa, 2 mitad inferior.
+  final int display;
+
+  bool get fullscreen => display == 1;
+  bool get halfScreenBottom => display == 2;
+
+  Map<String, dynamic> toJson() => {
+        'url': url,
+        'version': version,
+        'display': display,
+      };
+
+  static List<WelcomeBannerSlide> listFrom(dynamic raw) {
+    if (raw is! List) return const [];
+    final items = <WelcomeBannerSlide>[];
+    for (final row in raw) {
+      if (row is! Map) continue;
+      final url = (row['url'] ?? '').toString().trim();
+      if (url.isEmpty) continue;
+      final mode = Setting._asInt(row['display']) ?? 0;
+      items.add(WelcomeBannerSlide(
+        url: url,
+        version: (row['version'] ?? '').toString(),
+        display: mode == 1 || mode == 2 ? mode : 0,
+      ));
+    }
+    return items;
   }
 }
 

@@ -5,6 +5,7 @@ import 'package:krimson/common/manager/session_manager.dart';
 import 'package:krimson/languages/catalog_i18n.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
+import 'package:krimson/screen/coin_wallet_screen/wallet_banners.dart';
 import 'package:krimson/screen/coin_wallet_screen/widget/coin_pack_visuals.dart';
 import 'package:krimson/utilities/asset_res.dart';
 import 'package:krimson/utilities/client_colors.dart';
@@ -23,13 +24,14 @@ class RechargePromo {
   }) async {
     if (_open) return;
     _open = true;
-    if (!Get.isRegistered<CoinWalletScreenController>()) {
-      Get.put(CoinWalletScreenController());
-    } else {
-      Get.find<CoinWalletScreenController>().fetchData();
-      Get.find<CoinWalletScreenController>().fetchOfferings();
-    }
     try {
+      await WalletBanners.present();
+      if (!Get.isRegistered<CoinWalletScreenController>()) {
+        Get.put(CoinWalletScreenController());
+      } else {
+        Get.find<CoinWalletScreenController>().fetchData();
+        Get.find<CoinWalletScreenController>().fetchOfferings();
+      }
       await Get.bottomSheet<void>(
         const _RechargePromoBody(),
         isScrollControlled: true,
@@ -51,7 +53,7 @@ class _RechargePromoBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<CoinWalletScreenController>();
     final mq = MediaQuery.of(context);
-    final sheetH = (mq.size.height * 0.82) + mq.padding.bottom;
+    final sheetH = (mq.size.height * 0.68) + mq.padding.bottom;
 
     return SizedBox(
       height: sheetH,

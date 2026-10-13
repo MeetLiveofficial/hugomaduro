@@ -143,19 +143,12 @@ class CoinWalletScreenController extends BaseController {
     _showPaymentMethodSheet(offer);
   }
 
-  String _shownTitle(String? custom, String fallback) {
-    final value = (custom ?? '').trim();
-    return value.isEmpty ? fallback : value;
+  String _shownTitle(String? custom, String key) {
+    return CatalogI18n.paymentText(custom, key);
   }
 
-  String _shownSubtitle(String? custom, String fallback, {String amount = ''}) {
-    final value = (custom ?? '').trim();
-    var base = value.isEmpty ? fallback : value;
-    if (!base.contains('@amount')) return base;
-    if (amount.isEmpty) {
-      return base.replaceAll('@amount', '').replaceAll(RegExp(r'\s{2,}'), ' ').trim();
-    }
-    return base.replaceAll('@amount', amount);
+  String _shownSubtitle(String? custom, String key, {String amount = ''}) {
+    return CatalogI18n.paymentText(custom, key, amount: amount);
   }
 
   void _showPaymentMethodSheet(CoinPlan offer) {
@@ -228,14 +221,12 @@ class CoinWalletScreenController extends BaseController {
                 highlighted: true,
                 kind: _PayVisual.card,
                 icon: Icons.credit_card_rounded,
-                title: _shownTitle(settings?.wompiTitle, LKey.payCardPseNequi.tr),
+                title: _shownTitle(settings?.wompiTitle, LKey.payCardPseNequi),
                 subtitle: _shownSubtitle(
                   settings?.wompiSubtitle,
                   offer.usdAmountText.isEmpty
-                      ? LKey.payWompi.tr
-                      : LKey.wompiLocalChargeHint.trParams(
-                          {'amount': offer.usdAmountText},
-                        ),
+                      ? LKey.payWompi
+                      : LKey.wompiLocalChargeHint,
                   amount: offer.usdAmountText,
                 ),
                 onTap: () {
@@ -252,10 +243,10 @@ class CoinWalletScreenController extends BaseController {
                 highlighted: settings?.wompiEnabled == false,
                 kind: _PayVisual.card,
                 icon: Icons.credit_card_rounded,
-                title: _shownTitle(settings?.whopTitle, LKey.payWhop.tr),
+                title: _shownTitle(settings?.whopTitle, LKey.payWhop),
                 subtitle: _shownSubtitle(
                   settings?.whopSubtitle,
-                  LKey.payWhopHint.tr,
+                  LKey.payWhopHint,
                 ),
                 onTap: () {
                   Get.back();
@@ -270,10 +261,10 @@ class CoinWalletScreenController extends BaseController {
                 client: client,
                 kind: _PayVisual.crypto,
                 icon: Icons.currency_bitcoin,
-                title: _shownTitle(settings?.cryptoTitle, LKey.cryptocurrencies.tr),
+                title: _shownTitle(settings?.cryptoTitle, LKey.cryptocurrencies),
                 subtitle: _shownSubtitle(
                   settings?.cryptoSubtitle,
-                  LKey.usdtNowPayments.tr,
+                  LKey.usdtNowPayments,
                 ),
                 onTap: () {
                   Get.back();
@@ -413,7 +404,7 @@ class CoinWalletScreenController extends BaseController {
       orderId,
       _PaymentKind.crypto,
       checkoutUrl: invoiceUrl,
-      methodLabel: _shownTitle(settings?.cryptoTitle, LKey.cryptocurrencies.tr),
+      methodLabel: _shownTitle(settings?.cryptoTitle, LKey.cryptocurrencies),
     );
   }
 
@@ -468,7 +459,7 @@ class CoinWalletScreenController extends BaseController {
       _PaymentKind.wompi,
       checkoutUrl: invoiceUrl,
       amountUsd: created['amount_usd'] ?? offer.amountUsd,
-      methodLabel: _shownTitle(settings?.wompiTitle, LKey.payCardPseNequi.tr),
+      methodLabel: _shownTitle(settings?.wompiTitle, LKey.payCardPseNequi),
     );
   }
 
@@ -522,7 +513,7 @@ class CoinWalletScreenController extends BaseController {
       _PaymentKind.whop,
       checkoutUrl: invoiceUrl,
       amountUsd: created['amount_usd'] ?? offer.amountUsd,
-      methodLabel: _shownTitle(settings?.whopTitle, LKey.payWhop.tr),
+      methodLabel: _shownTitle(settings?.whopTitle, LKey.payWhop),
     );
   }
 

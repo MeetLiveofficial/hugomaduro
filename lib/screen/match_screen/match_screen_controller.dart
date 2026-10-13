@@ -591,6 +591,6 @@ class MatchScreenController extends BaseController
   }
 
   void openWallet() {
-    Get.to(() => const CoinWalletScreen());
+    CoinWalletScreen.open();
   }
 }

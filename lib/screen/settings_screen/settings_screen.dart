@@ -159,7 +159,7 @@ class SettingsScreen extends StatelessWidget {
                 iconColor: settingRowIcon(ColorRes.mlPurple),
                 title: LKey.coinWallet,
                 onTap: () async {
-                  await Get.to(() => const CoinWalletScreen());
+                  await CoinWalletScreen.open();
                 },
               ),
               if (AppRole.canWithdraw() && !AppRole.isStreamer())

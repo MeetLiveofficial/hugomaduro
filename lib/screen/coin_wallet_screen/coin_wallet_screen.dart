@@ -5,6 +5,7 @@ import 'package:krimson/common/widget/brand_wash_bg.dart';
 import 'package:krimson/common/widget/gradient_text.dart';
 import 'package:krimson/languages/languages_keys.dart';
 import 'package:krimson/screen/coin_wallet_screen/coin_wallet_screen_controller.dart';
+import 'package:krimson/screen/coin_wallet_screen/wallet_banners.dart';
 import 'package:krimson/screen/coin_wallet_screen/widget/coin_wallet_list.dart';
 import 'package:krimson/screen/coin_wallet_screen/widget/coin_wallet_top_view.dart';
 import 'package:krimson/screen/wallet_history_screen/wallet_history_screen.dart';
@@ -14,6 +15,12 @@ import 'package:krimson/utilities/theme_res.dart';
 
 class CoinWalletScreen extends StatelessWidget {
   const CoinWalletScreen({super.key});
+
+  /// Banners de la sesión y, al cerrar el último, el monedero.
+  static Future<T?> open<T>() async {
+    await WalletBanners.present();
+    return Get.to<T>(() => const CoinWalletScreen());
+  }
 
   @override
   Widget build(BuildContext context) {

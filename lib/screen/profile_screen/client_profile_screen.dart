@@ -77,7 +77,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
   Future<void> _openWallet() async {
     if (GuestGate.block()) return;
-    await Get.to(() => const CoinWalletScreen());
+    await CoinWalletScreen.open();
     await _refresh();
   }
 
