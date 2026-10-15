@@ -55,7 +55,36 @@ class CatalogI18n {
     if (value.isEmpty || isKnownPaymentCopy(value, key)) {
       return _applyAmount(key.tr, amount);
     }
+    final found = _translationKey(value);
+    if (found != null) {
+      return _applyAmount(found.tr, amount);
+    }
     return _applyAmount(value, amount);
+  }
+
+  /// El texto del admin coincide con una frase de Idiomas: se muestra
+  /// en el idioma activo. Una frase que no está en Idiomas se deja igual.
+  static String? _translationKey(String raw) {
+    final normalized = _norm(raw);
+    if (normalized.isEmpty) return null;
+    final maps = <Map<String, String>>[
+      appFallbackEn,
+      appFallbackEs,
+      appFallbackPt,
+      appFallbackAr,
+      appFallbackRu,
+      appFallbackUk,
+      appFallbackZh,
+      ...Get.translations.values,
+    ];
+    for (final map in maps) {
+      for (final entry in map.entries) {
+        if (_norm(entry.key) == normalized || _norm(entry.value) == normalized) {
+          return entry.key;
+        }
+      }
+    }
+    return null;
   }
 
   static bool isKnownPaymentCopy(String raw, String key) {

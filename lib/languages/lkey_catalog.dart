@@ -783,6 +783,7 @@ class LKeyCatalog {
     LKey.payWompi,
     LKey.payWhop,
     LKey.payWhopHint,
+    LKey.cardWord,
     LKey.payVolet,
     LKey.payVoletHint,
     LKey.voletUsdHint,

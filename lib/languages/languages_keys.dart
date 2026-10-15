@@ -940,6 +940,7 @@ class LKey {
   static const String payWompi = "Wompi · Colombia and International";
   static const String payWhop = "Whop";
   static const String payWhopHint = "International card · USD";
+  static const String cardWord = "Card";
   static const String payVolet = "pay_volet";
   static const String payVoletHint = "Volet.com · account, card and crypto";
   static const String voletUsdHint =
