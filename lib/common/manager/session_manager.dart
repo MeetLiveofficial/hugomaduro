@@ -275,6 +275,12 @@ class SessionManager {
     };
   }
 
+  String? _usableDeviceUuid(String? value) {
+    if (value == null || value.length < 8) return null;
+    if (DeviceIdentity.isLegacySharedUuid(value)) return null;
+    return value;
+  }
+
   /// ANDROID_ID / Keychain iOS. Hay que llamarlo antes de login Guest.
   Future<String> ensureDeviceUuid() {
     return _ensureDeviceUuidFuture ??= _ensureDeviceUuidImpl();
@@ -283,9 +289,10 @@ class SessionManager {
   Future<String> _ensureDeviceUuidImpl() async {
     try {
       final storedRaw = storage.read(SessionKeys.deviceUuid);
-      final stored =
-          storedRaw is String && storedRaw.length >= 8 ? storedRaw : null;
-      final persisted = await DeviceIdentity.readPersisted();
+      final stored = _usableDeviceUuid(
+        storedRaw is String ? storedRaw : null,
+      );
+      final persisted = _usableDeviceUuid(await DeviceIdentity.readPersisted());
       final seed = await DeviceIdentity.hardwareSeed();
       final hardware =
           seed == null ? null : DeviceIdentity.hashSeed(seed);

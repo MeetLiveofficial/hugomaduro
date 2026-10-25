@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:android_id/android_id.dart';
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -8,9 +9,9 @@ import 'package:krimson/utilities/app_platform.dart';
 
 /// Identidad de dispositivo que sobrevive a borrar la app.
 ///
-/// Apple y Google no dan la MAC. En Android se usa ANDROID_ID (equivalente
-/// práctico: mismo valor tras desinstalar). En iOS se guarda en Keychain
-/// (local + iCloud Keychain si está activo).
+/// En Android se usa Settings.Secure.ANDROID_ID (único por dispositivo,
+/// usuario y firma de la app; se mantiene tras desinstalar). En iOS,
+/// identifierForVendor más una copia en Keychain.
 class DeviceIdentity {
   static const _storageKey = 'krimson.device.stable_id';
 
@@ -32,8 +33,18 @@ class DeviceIdentity {
     webOptions: WebOptions(),
   );
 
+  /// Hash viejo de 64 hex: en Android salía de Build.ID, igual en todos
+  /// los teléfonos con la misma versión del sistema. El servidor lo rechaza.
+  static bool isLegacySharedUuid(String value) {
+    return RegExp(r'^[a-f0-9]{64}$').hasMatch(value);
+  }
+
+  /// Identificador v2. No es el SHA-256 completo: así no se confunde con
+  /// el hash compartido de Build.ID.
   static String hashSeed(String seed) {
-    return sha256.convert(utf8.encode('krimson-guest|$seed')).toString();
+    final digest =
+        sha256.convert(utf8.encode('krimson-guest-v2|$seed')).toString();
+    return '2${digest.substring(0, 40)}';
   }
 
   static Future<String?> readPersisted() async {
@@ -59,34 +70,31 @@ class DeviceIdentity {
     } catch (_) {}
   }
 
-  /// Semilla de hardware. En Android es ANDROID_ID (estable tras uninstall).
+  /// Semilla única del aparato. Nunca Build.ID: ese valor es la versión
+  /// de Android y lo comparten todos los teléfonos con la misma compilación.
   static Future<String?> hardwareSeed() async {
     try {
-      final plugin = DeviceInfoPlugin();
       if (AppPlatform.isAndroid) {
-        final info = await plugin.androidInfo;
-        final id = info.id.trim();
-        if (id.isNotEmpty && id.toLowerCase() != 'unknown') {
-          return 'android:$id';
-        }
-        return null;
+        final raw = (await const AndroidId().getId() ?? '').trim();
+        if (!_usableAndroidId(raw)) return null;
+        return 'android:$raw';
       }
       if (AppPlatform.isIOS) {
+        final plugin = DeviceInfoPlugin();
         final info = await plugin.iosInfo;
         final vendor = (info.identifierForVendor ?? '').trim();
         if (vendor.isNotEmpty) {
           return 'ios:$vendor';
         }
-        return null;
-      }
-      if (kIsWeb) {
-        final info = await plugin.webBrowserInfo;
-        final vendor = (info.vendor ?? '').trim();
-        final ua = (info.userAgent ?? '').trim();
-        if (vendor.isEmpty && ua.isEmpty) return null;
-        return 'web:$vendor|$ua';
       }
     } catch (_) {}
     return null;
+  }
+
+  /// ANDROID_ID roto que devolvían algunos Android antiguos a todos.
+  static bool _usableAndroidId(String raw) {
+    if (raw.length < 8) return false;
+    final lower = raw.toLowerCase();
+    return lower != 'unknown' && lower != '9774d56d682e549c';
   }
 }
