@@ -93,9 +93,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     setState(() => _polling = true);
     _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
       try {
-        final user = await UserService.instance.fetchUserDetails(
-          userId: SessionManager.instance.getUserID(),
-        );
+        final user = await _pullStatus();
         if (user == null || !mounted) return;
         setState(() => _statusLabel = user.kycStatus ?? _statusLabel);
         if (user.isKycApproved) {
@@ -115,8 +113,24 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
         }
       } catch (e) {
         Loggers.error('KYC poll: $e');
+        if (mounted) setState(() => _error = e.toString());
       }
     });
+  }
+
+  Future<User?> _pullStatus() async {
+    final data = await UserService.instance.syncKyc();
+    User? user;
+    final rawUser = data['user'];
+    if (rawUser is Map) {
+      user = User.fromJson(Map<String, dynamic>.from(rawUser));
+      SessionManager.instance.setUser(user);
+    }
+    final status = data['kyc_status']?.toString();
+    if (user != null && status != null && status.isNotEmpty) {
+      user.kycStatus = status;
+    }
+    return user;
   }
 
   Future<void> _finishSuccess([User? user]) async {
@@ -132,9 +146,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
   Future<void> _checkNow() async {
     setState(() => _loading = true);
     try {
-      final user = await UserService.instance.fetchUserDetails(
-        userId: SessionManager.instance.getUserID(),
-      );
+      final user = await _pullStatus();
       if (user != null && user.isKycApproved) {
         await _finishSuccess(user);
         return;

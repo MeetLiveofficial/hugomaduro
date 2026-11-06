@@ -153,6 +153,7 @@ class _User {
   String logOutUser = "${apiURL}user/logOutUser";
   String subscribePlus = "${apiURL}user/subscribePlus";
   String startKyc = "${apiURL}user/startKyc";
+  String syncKyc = "${apiURL}user/syncKyc";
   String fetchUserDetails = "${apiURL}user/fetchUserDetails";
   String agencyListWorkers = "${apiURL}user/agencyListWorkers";
   String agencyCreateWorker = "${apiURL}user/agencyCreateWorker";

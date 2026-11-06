@@ -263,6 +263,21 @@ class UserService {
     return response;
   }
 
+  /// Pregunta a Didit el resultado de la sesión y actualiza kyc_status.
+  Future<Map<String, dynamic>> syncKyc() async {
+    final response = await ApiService.instance.call<Map<String, dynamic>>(
+      url: WebService.user.syncKyc,
+    );
+    if (response['status'] != true) {
+      throw Exception(response['message']?.toString() ?? 'KYC status check failed');
+    }
+    final data = response['data'];
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    return response;
+  }
+
   Future<User?> fetchUserDetails({int? userId, Function()? onError}) async {
     UserModel userModel = await ApiService.instance.call(
         url: WebService.user.fetchUserDetails,
